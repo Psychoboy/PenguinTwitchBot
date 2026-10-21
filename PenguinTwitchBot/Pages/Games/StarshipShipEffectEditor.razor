@@ -1,0 +1,30 @@
+@using PenguinTwitchBot.Bot.Commands.Games.Starship
+
+<MudStack Spacing="2">
+    <MudCheckBox T="bool" Label="@($"Override {Label}")" Color="Color.Primary" Value="@(Value != null)" ValueChanged="ToggleAsync" />
+    @if (Value is { } effect)
+    {
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="@($"{Label} Hull Delta")" Variant="Variant.Outlined" Min="-100" Max="100" Value="effect.HullDelta" ValueChanged="@(value => ValueChanged.InvokeAsync(effect with { HullDelta = value }))" /></MudItem>
+            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="@($"{Label} Supplies Delta")" Variant="Variant.Outlined" Min="-100" Max="100" Value="effect.SuppliesDelta" ValueChanged="@(value => ValueChanged.InvokeAsync(effect with { SuppliesDelta = value }))" /></MudItem>
+            @if (AllowCost)
+            {
+                <MudItem xs="12" sm="4"><MudNumericField T="int" Label="@($"{Label} Supplies Cost")" Variant="Variant.Outlined" Min="0" Max="100" Value="effect.SuppliesCost" ValueChanged="@(value => ValueChanged.InvokeAsync(effect with { SuppliesCost = value }))" /></MudItem>
+            }
+        </MudGrid>
+    }
+    else
+    {
+        <MudText Typo="Typo.caption" Color="Color.Secondary">Default: hull @(Fallback?.HullDelta ?? 0), supplies @(Fallback?.SuppliesDelta ?? 0)</MudText>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public string Label { get; set; } = "Ship Effect";
+    [Parameter] public StarshipShipEffect? Value { get; set; }
+    [Parameter] public EventCallback<StarshipShipEffect?> ValueChanged { get; set; }
+    [Parameter] public StarshipShipEffect? Fallback { get; set; }
+    [Parameter] public bool AllowCost { get; set; }
+
+    private Task ToggleAsync(bool enabled) => ValueChanged.InvokeAsync(enabled ? Value ?? Fallback ?? new() : null);
+}

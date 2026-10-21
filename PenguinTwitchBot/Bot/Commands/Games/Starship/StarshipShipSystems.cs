@@ -38,8 +38,9 @@ public static class StarshipShipSystems
         effect.Validate();
         if (state.AppliedOperationIds.Contains(operationId, StringComparer.Ordinal)) return StarshipShipEffectResult.AlreadyApplied;
         if (!CanAfford(state, effect)) return StarshipShipEffectResult.InsufficientSupplies;
-        state.Hull = Math.Clamp(state.Hull + effect.HullDelta, 0, StarshipShipSystemsSettings.MaximumResource);
-        state.Supplies = Math.Clamp(state.Supplies - effect.SuppliesCost + effect.SuppliesDelta, 0, StarshipShipSystemsSettings.MaximumResource);
+        var resources = PreviewEffect(state.Hull, state.Supplies, effect);
+        state.Hull = resources.Hull;
+        state.Supplies = resources.Supplies;
         state.AppliedOperationIds.Add(operationId);
         return StarshipShipEffectResult.Applied;
     }
@@ -95,4 +96,32 @@ public static class StarshipShipSystems
     }
 
     public static bool RequiresEmergencyReturn(StarshipShipSystemsSnapshot state) => state.Hull == 0;
+
+    public static StarshipShipEventContext CreateEventContext(StarshipShipSystemsSnapshot state,
+        StarshipExpeditionEventSnapshot expeditionEvent, StarshipEventDefinition definition, StarshipRewardProfile? configuredProfile) => new()
+    {
+        BaseSuccessChancePercent = definition.SuccessChancePercent ?? configuredProfile?.SuccessChancePercent ?? state.Rules.DefaultEventSuccessChancePercent,
+        ResourceSuccessModifierPercent = (state.ActiveBonusEventId == expeditionEvent.EventId ? state.ActiveSuccessBonusPercent : 0) -
+            (state.Supplies == 0 ? state.Rules.EmptySuppliesSuccessPenaltyPercent : 0),
+        HasRewards = configuredProfile?.Enabled == true,
+        SuccessEffect = definition.ShipSuccessEffect,
+        FailureEffect = definition.ShipFailureEffect ?? StarshipEventCatalog.GetDefaultShipFailureEffect(definition.EventType),
+        HullBefore = state.Hull,
+        SuppliesBefore = state.Supplies,
+        HullAfter = state.Hull,
+        SuppliesAfter = state.Supplies
+    };
+
+    public static (int Hull, int Supplies) PreviewEffect(int hull, int supplies, StarshipShipEffect effect)
+    {
+        effect.Validate();
+        return (Math.Clamp(hull + effect.HullDelta, 0, StarshipShipSystemsSettings.MaximumResource),
+            Math.Clamp(supplies - effect.SuppliesCost + effect.SuppliesDelta, 0, StarshipShipSystemsSettings.MaximumResource));
+    }
+
+    public static StarshipShipEffect ScaleOutcomeEffect(StarshipShipEffect effect, int riskPercent) => effect with
+    {
+        HullDelta = effect.HullDelta < 0 ? (int)Math.Clamp((long)effect.HullDelta * riskPercent / 100, -100, 0) : effect.HullDelta,
+        SuppliesDelta = effect.SuppliesDelta < 0 ? (int)Math.Clamp((long)effect.SuppliesDelta * riskPercent / 100, -100, 0) : effect.SuppliesDelta
+    };
 }

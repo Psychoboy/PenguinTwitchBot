@@ -99,6 +99,9 @@
         @if (!IsStructuralDraft)
         {
             <MudDivider />
+            <MudNumericField T="int?" Label="Event Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" Clearable="true" Placeholder="Profile or ship default" @bind-Value="draft.SuccessChancePercent" @bind-Value:after="DraftChanged" />
+            <StarshipShipEffectEditor Label="Success Ship Effect" Value="draft.ShipSuccessEffect" ValueChanged="@(effect => SetOutcomeEffect(effect, true))" />
+            <StarshipShipEffectEditor Label="Failure Ship Effect" Value="draft.ShipFailureEffect" Fallback="@StarshipEventCatalog.GetDefaultShipFailureEffect(draft.EventType)" ValueChanged="@(effect => SetOutcomeEffect(effect, false))" />
             <MudSelect T="string" Label="Reward Profile" Variant="Variant.Outlined" Value="@(draft.RewardProfileId ?? InheritedBinding)" ValueChanged="SetProfile">
                 <MudSelectItem T="string" Value="@string.Empty">No rewards</MudSelectItem>
                 @foreach (var profile in Settings.RewardProfiles) { <MudSelectItem T="string" Value="@profile.Id">@profile.Name</MudSelectItem> }
@@ -158,6 +161,7 @@
                     <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Reveals Rarity" @bind-Value="choice.RevealsRarity" @bind-Value:after="DraftChanged" /></MudItem>
                     <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Ends Without Reward" @bind-Value="choice.EndsWithoutReward" @bind-Value:after="DraftChanged" /></MudItem>
                     <MudItem xs="12"><MudTextField T="string" Label="Granted Flag" Variant="Variant.Outlined" MaxLength="40" @bind-Value="choice.GrantsFlag" @bind-Value:after="DraftChanged" /></MudItem>
+                    <MudItem xs="12"><StarshipShipEffectEditor Label="Choice Ship Effect" AllowCost="true" Value="choice.ShipEffect" ValueChanged="@(effect => SetChoiceEffect(choice, effect))" /></MudItem>
                 }
             </MudGrid>
         }
@@ -174,13 +178,18 @@
         {
             <MudText Typo="Typo.subtitle1">@_preview.Title</MudText>
             <MudText Typo="Typo.body2">@_preview.Description</MudText>
+            @if (_previewDisclosure is { } shipPreview)
+            {
+                <MudText Typo="Typo.caption">Hull @shipPreview.Hull/100; Supplies @shipPreview.Supplies/100; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
+            }
             <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
                 <thead><tr><th>#</th><th>Option</th><th>Effect</th><th>Story</th></tr></thead>
                 <tbody>
                     @for (var index = 0; index < _preview.Choices.Count; index++)
                     {
                         var choice = _preview.Choices[index];
-                        <tr><td>@(index + 1)</td><td>@choice.Label</td><td>@StarshipExpeditionNarrative.DescribeEffects(choice)</td><td>@RenderStory(choice.Story)</td></tr>
+                        var shipChoice = _previewDisclosure?.Choices.FirstOrDefault(item => item.ChoiceId == choice.ChoiceId);
+                        <tr><td>@(shipChoice == null ? (index + 1).ToString() : shipChoice.Number?.ToString() ?? "-")</td><td>@choice.Label</td><td>@StarshipExpeditionNarrative.DescribeEffects(choice) @shipChoice?.Describe()</td><td>@RenderStory(choice.Story)</td></tr>
                     }
                 </tbody>
             </MudSimpleTable>
@@ -216,6 +225,7 @@
     private int _choiceIndex;
     private int _sampleSeed = 12345;
     private StarshipExpeditionEventSnapshot? _preview;
+    private StarshipShipEventDisclosure? _previewDisclosure;
     private IEnumerable<StarshipEventDefinition> FilteredEvents => Settings.EventCatalog.Where(definition =>
         definition.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) || definition.EventType.Contains(_search, StringComparison.OrdinalIgnoreCase));
     private bool IsStructuralDraft => _originalId != null && StarshipEventCatalog.IsStructural(_originalId);
@@ -349,6 +359,19 @@
         DraftChanged();
     }
 
+    private void SetOutcomeEffect(StarshipShipEffect? effect, bool success)
+    {
+        if (success) _draft!.ShipSuccessEffect = effect;
+        else _draft!.ShipFailureEffect = effect;
+        DraftChanged();
+    }
+
+    private void SetChoiceEffect(StarshipChoiceDraft choice, StarshipShipEffect? effect)
+    {
+        choice.ShipEffect = effect;
+        DraftChanged();
+    }
+
     private void CreateOwnedProfile()
     {
         _ownedProfile = new()
@@ -428,6 +451,7 @@
         var definition = _draft.ToDefinition();
         _preview = new()
         {
+            EventId = Guid.NewGuid(),
             EventType = definition.EventType,
             Title = definition.Title,
             Subject = StarshipExpeditionStory.GenerateSubject(_sampleSeed, 2, definition),
@@ -438,6 +462,21 @@
             FailureStory = definition.FailureStory
         };
         _preview.Description = RenderStory(definition.Description);
+        var ship = StarshipShipSystems.Create(Settings.ShipSystems);
+        _previewDisclosure = null;
+        if (ship != null)
+        {
+            StarshipShipSystems.BeginEvent(ship, _preview.EventId, definition.EventType == "StationStop");
+            _preview.ShipContext = StarshipShipSystems.CreateEventContext(ship, _preview, definition, CurrentProfile);
+            var available = _preview.Choices.Where(choice => StarshipShipSystems.CanAfford(ship,
+                definition.EventType == "StationStop" ? StarshipShipSystems.GetStationEffect(ship, choice.ChoiceId) : choice.ShipEffect ?? new())).ToList();
+            var eventForDisclosure = new StarshipExpeditionEventSnapshot
+            {
+                EventId = _preview.EventId, EventType = definition.EventType, Choices = available,
+                ChoicePool = definition.Choices, ShipContext = _preview.ShipContext
+            };
+            _previewDisclosure = StarshipShipEventDisclosure.From(new() { ShipSystems = ship }, eventForDisclosure, CurrentProfile);
+        }
     }
     private string RenderStory(string template) => StarshipExpeditionStory.Render(template, _preview!, _sampleSeed, ["Viewer"], CurrentProfile?.GetTiers().FirstOrDefault(tier => tier.Enabled)?.Name);
     private async Task ExportAsync()

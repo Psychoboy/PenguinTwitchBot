@@ -172,6 +172,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.Contains("EventTitle", openedVariables.Keys);
             Assert.Contains("Choices", openedVariables.Keys);
             Assert.Contains("Duration", openedVariables.Keys);
+            Assert.Contains("Hull", openedVariables.Keys);
+            Assert.Contains("Supplies", openedVariables.Keys);
+            Assert.Contains("ReturnReason", openedVariables.Keys);
+            Assert.DoesNotContain("HullChange", openedVariables.Keys);
             Assert.Contains(TriggerCatalog.AllTriggers, trigger =>
                 trigger.DefaultCommandName == "starship" && trigger.DefaultCommandEventType == DefaultCommandEventTypes.StarshipEventOpened);
 
@@ -189,6 +193,9 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.Contains("VoteCount", resolvedVariables.Keys);
             Assert.Contains("RewardParticipantCount", resolvedVariables.Keys);
             Assert.Contains("RewardTotal", resolvedVariables.Keys);
+            Assert.Contains("HullChange", resolvedVariables.Keys);
+            Assert.Contains("SuppliesBefore", resolvedVariables.Keys);
+            Assert.Contains("EventSuccessModifierPercent", resolvedVariables.Keys);
 
             foreach (var eventType in new[]
                      {

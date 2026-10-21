@@ -86,8 +86,8 @@
                                     </MudItem>
                                 </MudGrid>
                             </MudPaper>
-
-
+                            <MudDivider Class="my-4" />
+                            <StarshipShipSettingsEditor Settings="_settings.ShipSystems" />
                         </MudItem>
 
                         <MudItem xs="12" lg="5">
@@ -100,6 +100,18 @@
                                     <MudIconButton Icon="@Icons.Material.Filled.Refresh" aria-label="Refresh expedition status"
                                                    Disabled="@_isOperating" OnClick="RefreshLiveStatusAsync" />
                                 </MudStack>
+                                @if (_liveSnapshot?.ShipSystems is { IntegrationEnabled: true } liveShip)
+                                {
+                                    <MudText Typo="Typo.body2">Hull @liveShip.Hull / 100</MudText>
+                                    <MudProgressLinear Value="@liveShip.Hull" Color="@(liveShip.Hull <= 25 ? Color.Error : Color.Success)" Class="mb-2" />
+                                    <MudText Typo="Typo.body2">Supplies @liveShip.Supplies / 100</MudText>
+                                    <MudProgressLinear Value="@liveShip.Supplies" Color="@(liveShip.Supplies == 0 ? Color.Warning : Color.Info)" Class="mb-2" />
+                                    <MudText Typo="Typo.caption">Pending bonus +@liveShip.PendingSuccessBonusPercent pp | Active bonus +@liveShip.ActiveSuccessBonusPercent pp</MudText>
+                                    @if (!string.IsNullOrEmpty(_liveSnapshot.ReturnReason))
+                                    {
+                                        <MudAlert Severity="Severity.Warning" Dense="true">Return reason: @_liveSnapshot.ReturnReason</MudAlert>
+                                    }
+                                }
                                 @if (_liveSnapshot?.CurrentEvent is { } activeEvent)
                                 {
                                     <MudText Typo="Typo.subtitle1">@activeEvent.Title</MudText>
@@ -229,6 +241,14 @@
                                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@previewEvent.Sector</MudChip>
                                             </MudStack>
                                             <MudText Typo="Typo.body2">@previewEvent.Description</MudText>
+                                            @if (previewEvent.ShipContext is { } shipPreview)
+                                            {
+                                                <MudText Typo="Typo.caption">Default path: Hull @shipPreview.HullBefore to @shipPreview.HullAfter; Supplies @shipPreview.SuppliesBefore to @shipPreview.SuppliesAfter; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
+                                                @if (shipPreview.HullAfter == 0)
+                                                {
+                                                    <MudText Typo="Typo.body2" Color="Color.Warning">Emergency return: hull depleted.</MudText>
+                                                }
+                                            }
                                             @if (!string.IsNullOrEmpty(previewEvent.Subject))
                                             {
                                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Generated subject: @previewEvent.Subject</MudText>
@@ -243,14 +263,15 @@
                                                     <tr><th>#</th><th>Option</th><th>Effect</th><th>Story (sample viewer: Viewer)</th></tr>
                                                 </thead>
                                                 <tbody>
-                                                    @{ var previewOptions = GetPreviewOptions(previewEvent); }
+                                                    @{ var previewOptions = GetPreviewOptions(previewEvent); var shipDisclosure = GetPreviewShipDisclosure(previewEvent); }
                                                     @for (var optionIndex = 0; optionIndex < previewOptions.Count; optionIndex++)
                                                     {
                                                         var option = previewOptions[optionIndex];
+                                                        var shipChoice = shipDisclosure?.Choices.FirstOrDefault(item => item.ChoiceId == option.ChoiceId);
                                                         <tr>
-                                                            <td>@(optionIndex + 1)</td>
+                                                            <td>@(shipChoice == null ? (optionIndex + 1).ToString() : shipChoice.Number?.ToString() ?? "-")</td>
                                                             <td>@option.Label@(option.ContinuesEvent ? " (next step)" : option.EndsWithoutReward ? " (ends, no reward)" : "")</td>
-                                                            <td>@StarshipExpeditionNarrative.DescribeEffects(option)</td>
+                                                            <td>@StarshipExpeditionNarrative.DescribeEffects(option) @shipChoice?.Describe()</td>
                                                             <td>@StarshipExpeditionStory.Render(option.Story, previewEvent, _previewSeed, ["Viewer"], null)</td>
                                                         </tr>
                                                     }
@@ -394,6 +415,16 @@
 </FeatureGate>
 
 @code {
+    private StarshipShipEventDisclosure? GetPreviewShipDisclosure(StarshipExpeditionEventSnapshot expeditionEvent)
+    {
+        if (expeditionEvent.ShipContext is not { } context || _settings == null) return null;
+        var ship = StarshipShipSystems.Create(_settings.ShipSystems);
+        if (ship == null) return null;
+        ship.Hull = context.HullBefore;
+        ship.Supplies = context.SuppliesBefore;
+        return StarshipShipEventDisclosure.From(new() { ShipSystems = ship }, expeditionEvent, GetRewardProfile(expeditionEvent.EventType));
+    }
+
     private StarshipExpeditionSettings? _settings;
     private StarshipExpeditionSnapshot? _liveSnapshot;
     private IReadOnlyList<StarshipExpeditionEventSnapshot> _previewEvents = [];

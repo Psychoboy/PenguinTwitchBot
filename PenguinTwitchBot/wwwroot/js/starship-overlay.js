@@ -272,7 +272,7 @@
     function renderStatus() {
         const status = snapshot?.status ?? 'Inactive';
         const phase = document.getElementById('phase');
-        phase.textContent = status === 'Inactive' ? 'Awaiting' : status;
+        phase.textContent = snapshot?.shipSystems?.returnReason === 'HullDepleted' ? 'Emergency return' : status === 'Inactive' ? 'Awaiting' : status;
         phase.dataset.status = status;
         setText('sector', snapshot?.currentSector || (hasSnapshot ? 'No active voyage' : 'Connecting to ship'));
         setText('route', snapshot?.currentRoute && snapshot.currentRoute !== 'Uncharted' ? snapshot.currentRoute : 'Route not yet selected');
@@ -288,7 +288,7 @@
         if (status === 'Boarding') timer = 'Takeoff in ' + formatTimeRemaining(snapshot.boardingClosesAtUtc);
         else if (status === 'EventOpen') timer = 'Vote closes in ' + formatTimeRemaining(snapshot.currentEvent?.closesAtUtc);
         else if (status === 'Cruising') timer = 'Next signal ' + formatTimeRemaining(snapshot.nextEventAtUtc);
-        else if (status === 'Returned') timer = 'Voyage complete';
+        else if (status === 'Returned') timer = snapshot?.shipSystems?.returnReason === 'HullDepleted' ? 'Returned early: hull depleted' : 'Voyage complete';
         else if (status === 'Aborted') timer = 'Voyage aborted';
         setText('timing', timer);
 
@@ -299,18 +299,27 @@
     function renderChoices(currentEvent) {
         const list = document.getElementById('choices');
         list.replaceChildren();
-        list.dataset.compact = (currentEvent.choices || []).length > 4 ? 'true' : 'false';
+        const disclosure = currentEvent.shipDisclosure?.choices || [];
+        const choices = (currentEvent.choices || []).slice();
+        disclosure.filter(details => details.available === false).forEach(details => {
+            if (!choices.some(choice => choice.choiceId === details.choiceId)) choices.push({ choiceId: details.choiceId, label: details.label, unavailable: true });
+        });
+        list.dataset.compact = choices.length > 4 ? 'true' : 'false';
+        root.dataset.dense = choices.length >= 4 && disclosure.length ? 'true' : 'false';
         const counts = currentEvent.voteCounts || {};
         const totalVotes = Object.keys(counts).reduce(function (sum, key) { return sum + counts[key]; }, 0);
-        for (const choice of currentEvent.choices || []) {
+        for (const choice of choices) {
+            const details = disclosure.find(item => item.choiceId === choice.choiceId);
+            const unavailable = choice.unavailable || details?.available === false;
             const row = document.createElement('div');
             row.className = 'choice-row';
+            row.dataset.unavailable = unavailable ? 'true' : 'false';
             const label = document.createElement('span');
             label.className = 'choice-label';
             label.textContent = choice.label;
             const command = document.createElement('span');
             command.className = 'choice-command';
-            command.textContent = '!sv ' + (choice.number ?? '');
+            command.textContent = unavailable ? 'Unavailable' : '!sv ' + (choice.number ?? '');
             const votes = document.createElement('span');
             votes.className = 'choice-votes';
             const count = counts[choice.choiceId] ?? 0;
@@ -334,8 +343,60 @@
             fill.style.width = (totalVotes > 0 ? count / totalVotes * 100 : 0) + '%';
             bar.appendChild(fill);
             row.appendChild(bar);
+            if (details) {
+                const effects = document.createElement('span');
+                effects.className = 'ship-choice-effects';
+                effects.textContent = shipChoiceText(details);
+                row.appendChild(effects);
+            }
             list.appendChild(row);
         }
+    }
+
+    function signed(value) { return value > 0 ? '+' + value : String(value); }
+
+    function shipChoiceText(details) {
+        if (details.available === false) return 'Requires ' + details.suppliesCost + ' supplies';
+        const parts = [];
+        if (details.hullDelta) parts.push('Hull ' + signed(details.hullDelta));
+        if (details.suppliesDelta) parts.push('Supplies net ' + signed(details.suppliesDelta));
+        if (details.suppliesCost) parts.push('cost ' + details.suppliesCost + ' supplies');
+        if (details.successChancePercent != null) parts.push(details.successChancePercent + '% success');
+        if (details.nextEventSuccessBonusPercent) parts.push('Next event +' + details.nextEventSuccessBonusPercent + 'pp success');
+        if (details.continuesEvent) parts.push('Next step');
+        const success = [];
+        if (details.successHullDelta) success.push('hull ' + signed(details.successHullDelta));
+        if (details.successSuppliesDelta) success.push('supplies ' + signed(details.successSuppliesDelta));
+        if (success.length) parts.push('Success: ' + success.join(', '));
+        const failure = [];
+        if (details.failureHullDelta) failure.push('hull ' + signed(details.failureHullDelta));
+        if (details.failureSuppliesDelta) failure.push('supplies ' + signed(details.failureSuppliesDelta));
+        if (failure.length) parts.push('Failure: ' + failure.join(', '));
+        return parts.join(' | ') || 'No shared resource effect';
+    }
+
+    function renderShipResources() {
+        const panel = document.getElementById('ship-systems');
+        if (!panel) return;
+        const ship = snapshot?.shipSystems;
+        panel.hidden = !ship;
+        root.dataset.ship = ship ? 'on' : 'off';
+        if (!ship) return;
+        const hull = Math.min(100, Math.max(0, Number(ship.hull) || 0));
+        const supplies = Math.min(100, Math.max(0, Number(ship.supplies) || 0));
+        setText('ship-hull-text', 'Hull ' + hull + '/100');
+        setText('ship-supplies-text', 'Supplies ' + supplies + '/100');
+        const hullFill = document.getElementById('ship-hull-fill');
+        const suppliesFill = document.getElementById('ship-supplies-fill');
+        hullFill.style.width = hull + '%';
+        suppliesFill.style.width = supplies + '%';
+        panel.dataset.hull = hull <= 25 ? 'low' : 'normal';
+        panel.dataset.supplies = supplies === 0 ? 'empty' : 'normal';
+        const bonus = [];
+        if (ship.pendingSuccessBonusPercent) bonus.push('Next +' + ship.pendingSuccessBonusPercent + 'pp');
+        if (ship.activeSuccessBonusPercent) bonus.push('Event +' + ship.activeSuccessBonusPercent + 'pp');
+        if (supplies === 0) bonus.push('Empty supplies');
+        setText('ship-bonus', bonus.join(' | '));
     }
 
     function choiceChips(choice) {
@@ -491,7 +552,7 @@
             const banner = document.getElementById('result-banner');
             const outcome = terminal ? snapshot.status : (latest.outcome || '');
             banner.dataset.outcome = outcome;
-            banner.textContent = terminal ? (outcome === 'Aborted' ? 'Voyage aborted' : 'Voyage complete') : outcome;
+            banner.textContent = terminal ? (snapshot.shipSystems?.returnReason === 'HullDepleted' ? 'Emergency return: hull depleted' : outcome === 'Aborted' ? 'Voyage aborted' : 'Voyage complete') : outcome;
             banner.hidden = !banner.textContent;
             setText('result-choice', terminal ? '' : latest.choice);
             setText('result-detail', terminal ? '' : latest.sector + ' \u00b7 Leg ' + latest.sequence);
@@ -549,6 +610,7 @@
         if (!root) return;
         pumpToast();
         renderShip();
+        renderShipResources();
         if (view === 'status') renderStatus();
         else renderEvent();
     }

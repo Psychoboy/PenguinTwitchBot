@@ -5,7 +5,7 @@ Use **Events & Sectors** on the Starship Expedition page to manage the catalog. 
 ## First Setup
 
 1. Open an event with its edit icon, use **Add Event**, or duplicate a built-in as a custom draft.
-2. Set its wording, availability, subject/art and choices. Select a reward profile if the event should award points or roll success/failure.
+2. Set its wording, availability, subject/art and choices. Select a reward profile if the event should award points. Integrated voyages roll success/failure even without point rewards.
 3. Use **Preview Event** to inspect the description, choice effects and story text with a sample seed. Previewing never starts a voyage, sends chat, runs actions or changes balances.
 4. **Apply Event** validates the whole candidate catalog and updates the page's unsaved settings.
 5. **Save Settings** persists the catalog. It also validates and applies an open draft; invalid drafts prevent saving. Drafts survive tab switches, but not closing or reloading the page.
@@ -23,7 +23,7 @@ These three editable events are added automatically the first time this catalog 
 | [Survey Cache](/help/starship/examples/survey-cache.json) | Scan, optional stabilization, recovery or pass; named subjects and tier loot | Survey Route in Ternion Belt, weight 2 | References the SalvageSite profile |
 | [Debris Crossing](/help/starship/examples/debris-crossing.json) | Balanced, safer or higher-reward choices with different loss exposure | All routes and sectors, weight 1 | References the Hazard profile |
 
-The examples do not choose a point currency or enable an existing reward profile for you. Configure and enable the referenced profile to activate success/rarity rolls, payouts and failure rules. Without an enabled profile, Courier Relay and the other events still produce choice/story and Event Resolved feedback, but do not produce reward-roll success/failure outcomes. A scan only reveals rarity when an enabled reward profile is available.
+The examples do not choose a point currency or enable an existing reward profile for you. Configure and enable the referenced profile to activate rarity, payouts and point-loss rules. On integrated voyages, success/failure and shared ship effects still resolve without points. A scan only reveals rarity when an enabled reward profile is available. Legacy/disabled ship-system voyages keep their previous outcome behavior.
 
 Survey Cache cannot appear if Ternion Belt is disabled or the crew takes the Direct Route. Its no-vote default is to pass. Debris Crossing defaults to navigating the gaps. Courier Relay defaults to continuing the voyage.
 
@@ -52,6 +52,16 @@ Each event offers two to six choices with unique IDs and labels. Five or six cho
 | Ends Without Reward | Resolves the event without rewards or losses |
 
 Keep at least one terminal choice. The default cannot continue or grant a flag, because it must remain available on every step. Custom events do not support personal risky-commit/confirmation choices. Existing crew share an ordinary event; late joiners vote immediately but become reward/loss eligible only from the next whole event.
+
+## Ship Effects
+
+For non-structural events, **Event Success Chance (%)** overrides the bound profile's base chance. Leave it empty to use that profile's chance (even if its payouts are disabled), or the ship-system default when no profile is bound. Shortage, Continue and choice modifiers apply afterward, clamped to 0-100%.
+
+**Override Success/Failure Ship Effect** enables bounded hull/supplies changes (-100 to +100). Leave it off for the displayed default. An explicit zero effect overrides stock damage. Stock failure effects are -15 hull/-5 supplies for Hazard and Debris Crossing, -10/-5 for Salvage and Survey Cache, and -5/-5 for Signal. Negative outcome changes follow accumulated loss multipliers; positive changes are not amplified.
+
+Each choice can also override a **Choice Ship Effect**, including a supply payment of 0-100. That payment must be affordable before voting; a positive supplies gain cannot fund its own payment. The terminal default cannot require supplies, and outcome effects cannot require payment. Continuing choices apply their direct effect once per step, not the terminal outcome effect. Passing skips outcome effects but still applies a configured direct choice effect.
+
+**Preview Event** shows starting resources, numbered available choices, costs, effective chances and potential outcome effects using the same server calculations as the widgets. The seeded route preview simulates safe defaults and stops at zero hull. No preview pays points or runs actions. Route Choice and Station Stop mechanics remain protected.
 
 ## Story Tokens and Media
 

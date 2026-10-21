@@ -722,6 +722,49 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.True(timing is "Takeoff in 00:35" or "Takeoff in 00:34", timing);
         }
 
+        [Theory]
+        [InlineData("status")]
+        [InlineData("event")]
+        public void StarshipWidgets_RenderResourcesAndAuthoritativeUnavailableChoices(string view)
+        {
+            var engine = CreateStarshipOverlayEngine(view);
+            var now = DateTimeOffset.UtcNow;
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "EventOpen", updatedAtUtc = now.ToString("O"), serverNowUtc = now.ToString("O"), currentLeg = 2, legCount = 6,
+                currentSector = "Kepler Reach", currentRoute = "Survey Route", crewCount = 3,
+                shipSystems = new { hull = 20, supplies = 0, pendingSuccessBonusPercent = 0, activeSuccessBonusPercent = 10, returnReason = "" },
+                currentEvent = new
+                {
+                    sequence = 3, eventType = "StationStop", title = "Station", sector = "Kepler Reach", description = "A station.",
+                    closesAtUtc = now.AddMinutes(1).ToString("O"), openedAtUtc = now.ToString("O"), stepNumber = 1, path = Array.Empty<string>(),
+                    choices = new[] { new { choiceId = "resupply", label = "Resupply", number = 1 }, new { choiceId = "continue", label = "Continue", number = 2 } },
+                    defaultChoiceId = "resupply", voteCounts = new Dictionary<string, int>(),
+                    shipDisclosure = new
+                    {
+                        choices = new object[]
+                        {
+                            new { choiceId = "resupply", label = "Resupply", available = true, number = 1, suppliesDelta = 40 },
+                            new { choiceId = "continue", label = "Continue", available = true, number = 2, nextEventSuccessBonusPercent = 10 },
+                            new { choiceId = "repair", label = "Repair", available = false, number = (int?)null, suppliesCost = 15 }
+                        }
+                    }
+                }
+            });
+            Assert.False(engine.Evaluate("document.getElementById('ship-systems').hidden").AsBoolean());
+            Assert.Equal("Hull 20/100", engine.Evaluate("document.getElementById('ship-hull-text').textContent").AsString());
+            Assert.Equal("0%", engine.Evaluate("document.getElementById('ship-supplies-fill').style.width").AsString());
+            Assert.Contains("Empty supplies", engine.Evaluate("document.getElementById('ship-bonus').textContent").AsString());
+            if (view == "event")
+            {
+                Assert.Equal(3, (int)engine.Evaluate("document.getElementById('choices').children.length").AsNumber());
+                Assert.Equal("!sv 2", engine.Evaluate("document.getElementById('choices').children[1].children[1].textContent").AsString());
+                Assert.Equal("Unavailable", engine.Evaluate("document.getElementById('choices').children[2].children[1].textContent").AsString());
+                Assert.Contains("Requires 15 supplies", engine.Evaluate("document.getElementById('choices').children[2].children[5].textContent").AsString());
+                Assert.Contains("Supplies net +40", engine.Evaluate("document.getElementById('choices').children[0].children[5].textContent").AsString());
+            }
+        }
+
         [Fact]
         public void StarshipScene_NewVoyageResetsFeedAndNewResolutionTimeRefreshesResult()
         {

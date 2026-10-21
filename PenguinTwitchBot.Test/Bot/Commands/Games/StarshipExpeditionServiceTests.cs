@@ -92,7 +92,7 @@ public class StarshipExpeditionServiceTests
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipBoardingOpened,
             It.IsAny<CommandEventArgs>(),
-            It.IsAny<Dictionary<string, string>>()), Times.Once);
+            It.Is<Dictionary<string, string>>(variables => variables["ShipSystemsEnabled"] == "true" && variables["Hull"] == "100" && variables["Supplies"] == "100")), Times.Once);
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipEventOpened,
@@ -429,6 +429,8 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(firstPreview.Select(item => item.Sector), secondPreview.Select(item => item.Sector));
         Assert.Contains(firstPreview, item => item.Sector is "Cerulean Gate" or "Echo Reach");
         Assert.Equal(8, firstPreview.Count);
+        Assert.Contains(firstPreview, item => item.ShipContext is not null);
+        Assert.Contains(firstPreview, item => item.OutcomeResult is "Success" or "Failure");
         Assert.Null(await stateStore.LoadAsync());
         Assert.Equal(0, settingsStore.SaveCount);
     }
@@ -1960,13 +1962,19 @@ public class StarshipExpeditionServiceTests
         await store.SaveAsync(fixture);
         var points = new Mock<IPointsSystem>();
         points.Setup(instance => instance.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>())).ReturnsAsync(true);
-        var service = CreateService(store, pointsSystem: points.Object);
+        var triggers = new Mock<IDefaultCommandTriggerService>();
+        triggers.Setup(instance => instance.TriggerDefaultCommandEventAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>())).Returns(Task.CompletedTask);
+        var service = CreateService(store, pointsSystem: points.Object, defaultCommandTriggerService: triggers.Object);
         await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "recover");
 
         var returned = await service.AdvanceEventAsync();
 
         Assert.Equal(StarshipExpeditionStatus.Returned, returned.Status);
         Assert.Equal("HullDepleted", returned.ReturnReason);
+        triggers.Verify(instance => instance.TriggerDefaultCommandEventAsync("starship", DefaultCommandEventTypes.StarshipVoyageEnded,
+            It.IsAny<CommandEventArgs>(), It.Is<Dictionary<string, string>>(variables => variables["Hull"] == "0" && variables["ReturnReason"] == "HullDepleted")), Times.Once);
+        triggers.Verify(instance => instance.TriggerDefaultCommandEventAsync("starship", DefaultCommandEventTypes.StarshipEventFailed,
+            It.IsAny<CommandEventArgs>(), It.Is<Dictionary<string, string>>(variables => variables["HullBefore"] == "10" && variables["HullAfter"] == "0" && variables["HullChange"] == "-10")), Times.Once);
         Assert.Contains("returned early (hull depleted)", string.Join(" ", StarshipExpeditionNarrative.BuildVoyageLines(returned)));
         Assert.Equal(0, returned.ShipSystems!.Hull);
         Assert.Null(returned.NextEventAtUtc);
@@ -2092,6 +2100,71 @@ public class StarshipExpeditionServiceTests
 
         Assert.Equal("resupply", resolved.CompletedEvents.Last().ResolvedChoiceId);
         Assert.Equal(45, resolved.ShipSystems!.Supplies);
+    }
+
+    [Fact]
+    public void ShipOverlayDisclosure_IncludesUnavailableRepairWithoutLeakingOperationLedger()
+    {
+        var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingHull = 90, StartingSupplies = 10 }));
+        snapshot.ShipSystems!.AppliedOperationIds.Add("private-operation");
+        var pool = new List<StarshipEventChoiceSnapshot>
+        {
+            new() { ChoiceId = "resupply", Label = "Resupply" }, new() { ChoiceId = "repair", Label = "Repair" }, new() { ChoiceId = "continue", Label = "Continue" }
+        };
+        snapshot.CurrentEvent = new() { EventType = "StationStop", ChoicePool = pool, Choices = [pool[0], pool[2]], DefaultChoiceId = "resupply" };
+
+        var projection = StarshipExpeditionOverlaySnapshot.From(snapshot);
+
+        Assert.Equal(90, projection.ShipSystems!.Hull);
+        var choices = projection.CurrentEvent!.ShipDisclosure!.Choices;
+        var repair = choices.Single(choice => choice.ChoiceId == "repair");
+        Assert.False(repair.Available);
+        Assert.Null(repair.Number);
+        Assert.Equal(15, repair.SuppliesCost);
+        Assert.Equal(40, choices.Single(choice => choice.ChoiceId == "resupply").SuppliesDelta);
+        Assert.Equal(2, choices.Single(choice => choice.ChoiceId == "continue").Number);
+        Assert.Equal(10, choices.Single(choice => choice.ChoiceId == "continue").NextEventSuccessBonusPercent);
+        Assert.DoesNotContain("private-operation", JsonSerializer.Serialize(projection));
+    }
+
+    [Fact]
+    public void ShipOverlayDisclosure_UsesFrozenChanceAndSharedFailureScaling()
+    {
+        var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingHull = 50, StartingSupplies = 40 }));
+        var choice = new StarshipEventChoiceSnapshot { ChoiceId = "recover", Label = "Recover", ShipEffect = new() { SuppliesCost = 10 }, RiskMultiplierPercent = 50 };
+        snapshot.CurrentEvent!.Choices = [choice];
+        snapshot.CurrentEvent.ChoicePool = [choice];
+        snapshot.CurrentEvent.ShipContext = new() { BaseSuccessChancePercent = 75, ResourceSuccessModifierPercent = 10, FailureEffect = new() { HullDelta = -20, SuppliesDelta = -10 } };
+        var disclosure = StarshipShipEventDisclosure.From(snapshot, snapshot.CurrentEvent, null)!;
+        var details = Assert.Single(disclosure.Choices);
+        Assert.Equal(85, details.SuccessChancePercent);
+        Assert.Equal(-10, details.SuppliesDelta);
+        Assert.Equal(-10, details.FailureHullDelta);
+        Assert.Equal(-5, details.FailureSuppliesDelta);
+    }
+
+    [Fact]
+    public void ShipOverlayDisclosure_UsesChoiceModifierAndReportsNetSuppliesAfterCost()
+    {
+        var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingSupplies = 20 }));
+        var choice = new StarshipEventChoiceSnapshot { ChoiceId = "brace", Label = "Brace", SuccessChanceModifierPercent = 20 };
+        snapshot.CurrentEvent!.Choices = [choice];
+        snapshot.CurrentEvent.ChoicePool = [choice];
+        snapshot.CurrentEvent.ShipContext = new()
+        {
+            BaseSuccessChancePercent = 70, SuppliesBefore = 20, SuppliesAfter = 20,
+            FailureEffect = new() { SuppliesDelta = -5 }
+        };
+        var disclosure = StarshipShipEventDisclosure.From(snapshot, snapshot.CurrentEvent, null)!;
+        Assert.Equal(1, Assert.Single(disclosure.Choices).Number);
+        Assert.Equal(90, disclosure.Choices[0].SuccessChancePercent);
+
+        snapshot.CurrentEvent.Choices[0] = new() { ChoiceId = choice.ChoiceId, Label = choice.Label, SuccessChanceModifierPercent = choice.SuccessChanceModifierPercent, ShipEffect = new() { SuppliesCost = 5 } };
+        snapshot.CurrentEvent.ChoicePool = [.. snapshot.CurrentEvent.Choices];
+        var paid = StarshipShipEventDisclosure.From(snapshot, snapshot.CurrentEvent, null)!.Choices[0];
+        Assert.Equal(-5, paid.SuppliesDelta);
+        Assert.Equal(5, paid.SuppliesCost);
+        Assert.Equal("Supplies net -5; Cost 5 supplies; 90% success; Failure: hull 0, supplies -5", paid.Describe());
     }
 
     private static StarshipExpeditionService CreateService(

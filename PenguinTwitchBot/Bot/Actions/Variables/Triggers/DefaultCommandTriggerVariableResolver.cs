@@ -606,6 +606,23 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         variables.SetVariable("LegCount", "Total configured voyage legs", source, category, "5");
         variables.SetVariable("Sector", "Current route sector", source, category, "Kepler Reach");
         variables.SetVariable("CrewCount", "Number of viewers aboard", source, category, "4");
+        variables.SetVariable("ShipSystemsEnabled", "Whether this voyage uses shared ship resources", source, category, "true");
+        variables.SetVariable("Hull", "Current shared hull (empty on legacy/disabled voyages)", source, category, "85");
+        variables.SetVariable("Supplies", "Current shared supplies (empty on legacy/disabled voyages)", source, category, "60");
+        variables.SetVariable("PendingSuccessBonusPercent", "Next-event success bonus in percentage points", source, category, "10");
+        variables.SetVariable("ActiveSuccessBonusPercent", "Currently active success bonus in percentage points", source, category, "0");
+        variables.SetVariable("ReturnReason", "HullDepleted for an emergency return; otherwise empty", source, category, "HullDepleted");
+        if (eventType is DefaultCommandEventTypes.StarshipEventResolved or DefaultCommandEventTypes.StarshipEventSucceeded or DefaultCommandEventTypes.StarshipEventFailed)
+        {
+            variables.SetVariable("HullBefore", "Hull at event opening, after travel", source, category, "100");
+            variables.SetVariable("HullAfter", "Hull after all event steps and outcome effects", source, category, "85");
+            variables.SetVariable("HullChange", "Net hull change across the whole event", source, category, "-15");
+            variables.SetVariable("SuppliesBefore", "Supplies at event opening, after travel", source, category, "65");
+            variables.SetVariable("SuppliesAfter", "Supplies after all event steps and outcome effects", source, category, "60");
+            variables.SetVariable("SuppliesChange", "Net supplies change across the whole event (excluding travel)", source, category, "-5");
+            variables.SetVariable("EventBaseSuccessChancePercent", "Frozen base chance before resource and choice modifiers", source, category, "80");
+            variables.SetVariable("EventSuccessModifierPercent", "Frozen shortage and Continue modifier in percentage points", source, category, "-15");
+        }
 
         if (eventType == DefaultCommandEventTypes.StarshipBoardingOpened)
         {
@@ -633,7 +650,7 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("PointType", "Point currency used by the event reward profile", source, category, "Salvage Credits");
             variables.SetVariable("RewardParticipantCount", "Eligible crew members who earned a reward", source, category, "3");
             variables.SetVariable("RewardTotal", "Aggregate unbanked reward amount for the event", source, category, "45");
-            variables.SetVariable("Outcome", "Event outcome: Success, Failure or Passed (empty for events without rewards)", source, category, "Success");
+            variables.SetVariable("Outcome", "Event outcome: Success, Failure or Passed; independent of point rewards on integrated voyages", source, category, "Success");
             variables.SetVariable("Rarity", "Rarity of the find rolled for the event", source, category, "Uncommon");
             variables.SetVariable("Path", "Choices the crew made, in order", source, category, "Scan the wreck > Secure the area > Recover salvage");
             variables.SetVariable("LostTotal", "Aggregate unbanked points the crew lost on failure", source, category, "0");

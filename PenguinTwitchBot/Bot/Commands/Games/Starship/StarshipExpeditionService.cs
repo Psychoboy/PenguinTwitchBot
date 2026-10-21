@@ -265,6 +265,7 @@ public sealed class StarshipExpeditionService(
                 JsonSerializer.Serialize(previewSettings.RewardProfiles, JsonOptions), JsonOptions) ?? [],
             EventRewardProfileIds = previewSettings.GetEffectiveRewardBindings(),
             EventCatalog = previewSettings.EventCatalog,
+            ShipSystems = StarshipShipSystems.Create(previewSettings.ShipSystems),
             SectorPool = sectors,
             CurrentSector = sectors[GetDeterministicIndex(seed, 0, "initial-sector", sectors.Count)],
             CurrentRoute = "Uncharted"
@@ -275,13 +276,13 @@ public sealed class StarshipExpeditionService(
         while (previewState.CurrentEvent is { } currentEvent)
         {
             var previewEvent = Clone(currentEvent);
-            previewEvent.ResolvedChoiceId = previewEvent.DefaultChoiceId;
-            previewEvent.ResolvedAtUtc = previewEvent.ClosesAtUtc;
+            ResolveCurrentEventAndRewardsLocked(previewState, currentEvent.ClosesAtUtc, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            var resolvedEvent = previewState.CompletedEvents[^1];
+            previewEvent.ShipContext = resolvedEvent.ShipContext;
+            previewEvent.OutcomeResult = resolvedEvent.OutcomeResult;
             events.Add(previewEvent);
-
-            ResolveCurrentEventLocked(previewState, previewEvent.ResolvedAtUtc.Value);
             if (previewState.Status != StarshipExpeditionStatus.Cruising) break;
-            OpenNextEventLocked(previewState, previewState.NextEventAtUtc ?? previewEvent.ResolvedAtUtc.Value);
+            OpenNextEventLocked(previewState, previewState.NextEventAtUtc ?? currentEvent.ClosesAtUtc);
         }
 
         return events;
@@ -891,6 +892,8 @@ public sealed class StarshipExpeditionService(
             ["CrewCount"] = snapshot.Crew.Count.ToString(CultureInfo.InvariantCulture),
             ["StartedBy"] = snapshot.StartedBy
         };
+        foreach (var (key, value) in StarshipEventVariables.ForShip(snapshot))
+            variables[key] = value;
         foreach (var (key, value) in additionalVariables)
             variables[key] = value;
         eventArgs ??= new CommandEventArgs
@@ -1129,19 +1132,7 @@ public sealed class StarshipExpeditionService(
             StarshipShipSystems.BeginEvent(shipSystems, snapshot.CurrentEvent.EventId, definition.EventType == "StationStop");
             snapshot.CurrentEvent.Choices = FilterChoices(definition.Choices, [], shipSystems, definition.EventType);
             var configuredProfile = StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, definition.EventType, requireEnabled: false);
-            snapshot.CurrentEvent.ShipContext = new()
-            {
-                BaseSuccessChancePercent = definition.SuccessChancePercent ?? configuredProfile?.SuccessChancePercent ?? shipSystems.Rules.DefaultEventSuccessChancePercent,
-                ResourceSuccessModifierPercent = (shipSystems.ActiveBonusEventId == snapshot.CurrentEvent.EventId ? shipSystems.ActiveSuccessBonusPercent : 0) -
-                    (shipSystems.Supplies == 0 ? shipSystems.Rules.EmptySuppliesSuccessPenaltyPercent : 0),
-                HasRewards = configuredProfile?.Enabled == true,
-                SuccessEffect = definition.ShipSuccessEffect,
-                FailureEffect = definition.ShipFailureEffect ?? StarshipEventCatalog.GetDefaultShipFailureEffect(definition.EventType),
-                HullBefore = shipSystems.Hull,
-                SuppliesBefore = shipSystems.Supplies,
-                HullAfter = shipSystems.Hull,
-                SuppliesAfter = shipSystems.Supplies
-            };
+            snapshot.CurrentEvent.ShipContext = StarshipShipSystems.CreateEventContext(shipSystems, snapshot.CurrentEvent, definition, configuredProfile);
         }
         snapshot.NextEventSequence++;
         snapshot.CurrentEvent.Description = StarshipExpeditionStory.Render(
@@ -1358,11 +1349,7 @@ public sealed class StarshipExpeditionService(
         {
             var choice = resolvedEvent.Choices.FirstOrDefault(item => item.ChoiceId == resolvedEvent.ResolvedChoiceId);
             var riskPercent = StarshipRewardResolver.CombinePercent(resolvedEvent.RiskMultiplierPercent, choice?.RiskMultiplierPercent ?? 100);
-            var scaled = effect with
-            {
-                HullDelta = effect.HullDelta < 0 ? (int)Math.Clamp((long)effect.HullDelta * riskPercent / 100, -100, 0) : effect.HullDelta,
-                SuppliesDelta = effect.SuppliesDelta < 0 ? (int)Math.Clamp((long)effect.SuppliesDelta * riskPercent / 100, -100, 0) : effect.SuppliesDelta
-            };
+            var scaled = StarshipShipSystems.ScaleOutcomeEffect(effect, riskPercent);
             StarshipShipSystems.ApplyEffect(state, $"ship-outcome:{resolvedEvent.EventId:N}", scaled);
         }
         UpdateShipEventResources(resolvedEvent, state);
@@ -1421,6 +1408,8 @@ public sealed class StarshipExpeditionService(
 
         var outcomes = resolvedEvent.RewardOutcomes;
         var variables = StarshipEventVariables.ForOutcome(resolvedEvent);
+        foreach (var (key, value) in StarshipEventVariables.ForShip(snapshot))
+            variables[key] = value;
         variables["Game"] = "Starship Expedition";
         variables["ExpeditionId"] = snapshot.ExpeditionId.ToString();
         variables["Sector"] = resolvedEvent.Sector;

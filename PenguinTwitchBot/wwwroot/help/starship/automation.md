@@ -22,6 +22,10 @@ Starship Expedition uses the bot's normal trigger and action system. Attach acti
 | Variable | Available on | Description |
 | :--- | :--- | :--- |
 | `%Game%`, `%ExpeditionId%`, `%Leg%`, `%LegCount%`, `%Sector%`, `%CrewCount%` | All | Voyage information |
+| `%ShipSystemsEnabled%`, `%Hull%`, `%Supplies%` | All | Integrated-resource flag and current shared resources; resource numbers are empty for legacy/disabled voyages |
+| `%PendingSuccessBonusPercent%`, `%ActiveSuccessBonusPercent%`, `%ReturnReason%` | All | Next/current bonus in percentage points; `HullDepleted` for emergency return, otherwise empty |
+| `%HullBefore%`, `%HullAfter%`, `%HullChange%`, `%SuppliesBefore%`, `%SuppliesAfter%`, `%SuppliesChange%` | Resolved, Succeeded, Failed | Whole-event changes, including all steps; opening values are after travel, so travel is excluded; empty without ship context |
+| `%EventBaseSuccessChancePercent%`, `%EventSuccessModifierPercent%` | Resolved, Succeeded, Failed | Frozen base chance and resource modifier (shortage plus Continue), before choice modifiers |
 | `%User%` | Crew Joined, Risk triggers | The viewer involved |
 | `%EventTitle%`, `%EventType%` | Event triggers | Which event it was |
 | `%Choices%` | Event Opened, Step Advanced | Choices available |
@@ -51,7 +55,7 @@ The bot already announces these in chat by default; use triggers for extra alert
 
 Custom events use these same event triggers, not a separate trigger per definition. `%EventType%` is the stable custom event ID and `%EventTitle%` is its title. A duplicated/imported event receives a new ID. Story tokens such as `{subject}` belong in event templates; action messages use `%Subject%`, `%Story%` and the other runtime variables above.
 
-Event Resolved fires once for the group, including a passed or non-rewarding event. Event Succeeded/Failed require an enabled reward profile and a success/failure outcome; they do not fire simply because a story-only event reached its terminal choice. Step Advanced fires after a continuing choice. `%Summary%` is available on Resolved and Voyage Ended, not Succeeded/Failed.
+Event Resolved fires once for the group, including a passed or non-rewarding event. On integrated voyages, Event Succeeded/Failed follow the success/failure outcome even without enabled point rewards. Passing does not fire either outcome trigger. Legacy voyages retain their previous behavior. Step Advanced fires after a continuing choice. `%Summary%` is available on Resolved and Voyage Ended, not Succeeded/Failed.
 
 With several currencies, do not describe `%RewardTotal%` as an amount of `%PointType%`: the total is aggregate while the name is the first outcome currency. Use the Resolved `%Summary%` for grouped chat feedback, or Crew Reward Banked for the actual per-user/per-currency permanent payout. Risk triggers fire once per viewer and aggregate that viewer's earned/lost amounts across currencies; use them only for events that genuinely offer that older personal-choice path. Custom editor events do not.
 
@@ -63,6 +67,7 @@ The **Reward Profiles** tab can attach existing actions directly to a successful
 - **After Bank:** waits for all payouts in the station, return or abort settlement to succeed. Repeated references to the same action are combined into one dispatch per settlement.
 - Variables include `%OperationId%`, `%Rarity%`, `%EventTitle%`, `%EventType%`, `%Path%`, `%Outcome%`, `%RewardTotal%`, `%LostTotal%`, `%PointType%`, `%Subject%` and `%Story%`. With several currencies, totals are numeric aggregates and `%PointType%` identifies the first outcome currency; use individual payout triggers for currency-specific reactions.
 - After-bank actions also receive `%BankedTotal%`, `%BankedCrewCount%` and `%VoyageResult%` (`Returned`, `Aborted`, or `InProgress` at a station).
+- Profile actions capture the resource and whole-event change variables above when the outcome resolves. After-bank actions retain that event context rather than substituting a later voyage's resources or return reason. Profile actions still require an enabled reward profile; normal event triggers do not.
 - Dispatch is **at most once**: the bot saves its operation claim before attempting to queue the action. A crash during dispatch can skip an alert, but recovery never repeats a claimed dispatch. Missing actions or queue failures are logged and do not block points or banking.
 
 ## Action: Starship Show Status Widget

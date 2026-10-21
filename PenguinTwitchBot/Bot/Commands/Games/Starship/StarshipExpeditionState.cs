@@ -21,6 +21,7 @@ public sealed class StarshipExpeditionSnapshot
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public Guid ExpeditionId { get; init; }
+
     public int Seed { get; init; }
     public string StartedBy { get; init; } = string.Empty;
     public StarshipExpeditionStatus Status { get; set; } = StarshipExpeditionStatus.Cruising;
@@ -266,6 +267,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
     IReadOnlyList<StarshipOverlayTimelineEntry> Timeline)
 {
     public Guid ExpeditionId { get; init; }
+    public StarshipOverlayShipState? ShipSystems { get; init; }
 
     public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot, DateTimeOffset? serverNowUtc = null)
     {
@@ -284,7 +286,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
                 ? null
                 : StarshipOverlayEventSnapshot.From(
                     snapshot.CurrentEvent,
-                    StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, snapshot.CurrentEvent.EventType)),
+                    StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, snapshot.CurrentEvent.EventType), snapshot),
             GetLatestOverlayResult(snapshot),
             snapshot.StatusForcedUntilUtc,
             serverNowUtc ?? DateTimeOffset.UtcNow,
@@ -293,7 +295,11 @@ public sealed record StarshipExpeditionOverlaySnapshot(
             GetStationLegs(snapshot),
             snapshot.CompletedEvents.Select(item => new StarshipOverlayTimelineEntry(
                 item.Sequence, item.Title, item.OutcomeResult, item.OutcomeRarity, item.ObjectKind)).ToList())
-            { ExpeditionId = snapshot.ExpeditionId };
+        {
+            ExpeditionId = snapshot.ExpeditionId,
+            ShipSystems = snapshot.ShipSystems is { IntegrationEnabled: true } ship
+                ? new(ship.Hull, ship.Supplies, ship.PendingSuccessBonusPercent, ship.ActiveSuccessBonusPercent, snapshot.ReturnReason) : null
+        };
     }
 
     /// <summary>1-based legs that are station stops (leg 1 is always the route choice).</summary>
@@ -368,8 +374,10 @@ public sealed record StarshipOverlayEventSnapshot(
     string RevealedRarityColor = "")
 {
     public IReadOnlyList<string> ObjectImages { get; init; } = [];
+    public StarshipShipEventDisclosure? ShipDisclosure { get; init; }
 
-    public static StarshipOverlayEventSnapshot From(StarshipExpeditionEventSnapshot expeditionEvent, StarshipRewardProfile? profile) => new(
+    public static StarshipOverlayEventSnapshot From(StarshipExpeditionEventSnapshot expeditionEvent, StarshipRewardProfile? profile,
+        StarshipExpeditionSnapshot? voyage = null) => new(
         expeditionEvent.Sequence,
         expeditionEvent.EventType,
         expeditionEvent.Title,
@@ -389,7 +397,7 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.Path.Select(step => step.Label).ToList(),
         expeditionEvent.RevealedRarity,
         expeditionEvent.StepNote,
-        profile == null
+        profile == null && expeditionEvent.ShipContext == null
             ? null
             : StarshipRewardResolver.GetEffectiveSuccessChance(profile, expeditionEvent),
         expeditionEvent.RewardMultiplierPercent,
@@ -400,7 +408,10 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.OpenedAtUtc,
         expeditionEvent.ObjectRoll,
         expeditionEvent.RevealedRarityColor)
-        { ObjectImages = expeditionEvent.ObjectImages };
+        {
+            ObjectImages = expeditionEvent.ObjectImages,
+            ShipDisclosure = voyage == null ? null : StarshipShipEventDisclosure.From(voyage, expeditionEvent, profile)
+        };
 }
 
 public sealed record StarshipOverlayChoice(
