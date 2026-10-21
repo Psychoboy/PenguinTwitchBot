@@ -1721,6 +1721,57 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(17, Assert.Single(completed.RewardOutcomes).EarnedAmount);
     }
 
+    [Theory]
+    [InlineData(null, null, 700)]
+    [InlineData(150L, null, 150)]
+    [InlineData(null, 600L, 100)]
+    [InlineData(150L, 600L, 100)]
+    public async Task OptionalPointLimits_EnforceOnlyExplicitEventAndVoyageCaps(long? eventLimit, long? voyageLimit, long expected)
+    {
+        var snapshot = CreateSalvageFixture(0);
+        var profile = snapshot.RewardProfiles[0];
+        profile.SuccessChancePercent = 100;
+        profile.ConvertLegacyToTiers();
+        profile.Tiers[0].Rewards[0].Minimum = profile.Tiers[0].Rewards[0].Maximum = 700;
+        profile.Caps = [new() { PointTypeId = 2, MaximumPerEvent = eventLimit, MaximumUnbankedPerVoyage = voyageLimit }];
+        snapshot.CompletedEvents.Add(new StarshipExpeditionEventSnapshot
+        {
+            RewardOutcomes = [new() { UserId = "pilot-id", PointTypeId = 2, EarnedAmount = 500 }]
+        });
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var service = CreateService(store);
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+
+        var resolved = await service.AdvanceEventAsync();
+
+        Assert.Equal(expected, resolved.CompletedEvents.Last().RewardOutcomes.Single().EarnedAmount);
+    }
+
+    [Theory]
+    [InlineData(null, 400)]
+    [InlineData(0L, 0)]
+    [InlineData(50L, 50)]
+    public async Task OptionalLossCap_PreservesPercentageBalanceAndExplicitZero(long? maximum, long expected)
+    {
+        var snapshot = CreateSalvageFixture(1000);
+        var profile = snapshot.RewardProfiles[0];
+        profile.SuccessChancePercent = 0;
+        profile.ConvertLegacyToTiers();
+        profile.LossRules[0].MaximumPerEvent = maximum;
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var service = CreateService(store);
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+
+        var resolved = await service.AdvanceEventAsync();
+
+        Assert.Equal(expected, resolved.CompletedEvents.Last().RewardOutcomes.Single().LostAmount);
+        Assert.Equal(1000 - expected, resolved.Crew.Single().UnbankedBalances.Single().Amount);
+    }
+
     private static StarshipExpeditionService CreateService(
         InMemoryStateStore stateStore,
         TimeProvider? timeProvider = null,

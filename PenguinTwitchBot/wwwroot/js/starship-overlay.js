@@ -460,11 +460,11 @@
             setText('reward-rarity', 'Rarity: unknown' + (hasRiskyChoice ? ' - scan to reveal it before committing' : ' until the event resolves') +
                 (odds ? ' · Odds: ' + odds : ''));
         }
-        setText('reward-caps', currencies.map(currency => currency.pointTypeName + ': cap ' + currency.maximumPerEvent + '/event, ' + currency.maximumUnbankedPerVoyage + '/voyage').join(' · '));
+        setText('reward-caps', currencies.map(currency => currency.pointTypeName + ': cap ' + (currency.maximumPerEvent ?? 'Unlimited') + '/event, ' + (currency.maximumUnbankedPerVoyage ?? 'Unlimited') + '/voyage').join(' · '));
         const risk = currencies.map(currency => {
             const riskPercent = Math.min(100, currency.riskLossPercent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
-            const riskCap = Math.floor(currency.maximumRiskLossPerEvent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
-            return currency.pointTypeName + ': ' + riskPercent + '% unbanked, capped at ' + riskCap;
+            const lossLimit = currency.maximumRiskLossPerEvent == null ? 'no amount cap' : 'capped at ' + Math.floor(currency.maximumRiskLossPerEvent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
+            return currency.pointTypeName + ': ' + riskPercent + '% unbanked, ' + lossLimit;
         }).join(' · ');
         setText('reward-risk', 'Failure loss: ' + risk + '.');
     }

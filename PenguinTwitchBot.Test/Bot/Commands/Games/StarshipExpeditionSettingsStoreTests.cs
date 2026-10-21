@@ -177,7 +177,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Same(profile, loaded.GetRewardProfile("SignalDetected"));
         Assert.Equal([75, 25], StarshipRewardTiers.DescribeTiers(profile).Select(tier => tier.ChancePercent));
         Assert.Equal(StarshipActionTimings.AfterBank, profile.Tiers[1].Actions.Single().Timing);
-        Assert.Equal(2, profile.Caps.Count);
+        Assert.Empty(profile.Caps);
     }
 
     [Fact]
@@ -310,6 +310,29 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(settings.CustomSectors, settings.GetEffectiveSectors());
         settings.DisabledBuiltInSectors.Add("Unknown Sector");
         Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
+    }
+
+    [Fact]
+    public async Task PointLimits_DefaultToUnlimitedAndDeletedRowsStayDeletedAfterReload()
+    {
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var profile = settings.RewardProfiles[0];
+        Assert.Null(profile.MaximumPerEvent);
+        Assert.Null(profile.MaximumUnbankedPerVoyage);
+        Assert.Null(profile.MaximumRiskLossPerEvent);
+        profile.Tiers[0].Rewards[0].PointTypeId = 7;
+        profile.Caps.Add(new() { PointTypeId = 7, MaximumPerEvent = 30, MaximumUnbankedPerVoyage = 90 });
+        await CreateStore().SaveAsync(settings);
+        var reloaded = await CreateStore().LoadAsync();
+        var saved = reloaded.RewardProfiles.Single(item => item.Id == profile.Id);
+        Assert.Equal(30, saved.GetCap(7).MaximumPerEvent);
+        saved.Caps.Clear();
+        await CreateStore().SaveAsync(reloaded);
+
+        var uncapped = (await CreateStore().LoadAsync()).RewardProfiles.Single(item => item.Id == profile.Id);
+        Assert.Empty(uncapped.Caps);
+        Assert.Null(uncapped.GetCap(7).MaximumPerEvent);
+        Assert.Null(uncapped.GetCap(7).MaximumUnbankedPerVoyage);
     }
 
     private StarshipExpeditionSettingsStore CreateStore() => new(_services.GetRequiredService<IServiceScopeFactory>());

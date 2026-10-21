@@ -423,9 +423,9 @@ public sealed record StarshipRewardDisclosureSnapshot(
     int SuccessChancePercent,
     IReadOnlyList<StarshipRewardDisclosureTier> Tiers,
     int RiskLossPercent,
-    long MaximumRiskLossPerEvent,
-    long MaximumPerEvent,
-    long MaximumUnbankedPerVoyage)
+    long? MaximumRiskLossPerEvent,
+    long? MaximumPerEvent,
+    long? MaximumUnbankedPerVoyage)
 {
     public IReadOnlyList<StarshipRewardCurrencyDisclosure> Currencies { get; init; } = [];
 
@@ -439,7 +439,7 @@ public sealed record StarshipRewardDisclosureSnapshot(
             profile.SuccessChancePercent,
             StarshipRewardTiers.DescribeTiers(profile),
             loss?.Percent ?? 0,
-            loss?.MaximumPerEvent ?? 0,
+            loss?.MaximumPerEvent,
             cap.MaximumPerEvent,
             cap.MaximumUnbankedPerVoyage)
         {
@@ -448,14 +448,14 @@ public sealed record StarshipRewardDisclosureSnapshot(
                 var currencyCap = profile.GetCap(id);
                 var lossRule = profile.GetLossRules().FirstOrDefault(rule => rule.PointTypeId == id);
                 return new StarshipRewardCurrencyDisclosure(profile.GetPointTypeName(id), currencyCap.MaximumPerEvent,
-                    currencyCap.MaximumUnbankedPerVoyage, lossRule?.Percent ?? 0, lossRule?.MaximumPerEvent ?? 0);
+                    currencyCap.MaximumUnbankedPerVoyage, lossRule?.Percent ?? 0, lossRule?.MaximumPerEvent);
             }).ToList()
         };
     }
 }
 
-public sealed record StarshipRewardCurrencyDisclosure(string PointTypeName, long MaximumPerEvent,
-    long MaximumUnbankedPerVoyage, int RiskLossPercent, long MaximumRiskLossPerEvent);
+public sealed record StarshipRewardCurrencyDisclosure(string PointTypeName, long? MaximumPerEvent,
+    long? MaximumUnbankedPerVoyage, int RiskLossPercent, long? MaximumRiskLossPerEvent);
 
 public static class StarshipRewardTiers
 {

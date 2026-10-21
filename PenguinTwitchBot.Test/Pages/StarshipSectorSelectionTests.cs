@@ -26,6 +26,8 @@ public class StarshipSectorSelectionTests
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         context.ComponentFactories.AddStub<HelpButton>();
+        context.ComponentFactories.AddStub<PenguinTwitchBot.Shared.MediaUrlPicker>();
+        context.ComponentFactories.AddStub<PenguinTwitchBot.Pages.Components.GameOutcomeAutomationPanel>();
         var settings = new StarshipExpeditionSettings();
         var store = new Mock<IStarshipExpeditionSettingsStore>();
         store.Setup(instance => instance.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
@@ -47,7 +49,7 @@ public class StarshipSectorSelectionTests
         page.WaitForAssertion(() => Assert.Contains("5 available (minimum 2)", page.Markup));
         foreach (var sector in StarshipExpeditionSettings.BuiltInSectors.Skip(1))
             page.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == sector).Find("input").Change(false);
-        Assert.Contains("1 available (minimum 2)", page.Markup);
+        page.WaitForAssertion(() => Assert.Contains("1 available (minimum 2)", page.Markup));
         page.FindAll("button").Single(button => button.TextContent.Contains("Save Settings", StringComparison.Ordinal)).Click();
         page.WaitForAssertion(() => Assert.Contains("Enable or add at least two expedition sectors.", page.Markup));
         store.Verify(instance => instance.SaveAsync(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -56,5 +58,14 @@ public class StarshipSectorSelectionTests
         page.FindAll("button").Single(button => button.TextContent.Contains("Save Settings", StringComparison.Ordinal)).Click();
         page.WaitForAssertion(() => store.Verify(instance => instance.SaveAsync(
             It.Is<StarshipExpeditionSettings>(value => value.GetEffectiveSectors().Count == 2), It.IsAny<CancellationToken>()), Times.Once));
+
+        var editor = page.FindComponent<StarshipEventCatalogEditor>();
+        editor.FindAll("button").Single(button => button.TextContent.Trim() == "Add Event").Click();
+        editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Title").Find("input").Change("Page Save Draft");
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
+        Assert.Single(page.FindComponents<StarshipEventCatalogEditor>());
+        page.FindAll("button").Single(button => button.TextContent.Contains("Save Settings", StringComparison.Ordinal)).Click();
+        page.WaitForAssertion(() => store.Verify(instance => instance.SaveAsync(
+            It.Is<StarshipExpeditionSettings>(value => value.EventCatalog.Any(definition => definition.Title == "Page Save Draft")), It.IsAny<CancellationToken>()), Times.Exactly(2)));
     }
 }

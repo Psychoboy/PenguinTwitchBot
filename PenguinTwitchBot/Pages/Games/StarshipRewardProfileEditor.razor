@@ -46,8 +46,8 @@
     {
         <MudGrid Spacing="2" @key="cap">
             <MudItem xs="12" sm="4">@PointTypeField(cap.PointTypeId, value => cap.PointTypeId = value)</MudItem>
-            <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Maximum Per Event" Variant="Variant.Outlined" Min="1" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="cap.MaximumPerEvent" /></MudItem>
-            <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Maximum Earned Per Voyage" Variant="Variant.Outlined" Min="1" Max="@StarshipExpeditionSettings.MaximumUnbankedReward" @bind-Value="cap.MaximumUnbankedPerVoyage" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="long?" Label="Maximum Per Event" Variant="Variant.Outlined" Placeholder="Unlimited" Clearable="true" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="cap.MaximumPerEvent" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="long?" Label="Maximum Earned Per Voyage" Variant="Variant.Outlined" Placeholder="Unlimited" Clearable="true" Min="0" Max="@StarshipExpeditionSettings.MaximumUnbankedReward" @bind-Value="cap.MaximumUnbankedPerVoyage" /></MudItem>
             <MudItem xs="12" sm="2"><MudTooltip Text="Remove limit"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove limit" OnClick="@(() => Profile.Caps.Remove(cap))" /></MudTooltip></MudItem>
         </MudGrid>
     }
@@ -58,7 +58,7 @@
         <MudGrid Spacing="2" @key="rule">
             <MudItem xs="12" sm="4">@PointTypeField(rule.PointTypeId, value => rule.PointTypeId = value)</MudItem>
             <MudItem xs="6" sm="3"><MudNumericField T="int" Label="Unbanked Loss (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="rule.Percent" /></MudItem>
-            <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Maximum Loss Per Event" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="rule.MaximumPerEvent" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="long?" Label="Maximum Loss Per Event" Variant="Variant.Outlined" Placeholder="Unlimited" Clearable="true" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="rule.MaximumPerEvent" /></MudItem>
             <MudItem xs="12" sm="2"><MudTooltip Text="Remove loss rule"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove loss rule" OnClick="@(() => Profile.LossRules.Remove(rule))" /></MudTooltip></MudItem>
         </MudGrid>
     }

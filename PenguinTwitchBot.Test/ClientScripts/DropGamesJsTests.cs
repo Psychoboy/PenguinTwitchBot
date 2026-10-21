@@ -537,6 +537,30 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal("<svg", ArtMarkup("wreck", new { useBuiltInObjectArt = true, objectImages = new Dictionary<string, string[]> { ["wreck"] = ["javascript:alert(1)"] } }));
         }
 
+        [Fact]
+        public void StarshipEventWidget_DisclosesUnlimitedCapsWithoutZeroingLosses()
+        {
+            var engine = CreateStarshipOverlayEngine("event");
+            var now = DateTimeOffset.UtcNow;
+            var currentEvent = new
+            {
+                sequence = 2, eventType = "custom-event", title = "Custom Event", description = "A choice.", sector = "Kepler Reach",
+                openedAtUtc = now.ToString("O"), closesAtUtc = now.AddSeconds(30).ToString("O"),
+                choices = Array.Empty<object>(), voteCounts = new Dictionary<string, int>(), stepNumber = 1, path = Array.Empty<string>(),
+                rewardDisclosure = new
+                {
+                    pointTypeName = "Credits", successChancePercent = 75, tiers = Array.Empty<object>(), riskLossPercent = 25,
+                    maximumRiskLossPerEvent = (long?)null, maximumPerEvent = (long?)null, maximumUnbankedPerVoyage = (long?)null
+                }
+            };
+            DispatchStarshipOverlayState(engine, StarshipAppearanceSnapshot(now, 0,
+                new { name = "Ship", hullStyle = "arrow", accentColor = "#66d0c2", variant = 0 }, currentEvent));
+
+            Assert.Contains("Unlimited/event", engine.Evaluate("document.getElementById('reward-caps').textContent").AsString());
+            Assert.Contains("Unlimited/voyage", engine.Evaluate("document.getElementById('reward-caps').textContent").AsString());
+            Assert.Contains("25% unbanked, no amount cap", engine.Evaluate("document.getElementById('reward-risk').textContent").AsString());
+        }
+
         [Theory]
         [InlineData(4, "false")]
         [InlineData(6, "true")]

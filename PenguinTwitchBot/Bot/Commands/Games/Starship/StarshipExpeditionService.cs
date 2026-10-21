@@ -1460,8 +1460,8 @@ public sealed class StarshipExpeditionService(
                     .Where(previous => string.Equals(previous.UserId, member.UserId, StringComparison.OrdinalIgnoreCase) &&
                                        previous.PointTypeId == typeId)
                     .Sum(previous => previous.EarnedAmount);
-                var availableVoyageCap = Math.Max(0, cap.MaximumUnbankedPerVoyage - earnedThisVoyage);
-                earnedAmount = Math.Min(rolledByType.GetValueOrDefault(typeId), Math.Min(cap.MaximumPerEvent, availableVoyageCap));
+                var availableVoyageCap = cap.MaximumUnbankedPerVoyage is { } voyageLimit ? Math.Max(0, voyageLimit - earnedThisVoyage) : long.MaxValue;
+                earnedAmount = Math.Min(rolledByType.GetValueOrDefault(typeId), Math.Min(cap.MaximumPerEvent ?? long.MaxValue, availableVoyageCap));
                 if (earnedAmount > 0)
                 {
                     currentBalance ??= AddUnbankedBalance(member, typeId, typeName);
@@ -1492,7 +1492,7 @@ public sealed class StarshipExpeditionService(
     private static (long Proportional, long Maximum) ScaleRiskLoss(StarshipLossRule rule, long balance, int riskPercent)
     {
         var lossPercent = Math.Min(100m, rule.Percent * riskPercent / 100m);
-        return ((long)(balance * lossPercent / 100m), (long)((decimal)rule.MaximumPerEvent * riskPercent / 100m));
+        return ((long)(balance * lossPercent / 100m), rule.MaximumPerEvent is { } maximum ? (long)((decimal)maximum * riskPercent / 100m) : long.MaxValue);
     }
 
     private static StarshipRewardTier? ChooseEventTier(

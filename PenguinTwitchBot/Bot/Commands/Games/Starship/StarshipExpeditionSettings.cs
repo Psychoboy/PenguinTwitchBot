@@ -115,9 +115,9 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
                 ValidateRewardRange(profile.CommonMinimum, profile.CommonMaximum, nameof(profile.CommonMinimum));
                 ValidateRewardRange(profile.UncommonMinimum, profile.UncommonMaximum, nameof(profile.UncommonMinimum));
                 ValidateRewardRange(profile.RareMinimum, profile.RareMaximum, nameof(profile.RareMinimum));
-                if (profile.MaximumPerEvent is < 1 or > MaximumConfiguredReward ||
-                    profile.MaximumUnbankedPerVoyage < profile.MaximumPerEvent || profile.MaximumUnbankedPerVoyage > MaximumUnbankedReward)
-                    throw new ArgumentOutOfRangeException(nameof(profile.MaximumPerEvent), "Voyage cap must be at least the per-event cap, and both must be positive.");
+                if (profile.MaximumPerEvent is < 0 or > MaximumConfiguredReward ||
+                    profile.MaximumUnbankedPerVoyage is < 0 or > MaximumUnbankedReward)
+                    throw new ArgumentOutOfRangeException(nameof(profile.MaximumPerEvent), "Point limits must be non-negative or unlimited.");
                 if (profile.RiskLossPercent is < 0 or > 100 || profile.MaximumRiskLossPerEvent is < 0 or > MaximumConfiguredReward)
                     throw new ArgumentOutOfRangeException(nameof(profile.RiskLossPercent), "Risk loss must be 0-100 percent with a non-negative amount cap.");
             }
@@ -199,8 +199,8 @@ public sealed partial class StarshipRewardProfile
     public long UncommonMaximum { get; set; } = 25;
     public long RareMinimum { get; set; } = 30;
     public long RareMaximum { get; set; } = 50;
-    public long MaximumPerEvent { get; set; } = 100;
-    public long MaximumUnbankedPerVoyage { get; set; } = 500;
+    public long? MaximumPerEvent { get; set; }
+    public long? MaximumUnbankedPerVoyage { get; set; }
     public int RiskLossPercent { get; set; } = 25;
-    public long MaximumRiskLossPerEvent { get; set; } = 50;
+    public long? MaximumRiskLossPerEvent { get; set; }
 }

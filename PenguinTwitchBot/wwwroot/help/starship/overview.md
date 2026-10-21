@@ -13,13 +13,30 @@ A shared, long-form voyage. Viewers board, then vote in chat on occasional event
 
 ## Sector Selection
 
-In **Voyage Settings**, the **Sectors** section lets you enable or disable each built-in sector alongside the custom-sector list. All five built-ins are enabled by default, including when loading older settings.
+In **Events & Sectors**, the **Sectors** section lets you enable or disable each built-in sector alongside the custom-sector list. All five built-ins are enabled by default, including when loading older settings.
 
 - Keep at least two sectors available in total. You can disable every built-in if you add at least two custom sectors.
 - Save the selection before starting a voyage. The seeded preview uses your unsaved selection; disabled sectors are excluded from both previews and new voyages.
 - Active voyages keep the sector pool copied at departure, even after edits or a bot restart. Event filters can still reference disabled built-in sectors; those events become eligible there again if the sector is re-enabled.
 
 ## Events and choices
+
+Open **Events & Sectors** to search events, edit built-ins, add custom events or duplicate an event as a custom draft. Built-in IDs cannot be changed or deleted. Route Choice and Station Stop allow wording/art edits only; their defaults, choices and mechanics stay protected.
+
+- **Apply Event** validates the draft and updates the page's unsaved catalog. **Save Settings** persists the catalog and also validates/applies an open draft. Switching tabs retains the draft. Apply or discard it before opening another event.
+- Non-structural events expose enabled state, selection weight, route/sector filters and a terminal default choice. No selected routes or sectors means unrestricted availability. Every route/active-sector combination must still have an eligible event.
+- Choose a shared reward profile or create an event-specific profile with the normal tier/reward/action editor. New profiles are applied with their event. Selecting no rewards disables payouts; custom choices that reveal rarity require a profile.
+- Add two to six choices. Edit their IDs, labels, stories and bounded success/reward/loss modifiers. A continuing choice needs a unique granted flag so it disappears after use; the default must always remain available and end the event. Custom events do not have risky commit/confirmation choices.
+- Set a subject style or name pool, object kind and optional images with the media-library picker. Loot wording can be supplied for each profile tier; blank wording uses the generic rarity find.
+- **Preview Event** renders the description, option effects, choice stories and success/failure text using the sample seed, a sample viewer and the first enabled rarity tier. It does not run a voyage or award anything.
+
+Story fields accept `{crew}`, `{crewlist}`, `{subject}`, `{Subject}`, `{loot}`, `{rarity}` and `{sector}`. Unknown tokens, invalid defaults, duplicate IDs/labels, command-prefixed text and out-of-range effects are rejected.
+
+### Sharing one event
+
+**Export JSON** downloads the current validated draft and fills the JSON text field. **Open JSON File** or **Import as Draft** loads a versioned single-event document, up to 256 KB. Imports receive a fresh custom ID and never overwrite existing events. A missing reward-profile reference remains an inline error until you select or create a local profile; profiles themselves are not included in the event export. Invalid data is rejected before it reaches the saved catalog.
+
+Apply the draft and Save Settings when ready. Existing voyages keep their departure-time catalog; these changes only affect future voyages.
 
 Some events resolve in one vote. Others are mini-voyages made of several steps:
 
@@ -52,8 +69,9 @@ Images must be media-library files (a path starting with `/media/`) or an `http(
 - Unbanked points are banked at station stops, when the voyage returns, or when it is aborted. Failed payouts are retried without paying twice.
 - Open **Reward Profiles** to create named profiles and assign them to event types. Multiple events can share one profile; choose **No rewards** to leave an event unbound.
 - Each profile has ordered, enabled rarity tiers with names, badge colours and relative weights. Weights do not need to total 100; the editor displays each tier's resulting chance.
-- A tier can award multiple point currencies, each with a minimum, maximum and optional bonus chance. Limits apply separately per currency; the voyage limit includes points already banked.
-- Failure loss rules select a currency, percentage and maximum loss. Only unbanked balances can be lost; banked points are safe.
+- A tier can award multiple point currencies, each with a minimum, maximum and optional bonus chance. Point limits default to **unlimited**. Add a limit to cap a currency per event or voyage; clearing a limit field or deleting its row makes that limit unlimited. An explicit voyage limit includes points already banked.
+- Failure loss rules select a currency, percentage and optional maximum loss amount (unlimited by default). An explicit zero maximum prevents loss. Even without an amount cap, losses still respect the configured percentage and cannot exceed unbanked balances; banked points are safe.
+- Previously saved numeric limits are preserved. Clear or delete them to make an existing profile unlimited. Per-reward payout ranges and configuration safety bounds are separate from these optional point limits.
 - Profiles can run normal actions on success, on failure or after banking. See **Triggers & Actions** for dispatch and recovery behavior.
 - Save settings before starting a voyage. Profiles and event bindings are copied at departure; editing them does not change a voyage already underway. Older saved profiles are converted to three equivalent tiers automatically.
 
@@ -79,4 +97,4 @@ Event definitions and reward profiles are stored as versioned database documents
 
 New voyages copy their event catalog, reward profiles and bindings at departure. Editing settings cannot change an active voyage, including after a restart. Older voyages without a saved catalog continue using the built-in event definitions. Missing or unsupported catalog documents fail visibly rather than silently resetting to defaults.
 
-Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Definitions permit two to six choices; more than four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized. Event-editor controls are a separate later stage.
+Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Definitions permit two to six choices; more than four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized.

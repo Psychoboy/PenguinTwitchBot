@@ -42,7 +42,7 @@
                 <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_error</MudAlert>
             }
 
-            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5" KeepPanelsAlive="true">
                 <MudTabPanel Text="Voyage Settings">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="7">
@@ -87,48 +87,6 @@
                                 </MudGrid>
                             </MudPaper>
 
-                            <MudPaper Class="pa-4 mt-4" Outlined="true">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
-                                    <div>
-                                        <MudText Typo="Typo.h6">Sectors</MudText>
-                                        <MudText Typo="Typo.caption" Color="@(_settings.GetEffectiveSectors().Count < 2 ? Color.Error : Color.Secondary)">@_settings.GetEffectiveSectors().Count available (minimum 2)</MudText>
-                                    </div>
-                                </MudStack>
-                                <MudGrid Spacing="1" Class="mb-3">
-                                    @foreach (var sector in StarshipExpeditionSettings.BuiltInSectors)
-                                    {
-                                        <MudItem xs="12" sm="6">
-                                            <MudCheckBox T="bool" Color="Color.Primary" Label="@sector"
-                                                         Value="@(!_settings.DisabledBuiltInSectors.Contains(sector, StringComparer.OrdinalIgnoreCase))"
-                                                         ValueChanged="@(enabled => SetBuiltInSectorEnabled(sector, enabled))" />
-                                        </MudItem>
-                                    }
-                                </MudGrid>
-                                <MudText Typo="Typo.subtitle2">Custom Sectors</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">@_settings.CustomSectors.Count / @StarshipExpeditionSettings.MaximumCustomSectors</MudText>
-                                <MudStack Spacing="2">
-                                    @for (var index = 0; index < _settings.CustomSectors.Count; index++)
-                                    {
-                                        var sectorIndex = index;
-                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                            <MudTextField T="string" Label="Sector Name" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                          Value="@_settings.CustomSectors[sectorIndex]"
-                                                          ValueChanged="@(value => UpdateSectorName(sectorIndex, value))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                                           aria-label="Remove custom sector"
-                                                           OnClick="@(() => RemoveSector(sectorIndex))" />
-                                        </MudStack>
-                                    }
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                        <MudTextField T="string" Label="New Sector Name" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                      @bind-Value="_newSectorName" />
-                                        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary"
-                                                       aria-label="Add custom sector"
-                                                       Disabled="@(_settings.CustomSectors.Count >= StarshipExpeditionSettings.MaximumCustomSectors || string.IsNullOrWhiteSpace(_newSectorName))"
-                                                       OnClick="AddSector" />
-                                    </MudStack>
-                                </MudStack>
-                            </MudPaper>
 
                         </MudItem>
 
@@ -168,13 +126,50 @@
                     </MudGrid>
                 </MudTabPanel>
 
+                <MudTabPanel Text="Events & Sectors">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" lg="9">
+                            <StarshipEventCatalogEditor @ref="_eventCatalogEditor" Settings="_settings" PointTypes="_rewardPointTypes" Actions="_rewardActions" />
+                        </MudItem>
+                        <MudItem xs="12" lg="3">
+                            <MudText Typo="Typo.h6">Sectors</MudText>
+                            <MudText Typo="Typo.caption" Color="@(_settings.GetEffectiveSectors().Count < 2 ? Color.Error : Color.Secondary)">@_settings.GetEffectiveSectors().Count available (minimum 2)</MudText>
+                            @foreach (var sector in StarshipExpeditionSettings.BuiltInSectors)
+                            {
+                                <MudCheckBox T="bool" Color="Color.Primary" Label="@sector"
+                                             Value="@(!_settings.DisabledBuiltInSectors.Contains(sector, StringComparer.OrdinalIgnoreCase))"
+                                             ValueChanged="@(enabled => SetBuiltInSectorEnabled(sector, enabled))" />
+                            }
+                            <MudDivider Class="my-3" />
+                            <MudText Typo="Typo.subtitle2">Custom Sectors</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@_settings.CustomSectors.Count / @StarshipExpeditionSettings.MaximumCustomSectors</MudText>
+                            <MudStack Spacing="2" Class="mt-2">
+                                @for (var index = 0; index < _settings.CustomSectors.Count; index++)
+                                {
+                                    var sectorIndex = index;
+                                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                                        <MudTextField T="string" Label="Sector Name" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                      Value="@_settings.CustomSectors[sectorIndex]" ValueChanged="@(value => UpdateSectorName(sectorIndex, value))" />
+                                        <MudTooltip Text="Remove sector"><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" aria-label="Remove custom sector" OnClick="@(() => RemoveSector(sectorIndex))" /></MudTooltip>
+                                    </MudStack>
+                                }
+                                <MudStack Row="true" AlignItems="AlignItems.Center">
+                                    <MudTextField T="string" Label="New Sector Name" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_newSectorName" />
+                                    <MudTooltip Text="Add sector"><MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" aria-label="Add custom sector"
+                                        Disabled="@(_settings.CustomSectors.Count >= StarshipExpeditionSettings.MaximumCustomSectors || string.IsNullOrWhiteSpace(_newSectorName))" OnClick="AddSector" /></MudTooltip>
+                                </MudStack>
+                            </MudStack>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
                 <MudTabPanel Text="Reward Profiles">
                     <MudStack Spacing="3">
                         <MudGrid Spacing="2">
                             @foreach (var eventType in StarshipExpeditionSettings.RewardEventTypes)
                             {
                                 <MudItem xs="12" sm="6" lg="3">
-                                    <MudSelect T="string" Label="@eventType" Variant="Variant.Outlined" @bind-Value="_settings.EventRewardProfileIds[eventType]">
+                                    <MudSelect T="string" Label="@eventType" Variant="Variant.Outlined" Value="@_settings.GetEffectiveRewardBindings().GetValueOrDefault(eventType, string.Empty)" ValueChanged="@(id => SetRewardBinding(eventType, id))">
                                         <MudSelectItem T="string" Value="@string.Empty">No rewards</MudSelectItem>
                                         @foreach (var profile in _settings.RewardProfiles)
                                         {
@@ -408,6 +403,7 @@
     private bool _isOperating;
     private string _eventSample = "event";
     private IJSObjectReference? _editorModule;
+    private StarshipEventCatalogEditor? _eventCatalogEditor;
     private Dictionary<int, string> _rewardPointTypes = [];
     private Dictionary<int, string> _rewardActions = [];
 
@@ -553,6 +549,11 @@
         _error = string.Empty;
         try
         {
+            if (_eventCatalogEditor?.TryApplyDraft() == false)
+            {
+                _error = "The event draft is invalid. Review the Events & Sectors tab.";
+                return;
+            }
             _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
             await SettingsStore.SaveAsync(_settings);
             await ExpeditionService.RefreshAppearanceAsync();
@@ -684,6 +685,16 @@
     private static string GetRewardProfileLabel(StarshipRewardProfile profile) =>
         $"{profile.Name} · {(profile.Enabled ? "Enabled" : "Disabled")}";
 
+    private void SetRewardBinding(string eventType, string? profileId)
+    {
+        if (_settings == null) return;
+        if (string.Equals(_settings.GetEffectiveRewardBindings().GetValueOrDefault(eventType, string.Empty), profileId ?? string.Empty, StringComparison.Ordinal)) return;
+        _settings.EventRewardProfileIds[eventType] = profileId ?? string.Empty;
+        var index = _settings.EventCatalog.FindIndex(definition => definition.EventType == eventType);
+        if (index >= 0 && !StarshipEventCatalog.IsStructural(eventType))
+            _settings.EventCatalog[index] = _settings.EventCatalog[index] with { RewardProfileId = profileId ?? string.Empty };
+    }
+
     private void AddRewardProfile()
     {
         if (_settings == null) return;
@@ -709,7 +720,7 @@
         var total = Math.Max(1, tiers.Sum(tier => tier.Weight));
         var odds = tiers.Select(tier => $"{tier.Name} {100d * tier.Weight / total:0.#}%: " +
             string.Join(", ", tier.Rewards.Select(reward => $"{reward.Minimum}-{reward.Maximum} {PointName(reward.PointTypeId)} ({reward.ChancePercent}%)")));
-        var loss = profile.GetLossRules().Select(rule => $"{PointName(rule.PointTypeId)}: up to {rule.Percent}%, maximum {rule.MaximumPerEvent}");
+        var loss = profile.GetLossRules().Select(rule => $"{PointName(rule.PointTypeId)}: up to {rule.Percent}%, maximum {rule.MaximumPerEvent?.ToString() ?? "Unlimited"}");
         return $"Success {profile.SuccessChancePercent}% / failure {100 - profile.SuccessChancePercent}%. " + string.Join("; ", odds) +
             ". Unbanked loss: " + string.Join("; ", loss) + ".";
     }

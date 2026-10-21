@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor;
 using MudBlazor.Services;
 using PenguinTwitchBot.Bot.Commands.Games.Starship;
 using PenguinTwitchBot.Pages.Games;
@@ -9,6 +10,37 @@ namespace PenguinTwitchBot.Test.Components;
 
 public class StarshipRewardProfileEditorTests
 {
+    [Fact]
+    public async Task Editor_NewLimitsAreUnlimitedAndCanBeClearedOrDeleted()
+    {
+        await using var context = new BunitContext();
+        context.JSInterop.Mode = JSRuntimeMode.Loose;
+        context.Services.AddMudServices();
+        context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        context.Render<MudPopoverProvider>();
+        var profile = new StarshipRewardProfile
+        {
+            Tiers = [new() { Name = "Common", Rewards = [new() { PointTypeId = 7 }] }]
+        };
+        var editor = context.Render<StarshipRewardProfileEditor>(parameters => parameters
+            .Add(component => component.Profile, profile)
+            .Add(component => component.PointTypes, new Dictionary<int, string> { [7] = "Credits" }));
+        editor.FindAll("button").Single(button => button.TextContent.Trim() == "Add Point Limit").Click();
+        var cap = Assert.Single(profile.Caps);
+        Assert.Null(cap.MaximumPerEvent);
+        Assert.Null(cap.MaximumUnbankedPerVoyage);
+        var field = editor.FindComponents<MudNumericField<long?>>().Single(component => component.Instance.Label == "Maximum Per Event");
+        Assert.Equal("Unlimited", field.Instance.Placeholder);
+        field.Find("input").Change("25");
+        Assert.Equal(25, cap.MaximumPerEvent);
+        field.Find("input").Change("");
+        Assert.Null(cap.MaximumPerEvent);
+        editor.Find("button[aria-label='Remove limit']").Click();
+        profile.ValidateCapsAndLoss("test");
+        Assert.Empty(profile.Caps);
+        Assert.Null(profile.GetCap(7).MaximumPerEvent);
+    }
+
     [Fact]
     public async Task Editor_RendersRelativeOddsAndAddsAndReordersTiers()
     {

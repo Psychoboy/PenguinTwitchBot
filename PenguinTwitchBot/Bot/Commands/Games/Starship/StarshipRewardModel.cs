@@ -43,8 +43,8 @@ public sealed class StarshipRewardAction
 public sealed class StarshipRewardCap
 {
     public int PointTypeId { get; set; }
-    public long MaximumPerEvent { get; set; } = 100;
-    public long MaximumUnbankedPerVoyage { get; set; } = 500;
+    public long? MaximumPerEvent { get; set; }
+    public long? MaximumUnbankedPerVoyage { get; set; }
 }
 
 public sealed class StarshipLossRule
@@ -52,7 +52,7 @@ public sealed class StarshipLossRule
     public int PointTypeId { get; set; }
     public string PointTypeName { get; set; } = string.Empty;
     public int Percent { get; set; }
-    public long MaximumPerEvent { get; set; }
+    public long? MaximumPerEvent { get; set; }
 }
 
 public sealed partial class StarshipRewardProfile
@@ -62,8 +62,8 @@ public sealed partial class StarshipRewardProfile
     public const int MaximumActionsPerList = 10;
     public const int MaximumLossRules = 6;
     public const int MaximumTierNameLength = 24;
-    public const long DefaultMaximumPerEvent = 100;
-    public const long DefaultMaximumUnbankedPerVoyage = 500;
+    public static readonly long? DefaultMaximumPerEvent = null;
+    public static readonly long? DefaultMaximumUnbankedPerVoyage = null;
 
     public static IReadOnlyList<string> ActionTimings { get; } = [StarshipActionTimings.Immediate, StarshipActionTimings.AfterBank];
 
@@ -95,8 +95,8 @@ public sealed partial class StarshipRewardProfile
         Caps.FirstOrDefault(cap => cap.PointTypeId == pointTypeId) ?? new StarshipRewardCap
         {
             PointTypeId = pointTypeId,
-            MaximumPerEvent = MaximumPerEvent,
-            MaximumUnbankedPerVoyage = MaximumUnbankedPerVoyage
+            MaximumPerEvent = UsesLegacyFields ? MaximumPerEvent : null,
+            MaximumUnbankedPerVoyage = UsesLegacyFields ? MaximumUnbankedPerVoyage : null
         };
 
     public IReadOnlyList<StarshipLossRule> GetLossRules() => UsesLegacyFields
@@ -231,15 +231,12 @@ public sealed partial class StarshipRewardProfile
                 throw new ArgumentOutOfRangeException(nameof(LossRules), $"{label}: loss must be 0-100 percent with a non-negative amount cap.");
         }
 
-        var rewardTypes = Tiers.SelectMany(tier => tier.Rewards).Select(reward => reward.PointTypeId).Where(id => id > 0).Distinct().ToList();
-        foreach (var typeId in rewardTypes.Where(id => Caps.All(cap => cap.PointTypeId != id)))
-            Caps.Add(new StarshipRewardCap { PointTypeId = typeId });
         Caps = Caps.Where(cap => cap.PointTypeId > 0).GroupBy(cap => cap.PointTypeId).Select(group => group.First()).ToList();
         foreach (var cap in Caps)
         {
-            if (cap.MaximumPerEvent is < 1 or > StarshipExpeditionSettings.MaximumConfiguredReward ||
-                cap.MaximumUnbankedPerVoyage < cap.MaximumPerEvent || cap.MaximumUnbankedPerVoyage > StarshipExpeditionSettings.MaximumUnbankedReward)
-                throw new ArgumentOutOfRangeException(nameof(Caps), $"{label}: voyage caps must be at least the per-event cap, and both must be positive.");
+            if (cap.MaximumPerEvent is < 0 or > StarshipExpeditionSettings.MaximumConfiguredReward ||
+                cap.MaximumUnbankedPerVoyage is < 0 or > StarshipExpeditionSettings.MaximumUnbankedReward)
+                throw new ArgumentOutOfRangeException(nameof(Caps), $"{label}: point limits must be non-negative or unlimited.");
         }
     }
 
