@@ -2,11 +2,14 @@ using Bunit;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using MudBlazor;
 using MudBlazor.Services;
 using PenguinTwitchBot.Bot.Commands.Games.Starship;
+using PenguinTwitchBot.Pages.Components;
 using PenguinTwitchBot.Pages.Games;
 using PenguinTwitchBot.Shared;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Test.Pages;
 
@@ -18,6 +21,7 @@ public class StarshipEventCatalogEditorTests
         context.JSInterop.Mode = JSRuntimeMode.Loose;
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        context.Services.AddSingleton(new MediaUploadService(Path.GetTempPath(), NullLogger<MediaUploadService>.Instance));
         context.ComponentFactories.AddStub<MediaUrlPicker>();
         context.Render<MudPopoverProvider>();
         return context;
@@ -43,6 +47,25 @@ public class StarshipEventCatalogEditorTests
         editor.Find($"button[aria-label='Delete {added.EventType}']").Click();
         Click(editor, "Delete Event");
         Assert.Equal(5, settings.EventCatalog.Count);
+    }
+
+    [Fact]
+    public async Task EventSoundOverride_IsExposedAndSurvivesDraftRoundTrip()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var definition = settings.EventCatalog.Single(item => item.EventType == "SalvageSite") with
+        {
+            OpenSound = new() { Override = true, Enabled = true, AudioFile = "/media/my_salvage_cue.wav", Volume = 35 }
+        };
+        settings.EventCatalog[settings.EventCatalog.FindIndex(item => item.EventType == "SalvageSite")] = definition;
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
+        editor.Find("button[aria-label='Edit SalvageSite']").Click();
+        var soundEditor = editor.FindComponent<DropGameSoundEditor>();
+
+        Assert.Equal("/media/my_salvage_cue.wav", soundEditor.Instance.SoundOverride!.AudioFile);
+        Assert.Equal(35, soundEditor.Instance.SoundOverride.Volume);
+        Assert.True(soundEditor.Instance.IsThemeOverride);
     }
 
     [Fact]

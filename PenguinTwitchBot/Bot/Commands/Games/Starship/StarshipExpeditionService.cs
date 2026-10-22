@@ -15,6 +15,7 @@ using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Application.Notifications;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
@@ -30,7 +31,8 @@ public sealed class StarshipExpeditionService(
     IDefaultCommandTriggerService? defaultCommandTriggerService = null,
     IPointsSystem? pointsSystem = null,
     IViewerFeature? viewerFeature = null,
-    IServiceScopeFactory? scopeFactory = null)
+    IServiceScopeFactory? scopeFactory = null,
+    MediaUploadService? mediaUploadService = null)
     : BaseCommandService(serviceBackbone, commandHandler, "StarshipExpedition", dispatcher), IHostedService, IStarshipExpeditionService
 {
     public const string DefaultCommandName = "starship";
@@ -53,6 +55,7 @@ public sealed class StarshipExpeditionService(
     private readonly SemaphoreSlim _payoutLock = new(1, 1);
     private readonly SemaphoreSlim _actionLock = new(1, 1);
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly MediaUploadService? _mediaUploadService = mediaUploadService;
     private StarshipExpeditionSnapshot? _snapshot;
     private StarshipAppearanceSettings? _appearance;
     private bool _hasLoaded;
@@ -383,6 +386,24 @@ public sealed class StarshipExpeditionService(
                 StartedBy = startedBy?.Trim() ?? string.Empty,
                 Ship = StarshipExpeditionStory.GenerateShip(expeditionSeed),
                 ShipSystems = StarshipShipSystems.Create(settings.ShipSystems),
+                EmergencyReturnSound = settings.EmergencyReturnSound == null ? null : new DropGameSoundConfig
+                {
+                    Enabled = settings.EmergencyReturnSound.Enabled,
+                    AudioFile = settings.EmergencyReturnSound.AudioFile,
+                    Volume = settings.EmergencyReturnSound.Volume
+                },
+                BoardingOpenSound = new DropGameSoundConfig
+                {
+                    Enabled = settings.BoardingOpenSound.Enabled,
+                    AudioFile = settings.BoardingOpenSound.AudioFile,
+                    Volume = settings.BoardingOpenSound.Volume
+                },
+                EventTypeOpenSounds = settings.EventTypeOpenSounds.ToDictionary(pair => pair.Key, pair => new DropGameSoundConfig
+                {
+                    Enabled = pair.Value.Enabled,
+                    AudioFile = pair.Value.AudioFile,
+                    Volume = pair.Value.Volume
+                }, StringComparer.OrdinalIgnoreCase),
                 Status = StarshipExpeditionStatus.Boarding,
                 StartedAtUtc = now,
                 UpdatedAtUtc = now,
@@ -406,6 +427,8 @@ public sealed class StarshipExpeditionService(
                 CurrentSector = settings.GetEffectiveSectors()[GetDeterministicIndex(expeditionSeed, 0, "initial-sector", settings.GetEffectiveSectors().Count)],
                 CurrentRoute = "Uncharted"
             };
+            AppendActivityLocked(_snapshot, StarshipActivityKinds.BoardingOpened,
+                $"Crew boarding is open for {_snapshot.BoardingDurationSeconds} seconds", string.Empty, now);
 
             await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
             startedSnapshot = Clone(_snapshot);
@@ -1566,7 +1589,7 @@ public sealed class StarshipExpeditionService(
         var payload = JsonSerializer.Serialize(new
         {
             type = "expedition_state",
-            snapshot = _snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(_snapshot, _timeProvider.GetUtcNow()),
+            snapshot = _snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(_snapshot, _timeProvider.GetUtcNow(), GetMediaUploadService()),
             appearance = await ResolveAppearanceAsync(cancellationToken)
         }, JsonOptions);
         try
@@ -1593,6 +1616,20 @@ public sealed class StarshipExpeditionService(
         }
 
         return _appearance;
+    }
+
+    private MediaUploadService? GetMediaUploadService()
+    {
+        if (_mediaUploadService != null) return _mediaUploadService;
+        try
+        {
+            using var scope = scopeFactory?.CreateScope();
+            return scope?.ServiceProvider.GetService<MediaUploadService>();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public Task<StarshipAppearanceSettings> GetAppearanceAsync(CancellationToken cancellationToken = default) =>

@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
@@ -47,6 +49,39 @@ public static partial class StarshipEventCatalog
 
     public static bool IsStructural(string eventType) => eventType is "RouteChoice" or "StationStop";
     public static bool IsBuiltIn(string eventType) => BuiltInIds.Contains(eventType);
+    public static DropGameSoundConfig GetDefaultOpenSound(string eventType) => eventType switch
+    {
+        "RouteChoice" => new() { Enabled = true, AudioFile = "/media/starship_route_choice.wav", Volume = 55 },
+        "StationStop" => new() { Enabled = true, AudioFile = "/media/starship_station_dock.wav", Volume = 55 },
+        "SignalDetected" => new() { Enabled = true, AudioFile = "/media/starship_signal_detected.wav", Volume = 50 },
+        "SalvageSite" => new() { Enabled = true, AudioFile = "/media/starship_salvage_found.wav", Volume = 55 },
+        "Hazard" => new() { Enabled = true, AudioFile = "/media/starship_hazard_warning.wav", Volume = 55 },
+        "courier-relay" => new() { Enabled = true, AudioFile = "/media/starship_courier_relay.wav", Volume = 50 },
+        "survey-cache" => new() { Enabled = true, AudioFile = "/media/starship_survey_cache.wav", Volume = 50 },
+        "debris-crossing" => new() { Enabled = true, AudioFile = "/media/starship_debris_crossing.wav", Volume = 55 },
+        _ => new() { Enabled = true, AudioFile = "/media/starship_custom_event.wav", Volume = 50 }
+    };
+    public static DropGameSoundConfig GetEffectiveOpenSound(StarshipEventDefinition? definition, string eventType, DropGameSoundConfig? typeDefault = null)
+    {
+        var sound = definition?.OpenSound;
+        if (sound == null || sound.OverrideMode == DropGameSoundOverrideMode.Inherit)
+            return typeDefault ?? GetDefaultOpenSound(eventType);
+        if (sound.OverrideMode == DropGameSoundOverrideMode.Mute)
+            return new() { Enabled = false, AudioFile = sound.AudioFile, Volume = sound.Volume };
+        return new() { Enabled = sound.Enabled, AudioFile = sound.AudioFile, Volume = sound.Volume };
+    }
+
+    public static void ValidateSoundConfig(DropGameSoundConfig? sound, string context)
+    {
+        if (sound == null) throw new ArgumentException($"{context}: sound settings cannot be null.");
+        if (!sound.Enabled || string.IsNullOrWhiteSpace(sound.AudioFile)) return;
+        var path = sound.AudioFile.Trim();
+        if (path.Length > StarshipAppearanceSettings.MaximumImageUrlLength || !path.StartsWith("/media/", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"{context}: choose an audio file from the Media Manager.");
+        var fileName = Uri.UnescapeDataString(path["/media/".Length..]);
+        if (Path.GetFileName(fileName) != fileName || !MediaUploadService.SupportedAudioExtensions.Contains(Path.GetExtension(fileName), StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException($"{context}: choose a supported audio file from the Media Manager.");
+    }
     public static StarshipShipEffect? GetDefaultShipFailureEffect(string eventType) => eventType switch
     {
         "Hazard" or "debris-crossing" => new() { HullDelta = -15, SuppliesDelta = -5 },
@@ -89,6 +124,12 @@ public static partial class StarshipEventCatalog
             if (definition == null || string.IsNullOrWhiteSpace(definition.EventType) || definition.EventType.Length > 80 ||
                 !ids.Add(definition.EventType) || !IsBuiltIn(definition.EventType) && !SlugPattern().IsMatch(definition.EventType))
                 throw new ArgumentException("Event IDs must be unique slugs of 1-80 characters; built-in IDs are reserved.");
+            ValidateSoundConfig(definition.OpenSound == null ? null : new DropGameSoundConfig
+            {
+                Enabled = definition.OpenSound.Override && definition.OpenSound.Enabled,
+                AudioFile = definition.OpenSound.AudioFile,
+                Volume = definition.OpenSound.Volume
+            }, $"{definition.Title} event sound");
             ValidateText(definition.Title, 100, true, false);
             ValidateText(definition.Description, 1000, true);
             ValidateText(definition.SuccessStory, 1000);

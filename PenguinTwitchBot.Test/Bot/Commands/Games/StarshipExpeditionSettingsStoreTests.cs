@@ -49,6 +49,8 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         var legacySettings = JsonSerializer.Deserialize<StarshipExpeditionSettings>("{}")!;
 
         Assert.False(legacySettings.GameEnabled);
+        Assert.True(legacySettings.EmergencyReturnSound.Enabled);
+        Assert.Equal("/media/starship_emergency_return.wav", legacySettings.EmergencyReturnSound.AudioFile);
     }
 
     [Fact]
@@ -63,6 +65,12 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
             MaximumEventIntervalMinutes = 35,
             BoardingDurationSeconds = 45,
             ActiveCrewRewardsOnly = false,
+            BoardingOpenSound = new() { Enabled = true, AudioFile = "/media/custom_boarding.wav", Volume = 48 },
+            EmergencyReturnSound = new() { Enabled = true, AudioFile = "/media/custom_emergency.wav", Volume = 42 },
+            EventTypeOpenSounds = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["SignalDetected"] = new() { Enabled = true, AudioFile = "/media/custom_type_signal.wav", Volume = 36 }
+            },
             ShipSystems = new() { StartingHull = 80, StartingSupplies = 60, TravelSuppliesCost = 4, StationRepairAmount = 25 },
             AnnounceSessionStatusInChat = false,
             SessionStartChatMessageTemplate = "Boarding {duration}s",
@@ -87,12 +95,27 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
             ],
             CustomSectors = ["  Delta Reach  ", "Glass Nebula"]
         };
+        var signalIndex = settings.EventCatalog.FindIndex(definition => definition.EventType == "SignalDetected");
+        settings.EventCatalog[signalIndex] = settings.EventCatalog[signalIndex] with
+        {
+            OpenSound = new() { Override = true, Enabled = true, AudioFile = "/media/custom_signal.wav", Volume = 33 }
+        };
 
         await store.SaveAsync(settings);
         var loaded = await CreateStore().LoadAsync();
 
         Assert.Equal(8, loaded.LegCount);
         Assert.True(loaded.GameEnabled);
+        Assert.Equal("/media/custom_emergency.wav", loaded.EmergencyReturnSound.AudioFile);
+        Assert.Equal(42, loaded.EmergencyReturnSound.Volume);
+        Assert.Equal("/media/custom_boarding.wav", loaded.BoardingOpenSound.AudioFile);
+        Assert.Equal(48, loaded.BoardingOpenSound.Volume);
+        Assert.Equal("/media/custom_type_signal.wav", loaded.GetEventTypeOpenSound("SignalDetected").AudioFile);
+        Assert.Equal(36, loaded.GetEventTypeOpenSound("SignalDetected").Volume);
+        var signalSound = loaded.EventCatalog.Single(definition => definition.EventType == "SignalDetected").OpenSound;
+        Assert.True(signalSound.Override);
+        Assert.Equal("/media/custom_signal.wav", signalSound.AudioFile);
+        Assert.Equal(33, signalSound.Volume);
         Assert.Equal(20, loaded.MinimumEventIntervalMinutes);
         Assert.Equal(35, loaded.MaximumEventIntervalMinutes);
         Assert.Equal(45, loaded.BoardingDurationSeconds);

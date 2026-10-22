@@ -413,6 +413,22 @@
                         </MudItem>
                     </MudGrid>
                 </MudTabPanel>
+
+                <MudTabPanel Text="Audio">
+                    <MudStack Spacing="3" Style="max-width: 760px">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the boarding announcement cue, default opening cues for each event type, and the emergency return cue. Individual events can inherit, override, or mute their event-type cue in Events & Sectors.</MudText>
+                        <DropGameSoundEditor Title="Crew Boarding Open Cue" SoundConfig="_settings.BoardingOpenSound" />
+                        <MudDivider />
+                        <MudText Typo="Typo.h6">Event-Type Default Cues</MudText>
+                        @foreach (var definition in _settings.EventCatalog.OrderBy(item => item.SortOrder).ThenBy(item => item.Title, StringComparer.Ordinal))
+                        {
+                            <DropGameSoundEditor @key="definition.EventType" Title="@(definition.Title + " Default Cue")"
+                                                 SoundConfig="_settings.GetEventTypeOpenSound(definition.EventType)" />
+                        }
+                        <MudDivider />
+                        <DropGameSoundEditor Title="Emergency Return Cue" SoundConfig="_settings.EmergencyReturnSound" />
+                    </MudStack>
+                </MudTabPanel>
             </MudTabs>
         }
     </MudContainer>

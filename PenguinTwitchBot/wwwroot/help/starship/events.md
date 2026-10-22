@@ -63,6 +63,8 @@ Each choice can also override a **Choice Ship Effect**, including a supply payme
 
 **Preview Event** shows starting resources, numbered available choices, costs, effective chances and potential outcome effects using the same server calculations as the widgets. The seeded route preview simulates safe defaults and stops at zero hull. No preview pays points or runs actions. Route Choice and Station Stop mechanics remain protected.
 
+Configure the default opening cue for every event type in the Starship **Audio** tab, including custom event types. In the event editor, each event can inherit its event-type default, select a custom cue through the Media Manager, or mute that event. Cues play once when the vote opens, not on each vote or later step. Event JSON exports include the selected media path, not the audio file itself.
+
 ## Story Tokens and Media
 
 | Token | Resolved value |

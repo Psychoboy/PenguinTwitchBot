@@ -9,6 +9,7 @@ using System.Text.Json;
 
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.Services;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Controllers
 {
@@ -23,6 +24,7 @@ namespace PenguinTwitchBot.Controllers
         private readonly ICounterService _counterService;
         private readonly IDeathCounterService _deathCounterService;
         private readonly ILogger<OverlayController> _logger;
+        private readonly MediaUploadService? _mediaUploadService;
 
         public OverlayController(
             IUnitOfWork unitOfWork,
@@ -31,7 +33,8 @@ namespace PenguinTwitchBot.Controllers
             ICounterService counterService,
             IDeathCounterService deathCounterService,
             IStarshipExpeditionService starshipExpeditionService,
-            ILogger<OverlayController> logger)
+            ILogger<OverlayController> logger,
+            MediaUploadService? mediaUploadService = null)
         {
             _unitOfWork = unitOfWork;
             _fishingService = fishingService;
@@ -40,6 +43,7 @@ namespace PenguinTwitchBot.Controllers
             _deathCounterService = deathCounterService;
             _starshipExpeditionService = starshipExpeditionService;
             _logger = logger;
+            _mediaUploadService = mediaUploadService;
         }
 
         private readonly IStarshipExpeditionService _starshipExpeditionService;
@@ -90,7 +94,7 @@ namespace PenguinTwitchBot.Controllers
         {
             var cancellationToken = HttpContext.RequestAborted;
             var snapshot = await _starshipExpeditionService.GetSnapshotAsync(cancellationToken);
-            var state = snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(snapshot);
+            var state = snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(snapshot, mediaUploadService: _mediaUploadService);
             var appearance = await _starshipExpeditionService.GetAppearanceAsync(cancellationToken);
             return Ok(new { type = "expedition_state", snapshot = state, appearance });
         }

@@ -96,6 +96,12 @@
             <MudItem xs="12"><MediaUrlPicker Label="Event Images" AllowMultiple="true" Value="@string.Join(", ", draft.Images)" ValueChanged="SetImages" /></MudItem>
         </MudGrid>
 
+        <DropGameSoundEditor Title="Event Open Cue" IsThemeOverride="true" SoundOverride="draft.OpenSound"
+                             OverrideLabel="Event Cue" InheritLabel="Inherit Event-Type Default" CustomLabel="Custom Cue"
+                             MuteLabel="Mute This Event"
+                             FallbackInfo="Uses this event type's default cue configured in the Starship Audio tab."
+                             OnChanged="DraftChanged" />
+
         @if (!IsStructuralDraft)
         {
             <MudDivider />

@@ -33,14 +33,14 @@
                     <MudSelect T="DropGameSoundOverrideMode"
                                Value="@(SoundOverride?.OverrideMode ?? DropGameSoundOverrideMode.Inherit)"
                                ValueChanged="OnOverrideModeChanged"
-                               Label="Theme Sound"
+                               Label="@OverrideLabel"
                                Variant="Variant.Outlined"
                                Margin="Margin.Dense"
                                Dense="true"
                                Style="min-width: 170px;">
-                        <MudSelectItem Value="@DropGameSoundOverrideMode.Inherit">Inherit Overall</MudSelectItem>
-                        <MudSelectItem Value="@DropGameSoundOverrideMode.Custom">Custom Sound</MudSelectItem>
-                        <MudSelectItem Value="@DropGameSoundOverrideMode.Mute">Mute for Theme</MudSelectItem>
+                        <MudSelectItem Value="@DropGameSoundOverrideMode.Inherit">@InheritLabel</MudSelectItem>
+                        <MudSelectItem Value="@DropGameSoundOverrideMode.Custom">@CustomLabel</MudSelectItem>
+                        <MudSelectItem Value="@DropGameSoundOverrideMode.Mute">@MuteLabel</MudSelectItem>
                     </MudSelect>
                 }
                 else
@@ -185,6 +185,10 @@
     [Parameter] public DropGameSoundConfig? SoundConfig { get; set; }
     [Parameter] public DropGameSoundOverride? SoundOverride { get; set; }
     [Parameter] public bool IsThemeOverride { get; set; }
+    [Parameter] public string OverrideLabel { get; set; } = "Theme Sound";
+    [Parameter] public string InheritLabel { get; set; } = "Inherit Overall";
+    [Parameter] public string CustomLabel { get; set; } = "Custom Sound";
+    [Parameter] public string MuteLabel { get; set; } = "Mute for Theme";
     [Parameter] public string? FallbackInfo { get; set; }
     [Parameter] public EventCallback OnChanged { get; set; }
 

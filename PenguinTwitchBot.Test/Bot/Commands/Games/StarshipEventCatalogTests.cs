@@ -1,10 +1,79 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging.Abstractions;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Starship;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 
 public class StarshipEventCatalogTests
 {
+    [Theory]
+    [InlineData("RouteChoice", "/media/starship_route_choice.wav")]
+    [InlineData("StationStop", "/media/starship_station_dock.wav")]
+    [InlineData("SignalDetected", "/media/starship_signal_detected.wav")]
+    [InlineData("SalvageSite", "/media/starship_salvage_found.wav")]
+    [InlineData("Hazard", "/media/starship_hazard_warning.wav")]
+    [InlineData("courier-relay", "/media/starship_courier_relay.wav")]
+    [InlineData("survey-cache", "/media/starship_survey_cache.wav")]
+    [InlineData("debris-crossing", "/media/starship_debris_crossing.wav")]
+    [InlineData("custom-event", "/media/starship_custom_event.wav")]
+    public void EventOpenSound_UsesGeneratedDefaultUnlessCustomOverrideOrMute(string eventType, string expectedFile)
+    {
+        var defaults = StarshipEventCatalog.GetEffectiveOpenSound(null, eventType);
+        Assert.True(defaults.Enabled);
+        Assert.Equal(expectedFile, defaults.AudioFile);
+
+        var custom = new StarshipEventDefinition(eventType, eventType, "A test event.",
+            [new() { ChoiceId = "go", Label = "Go" }, new() { ChoiceId = "pass", Label = "Pass", EndsWithoutReward = true }], "pass")
+        {
+            OpenSound = new() { Override = true, Enabled = true, AudioFile = "/media/my_cue.wav", Volume = 37 }
+        };
+        var overrideSound = StarshipEventCatalog.GetEffectiveOpenSound(custom, eventType);
+        Assert.True(overrideSound.Enabled);
+        Assert.Equal("/media/my_cue.wav", overrideSound.AudioFile);
+        Assert.Equal(37, overrideSound.Volume);
+
+        var muted = custom with { OpenSound = new() { Override = true, Enabled = false, AudioFile = "/media/my_cue.wav", Volume = 37 } };
+        Assert.False(StarshipEventCatalog.GetEffectiveOpenSound(muted, eventType).Enabled);
+    }
+
+    [Fact]
+    public void EventOpenSound_InheritsConfiguredEventTypeDefault()
+    {
+        var configuredDefault = new DropGameSoundConfig { Enabled = true, AudioFile = "/media/type_default.wav", Volume = 29 };
+
+        var sound = StarshipEventCatalog.GetEffectiveOpenSound(null, "custom-event", configuredDefault);
+
+        Assert.True(sound.Enabled);
+        Assert.Equal("/media/type_default.wav", sound.AudioFile);
+        Assert.Equal(29, sound.Volume);
+    }
+
+    [Fact]
+    public void GeneratedStarshipWavs_AreInMediaManagerAndHaveValidWaveHeaders()
+    {
+        var webRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot"));
+        var media = new MediaUploadService(webRoot, NullLogger<MediaUploadService>.Instance);
+        var files = new[]
+        {
+            "starship_route_choice.wav", "starship_station_dock.wav", "starship_signal_detected.wav",
+            "starship_salvage_found.wav", "starship_hazard_warning.wav", "starship_courier_relay.wav",
+            "starship_survey_cache.wav", "starship_debris_crossing.wav", "starship_custom_event.wav", "starship_emergency_return.wav",
+            "starship_boarding_open.wav"
+        };
+
+        foreach (var file in files)
+        {
+            var path = Path.Combine(media.MediaDirectory, file);
+            Assert.True(File.Exists(path), $"Missing generated sound {file} in the Media Manager directory.");
+            Assert.True(MediaUploadService.ValidateAudioSignature(File.ReadAllBytes(path), ".wav"));
+            Assert.Equal($"/media/{file}", media.ResolveSoundUrl($"/media/{file}"));
+            var mediaEntry = Assert.Single(media.GetMediaFiles(), item => item.FileName == file);
+            Assert.True(mediaEntry.IsAudio);
+        }
+    }
+
     [Theory]
     [InlineData("Uncharted")]
     [InlineData("Direct Route")]

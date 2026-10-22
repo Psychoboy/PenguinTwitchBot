@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using MudBlazor;
 using MudBlazor.Services;
@@ -13,7 +14,9 @@ using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Models.Points;
 using PenguinTwitchBot.Pages.Games;
+using PenguinTwitchBot.Pages.Components;
 using PenguinTwitchBot.Shared.Help;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Test.Pages;
 
@@ -82,6 +85,25 @@ public class StarshipSectorSelectionTests
     }
 
     [Fact]
+    public async Task AudioTab_ExposesBoardingEventTypeAndEmergencySoundSettings()
+    {
+        var settings = new StarshipExpeditionSettings();
+        var store = new Mock<IStarshipExpeditionSettingsStore>();
+        await using var context = CreatePageContext(settings, store);
+        var page = context.Render<StarshipExpeditionGame>();
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(5));
+        await page.WaitForAssertionAsync(() =>
+        {
+            var titles = page.FindComponents<DropGameSoundEditor>().Select(component => component.Instance.Title).ToList();
+            Assert.Contains("Crew Boarding Open Cue", titles);
+            Assert.Contains("Choose a Route Default Cue", titles);
+            Assert.Contains("Emergency Return Cue", titles);
+        });
+        Assert.Equal("/media/starship_boarding_open.wav", settings.BoardingOpenSound.AudioFile);
+        Assert.Equal("/media/starship_emergency_return.wav", settings.EmergencyReturnSound.AudioFile);
+    }
+
+    [Fact]
     public async Task RemoveRewardProfile_ClearsCatalogReferencesCaseInsensitivelyWithImmutableUpdates()
     {
         var settings = new StarshipExpeditionSettings();
@@ -112,6 +134,7 @@ public class StarshipSectorSelectionTests
         context.JSInterop.SetupModule("./js/starshipEditor.js");
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        context.Services.AddSingleton(new MediaUploadService(Path.GetTempPath(), NullLogger<MediaUploadService>.Instance));
         context.ComponentFactories.AddStub<HelpButton>();
         context.ComponentFactories.AddStub<PenguinTwitchBot.Shared.MediaUrlPicker>();
         context.ComponentFactories.AddStub<PenguinTwitchBot.Pages.Components.GameOutcomeAutomationPanel>();

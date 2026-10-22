@@ -95,6 +95,10 @@ Images must be media-library files (a path starting with `/media/`) or an `http(
 
 Both widgets use the same real-time connection; if it drops they reconnect and reload the latest state.
 
+## Audio
+
+The event widget plays a cue when crew boarding opens, when a vote opens, and a distinct cue for an emergency hull-depletion return. It does not play sounds for individual votes or multi-step updates. The boarding, event-type defaults and emergency-return cues are configured in the **Audio** tab. Each event can inherit its event-type default, use a custom sound, or be muted in **Events & Sectors**. Sounds are selected from the Media Manager and must be available to the overlay at a `/media/...` path.
+
 ## Catalog Storage and Recovery
 
 Event definitions and reward profiles are stored as versioned database documents. Apply the matching SQLite or PostgreSQL migrations before running this version. On first load, existing reward profiles and event bindings are preserved and moved out of the settings document; a failed import leaves the previous settings intact.

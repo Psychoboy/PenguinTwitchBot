@@ -15,6 +15,7 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Models.Points;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 
@@ -58,6 +59,7 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(StarshipExpeditionStatus.Boarding, snapshot.Status);
         Assert.Null(snapshot.CurrentEvent);
         Assert.NotNull(snapshot.BoardingClosesAtUtc);
+        Assert.Contains(snapshot.ActivityFeed, item => item.Kind == StarshipActivityKinds.BoardingOpened);
         Assert.Equal(1, snapshot.NextEventSequence);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.StartExpeditionAsync("another-mod", seed: 99));
     }
@@ -1381,15 +1383,15 @@ public class StarshipExpeditionServiceTests
         var voted = await service.VoteAsync(CreateArgs("viewer-2", "Newcomer"), "1");
 
         var kinds = voted.ActivityFeed.Select(item => item.Kind).ToList();
-        Assert.Equal([StarshipActivityKinds.CrewJoined, StarshipActivityKinds.EventOpened, StarshipActivityKinds.CrewJoined], kinds);
-        Assert.Equal([1L, 2L, 3L], voted.ActivityFeed.Select(item => item.Id));
-        Assert.Equal("Pilot joined the crew - 1 aboard", voted.ActivityFeed[0].Text);
-        Assert.Equal("Newcomer", voted.ActivityFeed[2].Actor);
+        Assert.Equal([StarshipActivityKinds.BoardingOpened, StarshipActivityKinds.CrewJoined, StarshipActivityKinds.EventOpened, StarshipActivityKinds.CrewJoined], kinds);
+        Assert.Equal([1L, 2L, 3L, 4L], voted.ActivityFeed.Select(item => item.Id));
+        Assert.Equal("Pilot joined the crew - 1 aboard", voted.ActivityFeed[1].Text);
+        Assert.Equal("Newcomer", voted.ActivityFeed[3].Actor);
         Assert.All(voted.ActivityFeed, item => Assert.Equal(clock.GetUtcNow(), item.AtUtc));
 
         var projection = StarshipExpeditionOverlaySnapshot.From(voted, clock.GetUtcNow());
         Assert.Equal(clock.GetUtcNow(), projection.ServerNowUtc);
-        Assert.Equal(3, projection.Activity.Count);
+        Assert.Equal(4, projection.Activity.Count);
     }
 
     [Fact]
@@ -2189,6 +2191,41 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(2, choices.Single(choice => choice.ChoiceId == "continue").Number);
         Assert.Equal(10, choices.Single(choice => choice.ChoiceId == "continue").NextEventSuccessBonusPercent);
         Assert.DoesNotContain("private-operation", JsonSerializer.Serialize(projection));
+    }
+
+    [Fact]
+    public void OverlayProjection_ResolvesGeneratedEventAndEmergencySoundsFromMediaManager()
+    {
+        var webRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot"));
+        var mediaService = new MediaUploadService(webRoot, NullLogger<MediaUploadService>.Instance);
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), Sequence = 1, EventType = "RouteChoice", Title = "Choose a Route",
+            OpenedAtUtc = DateTimeOffset.UtcNow, ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60)
+        };
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(), EventCatalog = StarshipEventCatalog.CreateDefaults(), CurrentEvent = expeditionEvent,
+            ShipSystems = StarshipShipSystems.Create(new()),
+            BoardingOpenSound = new() { Enabled = true, AudioFile = "/media/starship_boarding_open.wav", Volume = 60 },
+            EventTypeOpenSounds = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["RouteChoice"] = new() { Enabled = true, AudioFile = "/media/starship_boarding_open.wav", Volume = 31 }
+            },
+            EmergencyReturnSound = new()
+            {
+                Enabled = true, AudioFile = "/media/starship_emergency_return.wav", Volume = 70
+            }
+        };
+
+        var projection = StarshipExpeditionOverlaySnapshot.From(snapshot, mediaUploadService: mediaService);
+
+        Assert.Equal("/media/starship_boarding_open.wav", projection.CurrentEvent!.OpenSound!.Url);
+        Assert.Equal(31, projection.CurrentEvent.OpenSound.Volume);
+        Assert.Equal("/media/starship_boarding_open.wav", projection.BoardingOpenSound!.Url);
+        Assert.Equal(60, projection.BoardingOpenSound.Volume);
+        Assert.Equal("/media/starship_emergency_return.wav", projection.EmergencyReturnSound!.Url);
+        Assert.Equal(70, projection.EmergencyReturnSound.Volume);
     }
 
     [Fact]
