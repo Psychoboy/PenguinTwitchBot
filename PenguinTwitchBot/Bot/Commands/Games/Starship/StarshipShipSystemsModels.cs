@@ -5,9 +5,9 @@ public sealed record StarshipShipSystemsSettings
     public const int MaximumResource = 100;
 
     public bool Enabled { get; set; } = true;
-    public int StartingHull { get; set; } = 100;
-    public int StartingSupplies { get; set; } = 100;
-    public int TravelSuppliesCost { get; set; } = 5;
+    public int StartingHull { get; set; } = 80;
+    public int StartingSupplies { get; set; } = 55;
+    public int TravelSuppliesCost { get; set; } = 12;
     public int EmptySuppliesSuccessPenaltyPercent { get; set; } = 15;
     public int StationResupplyAmount { get; set; } = 40;
     public int StationRepairAmount { get; set; } = 30;

@@ -134,7 +134,7 @@ public class StarshipExpeditionServiceTests
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipBoardingOpened,
             It.IsAny<CommandEventArgs>(),
-            It.Is<Dictionary<string, string>>(variables => variables["ShipSystemsEnabled"] == "true" && variables["Hull"] == "100" && variables["Supplies"] == "100")), Times.Once);
+            It.Is<Dictionary<string, string>>(variables => variables["ShipSystemsEnabled"] == "true" && variables["Hull"] == "80" && variables["Supplies"] == "55")), Times.Once);
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipEventOpened,
@@ -593,8 +593,8 @@ public class StarshipExpeditionServiceTests
         Assert.DoesNotContain("Changed After Start", current.SectorPool);
         Assert.Equal(62, Assert.Single(current.RewardProfiles).SuccessChancePercent);
         Assert.Equal(started.ExpeditionId, current.ExpeditionId);
-        Assert.Equal(100, current.ShipSystems!.Hull);
-        Assert.Equal(100, current.ShipSystems.Supplies);
+        Assert.Equal(80, current.ShipSystems!.Hull);
+        Assert.Equal(55, current.ShipSystems.Supplies);
         Assert.Equal(30, current.ShipSystems.Rules.StationRepairAmount);
     }
 
@@ -1265,7 +1265,7 @@ public class StarshipExpeditionServiceTests
 
         var projection = StarshipExpeditionOverlaySnapshot.From(started);
         Assert.Equal(started.Ship.Name, projection.Ship.Name);
-        Assert.Equal([3, 5], projection.StationLegs);
+        Assert.Equal([3, 4], projection.StationLegs);
         Assert.Empty(StarshipExpeditionOverlaySnapshot.From(new StarshipExpeditionSnapshot { LegCount = 5, StationIntervalLegs = 0 }).StationLegs);
     }
 
@@ -1281,6 +1281,54 @@ public class StarshipExpeditionServiceTests
             preview.Where(item => item.EventType == "StationStop").Select(item => item.Sequence),
             projectedStations);
         await Task.CompletedTask;
+    }
+
+    [Theory]
+    [InlineData(5, new[] { 3 })]
+    [InlineData(6, new[] { 4 })]
+    [InlineData(7, new[] { 3, 5 })]
+    public void StationLegs_AreDistributedAcrossVoyage(int legCount, int[] expected)
+    {
+        var legs = StarshipExpeditionOverlaySnapshot.GetStationLegs(new StarshipExpeditionSnapshot
+        {
+            LegCount = legCount,
+            StationIntervalLegs = 3
+        });
+
+        Assert.Equal(expected, legs);
+    }
+
+    [Fact]
+    public void RarityWeights_IncreaseGraduallyWithVoyageProgress()
+    {
+        var tiers = new List<StarshipRewardTier>
+        {
+            new() { Name = "Common", Weight = 70 },
+            new() { Name = "Uncommon", Weight = 25 },
+            new() { Name = "Rare", Weight = 5 }
+        };
+
+        var early = StarshipRewardResolver.GetVoyageAdjustedTierWeights(tiers, 0);
+        var middle = StarshipRewardResolver.GetVoyageAdjustedTierWeights(tiers, 50);
+        var late = StarshipRewardResolver.GetVoyageAdjustedTierWeights(tiers, 100);
+
+        Assert.Equal(new[] { 70, 25, 5 }, early);
+        Assert.True(middle[2] > early[2]);
+        Assert.True(late[2] > middle[2]);
+        Assert.Equal(10, late[2]);
+        Assert.Equal(70, late[0]);
+    }
+
+    [Theory]
+    [InlineData(6)]
+    [InlineData(24)]
+    public void BuildPreview_ScalesRarityProgressAcrossTheWholeVoyage(int legCount)
+    {
+        var service = CreateService(new InMemoryStateStore());
+        var preview = service.BuildPreview(new StarshipExpeditionSettings { LegCount = legCount }, seed: 4321);
+
+        Assert.Equal(0, preview[1].VoyageProgressPercent);
+        Assert.Equal(100, preview[^1].VoyageProgressPercent);
     }
 
     [Fact]
@@ -1980,7 +2028,7 @@ public class StarshipExpeditionServiceTests
 
         var station = await service.AdvanceEventAsync();
 
-        Assert.Equal(5, station.ShipSystems!.Supplies);
+        Assert.Equal(0, station.ShipSystems!.Supplies);
         Assert.Equal("StationStop", station.CurrentEvent!.EventType);
         Assert.DoesNotContain(station.CurrentEvent.Choices, choice => choice.ChoiceId == "repair");
         Assert.Contains(station.CurrentEvent.Choices, choice => choice.ChoiceId == station.CurrentEvent.DefaultChoiceId);
@@ -1988,8 +2036,8 @@ public class StarshipExpeditionServiceTests
     }
 
     [Theory]
-    [InlineData(100, "Success", 100)]
-    [InlineData(0, "Failure", 80)]
+    [InlineData(100, "Success", 80)]
+    [InlineData(0, "Failure", 60)]
     public async Task ShipOutcome_ResolvesWithoutRewardProfileAndAppliesSharedDamage(int chance, string expectedOutcome, int expectedHull)
     {
         var fixture = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new()));
@@ -2069,18 +2117,18 @@ public class StarshipExpeditionServiceTests
         await store.SaveAsync(cruising);
         service = CreateService(store, settingsStore: settingsStore);
         var opened = await service.AdvanceEventAsync();
-        Assert.Equal(95, opened.ShipSystems!.Supplies);
+        Assert.Equal(43, opened.ShipSystems!.Supplies);
         Assert.Equal(10, opened.CurrentEvent!.ShipContext!.ResourceSuccessModifierPercent);
         await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "scan");
         var stepped = await service.AdvanceEventAsync();
-        Assert.Equal(85, stepped.ShipSystems!.Supplies);
+        Assert.Equal(33, stepped.ShipSystems!.Supplies);
         Assert.Equal(10, stepped.ShipSystems.ActiveSuccessBonusPercent);
         Assert.DoesNotContain(stepped.CurrentEvent!.Choices, choice => choice.ChoiceId == "scan");
 
         var recovered = CreateService(store, settingsStore: settingsStore);
         var finished = await recovered.AdvanceEventAsync();
 
-        Assert.Equal(85, finished.ShipSystems!.Supplies);
+        Assert.Equal(33, finished.ShipSystems!.Supplies);
         Assert.Null(finished.ShipSystems.ActiveBonusEventId);
         Assert.Equal("Success", finished.CompletedEvents.Last().OutcomeResult);
     }

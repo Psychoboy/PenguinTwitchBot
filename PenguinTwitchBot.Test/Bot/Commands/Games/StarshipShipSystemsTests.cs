@@ -11,8 +11,10 @@ public class StarshipShipSystemsTests
         var rules = new StarshipShipSystemsSettings();
         var state = StarshipShipSystems.Create(rules)!;
         rules.StationRepairAmount = 1;
-        Assert.Equal(100, state.Hull);
-        Assert.Equal(100, state.Supplies);
+        Assert.Equal(80, state.Hull);
+        Assert.Equal(55, state.Supplies);
+        Assert.Equal(12, state.Rules.TravelSuppliesCost);
+        Assert.Equal(3, StarshipExpeditionService.DefaultStationIntervalLegs);
         Assert.Equal(30, state.Rules.StationRepairAmount);
         Assert.Null(StarshipShipSystems.Create(new() { Enabled = false }));
     }
@@ -98,7 +100,7 @@ public class StarshipShipSystemsTests
         var state = StarshipShipSystems.Create(new())!;
         Assert.Throws<ArgumentOutOfRangeException>(() => StarshipShipSystems.ApplyEffect(state, "bad", new() { HullDelta = -101 }));
         Assert.Throws<ArgumentException>(() => StarshipShipSystems.ApplyEffect(state, " ", new()));
-        Assert.Equal(100, state.Hull);
+        Assert.Equal(80, state.Hull);
         Assert.Empty(state.AppliedOperationIds);
     }
 

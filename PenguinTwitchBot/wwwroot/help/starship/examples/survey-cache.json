@@ -45,7 +45,7 @@
     "subjectStyle": "custom",
     "subjectNames": ["the Lantern Cache", "the Hollow Archive"],
     "objectKind": "wreck",
-    "shipFailureEffect": { "hullDelta": -10, "suppliesDelta": -5 },
+    "shipFailureEffect": { "hullDelta": -20, "suppliesDelta": -10 },
     "lootByTier": {
       "Common": "a crate of survey instruments",
       "Uncommon": "an intact stellar recorder",

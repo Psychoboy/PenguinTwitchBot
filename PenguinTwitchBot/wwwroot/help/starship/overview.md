@@ -39,13 +39,14 @@ Choices that continue an event are used up once chosen. Each choice can change t
 
 ## Hull, Supplies and Stations
 
-Enable **Ship Systems** in voyage settings. New voyages default to 100 hull and 100 supplies; both resources stay within 0-100. Rules are copied at departure. Existing legacy voyages and voyages started with ship systems disabled retain their original behavior.
+Enable **Ship Systems** in voyage settings. New voyages default to six legs, 80 hull and 55 supplies; both resources stay within 0-100. With the default stop interval of three, five- and six-leg voyages get one evenly placed station stop; seven-leg voyages get two. Travel costs 12 supplies per leg after the initial route choice. Failure can cost 15-25 hull and 10 supplies, so repairs and resupply can matter. Rules are copied at departure. Voyages started with ship systems disabled retain their original behavior.
 
-- Travel after the initial boarding event costs 5 supplies per leg by default, once per event, not once per step.
+- Travel after the initial boarding event costs 12 supplies per leg by default, once per event, not once per step.
 - Empty supplies reduce event success chance by 15 percentage points by default. They do not force a return or prevent the safe default choice.
 - Zero hull triggers an emergency return and banks remaining winnings. Already-banked points remain safe.
 - Every station choice banks winnings. **Resupply** restores 40 supplies; **Repair the ship** restores 30 hull for 15 shared supplies; **Continue the voyage** grants +10 percentage points success for the next whole non-station event.
 - The Continue bonus does not stack, survives steps and restart, and is consumed once. It changes success chance, not point amounts. An unaffordable repair is shown without a voting number.
+- Reward-tier weights shift gradually with voyage progress: the first event after route choice uses the configured odds, and the final event can double the highest tier's weight. The curve is based on voyage percentage, so longer voyages ramp more slowly per event.
 - Starting resources, travel cost, shortage penalty, station amounts/cost, Continue bonus and default event chance are configurable. Resource gains are clamped to 100.
 
 Both widgets show resources and bonus state. Before voting, the event widget shows each choice's actual resource changes, supply payment, effective success chance and possible outcome damage. Supply changes are net of any separately displayed cost. Damage can be reduced by the choice's loss multiplier. The seeded route preview follows safe defaults; the catalog preview uses starting resources and no prior travel.

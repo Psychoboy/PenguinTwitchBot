@@ -26,12 +26,12 @@ public class StarshipExpeditionStateStoreTests
 
         var restored = loaded!.ShipSystems!;
         Assert.Equal(60, restored.Hull);
-        Assert.Equal(45, restored.Supplies);
+        Assert.Equal(38, restored.Supplies);
         Assert.Equal(eventId, restored.ActiveBonusEventId);
         Assert.Equal(10, restored.ActiveSuccessBonusPercent);
         Assert.Equal(10, StarshipShipSystems.BeginEvent(restored, eventId, isStation: false));
         Assert.Equal(StarshipShipEffectResult.AlreadyApplied, StarshipShipSystems.ApplyTravel(restored, "leg-one"));
-        Assert.Equal(45, restored.Supplies);
+        Assert.Equal(38, restored.Supplies);
         Assert.Equal(30, restored.Rules.StationRepairAmount);
     }
 

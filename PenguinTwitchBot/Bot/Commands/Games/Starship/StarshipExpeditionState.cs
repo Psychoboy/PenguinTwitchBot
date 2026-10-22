@@ -32,7 +32,7 @@ public sealed class StarshipExpeditionSnapshot
     public DateTimeOffset UpdatedAtUtc { get; set; }
     public int CurrentLeg { get; set; }
     public int LegCount { get; init; }
-    public int StationIntervalLegs { get; init; } = 2;
+    public int StationIntervalLegs { get; init; } = 3;
     public int MinimumEventIntervalSeconds { get; init; } = 900;
     public int MaximumEventIntervalSeconds { get; init; } = 1800;
     public int EventVoteDurationSeconds { get; init; } = 60;
@@ -115,6 +115,7 @@ public sealed class StarshipExpeditionEventSnapshot
 {
     public Guid EventId { get; init; }
     public int Sequence { get; init; }
+    public int VoyageProgressPercent { get; init; }
     public string EventType { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -319,12 +320,15 @@ public sealed record StarshipExpeditionOverlaySnapshot(
     }
 
     /// <summary>1-based legs that are station stops (leg 1 is always the route choice).</summary>
-    public static IReadOnlyList<int> GetStationLegs(StarshipExpeditionSnapshot snapshot) =>
-        snapshot.StationIntervalLegs <= 0
-            ? []
-            : Enumerable.Range(2, Math.Max(0, snapshot.LegCount - 1))
-                .Where(leg => (leg - 1) % snapshot.StationIntervalLegs == 0)
-                .ToList();
+    public static IReadOnlyList<int> GetStationLegs(StarshipExpeditionSnapshot snapshot)
+    {
+        if (snapshot.LegCount < 2 || snapshot.StationIntervalLegs <= 0) return [];
+        var availableSlots = snapshot.LegCount - 1;
+        var stationCount = Math.Min(availableSlots / snapshot.StationIntervalLegs, Math.Max(0, snapshot.LegCount - 2));
+        return Enumerable.Range(1, stationCount)
+            .Select(index => 1 + (index * availableSlots + (stationCount + 1) / 2) / (stationCount + 1))
+            .ToList();
+    }
 
     public const int MaximumActivityItems = 20;
 

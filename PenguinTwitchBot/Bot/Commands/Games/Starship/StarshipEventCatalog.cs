@@ -84,9 +84,9 @@ public static partial class StarshipEventCatalog
     }
     public static StarshipShipEffect? GetDefaultShipFailureEffect(string eventType) => eventType switch
     {
-        "Hazard" or "debris-crossing" => new() { HullDelta = -15, SuppliesDelta = -5 },
-        "SalvageSite" or "survey-cache" => new() { HullDelta = -10, SuppliesDelta = -5 },
-        "SignalDetected" => new() { HullDelta = -5, SuppliesDelta = -5 },
+        "Hazard" or "debris-crossing" => new() { HullDelta = -25, SuppliesDelta = -10 },
+        "SalvageSite" or "survey-cache" => new() { HullDelta = -20, SuppliesDelta = -10 },
+        "SignalDetected" => new() { HullDelta = -15, SuppliesDelta = -10 },
         _ => null
     };
 
@@ -94,7 +94,7 @@ public static partial class StarshipEventCatalog
         StarshipExpeditionSnapshot snapshot, int sequence)
     {
         if (sequence == 1) return catalog.Single(definition => definition.EventType == "RouteChoice");
-        if (snapshot.CurrentLeg > 0 && snapshot.StationIntervalLegs > 0 && snapshot.CurrentLeg % snapshot.StationIntervalLegs == 0)
+        if (snapshot.CurrentLeg > 0 && StarshipExpeditionOverlaySnapshot.GetStationLegs(snapshot).Contains(snapshot.CurrentLeg + 1))
             return catalog.Single(definition => definition.EventType == "StationStop");
         var candidates = catalog.Where(definition => !IsStructural(definition.EventType) && IsAvailable(definition, snapshot.CurrentRoute, snapshot.CurrentSector))
             .OrderBy(definition => definition.SortOrder).ThenBy(definition => definition.EventType, StringComparer.Ordinal).ToList();

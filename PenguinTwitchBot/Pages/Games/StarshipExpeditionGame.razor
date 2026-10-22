@@ -59,8 +59,9 @@
                                                          @bind-Value="_settings.LegCount" />
                                     </MudItem>
                                     <MudItem xs="12" sm="6">
-                                        <MudNumericField T="int" Label="Station Every N Legs" Variant="Variant.Outlined"
+                                        <MudNumericField T="int" Label="Base Stop Interval (Legs)" Variant="Variant.Outlined"
                                                          Min="1" Max="@StarshipExpeditionSettings.MaximumLegCount"
+                                                         HelperText="Stops are spread through the voyage; e.g. interval 3 gives one stop at 5-6 legs and two at 7."
                                                          @bind-Value="_settings.StationIntervalLegs" />
                                     </MudItem>
                                     <MudItem xs="12" sm="6">

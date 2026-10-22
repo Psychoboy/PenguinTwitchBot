@@ -1,6 +1,7 @@
 @using PenguinTwitchBot.Bot.Commands.Games.Starship
 
 <MudText Typo="Typo.h6">Ship Systems</MudText>
+<MudText Typo="Typo.caption" Color="Color.Secondary">Default five-leg voyages start at 80 Hull and 55 Supplies, spend 12 Supplies per travel leg, and include one station stop. Failure damage can make repairs necessary.</MudText>
 <MudSwitch T="bool" Label="Enable Hull & Supplies" Color="Color.Primary" @bind-Value="Settings.Enabled" />
 @if (Settings.Enabled)
 {

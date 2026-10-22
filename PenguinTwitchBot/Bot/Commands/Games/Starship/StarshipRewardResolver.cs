@@ -198,16 +198,25 @@ internal static class StarshipRewardResolver
     {
         var tiers = profile.GetTiers().Where(tier => tier.Enabled).ToList();
         if (tiers.Count == 0) return null;
-        var total = profile.UsesLegacyFields ? 100 : tiers.Sum(tier => Math.Max(0, tier.Weight));
+        var weights = GetVoyageAdjustedTierWeights(tiers, expeditionEvent.VoyageProgressPercent);
+        var total = weights.Sum();
         if (total <= 0) return tiers[^1];
         var roll = StarshipExpeditionStory.StableIndex(snapshot.Seed, expeditionEvent.Sequence, $"reward-rarity:{expeditionEvent.EventId:N}", total);
         var cumulative = 0;
-        foreach (var tier in tiers)
+        for (var index = 0; index < tiers.Count; index++)
         {
-            cumulative += Math.Max(0, tier.Weight);
-            if (roll < cumulative) return tier;
+            cumulative += weights[index];
+            if (roll < cumulative) return tiers[index];
         }
         return tiers[^1];
+    }
+
+    internal static IReadOnlyList<int> GetVoyageAdjustedTierWeights(IReadOnlyList<StarshipRewardTier> tiers, int progressPercent)
+    {
+        var progress = Math.Clamp(progressPercent, 0, 100) / 100m;
+        var highestTierIndex = Math.Max(1, tiers.Count - 1);
+        return tiers.Select((tier, index) => Math.Max(0, (int)Math.Round(
+            tier.Weight * (1m + progress * index / highestTierIndex), MidpointRounding.AwayFromZero))).ToList();
     }
 
     private static StarshipUnbankedBalanceSnapshot AddUnbankedBalance(StarshipCrewMemberSnapshot member, int pointTypeId, string pointTypeName)

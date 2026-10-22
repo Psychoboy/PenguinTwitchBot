@@ -153,11 +153,85 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(StarshipExpeditionService.DefaultMinimumEventIntervalMinutes, settings.MinimumEventIntervalMinutes);
         Assert.Equal(StarshipExpeditionService.DefaultMaximumEventIntervalMinutes, settings.MaximumEventIntervalMinutes);
         Assert.Equal(StarshipExpeditionService.DefaultBoardingDurationSeconds, settings.BoardingDurationSeconds);
+        Assert.Equal(6, settings.LegCount);
+        Assert.Equal(80, settings.ShipSystems.StartingHull);
+        Assert.Equal(55, settings.ShipSystems.StartingSupplies);
+        Assert.Equal(12, settings.ShipSystems.TravelSuppliesCost);
+        Assert.Equal(3, settings.StationIntervalLegs);
         Assert.True(settings.ActiveCrewRewardsOnly);
         Assert.True(settings.AnnounceSessionStatusInChat);
         Assert.All(settings.RewardProfiles, profile => Assert.False(profile.Enabled));
         Assert.Empty(settings.CustomSectors);
         Assert.Equal(5, settings.GetEffectiveSectors().Count);
+    }
+
+    [Fact]
+    public async Task Load_PersistsLegacyStockDefaultsUpgradeForFutureLoads()
+    {
+        await CreateStore().LoadAsync();
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var row = await context.Settings.SingleAsync(item => item.Name == StarshipExpeditionSettingsStore.SettingKey);
+            var document = JsonNode.Parse(row.StringSetting!)!.AsObject();
+            document["shipSystemsDefaultsVersion"] = 0;
+            document["legCount"] = 5;
+            document["stationIntervalLegs"] = 2;
+            document["shipSystems"]!["startingHull"] = 100;
+            document["shipSystems"]!["startingSupplies"] = 100;
+            document["shipSystems"]!["travelSuppliesCost"] = 5;
+            row.StringSetting = document.ToJsonString();
+            await context.SaveChangesAsync();
+        }
+
+        var upgraded = await CreateStore().LoadAsync();
+        var reloaded = await CreateStore().LoadAsync();
+
+        Assert.Equal(6, upgraded.LegCount);
+        Assert.Equal(80, upgraded.ShipSystems.StartingHull);
+        Assert.Equal(55, upgraded.ShipSystems.StartingSupplies);
+        Assert.Equal(12, upgraded.ShipSystems.TravelSuppliesCost);
+        Assert.Equal(6, reloaded.LegCount);
+        Assert.Equal(80, reloaded.ShipSystems.StartingHull);
+        Assert.Equal(55, reloaded.ShipSystems.StartingSupplies);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_UpgradesLegacyStockDefaultsButPreservesCustomShipValues()
+    {
+        var legacy = new StarshipExpeditionSettings
+        {
+            StationIntervalLegs = 2,
+            ShipSystems = new() { StartingHull = 100, StartingSupplies = 100, TravelSuppliesCost = 5 }
+        };
+        var hazardIndex = legacy.EventCatalog.FindIndex(item => item.EventType == "Hazard");
+        legacy.EventCatalog[hazardIndex] = legacy.EventCatalog[hazardIndex] with
+        {
+            ShipFailureEffect = new() { HullDelta = -15, SuppliesDelta = -5 }
+        };
+
+        StarshipExpeditionSettings.NormalizeAndValidate(legacy);
+
+        Assert.Equal(80, legacy.ShipSystems.StartingHull);
+        Assert.Equal(55, legacy.ShipSystems.StartingSupplies);
+        Assert.Equal(12, legacy.ShipSystems.TravelSuppliesCost);
+        Assert.Equal(3, legacy.StationIntervalLegs);
+        Assert.Equal(6, legacy.LegCount);
+        Assert.Equal(new StarshipShipEffect { HullDelta = -25, SuppliesDelta = -10 }, legacy.EventCatalog[hazardIndex].ShipFailureEffect);
+
+        var customized = new StarshipExpeditionSettings
+        {
+            StationIntervalLegs = 4,
+            LegCount = 8,
+            ShipSystems = new() { StartingHull = 90, StartingSupplies = 70, TravelSuppliesCost = 8 }
+        };
+        StarshipExpeditionSettings.NormalizeAndValidate(customized);
+
+        Assert.Equal(90, customized.ShipSystems.StartingHull);
+        Assert.Equal(70, customized.ShipSystems.StartingSupplies);
+        Assert.Equal(8, customized.ShipSystems.TravelSuppliesCost);
+        Assert.Equal(4, customized.StationIntervalLegs);
+        Assert.Equal(8, customized.LegCount);
     }
 
     [Theory]
@@ -483,7 +557,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal("the Quiet Archive", completed.Subject);
         Assert.Equal(10, Assert.Single(completed.RewardOutcomes).EarnedAmount);
         Assert.NotNull(completed.ShipContext);
-        Assert.Equal(100, resolved.ShipSystems!.Hull);
+        Assert.Equal(80, resolved.ShipSystems!.Hull);
         await recovered.StopExpeditionAsync("moderator");
         points.Verify(instance => instance.AddPointsByUserIdOnce("release-pilot", 8, 10, It.IsAny<string>()), Times.Once);
 
@@ -497,9 +571,9 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal("the New Archive", nextEvent.CurrentEvent.Subject);
         var nextResult = await next.AdvanceEventAsync();
         Assert.Equal(99, Assert.Single(nextResult.CompletedEvents.Last().RewardOutcomes).EarnedAmount);
-        Assert.Equal(80, nextResult.ShipSystems!.Hull);
-        Assert.Equal(100, nextResult.CompletedEvents.Last().ShipContext!.HullBefore);
-        Assert.Equal(80, nextResult.CompletedEvents.Last().ShipContext!.HullAfter);
+        Assert.Equal(60, nextResult.ShipSystems!.Hull);
+        Assert.Equal(80, nextResult.CompletedEvents.Last().ShipContext!.HullBefore);
+        Assert.Equal(60, nextResult.CompletedEvents.Last().ShipContext!.HullAfter);
     }
 
     [Fact]

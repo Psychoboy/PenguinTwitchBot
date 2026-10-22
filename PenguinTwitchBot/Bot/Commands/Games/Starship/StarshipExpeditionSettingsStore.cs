@@ -39,6 +39,7 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
 
             if (settings == null)
                 throw new InvalidDataException("Persisted Starship Expedition settings are empty.");
+            var needsShipDefaultsUpgrade = settings.ShipSystemsDefaultsVersion < StarshipExpeditionSettings.CurrentShipSystemsDefaultsVersion;
 
             if (settings.CatalogStorageVersion == 1)
             {
@@ -56,7 +57,7 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
 
             StarshipExpeditionSettings.NormalizeAndValidate(settings);
             var installedStarters = StarshipStarterEvents.Install(settings, environment.WebRootPath);
-            if (settings.CatalogStorageVersion == 0 || installedStarters)
+            if (settings.CatalogStorageVersion == 0 || installedStarters || needsShipDefaultsUpgrade)
                 await SaveLockedAsync(unitOfWork, settings, setting);
             return settings;
         }

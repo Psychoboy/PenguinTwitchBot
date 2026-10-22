@@ -39,10 +39,10 @@ public sealed class StarshipExpeditionService(
     public const string ShortVoteCommandName = "sv";
     public const string ShortJoinCommandName = "sj";
     public const string ShortConfirmCommandName = "sc";
-    public const int DefaultLegCount = 5;
+    public const int DefaultLegCount = 6;
     public const int DefaultMinimumEventIntervalMinutes = 15;
     public const int DefaultMaximumEventIntervalMinutes = 30;
-    public const int DefaultStationIntervalLegs = 2;
+    public const int DefaultStationIntervalLegs = 3;
     public const int DefaultVoteDurationSeconds = 60;
     public const int DefaultBoardingDurationSeconds = 60;
 
@@ -1136,6 +1136,7 @@ public sealed class StarshipExpeditionService(
         {
             EventId = CreateDeterministicEventId(snapshot.ExpeditionId, sequence),
             Sequence = sequence,
+            VoyageProgressPercent = snapshot.LegCount <= 2 ? 0 : Math.Clamp((snapshot.CurrentLeg - 1) * 100 / (snapshot.LegCount - 2), 0, 100),
             EventType = definition.EventType,
             Title = definition.Title,
             Description = definition.Description,
