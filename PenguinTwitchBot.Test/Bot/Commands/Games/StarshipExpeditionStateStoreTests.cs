@@ -333,6 +333,22 @@ public class StarshipExpeditionStateStoreTests
     }
 
     [Fact]
+    public void OverlayProjection_ShowStatusDoesNotChangeVoyageEndResultTimestamp()
+    {
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(), Status = StarshipExpeditionStatus.Aborted,
+            StartedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-10), UpdatedAtUtc = DateTimeOffset.UtcNow,
+            ActivityFeed = [new() { Id = 1, Kind = StarshipActivityKinds.VoyageEnded, AtUtc = DateTimeOffset.UtcNow.AddMinutes(-5) }]
+        };
+        var endedAt = snapshot.ActivityFeed[0].AtUtc;
+        Assert.Equal(endedAt, StarshipExpeditionOverlaySnapshot.From(snapshot).LatestResult!.ResolvedAtUtc);
+        snapshot.UpdatedAtUtc = snapshot.UpdatedAtUtc.AddMinutes(1);
+        snapshot.StatusForcedUntilUtc = snapshot.UpdatedAtUtc.AddSeconds(10);
+        Assert.Equal(endedAt, StarshipExpeditionOverlaySnapshot.From(snapshot).LatestResult!.ResolvedAtUtc);
+    }
+
+    [Fact]
     public void OverlayProjection_ExposesVoteCountsWithoutViewerIdentifiers()
     {
         var snapshot = new StarshipExpeditionSnapshot

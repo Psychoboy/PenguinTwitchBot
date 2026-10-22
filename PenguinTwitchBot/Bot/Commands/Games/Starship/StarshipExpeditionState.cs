@@ -369,7 +369,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
             "Starship Expedition",
             snapshot.CurrentSector,
             snapshot.Status.ToString(),
-            snapshot.UpdatedAtUtc,
+            snapshot.ActivityFeed.LastOrDefault(item => item.Kind == StarshipActivityKinds.VoyageEnded)?.AtUtc ?? snapshot.UpdatedAtUtc,
             snapshot.BankedPayouts.Where(payout => payout.EventId == snapshot.ExpeditionId)
                 .GroupBy(payout => new { payout.PointTypeId, payout.PointTypeName })
                 .Select(group => new StarshipOverlayBankedAmount(

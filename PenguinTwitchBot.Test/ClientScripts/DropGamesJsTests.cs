@@ -876,6 +876,36 @@ namespace PenguinTwitchBot.Test.ClientScripts
             }
         }
 
+        [Theory]
+        [InlineData("Aborted")]
+        [InlineData("Returned")]
+        public void StarshipOverlay_ShowStatusAfterVoyageEndDoesNotReopenEventOrExtendStatusHold(string status)
+        {
+            var statusEngine = CreateStarshipOverlayEngine("status");
+            var eventEngine = CreateStarshipOverlayEngine("event");
+            var now = DateTimeOffset.UtcNow;
+            object Snapshot(int second) => new
+            {
+                status,
+                updatedAtUtc = now.AddSeconds(second).ToString("O"),
+                serverNowUtc = now.AddSeconds(second).ToString("O"),
+                statusForcedUntilUtc = now.AddSeconds(10).ToString("O"),
+                latestResult = new { sequence = 0, choice = status, resolvedAtUtc = now.ToString("O") },
+                activity = new[] { new { id = 1, kind = "VoyageEnded", atUtc = now.AddMinutes(-5).ToString("O") } }
+            };
+
+            foreach (var second in new[] { 0, 11 })
+            {
+                DispatchStarshipOverlayState(statusEngine, Snapshot(second));
+                DispatchStarshipOverlayState(eventEngine, Snapshot(second));
+
+                Assert.True(eventEngine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+                Assert.False(statusEngine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+                Assert.Equal(second < 10 ? "false" : "true",
+                    statusEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            }
+        }
+
         [Fact]
         public void StarshipStatusWidget_DoesNotOverlapEventWhileJoinToastIsVisible()
         {
