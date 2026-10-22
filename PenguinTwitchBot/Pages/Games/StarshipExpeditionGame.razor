@@ -153,6 +153,13 @@
                 <MudTabPanel Text="Events & Sectors">
                     @if (_visitedTabs.Contains(1))
                     {
+                    @if (_isLoadingRewardEditorOptions)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Loading event editor options...</MudText>
+                    }
+                    else
+                    {
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="9">
                             <StarshipEventCatalogEditor @ref="_eventCatalogEditor" Settings="_settings" PointTypes="_rewardPointTypes" Actions="_rewardActions" />
@@ -188,10 +195,18 @@
                         </MudItem>
                     </MudGrid>
                     }
+                    }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Reward Profiles">
                     @if (_visitedTabs.Contains(2))
+                    {
+                    @if (_isLoadingRewardEditorOptions)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Loading reward editor options...</MudText>
+                    }
+                    else
                     {
                     <MudStack Spacing="3">
                         <div>
@@ -289,6 +304,7 @@
                         </MudExpansionPanels>
                         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddRewardProfile">Add Reward Profile</MudButton>
                     </MudStack>
+                    }
                     }
                 </MudTabPanel>
 
