@@ -545,10 +545,6 @@
                             }
                         </MudItem>
                     </MudGrid>
-                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
-                                   Disabled="@_isSaving" OnClick="SaveAppearanceAsync">Save Appearance</MudButton>
-                    </MudStack>
                     }
                 </MudTabPanel>
 
@@ -658,6 +654,10 @@
                             </MudPaper>
                         </MudItem>
                     </MudGrid>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@_isSaving" OnClick="SaveAppearanceAsync">Save Appearance</MudButton>
+                    </MudStack>
                     }
                 </MudTabPanel>
 

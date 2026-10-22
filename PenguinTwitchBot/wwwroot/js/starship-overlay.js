@@ -312,7 +312,9 @@
         else if (status === 'Aborted') timer = 'Voyage aborted';
         setText('timing', timer);
 
-        root.dataset.faded = tracker.derive(snapshot, appearance.overlayDisplayMode).statusFaded && !toastEndsAt ? 'true' : 'false';
+        const scene = tracker.derive(snapshot, appearance.overlayDisplayMode);
+        root.hidden = appearance.overlayDisplayMode === 'AutomaticNoOverlap' && scene.eventVisible;
+        root.dataset.faded = scene.statusFaded ? 'true' : 'false';
         document.getElementById('crew-block').dataset.pulse = Date.now() < pulseUntil ? 'true' : 'false';
     }
 

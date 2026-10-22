@@ -81,7 +81,11 @@ public class StarshipSectorSelectionTests
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
         Assert.Single(page.FindComponents<StarshipEventCatalogEditor>());
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(4));
-        await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
+        await page.WaitForAssertionAsync(() =>
+        {
+            Assert.Contains(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour");
+            Assert.Contains(page.FindAll("button"), button => button.TextContent.Trim() == "Save Appearance");
+        });
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
         await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
         Assert.Single(page.FindComponents<StarshipEventCatalogEditor>());

@@ -522,7 +522,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             DispatchStarshipOverlayState(engine, Snapshot(1, Join(1, "Pilot", 4)));
             Assert.False(engine.Evaluate("document.getElementById('starship-toast').hidden").AsBoolean());
             Assert.Equal("Pilot joined the crew - 4 aboard", engine.Evaluate("document.getElementById('starship-toast').textContent").AsString());
-            Assert.Equal("false", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            Assert.Equal("true", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
             Assert.Equal("true", engine.Evaluate("document.getElementById('crew-block').dataset.pulse").AsString());
 
             DispatchStarshipOverlayState(engine, Snapshot(2, Join(2, "Medic", 5), Join(3, "Engineer", 6), Join(4, "Cook", 7)));
@@ -768,6 +768,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             DispatchStarshipOverlayState(engine, Snapshot("Boarding", now, null));
             Assert.Equal("true", Faded());
+            Assert.True(engine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
 
             DispatchStarshipOverlayState(engine, Snapshot("Cruising", now.AddSeconds(1), null));
             Assert.Equal("true", Faded());
@@ -790,6 +791,25 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             DispatchStarshipOverlayState(endedEngine, Snapshot("Returned", now.AddSeconds(-59), now.AddSeconds(30)));
             Assert.Equal("false", endedEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+        }
+
+        [Fact]
+        public void StarshipStatusWidget_DoesNotOverlapEventWhileJoinToastIsVisible()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            var now = DateTimeOffset.UtcNow;
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "EventOpen",
+                updatedAtUtc = now.ToString("O"),
+                serverNowUtc = now.ToString("O"),
+                activity = new[] { new { id = 1, kind = "CrewJoined", atUtc = now.ToString("O"), actor = "Viewer", text = "Viewer joined" } },
+                currentEvent = new { sequence = 1, stepNumber = 1, closesAtUtc = now.AddSeconds(30).ToString("O"), choices = Array.Empty<object>() },
+                latestResult = (object?)null
+            });
+
+            Assert.Equal("true", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            Assert.False(engine.Evaluate("document.getElementById('starship-toast').hidden").AsBoolean());
         }
 
         [Fact]

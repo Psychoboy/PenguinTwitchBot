@@ -4,7 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Starship Expedition Event</title>
-    <link rel="stylesheet" href="/css/starship-overlay.css" />
+    <script>
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = '/css/starship-overlay.css?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(css);
+    </script>
 </head>
 <body data-starship-view="event">
     <div id="ws-status" data-overlay="Starship Event">Disconnected</div>
@@ -79,12 +85,31 @@
     </main>
     <div id="starship-toast" class="toast" hidden></div>
     </div>
-    <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
-    <script src="/js/ws-client.js"></script>
-    <script src="/js/ws-status.js"></script>
-    <script src="/js/starship-scene.js"></script>
-    <script src="/js/starship-art.js"></script>
-        <script src="/js/drop-games-audio.js"></script>
-    <script src="/js/starship-overlay.js"></script>
+    <script>
+        const scripts = [
+            '/js/reconnecting-websocket/reconnectingWS.min.js',
+            '/js/ws-client.js',
+            '/js/ws-status.js',
+            '/js/starship-scene.js',
+            '/js/starship-art.js',
+            '/js/drop-games-audio.js',
+            '/js/starship-overlay.js'
+        ];
+        async function loadOverlayScripts() {
+            for (const source of scripts) {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = source + '?v=' + encodeURIComponent(cacheBust);
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('Failed to load ' + source));
+                    document.body.appendChild(script);
+                });
+            }
+        }
+        loadOverlayScripts().catch(error => {
+            const status = document.getElementById('ws-status');
+            if (status) status.textContent = error.message;
+        });
+    </script>
 </body>
 </html>
