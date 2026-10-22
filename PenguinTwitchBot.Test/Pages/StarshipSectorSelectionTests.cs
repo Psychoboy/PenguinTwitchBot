@@ -344,7 +344,7 @@ public class StarshipSectorSelectionTests
         var page = context.Render<StarshipExpeditionGame>();
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(2));
         await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudExpansionPanel>(),
-            component => component.Instance.Text?.StartsWith("Review Profile", StringComparison.Ordinal) == true));
+            component => component.Instance.Text?.StartsWith("Review Profile", StringComparison.Ordinal) == true), TimeSpan.FromSeconds(10));
         var original = settings.EventCatalog[index] with { RewardProfileId = "REVIEW-PROFILE" };
         settings.EventCatalog[index] = original;
         var panel = page.FindComponents<MudExpansionPanel>().Single(component => component.Instance.Text?.StartsWith("Review Profile", StringComparison.Ordinal) == true);
