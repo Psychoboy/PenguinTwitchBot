@@ -102,7 +102,7 @@
                 name: name,
                 eventVisible: eventVisible,
                 forced: forced,
-                statusFaded: !forced && !holding && (status === 'Cruising' || (terminal && t > updatedAt + STATUS_END_WINDOW_MS))
+                statusFaded: !forced && !holding && (status === 'Inactive' || status === 'Cruising' || (terminal && t > updatedAt + STATUS_END_WINDOW_MS))
             };
         }
 

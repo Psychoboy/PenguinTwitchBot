@@ -130,6 +130,7 @@ public class StarshipSectorSelectionTests
             .Returns(Array.Empty<StarshipExpeditionEventSnapshot>());
         await using var context = CreatePageContext(settings, store, expeditionService);
         var page = context.Render<StarshipExpeditionGame>();
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(3));
         var testTab = page.FindComponents<MudTabPanel>().Single(panel => panel.Instance.Text == "Test");
 
         await testTab.FindComponents<MudNumericField<int>>().Single(field => field.Instance.Label == "Maximum Hull")
@@ -164,6 +165,7 @@ public class StarshipSectorSelectionTests
         await using var context = CreatePageContext(settings, store);
         var page = context.Render<StarshipExpeditionGame>();
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(2));
+        Assert.Empty(page.FindComponents<StarshipRewardProfileEditor>());
 
         await page.FindComponents<MudCheckBox<bool>>().Single(item => item.Instance.Label == profile.Name)
             .Find("input").ChangeAsync(new ChangeEventArgs { Value = true });

@@ -112,6 +112,14 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         if (settings.GetEffectiveSectors().Count < 2)
             throw new ArgumentException("Enable or add at least two expedition sectors.", nameof(settings.DisabledBuiltInSectors));
 
+        NormalizeAndValidateRewardProfiles(settings);
+        StarshipEventCatalog.Validate(settings.EventCatalog, settings);
+        return settings;
+    }
+
+    internal static void NormalizeAndValidateRewardProfiles(StarshipExpeditionSettings settings)
+    {
+        settings.RewardProfiles ??= CreateDefaultRewardProfiles();
         foreach (var eventType in RewardEventTypes)
         {
             if (!settings.RewardProfiles.Any(profile => string.Equals(profile.EventType, eventType, StringComparison.OrdinalIgnoreCase)))
@@ -171,9 +179,6 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
                 binding.Value.Length > 0 && !profileIds.Contains(binding.Value))
                 throw new ArgumentException("An event reward binding references an unknown event or profile.", nameof(settings.EventRewardProfileIds));
         }
-
-        StarshipEventCatalog.Validate(settings.EventCatalog, settings);
-        return settings;
     }
 
     public DropGameSoundConfig GetEventTypeOpenSound(string eventType)

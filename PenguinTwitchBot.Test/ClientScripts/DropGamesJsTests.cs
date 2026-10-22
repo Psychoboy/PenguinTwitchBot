@@ -987,6 +987,11 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     latestResult: {{ sequence: 6, choice: 'Done', resolvedAtUtc: '{Iso(2)}' }}, currentEvent: null }};
                 tracker.update(ended);
                 window.__ended = tracker.derive(ended);
+                var idle = {{ status: 'Inactive', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}' }};
+                window.__idle = tracker.derive(idle);
+                var forcedIdle = {{ status: 'Inactive', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}',
+                    statusForcedUntilUtc: '{Iso(30)}' }};
+                window.__forcedIdle = tracker.derive(forcedIdle);
             ");
 
             Assert.Equal("EventVoting", engine.Evaluate("window.__first").AsString());
@@ -1000,6 +1005,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.False(engine.Evaluate("window.__stale.eventVisible").AsBoolean());
             Assert.Equal("VoyageEnd", engine.Evaluate("window.__ended.name").AsString());
             Assert.False(engine.Evaluate("window.__ended.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__idle.statusFaded").AsBoolean());
+            Assert.False(engine.Evaluate("window.__forcedIdle.statusFaded").AsBoolean());
         }
 
         [Fact]

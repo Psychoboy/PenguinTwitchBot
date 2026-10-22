@@ -139,13 +139,17 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            await using var transaction = await unitOfWork.BeginTransactionAsync();
-            var setting = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingKey)).FirstOrDefault();
-            unitOfWork.StarshipEvents.RemoveRange(await unitOfWork.StarshipEvents.GetAllAsync());
-            unitOfWork.StarshipRewardProfiles.RemoveRange(await unitOfWork.StarshipRewardProfiles.GetAllAsync());
-            await unitOfWork.SaveChangesAsync();
-            await SaveLockedAsync(unitOfWork, settings, setting);
-            await transaction.CommitAsync(cancellationToken);
+            var strategy = unitOfWork.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await unitOfWork.BeginTransactionAsync();
+                var setting = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingKey)).FirstOrDefault();
+                unitOfWork.StarshipEvents.RemoveRange(await unitOfWork.StarshipEvents.GetAllAsync());
+                unitOfWork.StarshipRewardProfiles.RemoveRange(await unitOfWork.StarshipRewardProfiles.GetAllAsync());
+                await unitOfWork.SaveChangesAsync();
+                await SaveLockedAsync(unitOfWork, settings, setting);
+                await transaction.CommitAsync(cancellationToken);
+            });
             return settings;
         }
         finally

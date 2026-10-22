@@ -52,7 +52,8 @@
         {
             <ErrorBoundary>
                 <ChildContent>
-            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5" KeepPanelsAlive="true" @bind-ActivePanelIndex="_activeTabIndex">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5" KeepPanelsAlive="true"
+                     @bind-ActivePanelIndex="_activeTabIndex" @bind-ActivePanelIndex:after="OnActiveTabChanged">
                 <MudTabPanel Text="Voyage Settings">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="7">
@@ -754,7 +755,6 @@
         {
             _settings = await SettingsStore.LoadAsync();
             _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
-            _balanceSettings = StarshipEventEditing.Copy(_settings);
             _pointTypes = (await PointsSystem.GetPointTypes()).Where(pointType => pointType.Id.HasValue).OrderBy(pointType => pointType.Name).ToList();
             _rewardPointTypes = _pointTypes.ToDictionary(pointType => pointType.GetId(), pointType => pointType.Name);
             _rewardActions = (await ActionManagement.GetAllActionsAsync()).Where(action => action.Id.HasValue).ToDictionary(action => action.Id!.Value, action => action.Name);
@@ -842,7 +842,7 @@
         {
             _settings = await SettingsStore.ResetToDefaultsAsync();
             _eventCatalogEditor?.DiscardPendingDraft();
-            _balanceSettings = StarshipEventEditing.Copy(_settings);
+            _balanceSettings = _activeTabIndex == 3 ? StarshipEventEditing.Copy(_settings) : null;
             _previewEvents = [];
             _balanceSummary = null;
             _balanceError = string.Empty;
@@ -886,6 +886,12 @@
         _balanceSettings = StarshipEventEditing.Copy(_settings);
         _balanceSummary = null;
         _balanceError = string.Empty;
+    }
+
+    private void OnActiveTabChanged()
+    {
+        if (_activeTabIndex == 3 && _balanceSettings == null && _settings != null)
+            _balanceSettings = StarshipEventEditing.Copy(_settings);
     }
 
     private static StarshipShipEffect GetBalanceFailureEffect(StarshipExpeditionSettings settings, string eventType) =>
@@ -1135,7 +1141,6 @@
         try
         {
             var candidate = CreateBulkRewardCandidate();
-            StarshipExpeditionSettings.NormalizeAndValidate(candidate);
             var pointName = _bulkPointTypeId is { } pointTypeId
                 ? _rewardPointTypes.GetValueOrDefault(pointTypeId, "selected point type")
                 : "all point types";
@@ -1204,7 +1209,11 @@
         if (_bulkAddReward && (_bulkMinimum == null || _bulkMaximum == null || _bulkMaximum < _bulkMinimum))
             throw new ArgumentException("Enter an ordered minimum and maximum payout for the new reward.");
 
-        var candidate = StarshipEventEditing.Copy(_settings);
+        var candidate = new StarshipExpeditionSettings
+        {
+            RewardProfiles = StarshipEventEditing.Copy(_settings.RewardProfiles),
+            EventRewardProfileIds = new(_settings.EventRewardProfileIds, StringComparer.OrdinalIgnoreCase)
+        };
         var affected = 0;
         foreach (var profile in candidate.RewardProfiles.Where(profile => _bulkProfileIds.Contains(profile.Id)))
         {
@@ -1237,7 +1246,7 @@
         if (affected == 0) throw new ArgumentException(_bulkAddReward
             ? "No selected rarity tiers can receive this point type. It may already be present or the tiers may be full."
             : "No reward entries match the selected profiles, rarity, and point type.");
-        StarshipExpeditionSettings.NormalizeAndValidate(candidate);
+        StarshipExpeditionSettings.NormalizeAndValidateRewardProfiles(candidate);
         return candidate;
     }
 
