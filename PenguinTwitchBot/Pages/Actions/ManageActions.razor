@@ -253,21 +253,21 @@
                                              SubActions="_selectedAction.SubActions" 
                                              SubActionsChanged="OnSubActionsChanged" />
 
-                        <!-- Catch SubActions Section -->
-                        <MudPaper Class="pa-4" Elevation="0" Outlined="true">
-                            <MudStack Spacing="1">
-                                <MudText Typo="Typo.h6">Catch SubActions</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    These execute when an error is found in the main subactions. Useful for error handling or notifications. Use %ActionErrorMessage% to get error message.
-                                </MudText>
-                            </MudStack>
-                        </MudPaper>
-                        <SubActionManagement ActionId="_selectedAction.Id"
-                                             ActionName="@_selectedAction.Name"
-                                             Triggers="_actionTriggers"
-                                             SubActions="_selectedAction.CatchSubActions"
-                                             SubActionsChanged="OnCatchSubActionsChanged"
-                                             IsCatchSubAction="true" />
+                        <MudExpansionPanels Elevation="0" Outlined="true">
+                            <MudExpansionPanel Text="Catch SubActions">
+                                <MudStack Spacing="2">
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        These execute when an error is found in the main subactions. Useful for error handling or notifications. Use %ActionErrorMessage% to get error message.
+                                    </MudText>
+                                    <SubActionManagement ActionId="_selectedAction.Id"
+                                                         ActionName="@_selectedAction.Name"
+                                                         Triggers="_actionTriggers"
+                                                         SubActions="_selectedAction.CatchSubActions"
+                                                         SubActionsChanged="OnCatchSubActionsChanged"
+                                                         IsCatchSubAction="true" />
+                                </MudStack>
+                            </MudExpansionPanel>
+                        </MudExpansionPanels>
 
                         @if (!_isNewAction && _selectedAction.Id.HasValue)
                         {
