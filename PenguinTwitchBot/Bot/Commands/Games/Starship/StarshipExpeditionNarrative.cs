@@ -27,22 +27,44 @@ public static class StarshipExpeditionNarrative
         return string.Join(", ", parts);
     }
 
-    public static string FormatChoices(IReadOnlyList<StarshipEventChoiceSnapshot> choices) =>
+    public static string FormatChoices(
+        IReadOnlyList<StarshipEventChoiceSnapshot> choices,
+        IReadOnlyList<StarshipShipChoiceDisclosure>? shipChoices = null) =>
         string.Join(" ", choices.Select((choice, index) =>
         {
             var effects = DescribeEffects(choice);
-            return $"{index + 1}) {choice.Label}{(effects.Length == 0 ? string.Empty : $" [{effects}]")}";
+            var shipEffect = shipChoices?.FirstOrDefault(item => item.ChoiceId == choice.ChoiceId)?.Describe();
+            var descriptions = new[] { effects, shipEffect }.Where(description => !string.IsNullOrWhiteSpace(description));
+            var suffix = string.Join("; ", descriptions);
+            return $"{index + 1}) {choice.Label}{(suffix.Length == 0 ? string.Empty : $" [{suffix}]")}";
+        }));
+
+    public static string FormatStationChoices(IReadOnlyList<StarshipShipChoiceDisclosure> choices) =>
+        string.Join(" ", choices.Select((choice, index) =>
+        {
+            var effect = choice.ChoiceId switch
+            {
+                "resupply" when choice.SuppliesDelta > 0 => $"+{choice.SuppliesDelta} supplies",
+                "repair" => $"+{choice.HullDelta} hull; costs {choice.SuppliesCost} supplies",
+                "continue" when choice.NextEventSuccessBonusPercent != 0 =>
+                    $"+{choice.NextEventSuccessBonusPercent} percentage points to next event success",
+                _ => choice.Describe()
+            };
+            return $"{index + 1}) {choice.Label} ({effect})";
         }));
 
     public static string FormatPath(StarshipExpeditionEventSnapshot expeditionEvent) =>
         string.Join(" > ", expeditionEvent.Path.Select(step => step.Label));
 
-    public static IReadOnlyList<string> BuildEventLines(StarshipExpeditionEventSnapshot expeditionEvent, bool includeStory = true)
+    public static IReadOnlyList<string> BuildEventLines(
+        StarshipExpeditionEventSnapshot expeditionEvent,
+        bool includeStory = true,
+        bool includeCrewPath = true)
     {
         var lines = new List<string>();
         if (includeStory && !string.IsNullOrWhiteSpace(expeditionEvent.OutcomeStory))
             lines.Add(expeditionEvent.OutcomeStory);
-        if (expeditionEvent.Path.Count > 1)
+        if (includeCrewPath && expeditionEvent.Path.Count > 1)
             lines.Add($"Crew path: {FormatPath(expeditionEvent)}.");
 
         var earned = SumByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.EarnedAmount);
@@ -71,17 +93,59 @@ public static class StarshipExpeditionNarrative
         return lines;
     }
 
-    public static string BuildEventMessage(StarshipExpeditionEventSnapshot expeditionEvent)
+    public static string BuildEventMessage(StarshipExpeditionEventSnapshot expeditionEvent, bool includeCrewPath = true)
     {
-        var lines = BuildEventLines(expeditionEvent);
+        var lines = BuildEventLines(expeditionEvent, includeCrewPath: includeCrewPath);
         if (lines.Count == 0)
         {
-            var choice = expeditionEvent.Choices.FirstOrDefault(option =>
-                string.Equals(option.ChoiceId, expeditionEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+            var choice = StarshipRewardResolver.FindResolvedChoice(expeditionEvent);
             return $"Starship event resolved: {expeditionEvent.Title}. Crew chose {choice?.Label ?? expeditionEvent.ResolvedChoiceId ?? "the default"}.";
         }
 
         return $"{expeditionEvent.Title} resolved. {string.Join(" ", lines)}";
+    }
+
+    public static string BuildChatEventMessage(StarshipExpeditionEventSnapshot expeditionEvent)
+    {
+        var lines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(expeditionEvent.OutcomeStory))
+            lines.Add(expeditionEvent.OutcomeStory.Trim());
+        lines.Add(expeditionEvent.OutcomeResult switch
+        {
+            OutcomeSuccess => string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity)
+                ? "SUCCESS."
+                : $"SUCCESS - {expeditionEvent.OutcomeRarity} find.",
+            OutcomeFailure => string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity)
+                ? "FAILED - the encounter was unsuccessful."
+                : $"FAILED - the {expeditionEvent.OutcomeRarity} find was lost.",
+            OutcomePassed => "The crew passed - no risk, no reward.",
+            _ => "The event ended."
+        });
+
+        var earned = SumByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.EarnedAmount);
+        var lost = SumByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.LostAmount);
+        if (earned.Count > 0) lines.Add($"Earned {FormatAmounts(earned)}.");
+        if (lost.Count > 0) lines.Add($"Lost {FormatAmounts(lost)} of unbanked points.");
+        if (expeditionEvent.ShipContext is { } ship)
+        {
+            var changes = new List<string>();
+            if (ship.HullAfter != ship.HullBefore)
+                changes.Add($"hull {FormatDelta(ship.HullAfter - ship.HullBefore)} ({ship.HullAfter}/{ship.HullMaximum})");
+            if (ship.SuppliesAfter != ship.SuppliesBefore)
+                changes.Add($"supplies {FormatDelta(ship.SuppliesAfter - ship.SuppliesBefore)} ({ship.SuppliesAfter}/100)");
+            if (changes.Count > 0) lines.Add($"Ship: {string.Join(", ", changes)}.");
+        }
+        return $"{expeditionEvent.Title}: {string.Join(" ", lines)}";
+    }
+
+    private static string FormatDelta(int value) => value.ToString("+#;-#;0", CultureInfo.InvariantCulture);
+
+    public static string BuildCruisingStatusMessage(DateTimeOffset? nextEventAtUtc, DateTimeOffset now)
+    {
+        if (nextEventAtUtc == null) return "The ship is now cruising.";
+        var minutes = Math.Max(0, (int)Math.Ceiling((nextEventAtUtc.Value - now).TotalMinutes));
+        var estimate = minutes == 0 ? "less than a minute" : $"about {minutes} minute{(minutes == 1 ? string.Empty : "s")}";
+        return $"The ship is now cruising. Next event in {estimate}.";
     }
 
     public static IReadOnlyList<string> BuildVoyageLines(StarshipExpeditionSnapshot snapshot)
@@ -100,7 +164,7 @@ public static class StarshipExpeditionNarrative
         var lost = SumByPointType(outcomes, outcome => outcome.LostAmount);
         var banked = snapshot.BankedPayouts
             .GroupBy(payout => payout.PointTypeName)
-            .ToDictionary(group => group.Key, group => group.Sum(payout => payout.Amount));
+            .ToDictionary(group => group.Key, group => StarshipRewardResolver.SumSaturating(group.Select(payout => payout.Amount)));
         if (earned.Count > 0) lines.Add($"Earned {FormatAmounts(earned)}.");
         if (lost.Count > 0) lines.Add($"Lost {FormatAmounts(lost)} to failed risks.");
         if (banked.Count > 0) lines.Add($"Banked {FormatAmounts(banked)} to the crew.");
@@ -111,7 +175,7 @@ public static class StarshipExpeditionNarrative
         IEnumerable<StarshipRewardOutcomeSnapshot> outcomes,
         Func<StarshipRewardOutcomeSnapshot, long> selector) =>
         outcomes.GroupBy(outcome => outcome.PointTypeName)
-            .Select(group => (group.Key, Total: group.Sum(selector)))
+            .Select(group => (group.Key, Total: StarshipRewardResolver.SumSaturating(group.Select(selector))))
             .Where(item => item.Total > 0)
             .ToDictionary(item => item.Key, item => item.Total);
 

@@ -1,29 +1,46 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "event": {
     "eventType": "courier-relay",
     "title": "Courier Relay",
     "description": "A navigation message from {subject} is waiting in {sector}. Relay it or keep moving.",
-    "choices": [
-      {
-        "choiceId": "relay",
-        "label": "Relay the message",
-        "story": "{crewlist} restores the link to {subject} and forwards the waiting message."
-      },
-      {
-        "choiceId": "continue",
-        "label": "Continue the voyage",
-        "story": "The crew leaves {subject} transmitting into the quiet.",
-        "endsWithoutReward": true
-      }
-    ],
-    "defaultChoiceId": "continue",
+    "choices": [],
+    "defaultChoiceId": "",
     "successStory": "The message reaches its destination.",
     "failureStory": "The transmission fades before the link is restored.",
     "enabled": true,
     "weight": 1,
     "subjectStyle": "signal",
     "objectKind": "beacon",
-    "rewardProfileId": ""
+    "rewardProfileId": "",
+    "startStepId": "identify",
+    "defaultStepSuppliesCost": 1,
+    "steps": [
+      {
+        "stepId": "identify",
+        "type": "Vote",
+        "prompt": "A navigation message from {subject} is waiting in {sector}. How should the crew handle it?",
+        "defaultChoiceId": "relay",
+        "choices": [
+          { "choiceId": "relay", "label": "Relay the message", "story": "{crewlist} restores the link to {subject} and forwards the waiting message.", "nextStepId": "delivery-check" },
+          { "choiceId": "retransmit", "label": "Boost and retransmit", "story": "{crew} boosts the signal from {subject}.", "nextStepId": "boost-report" },
+          { "choiceId": "continue", "label": "Continue the voyage", "story": "The crew leaves {subject} transmitting into the quiet.", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      { "stepId": "boost-report", "type": "Automatic", "prompt": "The relay comes online.", "narrative": "A second packet arrives from a dead beacon.", "suppliesCostOverride": 3, "nextStepId": "second-packet" },
+      {
+        "stepId": "second-packet",
+        "type": "Vote",
+        "prompt": "The packet contains coordinates for a nearby derelict. Follow up?",
+        "defaultChoiceId": "forward-packet",
+        "choices": [
+          { "choiceId": "forward-packet", "label": "Forward both messages", "successChanceModifierPercent": 10, "rewardMultiplierPercent": 130, "nextStepId": "delivery-check" },
+          { "choiceId": "investigate-packet", "label": "Investigate the beacon", "successChanceModifierPercent": -10, "rewardMultiplierPercent": 150, "riskMultiplierPercent": 150, "nextStepId": "delivery-check" },
+          { "choiceId": "drop-packet", "label": "Leave the second packet", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      { "stepId": "delivery-check", "type": "End", "prompt": "The message reaches its destination." },
+      { "stepId": "pass-ending", "type": "End", "prompt": "The crew leaves {subject} transmitting into the quiet." }
+    ]
   }
 }

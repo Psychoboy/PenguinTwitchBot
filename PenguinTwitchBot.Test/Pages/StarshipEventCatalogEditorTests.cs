@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,7 +40,11 @@ public class StarshipEventCatalogEditorTests
         title.Find("input").Change("Archive Recovery");
         Assert.Equal("Derelict Salvage", settings.EventCatalog.Single(definition => definition.EventType == "SalvageSite").Title);
         Click(editor, "Preview Event");
-        Assert.Contains("Warm signatures", editor.Markup);
+        Assert.Contains("The damaged vessel", editor.Markup);
+        Assert.Contains("Choices by step (default route highlighted)", editor.Markup);
+        Assert.Contains("approach", editor.Markup);
+        Assert.Contains("recovery", editor.Markup);
+        Assert.Contains("default route", editor.Markup, StringComparison.OrdinalIgnoreCase);
         Click(editor, "Apply Event");
         var added = settings.EventCatalog.Single(definition => definition.Title == "Archive Recovery");
         Assert.Equal("SalvageSite", added.RewardProfileId);
@@ -47,6 +52,80 @@ public class StarshipEventCatalogEditorTests
         editor.Find($"button[aria-label='Delete {added.EventType}']").Click();
         Click(editor, "Delete Event");
         Assert.Equal(5, settings.EventCatalog.Count);
+    }
+
+    [Fact]
+    public async Task ApplyDraft_DisablesSaveAndIgnoresRepeatedApplyWhileCallbackIsActive()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var callbackStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishCallback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackCount = 0;
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters
+            .Add(component => component.Settings, settings)
+            .Add(component => component.EventApplied, EventCallback.Factory.Create<StarshipEventDefinition>(this, async _ =>
+            {
+                callbackCount++;
+                callbackStarted.SetResult();
+                await finishCallback.Task;
+            })));
+        Click(editor, "Add Event");
+        var saveButton = editor.FindAll("button").Single(button => button.TextContent.Trim() == "Save Event");
+
+        var applyTask = saveButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await callbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await editor.WaitForAssertionAsync(() =>
+            Assert.True(editor.FindAll("button").Single(button => button.TextContent.Trim() == "Save Event").HasAttribute("disabled")));
+
+        await editor.InvokeAsync(async () =>
+        {
+            var applyDraft = typeof(StarshipEventCatalogEditor).GetMethod(
+                "ApplyDraft", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            await (Task)applyDraft.Invoke(editor.Instance, null)!;
+        });
+        Assert.Equal(1, callbackCount);
+
+        finishCallback.SetResult();
+        await applyTask;
+        await editor.WaitForAssertionAsync(() =>
+            Assert.False(editor.FindAll("button").Single(button => button.TextContent.Trim() == "Save Event").HasAttribute("disabled")));
+    }
+
+    [Fact]
+    public async Task EventList_ShowsEffectiveRewardProfileAndUnboundState()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var profile = new StarshipRewardProfile
+        {
+            Id = "signal-crew-rewards", Name = "Signal Crew Rewards", Tiers = [new() { Name = "Common", Weight = 1 }]
+        };
+        settings.RewardProfiles.Add(profile);
+        settings.EventRewardProfileIds["SignalDetected"] = profile.Id;
+        settings.EventCatalog.Add(StarshipEventEditing.NewEvent(settings));
+        StarshipExpeditionSettings.NormalizeAndValidate(settings);
+
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
+        var signalRow = editor.FindAll("tbody tr").Single(row => row.TextContent.Contains("SignalDetected", StringComparison.Ordinal));
+        var customRow = editor.FindAll("tbody tr").Single(row => row.TextContent.Contains("New Event", StringComparison.Ordinal));
+
+        Assert.Contains("Signal Crew Rewards", signalRow.TextContent);
+        Assert.Contains("No rewards", customRow.TextContent);
+    }
+
+    [Fact]
+    public async Task DiscardPendingDraft_ClearsDraftAndRefreshesEditor()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
+        Click(editor, "Add Event");
+        Assert.Contains("New Event Draft", editor.Markup);
+
+        await editor.InvokeAsync(() => editor.Instance.DiscardPendingDraft());
+
+        await editor.WaitForAssertionAsync(() => Assert.DoesNotContain("New Event Draft", editor.Markup));
     }
 
     [Fact]
@@ -69,20 +148,55 @@ public class StarshipEventCatalogEditorTests
     }
 
     [Fact]
+    public async Task GraphStepRename_UpdatesStartAndIncomingTargets()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
+        editor.Find("button[aria-label='Edit SignalDetected']").Click();
+        editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Step ID")
+            .Find("input").Change("opening");
+
+        Click(editor, "Apply Event");
+
+        var definition = settings.EventCatalog.Single(item => item.EventType == "SignalDetected");
+        Assert.Equal("opening", definition.StartStepId);
+        Assert.Contains(definition.Steps, step => step.StepId == "opening");
+        Assert.DoesNotContain(definition.Steps.SelectMany(step => step.Choices), choice => choice.NextStepId == "approach");
+    }
+
+    [Fact]
+    public async Task GraphStepRename_DuplicateIdDoesNotMutateDraft()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
+        editor.Find("button[aria-label='Edit SignalDetected']").Click();
+        var stepId = editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Step ID");
+        await stepId.Find("input").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "scan-report" });
+
+        Assert.Contains("Step ID 'scan-report' is already in use", editor.Markup);
+        Assert.Equal("approach", settings.EventCatalog.Single(item => item.EventType == "SignalDetected").StartStepId);
+        Assert.Contains(settings.EventCatalog.Single(item => item.EventType == "SignalDetected").Steps, step => step.StepId == "approach");
+    }
+
+    [Fact]
     public async Task DraftValidation_RejectsDuplicatesAndCapsChoicesWithoutMutatingSettings()
     {
         await using var context = CreateContext();
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
         Click(editor, "Add Event");
-        for (var index = 0; index < 4; index++) Click(editor, "Add Choice");
+        for (var index = 0; index < 2; index++) Click(editor, "Add Choice");
+        Assert.Equal(4, editor.FindAll("button[aria-label^='Edit choice ']").Count);
         Assert.True(editor.FindAll("button").Single(button => button.TextContent.Trim() == "Add Choice").HasAttribute("disabled"));
         editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Event ID").Find("input").Change("SignalDetected");
         Click(editor, "Apply Event");
         Assert.Equal(5, settings.EventCatalog.Count);
         Assert.Contains("Event IDs must be unique", editor.Markup);
-        Click(editor, "Discard Draft");
-        Assert.DoesNotContain("New Event Draft", editor.Markup);
+        await editor.FindAll("button").Single(button => button.TextContent.Trim() == "Discard Draft")
+            .ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await editor.WaitForAssertionAsync(() => Assert.DoesNotContain("New Event Draft", editor.Markup));
     }
 
     [Fact]

@@ -51,6 +51,89 @@ public class StarshipExpeditionStateStoreTests
     }
 
     [Fact]
+    public async Task Load_InvalidPersistedShipRulesDeletesSnapshotAndReturnsNoActiveVoyage()
+    {
+        var rows = new List<Setting>
+        {
+            new()
+            {
+                Name = StarshipExpeditionStateStore.SettingKey,
+                DataType = Setting.DataTypeEnum.String,
+                StringSetting = JsonSerializer.Serialize(new StarshipExpeditionSnapshot
+                {
+                    ExpeditionId = Guid.NewGuid(),
+                    LegCount = 4,
+                    Crew = null!,
+                    BankedPayouts = null!,
+                    ShipSystems = new StarshipShipSystemsSnapshot
+                    {
+                        IntegrationEnabled = true,
+                        Rules = new() { MaximumHull = 0 },
+                        Hull = 0,
+                        Supplies = 20
+                    }
+                })
+            }
+        };
+        var store = CreateStore(rows);
+
+        var loaded = await store.LoadAsync();
+
+        Assert.Null(loaded);
+        Assert.Empty(rows);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Load_InvalidPersistedShipRulesPreservesSnapshotWithOutstandingRewards(bool hasUnbankedBalance, bool hasUnpaidPayout)
+    {
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            LegCount = 4,
+            Crew = hasUnbankedBalance ?
+            [
+                new StarshipCrewMemberSnapshot
+                {
+                    UserId = "viewer-1",
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 1, Amount = 20 }]
+                }
+            ] : [],
+            BankedPayouts = hasUnpaidPayout ?
+            [
+                new StarshipBankedPayoutSnapshot
+                {
+                    OperationId = "starship:pending-payout", UserId = "viewer-1", PointTypeId = 1, Amount = 30
+                }
+            ] : [],
+            ShipSystems = new StarshipShipSystemsSnapshot
+            {
+                IntegrationEnabled = true,
+                Rules = new() { MaximumHull = 0 },
+                Hull = 0,
+                Supplies = 20
+            }
+        };
+        var rows = new List<Setting>
+        {
+            new()
+            {
+                Name = StarshipExpeditionStateStore.SettingKey,
+                DataType = Setting.DataTypeEnum.String,
+                StringSetting = JsonSerializer.Serialize(snapshot)
+            }
+        };
+
+        var loaded = await CreateStore(rows).LoadAsync();
+
+        Assert.NotNull(loaded);
+        Assert.Single(rows);
+        Assert.Equal(hasUnbankedBalance, loaded.Crew.Any(member => member.UnbankedBalances.Any(balance => balance.Amount > 0)));
+        Assert.Equal(hasUnpaidPayout, loaded.BankedPayouts.Any(payout => !payout.IsPaid));
+    }
+
+    [Fact]
     public async Task ShipSystems_SaveRejectsInvalidResourcesAndDuplicateOperations()
     {
         var state = StarshipShipSystems.Create(new())!;
@@ -277,6 +360,8 @@ public class StarshipExpeditionStateStoreTests
                 var index = settingRows.FindIndex(existing => existing.Name == setting.Name);
                 if (index >= 0) settingRows[index] = setting;
             });
+        settingsRepository.Setup(repository => repository.Remove(It.IsAny<Setting>()))
+            .Callback<Setting>(setting => settingRows.Remove(setting));
 
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.SetupGet(work => work.Settings).Returns(settingsRepository.Object);

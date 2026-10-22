@@ -50,6 +50,15 @@ public static class StarshipExpeditionStory
         return (int)(BinaryPrimitives.ReadUInt32LittleEndian(hash) % (uint)count);
     }
 
+    public static long StableLongRange(int seed, int sequence, string purpose, long minimum, long maximum)
+    {
+        if (minimum < 0 || maximum < minimum)
+            throw new ArgumentOutOfRangeException(nameof(minimum), "Reward range must be non-negative and ordered.");
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{seed}:{sequence}:{purpose}"));
+        var range = (ulong)(maximum - minimum) + 1UL;
+        return minimum + (long)(BinaryPrimitives.ReadUInt64LittleEndian(hash) % range);
+    }
+
     public static string GenerateSubject(int seed, int sequence, string eventType)
     {
         string Pick(string[] items, string purpose) => items[StableIndex(seed, sequence, $"story-{purpose}", items.Length)];
@@ -143,8 +152,7 @@ public static class StarshipExpeditionStory
 
     public static string BuildOutcomeStory(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot resolvedEvent)
     {
-        var finalChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
-            string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+        var finalChoice = StarshipRewardResolver.FindResolvedChoice(resolvedEvent);
         var voters = GetVoterNames(snapshot, resolvedEvent, resolvedEvent.ResolvedChoiceId ?? string.Empty);
         var rarity = string.IsNullOrEmpty(resolvedEvent.OutcomeRarity) ? resolvedEvent.RevealedRarity : resolvedEvent.OutcomeRarity;
         var parts = new List<string> { Render(finalChoice?.Story ?? string.Empty, resolvedEvent, snapshot.Seed, voters, rarity) };

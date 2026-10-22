@@ -4,7 +4,7 @@ A shared, long-form voyage. Viewers board, then vote in chat on occasional event
 
 ## Enable the Game
 
-Starship Expedition is off by default, including after upgrading settings that do not yet contain an enable value. Use the **Enable Starship Expedition** switch beside the page title and save settings before starting a voyage. When off, chat commands are silently ignored and logged unless a voyage is already active; an active voyage continues to accept joins and votes and can still be advanced or stopped. The toggle does not abort a voyage already underway.
+Starship Expedition is off by default, including after upgrading settings that do not yet contain an enable value. Use the **Enable Starship Expedition** switch beside the page title and save **Expedition Configuration** before starting a voyage. When off, chat commands are silently ignored and logged unless a voyage is already active; an active voyage continues to accept joins and votes and can still be advanced or stopped. The toggle does not abort a voyage already underway.
 
 ## Running a voyage
 
@@ -25,7 +25,7 @@ In **Events & Sectors**, the **Sectors** section lets you enable or disable each
 
 ## Events and choices
 
-Open **Events & Sectors** to edit the catalog. The **Custom Events** help tab covers choices, profiles, filters, previews, story tokens, media and JSON sharing. Apply Event updates the unsaved page; Save Settings persists the validated catalog. Active voyages keep their original definitions.
+Open **Events & Sectors** to edit the catalog. The **Custom Events** help tab covers choices, profiles, filters, previews, story tokens, media and JSON sharing. **Save Event** persists an event immediately; each settings section has its own save button, and saving one section does not save unrelated edits. Active voyages keep their original definitions.
 
 Courier Relay, Survey Cache and Debris Crossing are installed automatically as editable starter events. No manual import is needed. Their reward profiles remain under your control; installation does not select a currency or enable rewards. Edits and deletions are retained on later loads.
 
@@ -61,8 +61,10 @@ Open the **Appearance** tab on the Starship page to restyle both widgets. Everyt
 
 - **Colours and style:** panel, text, accent, highlight and warning colours, panel opacity, corner radius and font. Tick *Use each ship's own accent colour* to keep the per-voyage ship colour, or untick it to use your accent everywhere.
 - **Show or hide:** animations, join toasts, the route map, effect chips, vote bars, the odds and loss lines and the path footer.
+- **Overlay visibility:** choose automatic overlays with no overlap, status-on-demand, both-on-demand, or event-on-demand. The default hides the small status widget while the large event/result widget is visible.
+- **Overlay visibility:** choose whether widgets appear automatically, whether the status widget hides while the event widget is visible, or whether either/both require their Show Widget action. See **Triggers & Actions** for the manual actions.
 - **Custom images:** pick ship images and per-object images (wreck, beacon, debris field, station, route fork) from the media library. They are mixed into the same pool as the built-in art, so each voyage's ship and each event's object is chosen automatically. Switch the built-in art off to use only your images; an object type with no images keeps its built-in art.
-- **Live preview:** the tab shows sample data with your unsaved changes. Press **Save Settings** to keep them - connected overlays in OBS update immediately, without changing their URLs.
+- **Live preview:** the tab shows sample data with your current appearance edits. Press **Save Appearance** to keep them - connected overlays in OBS update immediately, without changing their URLs.
 
 Images must be media-library files (a path starting with `/media/`) or an `http(s)` address.
 
@@ -72,13 +74,14 @@ Images must be media-library files (a path starting with `/media/`) or an `http(
 - On success every eligible crew member earns unbanked points based on the revealed rarity.
 - On failure the **whole crew** loses a share of their unbanked points. Securing first reduces that share.
 - Unbanked points are banked at station stops, when the voyage returns, or when it is aborted. Failed payouts are retried without paying twice.
-- Open **Reward Profiles** to create named profiles and assign them to event types. Multiple events can share one profile; choose **No rewards** to leave an event unbound.
+- Open **Reward Profiles** to create named profiles and assign them to event types. The top dropdowns bind built-in event types to shared profiles; they do not change profile payouts. Multiple events can share one profile; choose **No rewards** to leave an event unbound.
+- **Bulk Edit Rarity Rewards** can update an existing point type’s payout range/chance across selected profiles and tiers, or add a new point-type payout where it is missing. It changes unsaved settings only and requires preview and confirmation.
 - Each profile has ordered, enabled rarity tiers with names, badge colours and relative weights. Weights do not need to total 100; the editor displays each tier's resulting chance.
 - A tier can award multiple point currencies, each with a minimum, maximum and optional bonus chance. Point limits default to **unlimited**. Add a limit to cap a currency per event or voyage; clearing a limit field or deleting its row makes that limit unlimited. An explicit voyage limit includes points already banked.
 - Failure loss rules select a currency, percentage and optional maximum loss amount (unlimited by default). An explicit zero maximum prevents loss. Even without an amount cap, losses still respect the configured percentage and cannot exceed unbanked balances; banked points are safe.
 - Previously saved numeric limits are preserved. Clear or delete them to make an existing profile unlimited. Per-reward payout ranges and configuration safety bounds are separate from these optional point limits.
 - Profiles can run normal actions on success, on failure or after banking. See **Triggers & Actions** for dispatch and recovery behavior.
-- Save settings before starting a voyage. Profiles and event bindings are copied at departure; editing them does not change a voyage already underway. Older saved profiles are converted to three equivalent tiers automatically.
+- Save **Expedition Configuration** before starting a voyage. Profiles and event bindings are copied at departure; editing them does not change a voyage already underway. Older saved profiles are converted to three equivalent tiers automatically.
 
 ## Chat commands
 
@@ -106,4 +109,4 @@ Event definitions and reward profiles are stored as versioned database documents
 
 New voyages copy their event catalog, reward profiles and bindings at departure. Editing settings cannot change an active voyage, including after a restart. Older voyages without a saved catalog continue using the built-in event definitions. Missing or unsupported catalog documents fail visibly rather than silently resetting to defaults.
 
-Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Definitions permit two to six choices; more than four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized.
+Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Each vote step permits two to four choices; three or four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized.

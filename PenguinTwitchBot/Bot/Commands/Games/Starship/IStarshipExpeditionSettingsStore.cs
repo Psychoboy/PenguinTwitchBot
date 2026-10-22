@@ -4,4 +4,5 @@ public interface IStarshipExpeditionSettingsStore
 {
     Task<StarshipExpeditionSettings> LoadAsync(CancellationToken cancellationToken = default);
     Task SaveAsync(StarshipExpeditionSettings settings, CancellationToken cancellationToken = default);
+    Task<StarshipExpeditionSettings> ResetToDefaultsAsync(CancellationToken cancellationToken = default);
 }

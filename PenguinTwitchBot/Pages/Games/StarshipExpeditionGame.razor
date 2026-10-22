@@ -25,15 +25,21 @@
                 {
                     <MudSwitch T="bool" Color="Color.Success" Label="Enable Starship Expedition" @bind-Value="_settings.GameEnabled" />
                 }
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Save each settings section where you edit it. Saving one section leaves other unsaved edits untouched; events persist when you choose Save Event.</MudText>
             </div>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
-                           Disabled="@_isSaving" OnClick="SaveSettingsAsync">
-                    Save Settings
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteSweep"
+                           Disabled="@(_isSaving || _isLoading)" OnClick="ResetAllSettingsAsync">
+                    Reset All
                 </MudButton>
                 <HelpButton Topic="starship-game" />
             </MudStack>
         </MudStack>
+
+        @if (!_isLoading && !string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_error</MudAlert>
+        }
 
         @if (_isLoading)
         {
@@ -41,12 +47,10 @@
         }
         else if (_settings != null)
         {
-            @if (!string.IsNullOrWhiteSpace(_error))
-            {
-                <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_error</MudAlert>
-            }
-
-            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5" KeepPanelsAlive="true" @bind-ActivePanelIndex="_activeTabIndex">
+            <ErrorBoundary>
+                <ChildContent>
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5" KeepPanelsAlive="true"
+                     @bind-ActivePanelIndex="_activeTabIndex" @bind-ActivePanelIndex:after="OnActiveTabChangedAsync">
                 <MudTabPanel Text="Voyage Settings">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="7">
@@ -90,9 +94,17 @@
                                                    Label="Only Reward Active Crew" />
                                     </MudItem>
                                 </MudGrid>
+                                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                               Disabled="@_isSaving" OnClick="SaveExpeditionConfigurationAsync">Save Expedition Configuration</MudButton>
+                                </MudStack>
                             </MudPaper>
                             <MudDivider Class="my-4" />
                             <StarshipShipSettingsEditor Settings="_settings.ShipSystems" />
+                            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                           Disabled="@_isSaving" OnClick="SaveShipSystemsAsync">Save Ship Systems</MudButton>
+                            </MudStack>
                         </MudItem>
 
                         <MudItem xs="12" lg="5">
@@ -129,7 +141,7 @@
                                 }
                                 <MudDivider Class="my-3" />
                                 <MudStack Row="true" Spacing="2">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_isOperating || IsLive || _settings.GameEnabled != true)"
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_isOperating || IsLive || _persistedSettings?.GameEnabled != true)"
                                                StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="StartLiveExpeditionAsync">Start Voyage</MudButton>
                                     <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_isOperating || !IsLive)"
                                                StartIcon="@Icons.Material.Filled.SkipNext" OnClick="AdvanceLiveEventAsync">
@@ -144,9 +156,19 @@
                 </MudTabPanel>
 
                 <MudTabPanel Text="Events & Sectors">
+                    @if (_visitedTabs.Contains(1))
+                    {
+                    @if (_isLoadingRewardEditorOptions)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Loading event editor options...</MudText>
+                    }
+                    else
+                    {
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="9">
-                            <StarshipEventCatalogEditor @ref="_eventCatalogEditor" Settings="_settings" PointTypes="_rewardPointTypes" Actions="_rewardActions" />
+                            <StarshipEventCatalogEditor @ref="_eventCatalogEditor" Settings="_settings" PointTypes="_rewardPointTypes" Actions="_rewardActions"
+                                                        EventApplied="SaveEventDefinitionAsync" EventDeleted="DeleteEventDefinitionAsync" />
                         </MudItem>
                         <MudItem xs="12" lg="3">
                             <MudText Typo="Typo.h6">Sectors</MudText>
@@ -175,13 +197,32 @@
                                     <MudTooltip Text="Add sector"><MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" aria-label="Add custom sector"
                                         Disabled="@(_settings.CustomSectors.Count >= StarshipExpeditionSettings.MaximumCustomSectors || string.IsNullOrWhiteSpace(_newSectorName))" OnClick="AddSector" /></MudTooltip>
                                 </MudStack>
+                                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                               Disabled="@_isSaving" OnClick="SaveSectorsAsync">Save Sectors</MudButton>
+                                </MudStack>
                             </MudStack>
                         </MudItem>
                     </MudGrid>
+                    }
+                    }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Reward Profiles">
+                    @if (_visitedTabs.Contains(2))
+                    {
+                    @if (_isLoadingRewardEditorOptions)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Loading reward editor options...</MudText>
+                    }
+                    else
+                    {
                     <MudStack Spacing="3">
+                        <div>
+                            <MudText Typo="Typo.h6">Event Type Reward Bindings</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">These dropdowns choose which shared reward profile each built-in event uses. They do not edit profile payouts; custom events select their profile in Events &amp; Sectors.</MudText>
+                        </div>
                         <MudGrid Spacing="2">
                             @foreach (var eventType in StarshipExpeditionSettings.RewardEventTypes)
                             {
@@ -196,6 +237,68 @@
                                 </MudItem>
                             }
                         </MudGrid>
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudText Typo="Typo.h6">Bulk Edit Rarity Rewards</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Choose profiles, a rarity, and a point type. Update the selected currency’s existing payouts, or add it to selected tiers where it is not already paid.</MudText>
+                            @if (_rewardPointTypes.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">No point types are configured. Create a point type before editing payouts.</MudAlert>
+                            }
+                            <MudSwitch T="bool" Label="Add reward to tiers instead of updating existing rewards" Color="Color.Primary"
+                                       @bind-Value="_bulkAddReward" @bind-Value:after="InvalidateBulkRewardPreview" />
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" lg="5">
+                                    <MudText Typo="Typo.subtitle2">Profiles</MudText>
+                                    <MudStack Row="true" Wrap="Wrap.Wrap">
+                                        @foreach (var profile in _settings.RewardProfiles)
+                                        {
+                                            var profileId = profile.Id;
+                                            <MudCheckBox T="bool" Label="@profile.Name" Value="@_bulkProfileIds.Contains(profileId)"
+                                                         ValueChanged="@(selected => ToggleBulkProfile(profileId, selected))" />
+                                        }
+                                    </MudStack>
+                                </MudItem>
+                                <MudItem xs="12" sm="6" lg="3">
+                                    <MudSelect T="string" Label="Rarity" Variant="Variant.Outlined" @bind-Value="_bulkRarityName" @bind-Value:after="InvalidateBulkRewardPreview">
+                                        @foreach (var rarity in GetBulkRarityOptions())
+                                        {
+                                            <MudSelectItem T="string" Value="@rarity">@rarity</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" sm="6" lg="3">
+                                    <MudSelect T="int?" Label="Point Type" Variant="Variant.Outlined" Value="_bulkPointTypeId" ValueChanged="SetBulkPointType" Placeholder="Select a point type">
+                                        @if (!_bulkAddReward)
+                                        {
+                                            <MudSelectItem T="int?" Value="@((int?)null)">All point types</MudSelectItem>
+                                        }
+                                        @foreach (var pointType in _rewardPointTypes)
+                                        {
+                                            <MudSelectItem T="int?" Value="@((int?)pointType.Key)">@pointType.Value</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="6" sm="3" lg="2"><MudNumericField T="long?" Label="Minimum" Variant="Variant.Outlined" Min="0" Clearable="true" @bind-Value="_bulkMinimum" @bind-Value:after="InvalidateBulkRewardPreview" /></MudItem>
+                                <MudItem xs="6" sm="3" lg="2"><MudNumericField T="long?" Label="Maximum" Variant="Variant.Outlined" Min="0" Clearable="true" @bind-Value="_bulkMaximum" @bind-Value:after="InvalidateBulkRewardPreview" /></MudItem>
+                                <MudItem xs="6" sm="3" lg="2"><MudNumericField T="int?" Label="Reward Chance (%)" Variant="Variant.Outlined" Min="1" Max="100" Clearable="true" @bind-Value="_bulkChancePercent" @bind-Value:after="InvalidateBulkRewardPreview" /></MudItem>
+                                <MudItem xs="12" Class="d-flex align-center">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@GetBulkRewardTargetCount() @(_bulkAddReward ? "tiers can receive this point type" : "reward entries match")</MudText>
+                                    <MudSpacer />
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Preview"
+                                               Disabled="@(GetBulkRewardTargetCount() == 0 || !HasBulkRewardChanges)" OnClick="PreviewBulkRewardEditAsync">Preview Changes</MudButton>
+                                </MudItem>
+                            </MudGrid>
+                            @if (!string.IsNullOrWhiteSpace(_bulkRewardPreview))
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@_bulkRewardPreview</MudAlert>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Check"
+                                           Class="mt-2" Disabled="@_isApplyingBulkRewards" OnClick="ApplyBulkRewardEditAsync">Apply to Unsaved Settings</MudButton>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(_bulkRewardError))
+                            {
+                                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_bulkRewardError</MudAlert>
+                            }
+                        </MudPaper>
                         <MudExpansionPanels>
                             @foreach (var profile in _settings.RewardProfiles)
                             {
@@ -210,10 +313,18 @@
                             }
                         </MudExpansionPanels>
                         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddRewardProfile">Add Reward Profile</MudButton>
+                        <MudStack Row="true" Justify="Justify.FlexEnd">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                       Disabled="@_isSaving" OnClick="SaveRewardProfilesAsync">Save Reward Profiles</MudButton>
+                        </MudStack>
                     </MudStack>
+                    }
+                    }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Test">
+                    @if (_visitedTabs.Contains(3))
+                    {
                     <MudGrid Spacing="4">
                         <MudItem xs="12">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -247,6 +358,12 @@
                                         <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Station Supplies Restored" Min="0" Max="100" @bind-Value="balanceSettings.ShipSystems.StationResupplyAmount" /></MudItem>
                                         <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Runs" Min="20" Max="2000" @bind-Value="_balanceRunCount" /></MudItem>
                                         <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="First Seed" @bind-Value="_balanceFirstSeed" /></MudItem>
+                                        <MudItem xs="12" sm="6"><MudSelect T="StarshipPreviewVoterPolicy" Label="Voter Policy" Variant="Variant.Outlined" @bind-Value="_balanceVoterPolicy">
+                                            <MudSelectItem Value="@StarshipPreviewVoterPolicy.Default">Default choices</MudSelectItem>
+                                            <MudSelectItem Value="@StarshipPreviewVoterPolicy.SeededRandom">Seeded random</MudSelectItem>
+                                            <MudSelectItem Value="@StarshipPreviewVoterPolicy.RiskAverse">Risk-averse</MudSelectItem>
+                                            <MudSelectItem Value="@StarshipPreviewVoterPolicy.RiskSeeking">Risk-seeking</MudSelectItem>
+                                        </MudSelect></MudItem>
                                     </MudGrid>
                                     <MudExpansionPanels Class="mt-3">
                                         <MudExpansionPanel Text="Event Failure Damage">
@@ -279,7 +396,12 @@
                                     <MudGrid Spacing="2">
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Failure rate</MudText><MudText Typo="Typo.h6">@summary.FailureRatePercent.ToString("F1")%</MudText></MudItem>
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Early returns</MudText><MudText Typo="Typo.h6">@summary.EarlyReturns / @summary.Runs</MudText></MudItem>
-                                        <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Repair useful &amp; affordable</MudText><MudText Typo="Typo.h6">@summary.RepairWindows / @summary.StationVisits</MudText></MudItem>
+                                        <MudItem xs="6" sm="4" md="2">
+                                            <MudTooltip Text="A useful, affordable repair requires damaged hull and enough supplies to pay the station repair cost.">
+                                                <MudText Typo="Typo.caption">Repair useful &amp; affordable</MudText>
+                                            </MudTooltip>
+                                            <MudText Typo="Typo.h6">@(summary.StationVisits == 0 ? "No station visits" : $"{summary.RepairWindows} / {summary.StationVisits}")</MudText>
+                                        </MudItem>
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Avg hull lost</MudText><MudText Typo="Typo.h6">@summary.AverageHullLost.ToString("F1")</MudText></MudItem>
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Avg ending hull</MudText><MudText Typo="Typo.h6">@summary.AverageEndingHull.ToString("F1")</MudText></MudItem>
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Avg ending supplies</MudText><MudText Typo="Typo.h6">@summary.AverageEndingSupplies.ToString("F1")</MudText></MudItem>
@@ -292,6 +414,12 @@
                                 <MudText Typo="Typo.h6" Class="mb-3">Seeded Route Preview</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Preview uses unsaved settings and does not create a live voyage, save state, award points, send chat, or fire actions.</MudText>
                                 <MudNumericField T="int" Label="Preview Seed" Variant="Variant.Outlined" @bind-Value="_previewSeed" />
+                                <MudSelect T="StarshipPreviewVoterPolicy" Label="Voter Policy" Variant="Variant.Outlined" @bind-Value="_previewVoterPolicy">
+                                    <MudSelectItem Value="@StarshipPreviewVoterPolicy.Default">Default choices</MudSelectItem>
+                                    <MudSelectItem Value="@StarshipPreviewVoterPolicy.SeededRandom">Seeded random</MudSelectItem>
+                                    <MudSelectItem Value="@StarshipPreviewVoterPolicy.RiskAverse">Risk-averse</MudSelectItem>
+                                    <MudSelectItem Value="@StarshipPreviewVoterPolicy.RiskSeeking">Risk-seeking</MudSelectItem>
+                                </MudSelect>
                                 <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary"
                                            StartIcon="@Icons.Material.Filled.Visibility" OnClick="GeneratePreview">Generate Preview</MudButton>
                             </MudPaper>
@@ -318,45 +446,89 @@
                                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@previewEvent.Sector</MudChip>
                                             </MudStack>
                                             <MudText Typo="Typo.body2">@previewEvent.Description</MudText>
-                                            @if (previewEvent.ShipContext is { } shipPreview)
-                                            {
-                                                <MudText Typo="Typo.caption">Default path: Hull @shipPreview.HullBefore/@shipPreview.HullMaximum to @shipPreview.HullAfter/@shipPreview.HullMaximum; Supplies @shipPreview.SuppliesBefore to @shipPreview.SuppliesAfter; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
-                                                @if (shipPreview.HullAfter == 0)
+                                            <MudStack Spacing="1" Class="mt-2">
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Subject: @previewEvent.Subject</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">No-vote default: @previewEvent.Choices.FirstOrDefault(choice => choice.ChoiceId == previewEvent.DefaultChoiceId)?.Label</MudText>
+                                                @if (previewEvent.ShipContext is { } shipPreview)
                                                 {
-                                                    <MudText Typo="Typo.body2" Color="Color.Warning">Emergency return: hull depleted.</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@GetVoterPolicyLabel(_previewVoterPolicy) resources: hull @shipPreview.HullBefore → @shipPreview.HullAfter / @shipPreview.HullMaximum; supplies @shipPreview.SuppliesBefore → @shipPreview.SuppliesAfter; success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
+                                                    @if (shipPreview.HullAfter == 0)
+                                                    {
+                                                        <MudText Typo="Typo.body2" Color="Color.Warning">Emergency return: hull depleted.</MudText>
+                                                    }
                                                 }
-                                            }
-                                            @if (!string.IsNullOrEmpty(previewEvent.Subject))
-                                            {
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Generated subject: @previewEvent.Subject</MudText>
-                                            }
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">Default: @previewEvent.Choices.FirstOrDefault(choice => choice.ChoiceId == previewEvent.DefaultChoiceId)?.Label</MudText>
+                                                @if (previewEvent.Path.Count > 0)
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Primary">@GetVoterPolicyLabel(_previewVoterPolicy) path</MudText>
+                                                    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                                                        @foreach (var pathStep in previewEvent.Path)
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@pathStep.Label</MudChip>
+                                                        }
+                                                    </MudStack>
+                                                }
+                                            </MudStack>
                                             @if (GetRewardProfile(previewEvent.EventType) is { } previewProfile)
                                             {
                                                 <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@GetRewardProfilePreview(previewProfile)</MudAlert>
                                             }
-                                            <MudSimpleTable Dense="true" Bordered="true" Class="mt-2">
-                                                <thead>
-                                                    <tr><th>#</th><th>Option</th><th>Effect</th><th>Story (sample viewer: Viewer)</th></tr>
-                                                </thead>
-                                                <tbody>
-                                                    @{ var previewOptions = GetPreviewOptions(previewEvent); var shipDisclosure = GetPreviewShipDisclosure(previewEvent); }
-                                                    @for (var optionIndex = 0; optionIndex < previewOptions.Count; optionIndex++)
-                                                    {
-                                                        var option = previewOptions[optionIndex];
-                                                        var shipChoice = shipDisclosure?.Choices.FirstOrDefault(item => item.ChoiceId == option.ChoiceId);
-                                                        <tr>
-                                                            <td>@(shipChoice == null ? (optionIndex + 1).ToString() : shipChoice.Number?.ToString() ?? "-")</td>
-                                                            <td>@option.Label@(option.ContinuesEvent ? " (next step)" : option.EndsWithoutReward ? " (ends, no reward)" : "")</td>
-                                                            <td>@StarshipExpeditionNarrative.DescribeEffects(option) @shipChoice?.Describe()</td>
-                                                            <td>@StarshipExpeditionStory.Render(option.Story, previewEvent, _previewSeed, ["Viewer"], null)</td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </MudSimpleTable>
-                                            @if (GetExamplePath(previewEvent) is { } examplePath)
+                                            @if (previewEvent.StepDefinitions.Count > 0)
                                             {
-                                                <MudText Typo="Typo.caption" Class="mt-2" Style="display:block">Example full path: @examplePath</MudText>
+                                                <MudText Typo="Typo.subtitle2" Class="mt-2">Resolved path</MudText>
+                                                <MudSimpleTable Dense="true" Bordered="true" Class="mt-1">
+                                                    <thead><tr><th>#</th><th>Step</th><th>Selected result</th><th>Effect</th><th>Story</th></tr></thead>
+                                                    <tbody>
+                                                        @for (var pathIndex = 0; pathIndex < previewEvent.Path.Count; pathIndex++)
+                                                        {
+                                                            var pathStep = previewEvent.Path[pathIndex];
+                                                            var stepDefinition = previewEvent.StepDefinitions.FirstOrDefault(step => step.StepId == pathStep.StepId);
+                                                            var selectedChoice = stepDefinition?.Choices.FirstOrDefault(choice => choice.ChoiceId == pathStep.ChoiceId);
+                                                            var stepCost = stepDefinition == null ? 0 : stepDefinition.SuppliesCostOverride ?? previewEvent.DefaultStepSuppliesCost;
+                                                            <tr>
+                                                                <td>@(pathIndex + 1)</td>
+                                                                <td>@pathStep.StepId <span class="text-secondary">(@pathStep.StepType)</span></td>
+                                                                <td>@(selectedChoice?.Label ?? (pathStep.StepType == StarshipEventStepType.End.ToString() ? "Event ended" : pathStep.StepType == StarshipEventStepType.Automatic.ToString() ? "Automatic step" : pathStep.Label))</td>
+                                                                <td>@(selectedChoice == null ? (stepCost > 0 ? $"Entry cost {stepCost} supplies" : "-") : StarshipExpeditionNarrative.DescribeEffects(selectedChoice))</td>
+                                                                <td>@GetPreviewPathStory(previewEvent, pathStep, selectedChoice)</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </MudSimpleTable>
+                                                @if (!string.IsNullOrEmpty(previewEvent.OutcomeResult))
+                                                {
+                                                    var outcomeSeverity = previewEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess ? Severity.Success : Severity.Warning;
+                                                    <MudAlert Severity="outcomeSeverity" Dense="true" Class="mt-2">
+                                                        Seeded outcome: @previewEvent.OutcomeResult@(string.IsNullOrEmpty(previewEvent.OutcomeRarity) ? string.Empty : $" ({previewEvent.OutcomeRarity})")
+                                                        @if (!string.IsNullOrWhiteSpace(previewEvent.OutcomeStory))
+                                                        {
+                                                            <span> @previewEvent.OutcomeStory</span>
+                                                        }
+                                                    </MudAlert>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <MudSimpleTable Dense="true" Bordered="true" Class="mt-2">
+                                                    <thead><tr><th>#</th><th>Option</th><th>Effect</th><th>Story (sample viewer: Viewer)</th></tr></thead>
+                                                    <tbody>
+                                                        @{ var previewOptions = GetPreviewOptions(previewEvent); var shipDisclosure = GetPreviewShipDisclosure(previewEvent); }
+                                                        @for (var optionIndex = 0; optionIndex < previewOptions.Count; optionIndex++)
+                                                        {
+                                                            var option = previewOptions[optionIndex];
+                                                            var shipChoice = shipDisclosure?.Choices.FirstOrDefault(item => item.ChoiceId == option.ChoiceId);
+                                                            <tr>
+                                                                <td>@(shipChoice == null ? (optionIndex + 1).ToString() : shipChoice.Number?.ToString() ?? "-")</td>
+                                                                <td>@option.Label@(option.ContinuesEvent ? " (next step)" : option.EndsWithoutReward ? " (ends, no reward)" : "")</td>
+                                                                <td>@StarshipExpeditionNarrative.DescribeEffects(option) @shipChoice?.Describe()</td>
+                                                                <td>@StarshipExpeditionStory.Render(option.Story, previewEvent, _previewSeed, ["Viewer"], null)</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </MudSimpleTable>
+                                                @if (GetExamplePath(previewEvent) is { } examplePath)
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="mt-2" Style="display:block">Example full path: @examplePath</MudText>
+                                                }
                                             }
                                             @if (!string.IsNullOrEmpty(previewEvent.SuccessStory) || !string.IsNullOrEmpty(previewEvent.FailureStory))
                                             {
@@ -373,10 +545,11 @@
                             }
                         </MudItem>
                     </MudGrid>
+                    }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Appearance">
-                    @if (_activeTabIndex == 4)
+                    @if (_visitedTabs.Contains(4))
                     {
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="6">
@@ -421,6 +594,15 @@
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Animations" @bind-Value="_settings.Appearance.AnimationsEnabled" /></MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Join toasts" @bind-Value="_settings.Appearance.ShowToasts" /></MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Route map (status widget)" @bind-Value="_settings.Appearance.ShowRouteMap" /></MudItem>
+                                        <MudItem xs="12">
+                                            <MudSelect T="string" Label="Overlay visibility" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Appearance.OverlayDisplayMode">
+                                                @foreach (var mode in StarshipAppearanceSettings.OverlayDisplayModes)
+                                                {
+                                                    <MudSelectItem T="string" Value="@mode.Key">@mode.Value</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Effect chips on choices" @bind-Value="_settings.Appearance.ShowEffectChips" /></MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Live vote bars" @bind-Value="_settings.Appearance.ShowVoteBars" /></MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Odds and loss lines" @bind-Value="_settings.Appearance.ShowOddsPanel" /></MudItem>
@@ -455,7 +637,7 @@
                         <MudItem xs="12" lg="6">
                             <MudPaper Class="pa-4" Outlined="true">
                                 <MudText Typo="Typo.h6" Class="mb-1">Live preview</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Shows sample data with your unsaved changes. Save settings to apply them to your overlays; connected overlays update immediately.</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Shows sample data with your current appearance edits. Save Appearance to persist them; connected overlays update immediately.</MudText>
                                 <MudText Typo="Typo.caption">Status widget</MudText>
                                 <iframe class="starship-preview-frame" src="/starship-status.html?preview=1&sample=status" title="Status widget preview"
                                         style="width:520px;height:180px;max-width:100%;border:1px dashed #666;background:#222;"></iframe>
@@ -468,26 +650,40 @@
                                     </MudSelect>
                                 </MudStack>
                                 <iframe class="starship-preview-frame" src="@($"/starship-event.html?preview=1&sample={_eventSample}")" title="Event widget preview"
-                                        style="width:620px;height:360px;max-width:100%;border:1px dashed #666;background:#222;"></iframe>
+                                    style="width:780px;height:460px;max-width:100%;border:1px dashed #666;background:#222;"></iframe>
                             </MudPaper>
                         </MudItem>
                     </MudGrid>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@_isSaving" OnClick="SaveAppearanceAsync">Save Appearance</MudButton>
+                    </MudStack>
                     }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Automation & Messages">
+                    @if (_visitedTabs.Contains(5))
+                    {
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="8">
-                            <GameOutcomeAutomationPanel DefaultCommandName="starship" GameTitle="Starship Expedition" />
+                            <GameOutcomeAutomationPanel DefaultCommandName="starship" GameTitle="Starship Expedition" IsActive="@(_activeTabIndex == 5)" />
                         </MudItem>
                         <MudItem xs="12" lg="4">
                             <GameSessionMessageSettings Settings="_settings" SessionNoun="Voyage" RequiredStartAnnouncement="true"
                                                         EndMessageHelperText="Available placeholders: {count}, {duration}, {result}." />
                         </MudItem>
                     </MudGrid>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Automation actions save in their setup flow. This button saves only the session message templates.</MudText>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@_isSaving" OnClick="SaveSessionMessagesAsync">Save Session Messages</MudButton>
+                    </MudStack>
+                    }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Audio">
+                    @if (_visitedTabs.Contains(6))
+                    {
                     <MudStack Spacing="3" Style="max-width: 760px">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the boarding announcement cue, default opening cues for each event type, and the emergency return cue. Individual events can inherit, override, or mute their event-type cue in Events & Sectors.</MudText>
                         <DropGameSoundEditor Title="Crew Boarding Open Cue" SoundConfig="_settings.BoardingOpenSound" />
@@ -501,8 +697,18 @@
                         <MudDivider />
                         <DropGameSoundEditor Title="Emergency Return Cue" SoundConfig="_settings.EmergencyReturnSound" />
                     </MudStack>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@_isSaving" OnClick="SaveAudioSettingsAsync">Save Audio Settings</MudButton>
+                    </MudStack>
+                    }
                 </MudTabPanel>
             </MudTabs>
+                </ChildContent>
+                <ErrorContent Context="renderError">
+                    <MudAlert Severity="Severity.Error" Dense="true">Could not render Starship settings: @renderError.Message</MudAlert>
+                </ErrorContent>
+            </ErrorBoundary>
         }
     </MudContainer>
 </FeatureGate>
@@ -519,27 +725,46 @@
     }
 
     private StarshipExpeditionSettings? _settings;
+    private StarshipExpeditionSettings? _persistedSettings;
     private StarshipExpeditionSnapshot? _liveSnapshot;
     private IReadOnlyList<StarshipExpeditionEventSnapshot> _previewEvents = [];
     private StarshipExpeditionSettings? _balanceSettings;
     private BalanceTestSummary? _balanceSummary;
     private int _balanceRunCount = 500;
     private int _balanceFirstSeed = 0;
+    private StarshipPreviewVoterPolicy _balanceVoterPolicy;
+    private StarshipPreviewVoterPolicy _previewVoterPolicy;
     private string _balanceError = string.Empty;
     private bool _isRunningBalanceTest;
-    private List<PenguinTwitchBot.Database.Bot.Models.Points.PointType> _pointTypes = [];
     private int _previewSeed = 12345;
     private int _activeTabIndex;
     private string _newSectorName = string.Empty;
     private string _error = string.Empty;
     private bool _isLoading = true;
+    private bool _isLoadingRewardEditorOptions;
+    private bool _rewardEditorOptionsLoaded;
     private bool _isSaving;
     private bool _isOperating;
     private string _eventSample = "event";
+    private readonly HashSet<int> _visitedTabs = new() { 0 };
     private IJSObjectReference? _editorModule;
     private StarshipEventCatalogEditor? _eventCatalogEditor;
     private Dictionary<int, string> _rewardPointTypes = [];
     private Dictionary<int, string> _rewardActions = [];
+    private readonly HashSet<string> _bulkProfileIds = new(StringComparer.OrdinalIgnoreCase);
+    private string _bulkRarityName = string.Empty;
+    private int? _bulkPointTypeId;
+    private bool _bulkAddReward;
+    private long? _bulkMinimum;
+    private long? _bulkMaximum;
+    private int? _bulkChancePercent;
+    private string _bulkRewardPreview = string.Empty;
+    private string _bulkRewardError = string.Empty;
+    private bool _isApplyingBulkRewards;
+
+    private bool HasBulkRewardChanges => _bulkAddReward
+        ? _bulkPointTypeId is > 0 && _bulkMinimum.HasValue && _bulkMaximum.HasValue
+        : _bulkMinimum.HasValue || _bulkMaximum.HasValue || _bulkChancePercent.HasValue;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -633,13 +858,13 @@
     {
         try
         {
-            _settings = await SettingsStore.LoadAsync();
+            var settingsTask = SettingsStore.LoadAsync();
+            var liveSnapshotTask = ExpeditionService.GetSnapshotAsync();
+            await Task.WhenAll(settingsTask, liveSnapshotTask);
+            _settings = await settingsTask;
             _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
-            _balanceSettings = StarshipEventEditing.Copy(_settings);
-            _pointTypes = (await PointsSystem.GetPointTypes()).Where(pointType => pointType.Id.HasValue).OrderBy(pointType => pointType.Name).ToList();
-            _rewardPointTypes = _pointTypes.ToDictionary(pointType => pointType.GetId(), pointType => pointType.Name);
-            _rewardActions = (await ActionManagement.GetAllActionsAsync()).Where(action => action.Id.HasValue).ToDictionary(action => action.Id!.Value, action => action.Name);
-            _liveSnapshot = await ExpeditionService.GetSnapshotAsync();
+            _persistedSettings = StarshipEventEditing.Copy(_settings);
+            _liveSnapshot = await liveSnapshotTask;
         }
         catch (Exception ex)
         {
@@ -677,30 +902,141 @@
         _settings.CustomSectors.RemoveAt(index);
     }
 
-    private async Task SaveSettingsAsync()
+    private Task SaveExpeditionConfigurationAsync() => SaveSectionAsync("Expedition configuration", (saved, current) =>
     {
-        if (_settings == null) return;
+        saved.LegCount = current.LegCount;
+        saved.MinimumEventIntervalMinutes = current.MinimumEventIntervalMinutes;
+        saved.MaximumEventIntervalMinutes = current.MaximumEventIntervalMinutes;
+        saved.StationIntervalLegs = current.StationIntervalLegs;
+        saved.EventVoteDurationSeconds = current.EventVoteDurationSeconds;
+        saved.BoardingDurationSeconds = current.BoardingDurationSeconds;
+        saved.GameEnabled = current.GameEnabled;
+        saved.ActiveCrewRewardsOnly = current.ActiveCrewRewardsOnly;
+    });
+
+    private Task SaveShipSystemsAsync() => SaveSectionAsync("Ship systems", (saved, current) =>
+        saved.ShipSystems = StarshipEventEditing.Copy(current.ShipSystems));
+
+    private Task SaveSectorsAsync() => SaveSectionAsync("Sectors", (saved, current) =>
+    {
+        saved.CustomSectors = [.. current.CustomSectors];
+        saved.DisabledBuiltInSectors = [.. current.DisabledBuiltInSectors];
+    });
+
+    private Task SaveRewardProfilesAsync() => SaveSectionAsync("Reward profiles", (saved, current) =>
+    {
+        saved.RewardProfiles = StarshipEventEditing.Copy(current.RewardProfiles);
+        saved.EventRewardProfileIds = new(current.EventRewardProfileIds, StringComparer.OrdinalIgnoreCase);
+        saved.EventCatalog = StarshipEventEditing.Copy(current.EventCatalog);
+    });
+
+    private Task SaveAppearanceAsync() => SaveSectionAsync("Appearance", (saved, current) =>
+        saved.Appearance = StarshipEventEditing.Copy(current.Appearance));
+
+    private Task SaveSessionMessagesAsync() => SaveSectionAsync("Session messages", (saved, current) =>
+    {
+        saved.AnnounceSessionStatusInChat = current.AnnounceSessionStatusInChat;
+        saved.SessionStartChatMessageTemplate = current.SessionStartChatMessageTemplate;
+        saved.SessionEndChatMessageTemplate = current.SessionEndChatMessageTemplate;
+    });
+
+    private Task SaveAudioSettingsAsync() => SaveSectionAsync("Audio settings", (saved, current) =>
+    {
+        saved.BoardingOpenSound = StarshipEventEditing.Copy(current.BoardingOpenSound);
+        saved.EmergencyReturnSound = StarshipEventEditing.Copy(current.EmergencyReturnSound);
+        saved.EventTypeOpenSounds = StarshipEventEditing.Copy(current.EventTypeOpenSounds);
+    });
+
+    private async Task<bool> SaveSectionAsync(string sectionName, Action<StarshipExpeditionSettings, StarshipExpeditionSettings> applySection)
+    {
+        if (_settings == null || _persistedSettings == null || _isSaving) return false;
         _isSaving = true;
         _error = string.Empty;
         try
         {
-            if (_eventCatalogEditor?.TryApplyDraft() == false)
+            var candidate = StarshipEventEditing.Copy(_persistedSettings);
+            applySection(candidate, _settings);
+            candidate = StarshipExpeditionSettings.NormalizeAndValidate(candidate);
+            await SettingsStore.SaveAsync(candidate);
+            _persistedSettings = StarshipEventEditing.Copy(candidate);
+            try
             {
-                _error = "The event draft is invalid. Review the Events & Sectors tab.";
-                return;
+                await ExpeditionService.RefreshAppearanceAsync();
             }
-            _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
-            await SettingsStore.SaveAsync(_settings);
-            await ExpeditionService.RefreshAppearanceAsync();
-            Snackbar.Add("Starship Expedition settings saved.", Severity.Success);
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
-        {
-            _error = ex.Message;
+            catch (Exception ex)
+            {
+                Snackbar.Add($"{sectionName} saved, but the appearance refresh failed: {ex.Message}", Severity.Warning);
+                return true;
+            }
+            Snackbar.Add($"{sectionName} saved.", Severity.Success);
+            return true;
         }
         catch (Exception ex)
         {
-            _error = $"Could not save Starship settings: {ex.Message}";
+            _error = $"Could not save {sectionName.ToLowerInvariant()}: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task SaveEventDefinitionAsync(StarshipEventDefinition definition)
+    {
+        var saved = await SaveSectionAsync($"Event '{definition.Title}'", (candidate, current) =>
+        {
+            var index = candidate.EventCatalog.FindIndex(item => item.EventType == definition.EventType);
+            if (index < 0) candidate.EventCatalog.Add(definition);
+            else candidate.EventCatalog[index] = definition;
+
+            if (!string.IsNullOrWhiteSpace(definition.RewardProfileId) &&
+                candidate.RewardProfiles.All(profile => profile.Id != definition.RewardProfileId) &&
+                current.RewardProfiles.FirstOrDefault(profile => profile.Id == definition.RewardProfileId) is { } newProfile)
+                candidate.RewardProfiles.Add(StarshipEventEditing.Copy(newProfile));
+        });
+        if (!saved) throw new InvalidOperationException(_error);
+    }
+
+    private async Task DeleteEventDefinitionAsync(string eventType)
+    {
+        var saved = await SaveSectionAsync($"Event '{eventType}' deletion", (candidate, _) =>
+            candidate.EventCatalog.RemoveAll(item => item.EventType == eventType));
+        if (!saved) throw new InvalidOperationException(_error);
+    }
+
+    private async Task ResetAllSettingsAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset Starship Settings",
+            "This permanently deletes all custom events and reward profiles and resets every Starship setting to its default. Bundled starter events will be installed again. An active voyage and its unbanked rewards are not changed.",
+            yesText: "Delete Custom Data and Reset",
+            cancelText: "Cancel");
+        if (confirmed != true || _isSaving) return;
+
+        _isSaving = true;
+        _error = string.Empty;
+        try
+        {
+            _settings = await SettingsStore.ResetToDefaultsAsync();
+            _persistedSettings = StarshipEventEditing.Copy(_settings);
+            _eventCatalogEditor?.DiscardPendingDraft();
+            _balanceSettings = _activeTabIndex == 3 ? StarshipEventEditing.Copy(_settings) : null;
+            _previewEvents = [];
+            _balanceSummary = null;
+            _balanceError = string.Empty;
+            _bulkProfileIds.Clear();
+            _bulkRarityName = string.Empty;
+            _bulkPointTypeId = null;
+            _bulkAddReward = false;
+            _bulkMinimum = _bulkMaximum = null;
+            _bulkChancePercent = null;
+            _bulkRewardPreview = _bulkRewardError = string.Empty;
+            Snackbar.Add("Starship settings and custom catalog data were reset to defaults.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not reset Starship settings: {ex.Message}";
         }
         finally
         {
@@ -714,7 +1050,7 @@
         try
         {
             _error = string.Empty;
-            _previewEvents = ExpeditionService.BuildPreview(_settings, _previewSeed);
+            _previewEvents = ExpeditionService.BuildPreview(_settings, _previewSeed, _previewVoterPolicy);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
         {
@@ -731,9 +1067,54 @@
         _balanceError = string.Empty;
     }
 
+    private async Task OnActiveTabChangedAsync()
+    {
+        _visitedTabs.Add(_activeTabIndex);
+        if (_activeTabIndex == 3 && _balanceSettings == null && _settings != null)
+            _balanceSettings = StarshipEventEditing.Copy(_settings);
+        if (_activeTabIndex is 1 or 2 && !_rewardEditorOptionsLoaded)
+            await LoadRewardEditorOptionsAsync();
+    }
+
+    private async Task LoadRewardEditorOptionsAsync()
+    {
+        if (_isLoadingRewardEditorOptions || _rewardEditorOptionsLoaded) return;
+        _isLoadingRewardEditorOptions = true;
+        try
+        {
+            var pointTypesTask = PointsSystem.GetPointTypes();
+            var actionsTask = ActionManagement.GetAllActionsAsync();
+            await Task.WhenAll(pointTypesTask, actionsTask);
+            _rewardPointTypes = (await pointTypesTask)
+                .Where(pointType => pointType.Id.HasValue)
+                .OrderBy(pointType => pointType.Name)
+                .ToDictionary(pointType => pointType.GetId(), pointType => pointType.Name);
+            _rewardActions = (await actionsTask)
+                .Where(action => action.Id.HasValue)
+                .ToDictionary(action => action.Id!.Value, action => action.Name);
+            _rewardEditorOptionsLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load Starship editor options: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingRewardEditorOptions = false;
+        }
+    }
+
     private static StarshipShipEffect GetBalanceFailureEffect(StarshipExpeditionSettings settings, string eventType) =>
         settings.EventCatalog.First(item => item.EventType == eventType).ShipFailureEffect ??
         StarshipEventCatalog.GetDefaultShipFailureEffect(eventType) ?? new();
+
+    private static string GetVoterPolicyLabel(StarshipPreviewVoterPolicy policy) => policy switch
+    {
+        StarshipPreviewVoterPolicy.SeededRandom => "Seeded random",
+        StarshipPreviewVoterPolicy.RiskAverse => "Risk-averse",
+        StarshipPreviewVoterPolicy.RiskSeeking => "Risk-seeking",
+        _ => "Default choices"
+    };
 
     private void SetBalanceFailureEffect(string eventType, int hullDelta, int suppliesDelta)
     {
@@ -755,7 +1136,7 @@
         {
             var testSettings = StarshipExpeditionSettings.NormalizeAndValidate(StarshipEventEditing.Copy(_balanceSettings));
             var runCount = Math.Clamp(_balanceRunCount, 20, 2000);
-            _balanceSummary = await Task.Run(() => SimulateBalance(testSettings, runCount, _balanceFirstSeed));
+            _balanceSummary = await Task.Run(() => SimulateBalance(testSettings, runCount, _balanceFirstSeed, _balanceVoterPolicy));
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
         {
@@ -768,7 +1149,7 @@
         }
     }
 
-    private BalanceTestSummary SimulateBalance(StarshipExpeditionSettings settings, int runCount, int firstSeed)
+    private BalanceTestSummary SimulateBalance(StarshipExpeditionSettings settings, int runCount, int firstSeed, StarshipPreviewVoterPolicy voterPolicy)
     {
         var repairWindows = 0;
         var stationVisits = 0;
@@ -782,7 +1163,7 @@
         for (var run = 0; run < runCount; run++)
         {
             var seed = unchecked(firstSeed + run);
-            var preview = ExpeditionService.BuildPreview(settings, seed);
+            var preview = ExpeditionService.BuildPreview(settings, seed, voterPolicy);
             foreach (var item in preview)
             {
                 if (item.EventType == "StationStop" && item.ShipContext is { } station)
@@ -819,6 +1200,14 @@
     private static IReadOnlyList<StarshipEventChoiceSnapshot> GetPreviewOptions(StarshipExpeditionEventSnapshot previewEvent) =>
         previewEvent.ChoicePool.Count > 0 ? previewEvent.ChoicePool : previewEvent.Choices;
 
+    private string GetPreviewPathStory(StarshipExpeditionEventSnapshot previewEvent,
+        StarshipEventPathStepSnapshot pathStep, StarshipEventChoiceSnapshot? choice)
+    {
+        if (choice == null) return pathStep.Label;
+        if (string.IsNullOrWhiteSpace(choice.Story)) return $"Crew chose: {choice.Label}.";
+        return StarshipExpeditionStory.Render(choice.Story, previewEvent, _previewSeed, ["Viewer"], previewEvent.OutcomeRarity);
+    }
+
     private string? GetExamplePath(StarshipExpeditionEventSnapshot previewEvent)
     {
         var options = GetPreviewOptions(previewEvent);
@@ -843,13 +1232,10 @@
 
     private async Task StartLiveExpeditionAsync()
     {
-        if (_settings == null || IsLive) return;
+        if (_settings == null || _persistedSettings?.GameEnabled != true || IsLive) return;
         _isOperating = true;
         try
         {
-            _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
-            await SettingsStore.SaveAsync(_settings);
-            await ExpeditionService.RefreshAppearanceAsync();
             _liveSnapshot = await ExpeditionService.StartExpeditionAsync("Streamer");
             Snackbar.Add("Starship Expedition started.", Severity.Success);
         }
@@ -921,6 +1307,162 @@
         var index = _settings.EventCatalog.FindIndex(definition => definition.EventType == eventType);
         if (index >= 0 && !StarshipEventCatalog.IsStructural(eventType))
             _settings.EventCatalog[index] = _settings.EventCatalog[index] with { RewardProfileId = profileId ?? string.Empty };
+    }
+
+    private void ToggleBulkProfile(string profileId, bool selected)
+    {
+        if (selected) _bulkProfileIds.Add(profileId);
+        else _bulkProfileIds.Remove(profileId);
+        InvalidateBulkRewardPreview();
+    }
+
+    private void SetBulkPointType(int? pointTypeId)
+    {
+        _bulkPointTypeId = pointTypeId;
+        InvalidateBulkRewardPreview();
+    }
+
+    private void InvalidateBulkRewardPreview()
+    {
+        _bulkRewardPreview = string.Empty;
+        _bulkRewardError = string.Empty;
+    }
+
+    private IReadOnlyList<string> GetBulkRarityOptions() => _settings?.RewardProfiles
+        .SelectMany(profile => profile.GetTiers().Select(tier => tier.Name))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+        .ToList() ?? [];
+
+    private int GetBulkRewardTargetCount()
+    {
+        if (_settings == null) return 0;
+        var tiers = _settings.RewardProfiles.Where(profile => _bulkProfileIds.Contains(profile.Id))
+            .SelectMany(profile => profile.GetTiers())
+            .Where(tier => string.Equals(tier.Name, _bulkRarityName, StringComparison.OrdinalIgnoreCase));
+        if (_bulkAddReward)
+            return _bulkPointTypeId is > 0
+                ? tiers.Count(tier => tier.Rewards.Count < StarshipRewardProfile.MaximumRewardsPerTier &&
+                                      !tier.Rewards.Any(reward => reward.PointTypeId == _bulkPointTypeId.Value))
+                : 0;
+        return tiers.SelectMany(tier => tier.Rewards)
+            .Count(reward => !_bulkPointTypeId.HasValue || reward.PointTypeId == _bulkPointTypeId.Value);
+    }
+
+    private async Task PreviewBulkRewardEditAsync()
+    {
+        _bulkRewardError = string.Empty;
+        _bulkRewardPreview = string.Empty;
+        try
+        {
+            var candidate = CreateBulkRewardCandidate();
+            var pointName = _bulkPointTypeId is { } pointTypeId
+                ? _rewardPointTypes.GetValueOrDefault(pointTypeId, "selected point type")
+                : "all point types";
+            var selectedProfiles = string.Join(", ", candidate.RewardProfiles.Where(profile => _bulkProfileIds.Contains(profile.Id)).Select(profile => profile.Name));
+            if (_bulkAddReward)
+                _bulkRewardPreview = $"Add {_bulkMinimum}-{_bulkMaximum} {pointName} rewards to {GetBulkRewardTargetCount()} {_bulkRarityName} tiers in {selectedProfiles}. Chance: {_bulkChancePercent ?? 100}%. Existing rewards and other profile settings stay unchanged.";
+            else
+            {
+                var changes = new List<string>();
+                if (_bulkMinimum is { } minimum) changes.Add($"minimum {minimum}");
+                if (_bulkMaximum is { } maximum) changes.Add($"maximum {maximum}");
+                if (_bulkChancePercent is { } chance) changes.Add($"chance {chance}%");
+                _bulkRewardPreview = $"Set {string.Join(", ", changes)} on {GetBulkRewardTargetCount()} {pointName} reward entries in {selectedProfiles} at the {_bulkRarityName} tier. Other reward fields stay unchanged.";
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            _bulkRewardError = ex.Message;
+        }
+    }
+
+    private async Task ApplyBulkRewardEditAsync()
+    {
+        if (_settings == null || string.IsNullOrEmpty(_bulkRewardPreview) || _isApplyingBulkRewards) return;
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Apply Bulk Rarity Changes",
+            _bulkRewardPreview,
+            yesText: "Apply Changes",
+            cancelText: "Cancel");
+        if (confirmed != true) return;
+
+        _isApplyingBulkRewards = true;
+        try
+        {
+            var candidate = CreateBulkRewardCandidate();
+            _settings.RewardProfiles = candidate.RewardProfiles;
+            _bulkProfileIds.Clear();
+            _bulkRarityName = string.Empty;
+            _bulkPointTypeId = null;
+            _bulkAddReward = false;
+            _bulkMinimum = _bulkMaximum = null;
+            _bulkChancePercent = null;
+            _bulkRewardPreview = string.Empty;
+            Snackbar.Add("Bulk rarity reward changes applied to unsaved settings.", Severity.Success);
+        }
+        catch (ArgumentException ex)
+        {
+            _bulkRewardError = ex.Message;
+        }
+        finally
+        {
+            _isApplyingBulkRewards = false;
+        }
+    }
+
+    private StarshipExpeditionSettings CreateBulkRewardCandidate()
+    {
+        if (_settings == null) throw new InvalidOperationException("Settings are not loaded.");
+        if (_bulkProfileIds.Count == 0) throw new ArgumentException("Select at least one reward profile.");
+        if (string.IsNullOrWhiteSpace(_bulkRarityName)) throw new ArgumentException("Select a rarity tier.");
+        if (!HasBulkRewardChanges) throw new ArgumentException(_bulkAddReward
+            ? "Select a point type and enter a minimum and maximum payout to add."
+            : "Enter at least one payout or chance value to update.");
+        if (_bulkMinimum < 0 || _bulkMaximum < 0) throw new ArgumentOutOfRangeException(nameof(_bulkMinimum), "Reward amounts must be non-negative.");
+        if (_bulkChancePercent is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(_bulkChancePercent), "Reward chance must be between 1 and 100 percent.");
+        if (_bulkAddReward && (_bulkMinimum == null || _bulkMaximum == null || _bulkMaximum < _bulkMinimum))
+            throw new ArgumentException("Enter an ordered minimum and maximum payout for the new reward.");
+
+        var candidate = new StarshipExpeditionSettings
+        {
+            RewardProfiles = StarshipEventEditing.Copy(_settings.RewardProfiles),
+            EventRewardProfileIds = new(_settings.EventRewardProfileIds, StringComparer.OrdinalIgnoreCase)
+        };
+        var affected = 0;
+        foreach (var profile in candidate.RewardProfiles.Where(profile => _bulkProfileIds.Contains(profile.Id)))
+        {
+            var tier = profile.GetTiers().FirstOrDefault(item => string.Equals(item.Name, _bulkRarityName, StringComparison.OrdinalIgnoreCase));
+            if (tier == null) continue;
+            if (_bulkAddReward)
+            {
+                if (_bulkPointTypeId is not { } pointTypeId || tier.Rewards.Count >= StarshipRewardProfile.MaximumRewardsPerTier ||
+                    tier.Rewards.Any(reward => reward.PointTypeId == pointTypeId)) continue;
+                tier.Rewards.Add(new StarshipRewardEntry
+                {
+                    PointTypeId = pointTypeId,
+                    PointTypeName = _rewardPointTypes.GetValueOrDefault(pointTypeId, string.Empty),
+                    Minimum = _bulkMinimum!.Value,
+                    Maximum = _bulkMaximum!.Value,
+                    ChancePercent = _bulkChancePercent ?? 100
+                });
+                affected++;
+                continue;
+            }
+            foreach (var reward in tier.Rewards)
+            {
+                if (_bulkPointTypeId.HasValue && reward.PointTypeId != _bulkPointTypeId.Value) continue;
+                if (_bulkMinimum is { } minimum) reward.Minimum = minimum;
+                if (_bulkMaximum is { } maximum) reward.Maximum = maximum;
+                if (_bulkChancePercent is { } chance) reward.ChancePercent = chance;
+                affected++;
+            }
+        }
+        if (affected == 0) throw new ArgumentException(_bulkAddReward
+            ? "No selected rarity tiers can receive this point type. It may already be present or the tiers may be full."
+            : "No reward entries match the selected profiles, rarity, and point type.");
+        StarshipExpeditionSettings.NormalizeAndValidateRewardProfiles(candidate);
+        return candidate;
     }
 
     private void AddRewardProfile()

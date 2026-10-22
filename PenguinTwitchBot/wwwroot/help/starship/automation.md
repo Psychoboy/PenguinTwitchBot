@@ -79,3 +79,37 @@ The status widget fades out while the ship is cruising. Add **Starship Show Stat
 - It does nothing when no voyage exists.
 
 Because it is a normal action, you can run it from a command, channel point reward, timer or hotkey.
+
+## Action: Starship Show Event Widget
+
+Add **Starship Show Event Widget** (Minigames) to show the large event widget for a set time when the selected overlay visibility mode requires an explicit trigger:
+
+- **Show Duration (Seconds)**: 1-3600. Supports variables.
+- It can show boarding, the current event or the latest completed event result.
+- It does nothing when there is no event/result to display.
+
+The Appearance setting **Overlay visibility** offers four modes: automatic with no overlap (default), event automatic/status manual, both manual, or status automatic/event manual. Use the matching Show Status or Show Event action for manual widgets.
+
+## Actions: Start and Stop Starship Expedition
+
+- **Start Starship Expedition** starts a voyage using the saved Starship Expedition configuration. It has no per-action settings. If a voyage is already active, the service rejects the second start.
+- **Stop Starship Expedition** stops the active voyage and settles it through the normal stop flow. If there is no active voyage, it does nothing.
+
+Both actions are available in the **Minigames** category and accept the triggering user as the start/stop actor.
+
+## Action: Starship Show Event Widget
+
+Use **Starship Show Event Widget** (Minigames) to temporarily show the large event widget when Appearance is set to a mode that requires an explicit trigger:
+
+- **Show Duration (Seconds)**: 1-3600. Supports variables.
+- It can show the current boarding/event/result scene, or the latest completed result while one is available.
+- It does nothing when there is no event or result to display.
+
+## Overlay Visibility Modes
+
+Choose **Appearance > Overlay visibility**:
+
+- **Automatic; hide status while event is visible**: both widgets appear automatically, but the small status widget hides while the large event/result widget is visible.
+- **Event automatic; status only when triggered**: the large widget appears automatically; use **Starship Show Status Widget** for the small widget.
+- **Both widgets only when triggered**: use the matching Show Status or Show Event action to display either widget.
+- **Status automatic; event only when triggered**: the small widget follows its automatic lifecycle; use **Starship Show Event Widget** for the large widget.

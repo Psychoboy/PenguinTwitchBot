@@ -181,6 +181,11 @@ namespace PenguinTwitchBot.Database.Repository
             return _context.SaveChangesAsync();
         }
 
+        public IExecutionStrategy CreateExecutionStrategy()
+        {
+            return _context.Database.CreateExecutionStrategy();
+        }
+
         public Task<IDbContextTransaction> BeginTransactionAsync()
         {
             return _context.Database.BeginTransactionAsync();

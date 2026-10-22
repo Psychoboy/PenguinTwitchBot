@@ -9,6 +9,9 @@ public sealed class StarshipEventDraft
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
     public List<StarshipChoiceDraft> Choices { get; set; } = [];
+    public string StartStepId { get; set; } = "";
+    public int DefaultStepSuppliesCost { get; set; }
+    public List<StarshipEventStepDraft> Steps { get; set; } = [];
     public string DefaultChoiceId { get; set; } = "";
     public string SuccessStory { get; set; } = "";
     public string FailureStory { get; set; } = "";
@@ -35,6 +38,7 @@ public sealed class StarshipEventDraft
 public sealed class StarshipChoiceDraft
 {
     public string ChoiceId { get; set; } = "";
+    public string? NextStepId { get; set; }
     public string Label { get; set; } = "";
     public bool IsRisky { get; set; }
     public string Story { get; set; } = "";
@@ -47,4 +51,16 @@ public sealed class StarshipChoiceDraft
     public int RiskMultiplierPercent { get; set; } = 100;
     public string Hint { get; set; } = "";
     public StarshipShipEffect? ShipEffect { get; set; }
+}
+
+public sealed class StarshipEventStepDraft
+{
+    public string StepId { get; set; } = "";
+    public string Prompt { get; set; } = "";
+    public StarshipEventStepType Type { get; set; }
+    public string? Narrative { get; set; }
+    public int? SuppliesCostOverride { get; set; }
+    public List<StarshipChoiceDraft> Choices { get; set; } = [];
+    public string DefaultChoiceId { get; set; } = "";
+    public string? NextStepId { get; set; }
 }

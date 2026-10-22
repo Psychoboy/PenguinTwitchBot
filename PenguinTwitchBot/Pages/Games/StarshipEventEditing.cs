@@ -23,11 +23,30 @@ public static class StarshipEventEditing
     public static T Convert<T>(object value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value, JsonOptions), JsonOptions)!;
 
     public static StarshipEventDefinition NewEvent(StarshipExpeditionSettings settings) => new(
-        UniqueId("custom-event", settings), "New Event", "A discovery near {subject}.",
-        [new() { ChoiceId = "investigate", Label = "Investigate" }, new() { ChoiceId = "pass", Label = "Continue on course", EndsWithoutReward = true }],
-        "pass", "The crew recovers {loot}.", "The crew returns empty-handed.")
-        { SortOrder = settings.EventCatalog.Count, SubjectStyle = "signal", ObjectKind = "beacon", RewardProfileId = "" };
-
+        UniqueId("custom-event", settings), "New Event", "A discovery near {subject}.", [], "",
+        "The crew recovers {loot}.", "The crew returns empty-handed.")
+    {
+        SortOrder = settings.EventCatalog.Count,
+        SubjectStyle = "signal",
+        ObjectKind = "beacon",
+        RewardProfileId = "",
+        StartStepId = "approach",
+        Steps =
+        [
+            new()
+            {
+                StepId = "approach", Type = StarshipEventStepType.Vote, Prompt = "How should the crew investigate {subject}?",
+                DefaultChoiceId = "investigate",
+                Choices =
+                [
+                    new() { ChoiceId = "investigate", Label = "Investigate", NextStepId = "recovery" },
+                    new() { ChoiceId = "pass", Label = "Continue on course", EndsWithoutReward = true, NextStepId = "pass" }
+                ]
+            },
+            new() { StepId = "recovery", Type = StarshipEventStepType.End, Prompt = "The crew recovers {loot}." },
+            new() { StepId = "pass", Type = StarshipEventStepType.End, Prompt = "The crew returns empty-handed." }
+        ]
+    };
     public static StarshipEventDefinition Duplicate(StarshipEventDefinition source, StarshipExpeditionSettings settings)
     {
         var copy = Copy(source);

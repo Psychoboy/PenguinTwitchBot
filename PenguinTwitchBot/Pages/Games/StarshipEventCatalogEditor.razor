@@ -17,13 +17,14 @@
         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="NewEvent">Add Event</MudButton>
     </MudStack>
     <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
-        <thead><tr><th>Event</th><th>State</th><th>Weight</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Event</th><th>State</th><th>Reward Profile</th><th>Weight</th><th>Actions</th></tr></thead>
         <tbody>
             @foreach (var definition in FilteredEvents)
             {
                 <tr @key="definition.EventType">
                     <td>@definition.Title<br /><small>@definition.EventType</small></td>
                     <td>@(StarshipEventCatalog.IsStructural(definition.EventType) ? "Structural" : definition.Enabled ? "Enabled" : "Disabled")</td>
+                    <td>@GetRewardProfileListLabel(definition)</td>
                     <td>@(StarshipEventCatalog.IsStructural(definition.EventType) ? "-" : definition.Weight.ToString())</td>
                     <td style="white-space:nowrap">
                         <MudTooltip Text="Edit event"><MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="@($"Edit {definition.EventType}")" OnClick="@(() => OpenEvent(definition))" /></MudTooltip>
@@ -47,11 +48,12 @@
 
     @if (_draft is { } draft)
     {
+        var activeChoices = GetActiveChoices(draft);
         <MudDivider />
         <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
             <MudText Typo="Typo.h6">@(_originalId == null ? "New Event Draft" : "Edit Event")</MudText>
             <MudSpacer />
-            <MudButton StartIcon="@Icons.Material.Filled.Check" Color="Color.Primary" Variant="Variant.Filled" OnClick="ApplyDraft">Apply Event</MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.Check" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_applying" OnClick="ApplyDraft">@(EventApplied.HasDelegate ? "Save Event" : "Apply Event")</MudButton>
             <MudButton StartIcon="@Icons.Material.Filled.Undo" OnClick="DiscardDraft">Discard Draft</MudButton>
             <MudButton StartIcon="@Icons.Material.Filled.Download" Disabled="@(!string.IsNullOrEmpty(_validationError))" OnClick="ExportAsync">Export JSON</MudButton>
         </MudStack>
@@ -67,12 +69,15 @@
             {
                 <MudItem xs="6" sm="4"><MudSwitch T="bool" Label="Enabled" Color="Color.Primary" @bind-Value="draft.Enabled" @bind-Value:after="DraftChanged" /></MudItem>
                 <MudItem xs="6" sm="4"><MudNumericField T="int" Label="Selection Weight" Variant="Variant.Outlined" Min="1" Max="10" @bind-Value="draft.Weight" @bind-Value:after="DraftChanged" /></MudItem>
+                @if (!IsGraphDraft)
+                {
                 <MudItem xs="12" sm="4"><MudSelect T="string" Label="Default Choice" Variant="Variant.Outlined" @bind-Value="draft.DefaultChoiceId" @bind-Value:after="DraftChanged">
                     @foreach (var choice in draft.Choices.Where(choice => !choice.ContinuesEvent && string.IsNullOrEmpty(choice.GrantsFlag)))
                     {
                         <MudSelectItem T="string" Value="@choice.ChoiceId">@choice.Label</MudSelectItem>
                     }
                 </MudSelect></MudItem>
+                }
                 <MudItem xs="12"><MudText Typo="Typo.subtitle2">Routes (none selected means all)</MudText><MudStack Row="true" Wrap="Wrap.Wrap">
                     @foreach (var route in StarshipEventCatalog.Routes)
                     {
@@ -124,22 +129,114 @@
             <MudTextField T="string" Label="@($"{tier.Name} Loot Wording")" Variant="Variant.Outlined" MaxLength="160" Value="@draft.LootByTier.GetValueOrDefault(tier.Name, "")" ValueChanged="@(value => SetLoot(tier.Name, value))" />
         }
 
-        <MudText Typo="Typo.subtitle1">Choices</MudText>
+        @if (IsGraphDraft)
+        {
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle1">Event Flow</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Up to @StarshipEventGraphValidator.MaximumTotalSteps total steps; each route can be up to @StarshipEventGraphValidator.MaximumPathSteps steps.</MudText>
+            <MudGrid Spacing="2" Class="mb-2">
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="int" Label="Default Supplies Cost per Step" Variant="Variant.Outlined" Min="0" Max="100"
+                                     @bind-Value="draft.DefaultStepSuppliesCost" @bind-Value:after="DraftChanged" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Start Step" Variant="Variant.Outlined" Value="@draft.StartStepId" ValueChanged="SetStartStep">
+                        @foreach (var step in draft.Steps) { <MudSelectItem T="string" Value="@step.StepId">@step.StepId (@step.Type)</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+            <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
+                <thead><tr><th>Step</th><th>Type</th><th>Prompt</th><th>Connections</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var step in draft.Steps)
+                    {
+                        var selectedStep = step.StepId == _selectedStepId;
+                        var connections = step.Type switch
+                        {
+                            StarshipEventStepType.Vote => string.Join("; ", step.Choices.Select(choice => $"{choice.Label} -> {choice.NextStepId}")),
+                            StarshipEventStepType.Automatic => $"auto -> {step.NextStepId}",
+                            _ => "End event"
+                        };
+                        <tr @key="step.StepId" style="@(selectedStep ? "background:var(--mud-palette-action-default-hover)" : null)">
+                            <td>@step.StepId @(draft.StartStepId == step.StepId ? "(start)" : "")</td>
+                            <td>@step.Type@(step.SuppliesCostOverride.HasValue ? $" / {step.SuppliesCostOverride} supplies" : " / inherited cost")</td>
+                            <td>@step.Prompt</td>
+                            <td>@connections</td>
+                            <td style="white-space:nowrap">
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => SelectStep(step.StepId))">Edit</MudButton>
+                                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Delete" aria-label="@($"Delete step {step.StepId}")" Disabled="@(draft.Steps.Count <= 1)" OnClick="@(() => RemoveStep(step.StepId))" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+                <MudSelect T="StarshipEventStepType" Label="New Step Type" Variant="Variant.Outlined" Margin="Margin.Dense" Value="_newStepType" ValueChanged="@(type => _newStepType = type)" Style="max-width:220px">
+                    <MudSelectItem Value="@StarshipEventStepType.Vote">Vote</MudSelectItem>
+                    <MudSelectItem Value="@StarshipEventStepType.Automatic">Automatic</MudSelectItem>
+                    <MudSelectItem Value="@StarshipEventStepType.End">End</MudSelectItem>
+                </MudSelect>
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(draft.Steps.Count >= StarshipEventGraphValidator.MaximumTotalSteps)" OnClick="AddStep">Add Step</MudButton>
+            </MudStack>
+            @if (CurrentStep is { } editStep)
+            {
+                <MudPaper Outlined="true" Class="pa-3 mt-3">
+                    <MudText Typo="Typo.subtitle2">Edit Step: @editStep.StepId</MudText>
+                    <MudGrid Spacing="2" Class="mt-1">
+                        <MudItem xs="12" sm="6"><MudTextField T="string" Label="Step ID" Variant="Variant.Outlined" MaxLength="40" Value="@editStep.StepId" ValueChanged="@(value => RenameStep(editStep, value))" /></MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="StarshipEventStepType" Label="Step Type" Variant="Variant.Outlined" Value="@editStep.Type" ValueChanged="@(type => SetStepType(editStep, type))">
+                                <MudSelectItem Value="@StarshipEventStepType.Vote">Vote</MudSelectItem>
+                                <MudSelectItem Value="@StarshipEventStepType.Automatic">Automatic</MudSelectItem>
+                                <MudSelectItem Value="@StarshipEventStepType.End">End</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField T="int?" Label="Step Supplies Cost Override" Variant="Variant.Outlined" Min="0" Max="100" Clearable="true"
+                                             Placeholder="Inherit event default" HelperText="Enter 0 to make this step free." @bind-Value="editStep.SuppliesCostOverride" @bind-Value:after="DraftChanged" />
+                        </MudItem>
+                        <MudItem xs="12"><MudTextField T="string" Label="Step Prompt" Variant="Variant.Outlined" Lines="2" MaxLength="1000" @bind-Value="editStep.Prompt" @bind-Value:after="DraftChanged" /></MudItem>
+                        <MudItem xs="12"><MudTextField T="string" Label="Step Narrative" Variant="Variant.Outlined" Lines="2" MaxLength="1000" @bind-Value="editStep.Narrative" @bind-Value:after="DraftChanged" /></MudItem>
+                        @if (editStep.Type == StarshipEventStepType.Vote)
+                        {
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" Label="Default Choice" Variant="Variant.Outlined" @bind-Value="editStep.DefaultChoiceId" @bind-Value:after="DraftChanged">
+                                    @foreach (var choice in editStep.Choices) { <MudSelectItem T="string" Value="@choice.ChoiceId">@choice.Label</MudSelectItem> }
+                                </MudSelect>
+                            </MudItem>
+                        }
+                        else if (editStep.Type == StarshipEventStepType.Automatic)
+                        {
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" Label="Next Step" Variant="Variant.Outlined" @bind-Value="editStep.NextStepId" @bind-Value:after="DraftChanged">
+                                    @foreach (var target in draft.Steps.Where(step => step.StepId != editStep.StepId)) { <MudSelectItem T="string" Value="@target.StepId">@target.StepId (@target.Type)</MudSelectItem> }
+                                </MudSelect>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+            }
+        }
+
+        @if (!IsGraphDraft || CurrentStep?.Type == StarshipEventStepType.Vote)
+        {
+        <MudText Typo="Typo.subtitle1">Choices@(IsGraphDraft ? $" in {_selectedStepId}" : "")</MudText>
         <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
             <thead><tr><th>#</th><th>Choice</th><th>Effect</th><th>Actions</th></tr></thead>
             <tbody>
-                @for (var index = 0; index < draft.Choices.Count; index++)
+                @for (var index = 0; index < activeChoices.Count; index++)
                 {
                     var choiceIndex = index;
-                    var choice = draft.Choices[index];
-                    <tr><td>@(index + 1)</td><td>@choice.Label @(draft.DefaultChoiceId == choice.ChoiceId ? "(default)" : "")</td><td>@ChoiceEffect(choice)</td>
+                    var choice = activeChoices[index];
+                    var isDefault = IsGraphDraft ? CurrentStep?.DefaultChoiceId == choice.ChoiceId : draft.DefaultChoiceId == choice.ChoiceId;
+                    <tr><td>@(index + 1)</td><td>@choice.Label @(isDefault ? "(default)" : "")</td><td>@ChoiceEffect(choice) @(IsGraphDraft ? $"-> {choice.NextStepId}" : "")</td>
                         <td style="white-space:nowrap">
                             <MudTooltip Text="Edit choice"><MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="@($"Edit choice {index + 1}")" OnClick="@(() => _choiceIndex = choiceIndex)" /></MudTooltip>
                             @if (!IsStructuralDraft)
                             {
                                 <MudTooltip Text="Move choice up"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" aria-label="@($"Move choice {index + 1} up")" Disabled="@(index == 0)" OnClick="@(() => MoveChoice(choiceIndex, -1))" /></MudTooltip>
-                                <MudTooltip Text="Move choice down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="@($"Move choice {index + 1} down")" Disabled="@(index == draft.Choices.Count - 1)" OnClick="@(() => MoveChoice(choiceIndex, 1))" /></MudTooltip>
-                                <MudTooltip Text="Remove choice"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="@($"Remove choice {index + 1}")" Disabled="@(draft.Choices.Count <= 2)" OnClick="@(() => RemoveChoice(choiceIndex))" /></MudTooltip>
+                                <MudTooltip Text="Move choice down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="@($"Move choice {index + 1} down")" Disabled="@(index == activeChoices.Count - 1)" OnClick="@(() => MoveChoice(choiceIndex, 1))" /></MudTooltip>
+                                <MudTooltip Text="Remove choice"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="@($"Remove choice {index + 1}")" Disabled="@(activeChoices.Count <= 2)" OnClick="@(() => RemoveChoice(choiceIndex))" /></MudTooltip>
                             }
                         </td>
                     </tr>
@@ -148,11 +245,11 @@
         </MudSimpleTable>
         @if (!IsStructuralDraft)
         {
-            <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(draft.Choices.Count >= StarshipEventCatalog.MaximumChoices)" OnClick="AddChoice">Add Choice</MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(activeChoices.Count >= StarshipEventCatalog.MaximumChoices)" OnClick="AddChoice">Add Choice</MudButton>
         }
-        @if (_choiceIndex >= 0 && _choiceIndex < draft.Choices.Count)
+        @if (_choiceIndex >= 0 && _choiceIndex < activeChoices.Count)
         {
-            var choice = draft.Choices[_choiceIndex];
+            var choice = activeChoices[_choiceIndex];
             <MudGrid Spacing="2" @key="choice">
                 <MudItem xs="12" sm="4"><MudTextField T="string" Label="Choice ID" Variant="Variant.Outlined" Disabled="@IsStructuralDraft" MaxLength="40" @bind-Value="choice.ChoiceId" @bind-Value:after="DraftChanged" /></MudItem>
                 <MudItem xs="12" sm="8"><MudTextField T="string" Label="Choice Label" Variant="Variant.Outlined" MaxLength="80" @bind-Value="choice.Label" @bind-Value:after="DraftChanged" /></MudItem>
@@ -163,13 +260,25 @@
                     <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Success Modifier (%)" Variant="Variant.Outlined" Min="-50" Max="50" @bind-Value="choice.SuccessChanceModifierPercent" @bind-Value:after="DraftChanged" /></MudItem>
                     <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Reward Multiplier (%)" Variant="Variant.Outlined" Min="10" Max="300" @bind-Value="choice.RewardMultiplierPercent" @bind-Value:after="DraftChanged" /></MudItem>
                     <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Loss Multiplier (%)" Variant="Variant.Outlined" Min="0" Max="300" @bind-Value="choice.RiskMultiplierPercent" @bind-Value:after="DraftChanged" /></MudItem>
-                    <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Continues Event" @bind-Value="choice.ContinuesEvent" @bind-Value:after="DraftChanged" /></MudItem>
                     <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Reveals Rarity" @bind-Value="choice.RevealsRarity" @bind-Value:after="DraftChanged" /></MudItem>
                     <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Ends Without Reward" @bind-Value="choice.EndsWithoutReward" @bind-Value:after="DraftChanged" /></MudItem>
-                    <MudItem xs="12"><MudTextField T="string" Label="Granted Flag" Variant="Variant.Outlined" MaxLength="40" @bind-Value="choice.GrantsFlag" @bind-Value:after="DraftChanged" /></MudItem>
+                    @if (IsGraphDraft)
+                    {
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="string" Label="Next Step" Variant="Variant.Outlined" @bind-Value="choice.NextStepId" @bind-Value:after="DraftChanged">
+                                @foreach (var target in draft.Steps.Where(step => step.StepId != CurrentStep?.StepId)) { <MudSelectItem T="string" Value="@target.StepId">@target.StepId (@target.Type)</MudSelectItem> }
+                            </MudSelect>
+                        </MudItem>
+                    }
+                    else
+                    {
+                        <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Continues Event" @bind-Value="choice.ContinuesEvent" @bind-Value:after="DraftChanged" /></MudItem>
+                        <MudItem xs="12"><MudTextField T="string" Label="Granted Flag" Variant="Variant.Outlined" MaxLength="40" @bind-Value="choice.GrantsFlag" @bind-Value:after="DraftChanged" /></MudItem>
+                    }
                     <MudItem xs="12"><StarshipShipEffectEditor Label="Choice Ship Effect" AllowCost="true" Value="choice.ShipEffect" ValueChanged="@(effect => SetChoiceEffect(choice, effect))" /></MudItem>
                 }
             </MudGrid>
+        }
         }
         <MudGrid Spacing="2">
             <MudItem xs="12" sm="6"><MudTextField T="string" Label="Success Story" Variant="Variant.Outlined" Lines="3" MaxLength="1000" @bind-Value="draft.SuccessStory" @bind-Value:after="DraftChanged" /></MudItem>
@@ -182,12 +291,62 @@
         </MudStack>
         @if (_preview != null)
         {
+            var defaultRouteChoices = GetDefaultRouteChoices();
             <MudText Typo="Typo.subtitle1">@_preview.Title</MudText>
             <MudText Typo="Typo.body2">@_preview.Description</MudText>
+            @if (_previewPaths.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-2">Reachable paths (up to 24)</MudText>
+                <MudStack Spacing="1" Class="mt-1">
+                    @foreach (var path in _previewPaths)
+                    {
+                        <MudText Typo="Typo.caption">@path</MudText>
+                    }
+                </MudStack>
+            }
             @if (_previewDisclosure is { } shipPreview)
             {
                 <MudText Typo="Typo.caption">Hull @shipPreview.Hull/@shipPreview.MaximumHull; Supplies @shipPreview.Supplies/100; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
             }
+            @if (_draft is { Steps.Count: > 0 })
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-2">Choices by step (default route highlighted)</MudText>
+                <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
+                    <thead><tr><th>Step</th><th>Type</th><th>Option / result</th><th>Route</th><th>Effect and story</th></tr></thead>
+                    <tbody>
+                        @foreach (var step in _draft.Steps)
+                        {
+                            var onDefaultRoute = defaultRouteChoices.ContainsKey(step.StepId);
+                            if (step.Type == StarshipEventStepType.Vote)
+                            {
+                                foreach (var choice in step.Choices)
+                                {
+                                    var isDefaultChoice = defaultRouteChoices.GetValueOrDefault(step.StepId) == choice.ChoiceId;
+                                    <tr style="@(isDefaultChoice ? "background:var(--mud-palette-action-default-hover)" : null)">
+                                        <td>@step.StepId</td>
+                                        <td>Vote</td>
+                                        <td>@choice.Label@(isDefaultChoice ? " (default route)" : "")</td>
+                                        <td>@(onDefaultRoute ? isDefaultChoice ? "Default route" : "Branch" : "Other path")</td>
+                                        <td>@ChoiceEffect(choice) @RenderStory(choice.Story) -> @choice.NextStepId</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr style="@(onDefaultRoute ? "background:var(--mud-palette-action-default-hover)" : null)">
+                                    <td>@step.StepId</td>
+                                    <td>@step.Type</td>
+                                    <td>@RenderStory(step.Narrative ?? step.Prompt)</td>
+                                    <td>@(onDefaultRoute ? "Default route" : "Other path")</td>
+                                    <td>@(step.Type == StarshipEventStepType.Automatic ? $"Continues to {step.NextStepId}" : "Terminal result")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
+            else
+            {
             <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
                 <thead><tr><th>#</th><th>Option</th><th>Effect</th><th>Story</th></tr></thead>
                 <tbody>
@@ -199,6 +358,7 @@
                     }
                 </tbody>
             </MudSimpleTable>
+            }
             <MudText Typo="Typo.body2">Success: @RenderStory(_preview.SuccessStory)</MudText>
             <MudText Typo="Typo.body2">Failure: @RenderStory(_preview.FailureStory)</MudText>
         }
@@ -218,6 +378,8 @@
     [Parameter, EditorRequired] public StarshipExpeditionSettings Settings { get; set; } = default!;
     [Parameter] public IReadOnlyDictionary<int, string> PointTypes { get; set; } = new Dictionary<int, string>();
     [Parameter] public IReadOnlyDictionary<int, string> Actions { get; set; } = new Dictionary<int, string>();
+    [Parameter] public EventCallback<StarshipEventDefinition> EventApplied { get; set; }
+    [Parameter] public EventCallback<string> EventDeleted { get; set; }
     private StarshipEventDraft? _draft;
     private StarshipRewardProfile? _ownedProfile;
     private string? _originalId;
@@ -228,16 +390,30 @@
     private string _notice = "";
     private string _json = "";
     private bool _dirty;
+    private bool _applying;
     private int _choiceIndex;
+    private string _selectedStepId = string.Empty;
+    private StarshipEventStepType _newStepType = StarshipEventStepType.Vote;
     private int _sampleSeed = 12345;
     private StarshipExpeditionEventSnapshot? _preview;
     private StarshipShipEventDisclosure? _previewDisclosure;
+    private IReadOnlyList<string> _previewPaths = [];
     private IEnumerable<StarshipEventDefinition> FilteredEvents => Settings.EventCatalog.Where(definition =>
         definition.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) || definition.EventType.Contains(_search, StringComparison.OrdinalIgnoreCase));
     private bool IsStructuralDraft => _originalId != null && StarshipEventCatalog.IsStructural(_originalId);
+    private bool IsGraphDraft => _draft is { Steps.Count: > 0 };
+    private StarshipEventStepDraft? CurrentStep => _draft?.Steps.FirstOrDefault(step => step.StepId == _selectedStepId);
     private string InheritedBinding => Settings.EventRewardProfileIds.GetValueOrDefault(_originalId ?? "", "");
     private StarshipRewardProfile? CurrentProfile => _ownedProfile != null && _ownedProfile.Id == _draft?.RewardProfileId ? _ownedProfile :
         Settings.RewardProfiles.FirstOrDefault(profile => profile.Id == (_draft?.RewardProfileId ?? InheritedBinding));
+    private string GetRewardProfileListLabel(StarshipEventDefinition definition)
+    {
+        if (StarshipEventCatalog.IsStructural(definition.EventType)) return "Structural";
+        var profileId = definition.RewardProfileId ?? Settings.EventRewardProfileIds.GetValueOrDefault(definition.EventType, "");
+        if (string.IsNullOrWhiteSpace(profileId)) return "No rewards";
+        return Settings.RewardProfiles.FirstOrDefault(profile => profile.Id == profileId)?.Name ?? profileId;
+    }
+
     private static bool IsBuiltIn(string id) => StarshipEventCatalog.IsBuiltIn(id);
 
     private bool CanChangeDraft()
@@ -254,7 +430,9 @@
         _ownedProfile = null;
         _dirty = originalId == null;
         _choiceIndex = 0;
+        _selectedStepId = _draft.StartStepId;
         _preview = null;
+        _previewPaths = [];
         _notice = _operationError = "";
         ValidateCurrent();
     }
@@ -281,6 +459,14 @@
         _dirty = false;
         _validationError = _operationError = "";
         _preview = null;
+    }
+
+    public void DiscardPendingDraft()
+    {
+        DiscardDraft();
+        _selectedStepId = string.Empty;
+        _choiceIndex = 0;
+        StateHasChanged();
     }
 
     private void DraftChanged()
@@ -312,23 +498,39 @@
         }
     }
 
-    public bool TryApplyDraft()
+    private async Task ApplyDraft()
     {
-        if (_draft == null || !_dirty) return true;
-        if (!ValidateCurrent()) return false;
-        var definition = _draft.ToDefinition();
-        var index = _originalId == null ? -1 : Settings.EventCatalog.FindIndex(item => item.EventType == _originalId);
-        if (_ownedProfile != null) Settings.RewardProfiles.Add(StarshipEventEditing.Copy(_ownedProfile));
-        if (index < 0)
-            Settings.EventCatalog.Add(definition);
-        else
-            Settings.EventCatalog[index] = definition;
-        Begin(definition, definition.EventType);
-        _notice = "Event applied. Save Settings to persist changes.";
-        return true;
-    }
+        if (_applying || _draft == null || !_dirty) return;
+        if (!ValidateCurrent()) return;
+        _applying = true;
+        var addedProfileId = string.Empty;
+        try
+        {
+            var definition = _draft.ToDefinition();
+            if (_ownedProfile != null && Settings.RewardProfiles.All(profile => profile.Id != _ownedProfile.Id))
+            {
+                Settings.RewardProfiles.Add(StarshipEventEditing.Copy(_ownedProfile));
+                addedProfileId = _ownedProfile.Id;
+            }
+            if (EventApplied.HasDelegate) await EventApplied.InvokeAsync(definition);
 
-    private void ApplyDraft() => TryApplyDraft();
+            var index = _originalId == null ? -1 : Settings.EventCatalog.FindIndex(item => item.EventType == _originalId);
+            if (index < 0) Settings.EventCatalog.Add(definition);
+            else Settings.EventCatalog[index] = definition;
+            Begin(definition, definition.EventType);
+            _notice = EventApplied.HasDelegate ? "Event saved." : "Event applied to the current settings.";
+        }
+        catch (Exception ex)
+        {
+            if (addedProfileId.Length > 0)
+                Settings.RewardProfiles.RemoveAll(profile => profile.Id == addedProfileId);
+            _operationError = ex.Message;
+        }
+        finally
+        {
+            _applying = false;
+        }
+    }
 
     private void ToggleFilter(List<string> filter, string value, bool enabled)
     {
@@ -378,6 +580,105 @@
         DraftChanged();
     }
 
+    private List<StarshipChoiceDraft> GetActiveChoices(StarshipEventDraft draft) =>
+        IsGraphDraft ? CurrentStep?.Choices ?? [] : draft.Choices;
+
+    private void SelectStep(string stepId)
+    {
+        _selectedStepId = stepId;
+        _choiceIndex = -1;
+    }
+
+    private void RenameStep(StarshipEventStepDraft step, string? value)
+    {
+        if (_draft == null) return;
+        var previousId = step.StepId;
+        var nextId = (value ?? string.Empty).Trim();
+        if (previousId == nextId) return;
+        if (_draft.Steps.Any(other => !ReferenceEquals(other, step) && string.Equals(other.StepId, nextId, StringComparison.Ordinal)))
+        {
+            _validationError = $"Step ID '{nextId}' is already in use.";
+            return;
+        }
+        step.StepId = nextId;
+        if (_draft.StartStepId == previousId) _draft.StartStepId = nextId;
+        foreach (var source in _draft.Steps)
+        {
+            if (source.NextStepId == previousId) source.NextStepId = nextId;
+            foreach (var choice in source.Choices)
+                if (choice.NextStepId == previousId) choice.NextStepId = nextId;
+        }
+        _selectedStepId = nextId;
+        DraftChanged();
+    }
+
+    private void SetStartStep(string? stepId)
+    {
+        if (_draft == null) return;
+        _draft.StartStepId = stepId ?? string.Empty;
+        DraftChanged();
+    }
+
+    private void AddStep()
+    {
+        if (_draft == null || _draft.Steps.Count >= StarshipEventGraphValidator.MaximumTotalSteps) return;
+        var stepId = UniqueStepId(_draft, _newStepType.ToString().ToLowerInvariant());
+        var endStepId = _draft.Steps.FirstOrDefault(step => step.Type == StarshipEventStepType.End)?.StepId;
+        var step = new StarshipEventStepDraft
+        {
+            StepId = stepId,
+            Prompt = _newStepType == StarshipEventStepType.End ? "The encounter concludes." : "What should the crew do next?",
+            Type = _newStepType,
+            NextStepId = _newStepType == StarshipEventStepType.Automatic ? endStepId : null,
+            Choices = _newStepType == StarshipEventStepType.Vote && endStepId != null
+                ? [new() { ChoiceId = "option-a", Label = "Take the opportunity", NextStepId = endStepId },
+                   new() { ChoiceId = "option-b", Label = "Back away", NextStepId = endStepId }]
+                : []
+        };
+        step.DefaultChoiceId = step.Choices.FirstOrDefault()?.ChoiceId ?? string.Empty;
+        _draft.Steps.Add(step);
+        _selectedStepId = stepId;
+        _choiceIndex = step.Type == StarshipEventStepType.Vote ? 0 : -1;
+        DraftChanged();
+    }
+
+    private void RemoveStep(string stepId)
+    {
+        if (_draft == null || _draft.Steps.Count <= 1) return;
+        _draft.Steps.RemoveAll(step => step.StepId == stepId);
+        if (_draft.StartStepId == stepId) _draft.StartStepId = _draft.Steps.FirstOrDefault()?.StepId ?? string.Empty;
+        if (_selectedStepId == stepId) SelectStep(_draft.StartStepId);
+        DraftChanged();
+    }
+
+    private void SetStepType(StarshipEventStepDraft step, StarshipEventStepType type)
+    {
+        step.Type = type;
+        step.Choices = [];
+        step.DefaultChoiceId = string.Empty;
+        step.NextStepId = type == StarshipEventStepType.Automatic
+            ? _draft?.Steps.FirstOrDefault(other => other.StepId != step.StepId && other.Type == StarshipEventStepType.End)?.StepId
+            : null;
+        if (type == StarshipEventStepType.Vote && _draft?.Steps.FirstOrDefault(other => other.Type == StarshipEventStepType.End) is { } endStep)
+        {
+            step.Choices =
+            [
+                new() { ChoiceId = "option-a", Label = "Take the opportunity", NextStepId = endStep.StepId },
+                new() { ChoiceId = "option-b", Label = "Back away", NextStepId = endStep.StepId }
+            ];
+            step.DefaultChoiceId = step.Choices[0].ChoiceId;
+        }
+        _choiceIndex = type == StarshipEventStepType.Vote ? 0 : -1;
+        DraftChanged();
+    }
+
+    private static string UniqueStepId(StarshipEventDraft draft, string basis)
+    {
+        var id = basis;
+        for (var suffix = 2; draft.Steps.Any(step => step.StepId == id); suffix++) id = $"{basis}-{suffix}";
+        return id;
+    }
+
     private void CreateOwnedProfile()
     {
         _ownedProfile = new()
@@ -402,26 +703,33 @@
 
     private void AddChoice()
     {
-        if (_draft == null || _draft.Choices.Count >= StarshipEventCatalog.MaximumChoices) return;
+        if (_draft == null) return;
+        var choices = GetActiveChoices(_draft);
+        if (choices.Count >= StarshipEventCatalog.MaximumChoices) return;
         var id = "choice";
-        for (var suffix = 2; _draft.Choices.Any(choice => choice.ChoiceId == id); suffix++) id = $"choice-{suffix}";
-        _draft.Choices.Add(new() { ChoiceId = id, Label = $"Choice {_draft.Choices.Count + 1}" });
-        _choiceIndex = _draft.Choices.Count - 1;
+        for (var suffix = 2; choices.Any(choice => choice.ChoiceId == id); suffix++) id = $"choice-{suffix}";
+        var target = IsGraphDraft ? _draft.Steps.FirstOrDefault(step => step.Type == StarshipEventStepType.End)?.StepId : null;
+        choices.Add(new() { ChoiceId = id, Label = $"Choice {choices.Count + 1}", NextStepId = target });
+        _choiceIndex = choices.Count - 1;
         DraftChanged();
     }
     private void RemoveChoice(int index)
     {
-        if (_draft!.Choices.Count <= 2) return;
-        _draft.Choices.RemoveAt(index);
-        _choiceIndex = Math.Min(index, _draft.Choices.Count - 1);
+        var choices = GetActiveChoices(_draft!);
+        if (choices.Count <= 2) return;
+        var removedId = choices[index].ChoiceId;
+        choices.RemoveAt(index);
+        if (CurrentStep?.DefaultChoiceId == removedId) CurrentStep.DefaultChoiceId = choices[0].ChoiceId;
+        _choiceIndex = Math.Min(index, choices.Count - 1);
         DraftChanged();
     }
 
     private void MoveChoice(int index, int offset)
     {
         var target = index + offset;
-        if (target < 0 || target >= _draft!.Choices.Count) return;
-        (_draft.Choices[index], _draft.Choices[target]) = (_draft.Choices[target], _draft.Choices[index]);
+        var choices = GetActiveChoices(_draft!);
+        if (target < 0 || target >= choices.Count) return;
+        (choices[index], choices[target]) = (choices[target], choices[index]);
         _choiceIndex = target;
         DraftChanged();
     }
@@ -431,7 +739,7 @@
         SuccessChanceModifierPercent = choice.SuccessChanceModifierPercent, RewardMultiplierPercent = choice.RewardMultiplierPercent,
         RiskMultiplierPercent = choice.RiskMultiplierPercent, Hint = choice.Hint ?? ""
     });
-    private void DeleteEvent()
+    private async Task DeleteEvent()
     {
         if (_deleteId == null || IsBuiltIn(_deleteId)) return;
         try
@@ -440,12 +748,13 @@
             var copy = StarshipEventEditing.Copy(Settings);
             copy.EventCatalog.RemoveAll(item => item.EventType == _deleteId);
             StarshipExpeditionSettings.NormalizeAndValidate(copy);
+            if (EventDeleted.HasDelegate) await EventDeleted.InvokeAsync(_deleteId);
             Settings.EventCatalog.RemoveAll(item => item.EventType == _deleteId);
             if (_originalId == _deleteId) DiscardDraft();
             _deleteId = null;
-            _notice = "Event deleted. Save Settings to persist changes.";
+            _notice = EventDeleted.HasDelegate ? "Event deleted and saved." : "Event deleted from the current settings.";
         }
-        catch (ArgumentException ex)
+        catch (Exception ex)
         {
             _operationError = ex.Message;
         }
@@ -455,6 +764,8 @@
     {
         if (_draft == null || !ValidateCurrent()) return;
         var definition = _draft.ToDefinition();
+        var startStep = definition.Steps.FirstOrDefault(step => step.StepId == definition.StartStepId);
+        var graphEvent = startStep != null;
         _preview = new()
         {
             EventId = Guid.NewGuid(),
@@ -462,12 +773,21 @@
             Title = definition.Title,
             Subject = StarshipExpeditionStory.GenerateSubject(_sampleSeed, 2, definition),
             Sector = Settings.GetEffectiveSectors().FirstOrDefault() ?? "Sector",
-            Choices = definition.Choices,
+            EventDescription = definition.Description,
+            StartStepId = definition.StartStepId,
+            CurrentStepId = definition.StartStepId,
+            DefaultStepSuppliesCost = definition.DefaultStepSuppliesCost,
+            StepDefinitions = definition.Steps,
+            StepNumber = graphEvent ? 1 : 1,
+            Choices = graphEvent ? startStep!.Choices : definition.Choices,
+            ChoicePool = graphEvent ? startStep!.Choices : definition.Choices,
+            DefaultChoiceId = graphEvent ? startStep!.DefaultChoiceId : definition.DefaultChoiceId,
             LootByTier = definition.LootByTier,
             SuccessStory = definition.SuccessStory,
             FailureStory = definition.FailureStory
         };
-        _preview.Description = RenderStory(definition.Description);
+        _preview.Description = RenderStory(graphEvent ? startStep!.Prompt : definition.Description);
+        _previewPaths = graphEvent ? EnumeratePaths(definition, 24) : [];
         var ship = StarshipShipSystems.Create(Settings.ShipSystems);
         _previewDisclosure = null;
         if (ship != null)
@@ -479,11 +799,62 @@
             var eventForDisclosure = new StarshipExpeditionEventSnapshot
             {
                 EventId = _preview.EventId, EventType = definition.EventType, Choices = available,
-                ChoicePool = definition.Choices, ShipContext = _preview.ShipContext
+                ChoicePool = graphEvent ? startStep!.Choices : definition.Choices, ShipContext = _preview.ShipContext
             };
             _previewDisclosure = StarshipShipEventDisclosure.From(new() { ShipSystems = ship }, eventForDisclosure, CurrentProfile);
         }
     }
+
+    private static IReadOnlyList<string> EnumeratePaths(StarshipEventDefinition definition, int maximumPaths)
+    {
+        var steps = definition.Steps.ToDictionary(step => step.StepId, StringComparer.Ordinal);
+        var paths = new List<string>();
+        void Visit(string stepId, List<string> path, int depth)
+        {
+            if (paths.Count >= maximumPaths || depth > StarshipEventGraphValidator.MaximumPathSteps) return;
+            var step = steps[stepId];
+            var label = step.Type == StarshipEventStepType.Vote
+                ? step.StepId
+                : $"{step.StepId} ({step.Type.ToString().ToLowerInvariant()})";
+            path.Add(label);
+            if (step.Type == StarshipEventStepType.End)
+                paths.Add(string.Join(" -> ", path));
+            else if (step.Type == StarshipEventStepType.Automatic)
+                Visit(step.NextStepId!, path, depth + 1);
+            else
+                foreach (var choice in step.Choices)
+                    Visit(choice.NextStepId!, [.. path, $"{choice.Label}"], depth + 1);
+            path.RemoveAt(path.Count - 1);
+        }
+
+        Visit(definition.StartStepId, [], 1);
+        return paths;
+    }
+
+    private Dictionary<string, string> GetDefaultRouteChoices()
+    {
+        var routeChoices = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (_draft == null || _draft.Steps.Count == 0) return routeChoices;
+        var steps = _draft.Steps.ToDictionary(step => step.StepId, StringComparer.Ordinal);
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var stepId = _draft.StartStepId;
+        while (visited.Add(stepId) && steps.TryGetValue(stepId, out var step) && visited.Count <= StarshipEventGraphValidator.MaximumPathSteps)
+        {
+            if (step.Type == StarshipEventStepType.End) break;
+            if (step.Type == StarshipEventStepType.Automatic)
+            {
+                stepId = step.NextStepId ?? string.Empty;
+                continue;
+            }
+
+            var choice = step.Choices.FirstOrDefault(item => item.ChoiceId == step.DefaultChoiceId);
+            if (choice == null) break;
+            routeChoices[step.StepId] = choice.ChoiceId;
+            stepId = choice.NextStepId ?? string.Empty;
+        }
+        return routeChoices;
+    }
+
     private string RenderStory(string template) => StarshipExpeditionStory.Render(template, _preview!, _sampleSeed, ["Viewer"], CurrentProfile?.GetTiers().FirstOrDefault(tier => tier.Enabled)?.Name);
     private async Task ExportAsync()
     {

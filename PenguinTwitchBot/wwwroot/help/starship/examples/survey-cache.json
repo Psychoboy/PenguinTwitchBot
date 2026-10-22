@@ -1,41 +1,11 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "event": {
     "eventType": "survey-cache",
     "title": "Survey Cache",
     "description": "The survey route passes {subject} in {sector}. Scan the cache, stabilize it, then recover its contents or pass.",
-    "choices": [
-      {
-        "choiceId": "scan",
-        "label": "Scan the cache",
-        "story": "{crew} identifies {loot} behind the sealed door of {subject}.",
-        "continuesEvent": true,
-        "grantsFlag": "scanned",
-        "revealsRarity": true
-      },
-      {
-        "choiceId": "stabilize",
-        "label": "Stabilize the cache",
-        "story": "{crewlist} secures the fractured frame of {subject}.",
-        "continuesEvent": true,
-        "grantsFlag": "stabilized",
-        "successChanceModifierPercent": 20,
-        "rewardMultiplierPercent": 80,
-        "riskMultiplierPercent": 50
-      },
-      {
-        "choiceId": "recover",
-        "label": "Recover the contents",
-        "story": "{crew} opens the hatch of {subject}."
-      },
-      {
-        "choiceId": "pass",
-        "label": "Leave the cache",
-        "story": "The crew marks {subject} for another expedition.",
-        "endsWithoutReward": true
-      }
-    ],
-    "defaultChoiceId": "pass",
+    "choices": [],
+    "defaultChoiceId": "",
     "successStory": "The crew retrieves {loot} from {subject}.",
     "failureStory": "The frame breaks apart and the crew abandons the recovery.",
     "enabled": true,
@@ -51,6 +21,46 @@
       "Uncommon": "an intact stellar recorder",
       "Rare": "a sealed deep-field atlas"
     },
-    "rewardProfileId": "SalvageSite"
+    "rewardProfileId": "SalvageSite",
+    "startStepId": "scan",
+    "defaultStepSuppliesCost": 0,
+    "steps": [
+      {
+        "stepId": "scan",
+        "type": "Vote",
+        "prompt": "The survey route passes {subject} in {sector}. Scan the cache, force the hatch, or pass?",
+        "defaultChoiceId": "scan-cache",
+        "choices": [
+          { "choiceId": "scan-cache", "label": "Scan the cache", "story": "{crew} identifies {loot} behind the sealed door of {subject}.", "revealsRarity": true, "nextStepId": "stabilize" },
+          { "choiceId": "force-hatch", "label": "Force the hatch", "successChanceModifierPercent": -10, "rewardMultiplierPercent": 140, "riskMultiplierPercent": 160, "nextStepId": "recover" },
+          { "choiceId": "pass-scan", "label": "Leave the cache", "story": "The crew marks {subject} for another expedition.", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      {
+        "stepId": "stabilize",
+        "type": "Vote",
+        "prompt": "The scan identifies {loot}; the cache frame is fractured.",
+        "suppliesCostOverride": 4,
+        "defaultChoiceId": "stabilize-frame",
+        "choices": [
+          { "choiceId": "stabilize-frame", "label": "Stabilize the cache", "story": "{crewlist} secures the fractured frame of {subject}.", "successChanceModifierPercent": 20, "rewardMultiplierPercent": 80, "riskMultiplierPercent": 50, "nextStepId": "recover" },
+          { "choiceId": "rush-frame", "label": "Rush the recovery", "successChanceModifierPercent": -15, "rewardMultiplierPercent": 150, "riskMultiplierPercent": 180, "nextStepId": "recover" },
+          { "choiceId": "leave-frame", "label": "Leave the cache sealed", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      {
+        "stepId": "recover",
+        "type": "Vote",
+        "prompt": "The cache is within reach. Choose a recovery method.",
+        "defaultChoiceId": "recover-contents",
+        "choices": [
+          { "choiceId": "recover-contents", "label": "Recover the contents", "story": "{crew} opens the hatch of {subject}.", "nextStepId": "recovery-ending" },
+          { "choiceId": "deep-vault", "label": "Cut into the sealed vault", "successChanceModifierPercent": -20, "rewardMultiplierPercent": 180, "riskMultiplierPercent": 200, "shipEffect": { "suppliesCost": 5 }, "nextStepId": "recovery-ending" },
+          { "choiceId": "abandon-cache", "label": "Abandon the recovery", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      { "stepId": "recovery-ending", "type": "End", "prompt": "The crew retrieves {loot} from {subject}.", "narrative": "The frame breaks apart behind the crew." },
+      { "stepId": "pass-ending", "type": "End", "prompt": "The crew marks {subject} for another expedition." }
+    ]
   }
 }

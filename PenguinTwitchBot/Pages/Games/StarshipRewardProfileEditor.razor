@@ -2,6 +2,10 @@
 @using MudBlazor.Utilities
 
 <MudStack Spacing="3">
+    @if (PointTypes.Count == 0)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true">No point types are configured. Create a point type before adding payouts, limits, or loss rules.</MudAlert>
+    }
     <MudGrid Spacing="2">
         <MudItem xs="12" sm="6"><MudTextField T="string" Label="Profile Name" Variant="Variant.Outlined" @bind-Value="Profile.Name" /></MudItem>
         <MudItem xs="12" sm="3"><MudNumericField T="int" Label="Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Profile.SuccessChancePercent" /></MudItem>
@@ -27,13 +31,13 @@
         {
             <MudGrid Spacing="2" @key="reward">
                 <MudItem xs="12" sm="4">@PointTypeField(reward.PointTypeId, value => reward.PointTypeId = value)</MudItem>
-                <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Minimum" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="reward.Minimum" /></MudItem>
-                <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Maximum" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="reward.Maximum" /></MudItem>
+                <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Minimum" Variant="Variant.Outlined" Min="0" @bind-Value="reward.Minimum" /></MudItem>
+                <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Maximum" Variant="Variant.Outlined" Min="0" @bind-Value="reward.Maximum" /></MudItem>
                 <MudItem xs="4" sm="2"><MudNumericField T="int" Label="Chance (%)" Variant="Variant.Outlined" Min="1" Max="100" @bind-Value="reward.ChancePercent" /></MudItem>
                 <MudItem xs="12" sm="2"><MudTooltip Text="Remove reward"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove reward" OnClick="@(() => tier.Rewards.Remove(reward))" /></MudTooltip></MudItem>
             </MudGrid>
         }
-        <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(tier.Rewards.Count >= StarshipRewardProfile.MaximumRewardsPerTier)" OnClick="@(() => tier.Rewards.Add(new() { PointTypeId = FirstPointType, Minimum = 5, Maximum = 10 }))">Add Points Reward</MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(PointTypes.Count == 0 || tier.Rewards.Count >= StarshipRewardProfile.MaximumRewardsPerTier)" OnClick="@(() => tier.Rewards.Add(new() { PointTypeId = FirstPointType, Minimum = 5, Maximum = 10 }))">Add Points Reward</MudButton>
         @ActionRows(tier.Actions, "Success")
     }
     <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(Profile.Tiers.Count >= StarshipRewardProfile.MaximumTiers)" OnClick="AddTier">Add Rarity Tier</MudButton>
@@ -46,23 +50,23 @@
     {
         <MudGrid Spacing="2" @key="cap">
             <MudItem xs="12" sm="4">@PointTypeField(cap.PointTypeId, value => cap.PointTypeId = value)</MudItem>
-            <MudItem xs="6" sm="3"><MudNumericField T="long?" Label="Maximum Per Event" Variant="Variant.Outlined" Placeholder="Unlimited" Clearable="true" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="cap.MaximumPerEvent" /></MudItem>
-            <MudItem xs="6" sm="3"><MudNumericField T="long?" Label="Maximum Earned Per Voyage" Variant="Variant.Outlined" Placeholder="Unlimited" Clearable="true" Min="0" Max="@StarshipExpeditionSettings.MaximumUnbankedReward" @bind-Value="cap.MaximumUnbankedPerVoyage" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="long?" Label="Maximum Per Event" Variant="Variant.Outlined" Placeholder="Unlimited" Clearable="true" Min="0" @bind-Value="cap.MaximumPerEvent" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="long?" Label="Maximum Earned Per Voyage" Variant="Variant.Outlined" Placeholder="Unlimited" Clearable="true" Min="0" @bind-Value="cap.MaximumUnbankedPerVoyage" /></MudItem>
             <MudItem xs="12" sm="2"><MudTooltip Text="Remove limit"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove limit" OnClick="@(() => Profile.Caps.Remove(cap))" /></MudTooltip></MudItem>
         </MudGrid>
     }
-    <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => Profile.Caps.Add(new() { PointTypeId = FirstPointType }))">Add Point Limit</MudButton>
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(PointTypes.Count == 0)" OnClick="@(() => Profile.Caps.Add(new() { PointTypeId = FirstPointType }))">Add Point Limit</MudButton>
     <MudText Typo="Typo.subtitle1">Failure Loss Rules</MudText>
     @foreach (var rule in Profile.LossRules)
     {
         <MudGrid Spacing="2" @key="rule">
             <MudItem xs="12" sm="4">@PointTypeField(rule.PointTypeId, value => rule.PointTypeId = value)</MudItem>
             <MudItem xs="6" sm="3"><MudNumericField T="int" Label="Unbanked Loss (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="rule.Percent" /></MudItem>
-            <MudItem xs="6" sm="3"><MudNumericField T="long?" Label="Maximum Loss Per Event" Variant="Variant.Outlined" Placeholder="Unlimited" Clearable="true" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="rule.MaximumPerEvent" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="long?" Label="Maximum Loss Per Event" Variant="Variant.Outlined" Placeholder="Unlimited" Clearable="true" Min="0" @bind-Value="rule.MaximumPerEvent" /></MudItem>
             <MudItem xs="12" sm="2"><MudTooltip Text="Remove loss rule"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove loss rule" OnClick="@(() => Profile.LossRules.Remove(rule))" /></MudTooltip></MudItem>
         </MudGrid>
     }
-    <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(Profile.LossRules.Count >= StarshipRewardProfile.MaximumLossRules)" OnClick="@(() => Profile.LossRules.Add(new() { PointTypeId = FirstPointType }))">Add Loss Rule</MudButton>
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(PointTypes.Count == 0 || Profile.LossRules.Count >= StarshipRewardProfile.MaximumLossRules)" OnClick="@(() => Profile.LossRules.Add(new() { PointTypeId = FirstPointType }))">Add Loss Rule</MudButton>
 </MudStack>
 
 @code {
@@ -99,7 +103,12 @@
         (Profile.Tiers[index], Profile.Tiers[target]) = (Profile.Tiers[target], Profile.Tiers[index]);
     }
 
-    private RenderFragment PointTypeField(int value, Action<int> changed) => @<MudSelect T="int" Label="Point Type" Variant="Variant.Outlined" Value="value" ValueChanged="@(selected => changed(selected))">
+    private string GetPointTypeLabel(int pointTypeId) => pointTypeId <= 0
+        ? "Select a point type"
+        : PointTypes.GetValueOrDefault(pointTypeId, "Unknown point type");
+
+    private RenderFragment PointTypeField(int value, Action<int> changed) => @<MudSelect T="int" Label="Point Type" Variant="Variant.Outlined"
+        Value="value" ValueChanged="@(selected => changed(selected))" ToStringFunc="GetPointTypeLabel">
         @foreach (var pointType in PointTypes)
         {
             <MudSelectItem T="int" Value="@pointType.Key">@pointType.Value</MudSelectItem>

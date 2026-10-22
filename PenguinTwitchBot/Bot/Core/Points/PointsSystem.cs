@@ -11,6 +11,7 @@ using PenguinTwitchBot.Database.Repository;
 using LinqToDB.Internal.SqlQuery;
 using System.Collections.Concurrent;
 using PenguinTwitchBot.Helpers;
+using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Bot.Core.Points
 {

@@ -15,6 +15,7 @@ using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models.Games;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Migrations.Sqlite;
 
@@ -166,6 +167,156 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(5, settings.GetEffectiveSectors().Count);
     }
 
+    [Fact]
+    public async Task Load_InvalidPersistedShipSystemsResetsOnlyShipDefaultsAndPersistsRepair()
+    {
+        var store = CreateStore();
+        await store.SaveAsync(new StarshipExpeditionSettings
+        {
+            GameEnabled = true,
+            LegCount = 9,
+            CustomSectors = ["Delta Reach"]
+        });
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var saved = context.Settings.Single(setting => setting.Name == StarshipExpeditionSettingsStore.SettingKey);
+            var json = JsonNode.Parse(saved.StringSetting!)!.AsObject();
+            json["shipSystems"]!["maximumHull"] = 0;
+            saved.StringSetting = json.ToJsonString();
+            context.SaveChanges();
+        }
+
+        var loaded = await CreateStore().LoadAsync();
+
+        Assert.Equal(80, loaded.ShipSystems.MaximumHull);
+        Assert.Equal(80, loaded.ShipSystems.StartingHull);
+        Assert.Equal(55, loaded.ShipSystems.StartingSupplies);
+        Assert.True(loaded.GameEnabled);
+        Assert.Equal(9, loaded.LegCount);
+        Assert.Equal(["Delta Reach"], loaded.CustomSectors);
+        using var verifyScope = _services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var repaired = JsonNode.Parse(verifyContext.Settings.Single(setting => setting.Name == StarshipExpeditionSettingsStore.SettingKey).StringSetting!)!;
+        Assert.Equal(80, (int)repaired["shipSystems"]!["maximumHull"]!);
+    }
+
+    [Fact]
+    public async Task Load_CatalogDocumentWithNullEventTypeRepairsFromRowId()
+    {
+        await CreateStore().SaveAsync(new StarshipExpeditionSettings { GameEnabled = true });
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var row = context.StarshipEvents.Single(item => item.Id == "SignalDetected");
+            var json = JsonNode.Parse(row.DocumentJson)!.AsObject();
+            json["eventType"] = null;
+            row.DocumentJson = json.ToJsonString();
+            context.SaveChanges();
+        }
+
+        var loaded = await CreateStore().LoadAsync();
+
+        Assert.True(loaded.GameEnabled);
+        Assert.Contains(loaded.EventCatalog, definition => definition.EventType == "SignalDetected");
+        using var verifyScope = _services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var repaired = JsonNode.Parse(verifyContext.StarshipEvents.Single(item => item.Id == "SignalDetected").DocumentJson)!;
+        Assert.Equal("SignalDetected", (string?)repaired["eventType"]);
+    }
+
+    [Fact]
+    public async Task Load_CatalogDocumentWithBlankProfileNameRepairsFromRowName()
+    {
+        var settings = new StarshipExpeditionSettings();
+        settings.RewardProfiles.Add(new StarshipRewardProfile
+        {
+            Id = "custom-profile", Name = "Custom Profile", Tiers = [new() { Name = "Common", Weight = 1 }]
+        });
+        await CreateStore().SaveAsync(settings);
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var row = context.StarshipRewardProfiles.Single(item => item.Id == "custom-profile");
+            var json = JsonNode.Parse(row.DocumentJson)!.AsObject();
+            json["name"] = "";
+            row.DocumentJson = json.ToJsonString();
+            context.SaveChanges();
+        }
+
+        var loaded = await CreateStore().LoadAsync();
+
+        var repaired = loaded.RewardProfiles.Single(profile => profile.Id == "custom-profile");
+        Assert.Equal("Custom Profile", repaired.Name);
+        Assert.Equal("Common", Assert.Single(repaired.Tiers).Name);
+        using var verifyScope = _services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var repairedDocument = JsonNode.Parse(verifyContext.StarshipRewardProfiles.Single(item => item.Id == "custom-profile").DocumentJson)!;
+        Assert.Equal("Custom Profile", (string?)repairedDocument["name"]);
+    }
+
+    [Fact]
+    public async Task ResetToDefaults_RemovesCustomCatalogAndRecoversFromDuplicateProfileRows()
+    {
+        var settings = new StarshipExpeditionSettings { GameEnabled = true, CustomSectors = ["Delta Reach"] };
+        settings.EventCatalog.Add(new StarshipEventDefinition("custom-event", "Custom Event", "A custom event.",
+            [new() { ChoiceId = "continue", Label = "Continue" }, new() { ChoiceId = "pass", Label = "Pass", EndsWithoutReward = true }], "continue"));
+        settings.RewardProfiles.Add(new StarshipRewardProfile
+        {
+            Id = "custom-profile", Name = "Custom Profile", Tiers = [new() { Name = "Common", Weight = 1 }]
+        });
+        await CreateStore().SaveAsync(settings);
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var profile = context.StarshipRewardProfiles.Single(item => item.Id == "custom-profile");
+            context.StarshipRewardProfiles.Add(new StarshipRewardProfileRow
+            {
+                Id = "CUSTOM-PROFILE", Name = "Duplicate Profile", Enabled = profile.Enabled,
+                Weight = profile.Weight, DocumentJson = profile.DocumentJson.Replace("custom-profile", "CUSTOM-PROFILE", StringComparison.Ordinal)
+            });
+            context.SaveChanges();
+        }
+
+        var reset = await CreateStore().ResetToDefaultsAsync();
+
+        Assert.False(reset.GameEnabled);
+        Assert.Equal(6, reset.LegCount);
+        Assert.Empty(reset.CustomSectors);
+        Assert.DoesNotContain(reset.EventCatalog, definition => definition.EventType == "custom-event");
+        Assert.DoesNotContain(reset.RewardProfiles, profile => profile.Id.Contains("custom-profile", StringComparison.OrdinalIgnoreCase));
+        using var verifyScope = _services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(reset.EventCatalog.Count, verifyContext.StarshipEvents.Count());
+        Assert.Equal(reset.RewardProfiles.Count, verifyContext.StarshipRewardProfiles.Count());
+    }
+
+    [Fact]
+    public async Task ResetToDefaults_RollsBackCatalogAndSettingsWhenReseedingFails()
+    {
+        var store = CreateStore();
+        await store.SaveAsync(new StarshipExpeditionSettings { GameEnabled = true, LegCount = 11 });
+        string originalSettings;
+        int originalEventCount;
+        int originalProfileCount;
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            originalSettings = context.Settings.Single(item => item.Name == StarshipExpeditionSettingsStore.SettingKey).StringSetting!;
+            originalEventCount = context.StarshipEvents.Count();
+            originalProfileCount = context.StarshipRewardProfiles.Count();
+            context.Database.ExecuteSqlRaw("CREATE TRIGGER fail_starship_event_insert BEFORE INSERT ON starship_events BEGIN SELECT RAISE(ABORT, 'forced reset failure'); END;");
+        }
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => CreateStore().ResetToDefaultsAsync());
+
+        using var verifyScope = _services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(originalSettings, verifyContext.Settings.Single(item => item.Name == StarshipExpeditionSettingsStore.SettingKey).StringSetting);
+        Assert.Equal(originalEventCount, verifyContext.StarshipEvents.Count());
+        Assert.Equal(originalProfileCount, verifyContext.StarshipRewardProfiles.Count());
+    }
+
     [Theory]
     [InlineData("Kepler Reach")]
     [InlineData("My Sector")]
@@ -186,7 +337,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public void NormalizeAndValidate_RejectsInvalidRewardOddsAndUnboundedRanges()
+    public void NormalizeAndValidate_RejectsInvalidRewardOddsAndRanges()
     {
         var wrongOdds = new StarshipExpeditionSettings
         {
@@ -194,18 +345,43 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         };
         Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(wrongOdds));
 
-        var unbounded = new StarshipExpeditionSettings
+        var invertedRange = new StarshipExpeditionSettings
         {
             RewardProfiles = [new StarshipRewardProfile
             {
                 EventType = "SignalDetected",
-                Enabled = true,
+                Enabled = false,
                 PointTypeId = 1,
-                CommonMinimum = StarshipExpeditionSettings.MaximumConfiguredReward + 1,
-                CommonMaximum = StarshipExpeditionSettings.MaximumConfiguredReward + 1
+                CommonMinimum = 20,
+                CommonMaximum = 10
             }]
         };
-        Assert.Throws<ArgumentOutOfRangeException>(() => StarshipExpeditionSettings.NormalizeAndValidate(unbounded));
+        Assert.Throws<ArgumentOutOfRangeException>(() => StarshipExpeditionSettings.NormalizeAndValidate(invertedRange));
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_AllowsLongMaxRewardRangesAndOptionalCaps()
+    {
+        var settings = new StarshipExpeditionSettings
+        {
+            RewardProfiles =
+            [
+                new StarshipRewardProfile
+                {
+                    Id = "large-reward", EventType = "SignalDetected", Enabled = false,
+                    Tiers = [new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 1, Minimum = 0, Maximum = long.MaxValue }] }],
+                    Caps = [new() { PointTypeId = 1, MaximumPerEvent = long.MaxValue, MaximumUnbankedPerVoyage = long.MaxValue }],
+                    LossRules = [new() { PointTypeId = 1, Percent = 100, MaximumPerEvent = long.MaxValue }]
+                }
+            ]
+        };
+
+        StarshipExpeditionSettings.NormalizeAndValidate(settings);
+
+        var profile = settings.RewardProfiles.Single(item => item.Id == "large-reward");
+        Assert.Equal(long.MaxValue, Assert.Single(Assert.Single(profile.Tiers).Rewards).Maximum);
+        Assert.Equal(long.MaxValue, Assert.Single(profile.Caps).MaximumPerEvent);
+        Assert.Equal(long.MaxValue, Assert.Single(profile.LossRules).MaximumPerEvent);
     }
 
     [Fact]

@@ -1049,9 +1049,9 @@
 
         if ((!_jsInitialized || _jsNeedsReinit) && _dotNetRef != null)
         {
+            await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale);
             _jsInitialized = true;
             _jsNeedsReinit = false;
-            await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale);
         }
 
         if (_pendingWheelZoomAnchor)
@@ -1069,11 +1069,15 @@
 
     public async ValueTask DisposeAsync()
     {
-        try
+        if (_jsInitialized)
         {
-            await JS.InvokeVoidAsync("overlayEditor.destroy");
+            try
+            {
+                await JS.InvokeVoidAsync("overlayEditor.destroy");
+            }
+            catch (JSDisconnectedException) { /* circuit already gone - safe to ignore */ }
+            catch (InvalidOperationException) { /* prerendered or disposed JS runtime */ }
         }
-        catch (JSDisconnectedException) { /* circuit already gone - safe to ignore */ }
         _dotNetRef?.Dispose();
     }
     // ---- JS callbacks ----

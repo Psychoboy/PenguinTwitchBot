@@ -52,6 +52,7 @@ namespace PenguinTwitchBot.Database.Repository
 
         int SaveChanges();
         Task<int> SaveChangesAsync();
+        IExecutionStrategy CreateExecutionStrategy();
         Task<IDbContextTransaction> BeginTransactionAsync();
         IPointTypesRepository PointTypes { get; }
         IUserPointsRepository UserPoints { get; }

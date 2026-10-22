@@ -56,6 +56,28 @@ public class StarshipShipSystemsTests
     }
 
     [Fact]
+    public void StationVoteChoices_ExplainResourceChangesAndContinueBonusInPercentagePoints()
+    {
+        var choices = StarshipEventCatalog.CreateDefaults().Single(item => item.EventType == "StationStop").Choices;
+        var stationEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventType = "StationStop", Choices = choices, ChoicePool = choices
+        };
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ShipSystems = StarshipShipSystems.Create(new() { ContinueSuccessBonusPercent = 100 })
+        };
+
+        var disclosure = StarshipShipEventDisclosure.From(snapshot, stationEvent, null)!;
+        var messageChoices = StarshipExpeditionNarrative.FormatStationChoices(disclosure.Choices);
+
+        Assert.Contains("+40 supplies", messageChoices, StringComparison.Ordinal);
+        Assert.Contains("costs 10 supplies", messageChoices, StringComparison.Ordinal);
+        Assert.Contains("+100 percentage points to next event success", messageChoices, StringComparison.Ordinal);
+        Assert.DoesNotContain("No shared resource effect", messageChoices, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Repair_UsesConfiguredAmountAndNeverExceedsMaximumHull()
     {
         var state = StarshipShipSystems.Create(new() { MaximumHull = 75, StartingHull = 60, StartingSupplies = 50 })!;

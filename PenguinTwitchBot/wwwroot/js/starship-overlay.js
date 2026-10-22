@@ -4,13 +4,13 @@
     const view = document.body.dataset.starshipView;
     const root = document.getElementById('starship-widget');
     const stage = document.getElementById('stage');
-    const BASE_SIZE = view === 'event' ? { width: 620, height: 360 } : { width: 520, height: 180 };
+    const BASE_SIZE = view === 'event' ? { width: 780, height: 460 } : { width: 520, height: 180 };
     const DEFAULT_ACCENT = '#66d0c2';
     const FONTS = ['Barlow Condensed', 'Arial Narrow', 'Segoe UI', 'Verdana', 'Georgia', 'Trebuchet MS', 'Impact', 'Courier New'];
     const DEFAULT_APPEARANCE = {
         panelColor: '#0a181d', panelOpacityPercent: 94, textColor: '#edf5ef', mutedColor: '#a8c1bd',
         accentColor: DEFAULT_ACCENT, highlightColor: '#f4bd68', warningColor: '#ef866f', useShipAccent: true,
-        fontFamily: 'Barlow Condensed', cornerRadiusPx: 7, animationsEnabled: true,
+        fontFamily: 'Barlow Condensed', cornerRadiusPx: 7, animationsEnabled: true, overlayDisplayMode: 'AutomaticNoOverlap',
         showEffectChips: true, showVoteBars: true, showOddsPanel: true, showPath: true, showRouteMap: true, showToasts: true,
         useBuiltInShipArt: true, shipImages: [], useBuiltInObjectArt: true, objectImages: {}
     };
@@ -312,7 +312,9 @@
         else if (status === 'Aborted') timer = 'Voyage aborted';
         setText('timing', timer);
 
-        root.dataset.faded = tracker.derive(snapshot).statusFaded && !toastEndsAt ? 'true' : 'false';
+        const scene = tracker.derive(snapshot, appearance.overlayDisplayMode);
+        root.hidden = appearance.overlayDisplayMode === 'AutomaticNoOverlap' && scene.eventVisible;
+        root.dataset.faded = scene.statusFaded ? 'true' : 'false';
         document.getElementById('crew-block').dataset.pulse = Date.now() < pulseUntil ? 'true' : 'false';
     }
 
@@ -324,7 +326,7 @@
         disclosure.filter(details => details.available === false).forEach(details => {
             if (!choices.some(choice => choice.choiceId === details.choiceId)) choices.push({ choiceId: details.choiceId, label: details.label, unavailable: true });
         });
-        list.dataset.compact = choices.length > 4 ? 'true' : 'false';
+        list.dataset.compact = choices.length > 2 ? 'true' : 'false';
         root.dataset.dense = choices.length >= 4 && disclosure.length ? 'true' : 'false';
         const counts = currentEvent.voteCounts || {};
         const totalVotes = Object.keys(counts).reduce(function (sum, key) { return sum + counts[key]; }, 0);
@@ -549,43 +551,42 @@
     }
 
     function renderEvent() {
-        const scene = tracker.derive(snapshot);
+        const scene = tracker.derive(snapshot, appearance.overlayDisplayMode);
         root.dataset.scene = scene.name;
+        if (!scene.eventVisible) {
+            root.hidden = true;
+            return;
+        }
         if (!snapshot || (snapshot.status !== 'Boarding' && snapshot.status !== 'EventOpen')) {
             const terminal = snapshot && (snapshot.status === 'Returned' || snapshot.status === 'Aborted');
             const latest = snapshot?.latestResult;
-            if (!scene.eventVisible) {
-                root.hidden = true;
-                return;
-            }
-
             root.hidden = false;
             document.getElementById('boarding-panel').hidden = true;
             document.getElementById('event-panel').hidden = true;
             document.getElementById('result-panel').hidden = false;
             document.getElementById('event-description').hidden = true;
             const shipName = snapshot?.ship?.name || 'Starship Expedition';
-            setText('event-kicker', terminal ? 'VOYAGE COMPLETE' : 'EVENT RESOLVED');
-            setText('event-title', terminal ? shipName : latest.title);
-            setText('event-timer', terminal ? 'END' : latest.outcome === 'Success' ? '\u2713' : latest.outcome === 'Failure' ? '\u2717' : '\u2013');
+            setText('event-kicker', terminal ? 'VOYAGE COMPLETE' : latest ? 'EVENT RESOLVED' : 'EVENT WIDGET');
+            setText('event-title', terminal ? shipName : latest?.title || shipName);
+            setText('event-timer', terminal ? 'END' : latest?.outcome === 'Success' ? '\u2713' : latest?.outcome === 'Failure' ? '\u2717' : snapshot?.status || 'SHOWING');
             document.getElementById('ring-fg').style.strokeDashoffset = '0';
             setText('event-description', '');
             const banner = document.getElementById('result-banner');
-            const outcome = terminal ? snapshot.status : (latest.outcome || '');
+            const outcome = terminal ? snapshot.status : (latest?.outcome || '');
             banner.dataset.outcome = outcome;
             banner.textContent = terminal ? (snapshot.shipSystems?.returnReason === 'HullDepleted' ? 'Emergency return: hull depleted' : outcome === 'Aborted' ? 'Voyage aborted' : 'Voyage complete') : outcome;
             banner.hidden = !banner.textContent;
-            setText('result-choice', terminal ? '' : latest.choice);
-            setText('result-detail', terminal ? '' : latest.sector + ' \u00b7 Leg ' + latest.sequence);
+            setText('result-choice', terminal ? '' : latest?.choice || 'Event overlay triggered');
+            setText('result-detail', terminal ? '' : latest ? latest.sector + ' \u00b7 Leg ' + latest.sequence : '');
             document.getElementById('result-choice').hidden = terminal;
             document.getElementById('result-detail').hidden = terminal;
-            setTextAnimated('result-story', latest.story || '');
-            document.getElementById('result-story').hidden = !latest.story;
-            renderBankedAmounts(latest);
-            renderResultLines(latest);
+            setTextAnimated('result-story', latest?.story || '');
+            document.getElementById('result-story').hidden = !latest?.story;
+            renderBankedAmounts(latest || {});
+            renderResultLines(latest || {});
             renderTimeline(terminal ? snapshot.timeline : []);
-            const resultSpec = !terminal && latest.objectKind ? objectSpec(latest.objectKind, latest.objectVariant, latest.objectRoll, latest.objectImages) : null;
-            renderArt(resultSpec || shipSpec(true), !terminal && latest.subject ? latest.subject : shipName);
+            const resultSpec = !terminal && latest?.objectKind ? objectSpec(latest.objectKind, latest.objectVariant, latest.objectRoll, latest.objectImages) : null;
+            renderArt(resultSpec || shipSpec(true), !terminal && latest?.subject ? latest.subject : shipName);
             return;
         }
 

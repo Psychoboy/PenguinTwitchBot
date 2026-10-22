@@ -7,6 +7,18 @@ public sealed partial class StarshipAppearanceSettings
 {
     public const int MaximumImagesPerList = 12;
     public const int MaximumImageUrlLength = 500;
+    public const string AutomaticNoOverlap = "AutomaticNoOverlap";
+    public const string StatusOnDemand = "StatusOnDemand";
+    public const string BothOnDemand = "BothOnDemand";
+    public const string EventOnDemand = "EventOnDemand";
+
+    public static IReadOnlyDictionary<string, string> OverlayDisplayModes { get; } = new Dictionary<string, string>
+    {
+        [AutomaticNoOverlap] = "Automatic; hide status while event is visible",
+        [StatusOnDemand] = "Event automatic; status only when triggered",
+        [BothOnDemand] = "Both widgets only when triggered",
+        [EventOnDemand] = "Status automatic; event only when triggered"
+    };
 
     public static IReadOnlyList<string> FontFamilies { get; } =
         ["Barlow Condensed", "Arial Narrow", "Segoe UI", "Verdana", "Georgia", "Trebuchet MS", "Impact", "Courier New"];
@@ -31,6 +43,7 @@ public sealed partial class StarshipAppearanceSettings
     public bool ShowPath { get; set; } = true;
     public bool ShowRouteMap { get; set; } = true;
     public bool ShowToasts { get; set; } = true;
+    public string OverlayDisplayMode { get; set; } = AutomaticNoOverlap;
     public bool UseBuiltInShipArt { get; set; } = true;
     public List<string> ShipImages { get; set; } = [];
     public bool UseBuiltInObjectArt { get; set; } = true;
@@ -52,6 +65,9 @@ public sealed partial class StarshipAppearanceSettings
 
         var font = FontFamilies.FirstOrDefault(name => string.Equals(name, appearance.FontFamily?.Trim(), StringComparison.OrdinalIgnoreCase));
         appearance.FontFamily = font ?? throw new ArgumentException($"Choose one of the available fonts: {string.Join(", ", FontFamilies)}.", nameof(FontFamily));
+        appearance.OverlayDisplayMode ??= AutomaticNoOverlap;
+        if (!OverlayDisplayModes.ContainsKey(appearance.OverlayDisplayMode))
+            throw new ArgumentException("Choose a supported overlay display mode.", nameof(OverlayDisplayMode));
 
         appearance.ShipImages = NormalizeImages(appearance.ShipImages, "ship");
         var objectImages = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);

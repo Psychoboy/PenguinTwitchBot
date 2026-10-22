@@ -16,7 +16,7 @@ public sealed record StarshipShipChoiceDisclosure(string ChoiceId, string Label,
         if (SuppliesDelta != 0) parts.Add($"Supplies net {SuppliesDelta:+0;-0;0}");
         if (SuppliesCost != 0) parts.Add($"Cost {SuppliesCost} supplies");
         if (SuccessChancePercent != null) parts.Add($"{SuccessChancePercent}% success");
-        if (NextEventSuccessBonusPercent != 0) parts.Add($"Next event +{NextEventSuccessBonusPercent}pp success");
+        if (NextEventSuccessBonusPercent != 0) parts.Add($"Next event +{NextEventSuccessBonusPercent} percentage points success");
         if (ContinuesEvent) parts.Add("Next step");
         if (SuccessHullDelta != 0 || SuccessSuppliesDelta != 0) parts.Add($"Success: hull {SuccessHullDelta:+0;-0;0}, supplies {SuccessSuppliesDelta:+0;-0;0}");
         if (FailureHullDelta != 0 || FailureSuppliesDelta != 0) parts.Add($"Failure: hull {FailureHullDelta:+0;-0;0}, supplies {FailureSuppliesDelta:+0;-0;0}");

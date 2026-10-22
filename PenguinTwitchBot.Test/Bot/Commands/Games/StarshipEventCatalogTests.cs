@@ -51,6 +51,161 @@ public class StarshipEventCatalogTests
     }
 
     [Fact]
+    public void EventGraph_AllowsBranchesToShareStepsAndCostOverrides()
+    {
+        var definition = GraphEvent();
+
+        var choices = StarshipEventGraphValidator.Validate(definition);
+
+        Assert.Equal(3, choices.Count);
+        Assert.Equal(5, definition.DefaultStepSuppliesCost);
+        Assert.Equal(0, definition.Steps.Single(step => step.StepId == "shared").SuppliesCostOverride);
+    }
+
+    [Fact]
+    public void EventGraph_AllowsMoreTotalStepsThanTheMaximumPathDepth()
+    {
+        var definition = new StarshipEventDefinition("branched-event", "Branched Event", "Choose a route.", [], "")
+        {
+            StartStepId = "start",
+            Steps =
+            [
+                new()
+                {
+                    StepId = "start", Type = StarshipEventStepType.Vote, DefaultChoiceId = "route-a",
+                    Choices =
+                    [
+                        new() { ChoiceId = "route-a", Label = "Route A", NextStepId = "branch-a" },
+                        new() { ChoiceId = "route-b", Label = "Route B", NextStepId = "branch-b" },
+                        new() { ChoiceId = "route-c", Label = "Route C", NextStepId = "branch-c" },
+                        new() { ChoiceId = "route-d", Label = "Route D", NextStepId = "branch-d" }
+                    ]
+                },
+                new() { StepId = "branch-a", Type = StarshipEventStepType.Automatic, NextStepId = "end-a" },
+                new() { StepId = "branch-b", Type = StarshipEventStepType.Automatic, NextStepId = "end-b" },
+                new() { StepId = "branch-c", Type = StarshipEventStepType.Automatic, NextStepId = "end-c" },
+                new() { StepId = "branch-d", Type = StarshipEventStepType.Automatic, NextStepId = "end-d" },
+                new() { StepId = "end-a", Type = StarshipEventStepType.End },
+                new() { StepId = "end-b", Type = StarshipEventStepType.End },
+                new() { StepId = "end-c", Type = StarshipEventStepType.End },
+                new() { StepId = "end-d", Type = StarshipEventStepType.End }
+            ]
+        };
+
+        var choices = StarshipEventGraphValidator.Validate(definition);
+
+        Assert.Equal(9, definition.Steps.Count);
+        Assert.Equal(4, choices.Count);
+    }
+
+    [Fact]
+    public void EventGraph_EnforcesPathDepthAfterSharedBranchesConverge()
+    {
+        var definition = new StarshipEventDefinition("deep-branch", "Deep Branch", "Choose a route.", [], "")
+        {
+            StartStepId = "start",
+            Steps =
+            [
+                new()
+                {
+                    StepId = "start", Type = StarshipEventStepType.Vote, DefaultChoiceId = "short",
+                    Choices =
+                    [
+                        new() { ChoiceId = "short", Label = "Short route", NextStepId = "short-branch" },
+                        new() { ChoiceId = "long", Label = "Long route", NextStepId = "long-a" }
+                    ]
+                },
+                new() { StepId = "short-branch", Type = StarshipEventStepType.Automatic, NextStepId = "shared" },
+                new() { StepId = "long-a", Type = StarshipEventStepType.Automatic, NextStepId = "long-b" },
+                new() { StepId = "long-b", Type = StarshipEventStepType.Automatic, NextStepId = "long-c" },
+                new() { StepId = "long-c", Type = StarshipEventStepType.Automatic, NextStepId = "long-d" },
+                new() { StepId = "long-d", Type = StarshipEventStepType.Automatic, NextStepId = "long-e" },
+                new() { StepId = "long-e", Type = StarshipEventStepType.Automatic, NextStepId = "long-f" },
+                new() { StepId = "long-f", Type = StarshipEventStepType.Automatic, NextStepId = "shared" },
+                new() { StepId = "shared", Type = StarshipEventStepType.Automatic, NextStepId = "tail" },
+                new() { StepId = "tail", Type = StarshipEventStepType.Automatic, NextStepId = "end" },
+                new() { StepId = "end", Type = StarshipEventStepType.End }
+            ]
+        };
+
+        var exception = Assert.Throws<ArgumentException>(() => StarshipEventGraphValidator.Validate(definition));
+
+        Assert.Contains("branch paths cannot exceed", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("case-sensitive")]
+    [InlineData("supply-cost")]
+    public void EventGraph_RejectsInvalidOrUnaffordableDefaults(string defect)
+    {
+        var definition = GraphEvent();
+        var start = definition.Steps[0];
+        if (defect == "case-sensitive")
+            start.DefaultChoiceId = "RETREAT";
+        else
+        {
+            var defaultIndex = start.Choices.FindIndex(choice => choice.ChoiceId == start.DefaultChoiceId);
+            var original = start.Choices[defaultIndex];
+            start.Choices[defaultIndex] = new()
+            {
+                ChoiceId = original.ChoiceId,
+                Label = original.Label,
+                NextStepId = original.NextStepId,
+                ShipEffect = new() { SuppliesCost = 1 }
+            };
+        }
+
+        var exception = Assert.Throws<ArgumentException>(() => StarshipEventGraphValidator.Validate(definition));
+
+        Assert.Contains(defect == "case-sensitive" ? "choose a valid default choice" : "default choice cannot require supplies", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("missing-target")]
+    [InlineData("cycle")]
+    [InlineData("unreachable")]
+    public void EventGraph_RejectsInvalidTargetsCyclesAndUnreachableSteps(string defect)
+    {
+        var definition = GraphEvent();
+        if (defect == "missing-target")
+        {
+            definition.Steps[0].Choices[0] = new() { ChoiceId = "scan", Label = "Scan", NextStepId = "missing" };
+        }
+        else if (defect == "cycle")
+        {
+            definition.Steps.Single(step => step.StepId == "shared").NextStepId = "start";
+        }
+        else
+        {
+            definition.Steps.Add(new() { StepId = "unreachable-end", Type = StarshipEventStepType.End });
+        }
+
+        Assert.Throws<ArgumentException>(() => StarshipEventGraphValidator.Validate(definition));
+    }
+
+    private static StarshipEventDefinition GraphEvent() => new(
+        "graph-event", "Graph Event", "Choose a route.", [], "")
+    {
+        StartStepId = "start",
+        DefaultStepSuppliesCost = 5,
+        Steps =
+        [
+            new()
+            {
+                StepId = "start", Type = StarshipEventStepType.Vote, DefaultChoiceId = "retreat",
+                Choices =
+                [
+                    new() { ChoiceId = "scan", Label = "Scan", NextStepId = "shared" },
+                    new() { ChoiceId = "trace", Label = "Trace", NextStepId = "shared" },
+                    new() { ChoiceId = "retreat", Label = "Retreat", NextStepId = "end" }
+                ]
+            },
+            new() { StepId = "shared", Type = StarshipEventStepType.Automatic, NextStepId = "end", SuppliesCostOverride = 0 },
+            new() { StepId = "end", Type = StarshipEventStepType.End }
+        ]
+    };
+
+    [Fact]
     public void GeneratedStarshipWavs_AreInMediaManagerAndHaveValidWaveHeaders()
     {
         var webRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot"));

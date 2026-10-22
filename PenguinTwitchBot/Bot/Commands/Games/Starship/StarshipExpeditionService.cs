@@ -249,7 +249,13 @@ public sealed class StarshipExpeditionService(
         }
     }
 
-    public IReadOnlyList<StarshipExpeditionEventSnapshot> BuildPreview(StarshipExpeditionSettings settings, int seed)
+    public IReadOnlyList<StarshipExpeditionEventSnapshot> BuildPreview(StarshipExpeditionSettings settings, int seed) =>
+        BuildPreview(settings, seed, StarshipPreviewVoterPolicy.Default);
+
+    public IReadOnlyList<StarshipExpeditionEventSnapshot> BuildPreview(
+        StarshipExpeditionSettings settings,
+        int seed,
+        StarshipPreviewVoterPolicy voterPolicy)
     {
         ArgumentNullException.ThrowIfNull(settings);
         var previewSettings = StarshipExpeditionSettings.NormalizeAndValidate(
@@ -285,16 +291,65 @@ public sealed class StarshipExpeditionService(
         while (previewState.CurrentEvent is { } currentEvent)
         {
             var previewEvent = Clone(currentEvent);
-            ResolveCurrentEventAndRewardsLocked(previewState, currentEvent.ClosesAtUtc, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-            var resolvedEvent = previewState.CompletedEvents[^1];
+            var completedCount = previewState.CompletedEvents.Count;
+            var previousStepId = string.Empty;
+            var previousStepNumber = -1;
+            while (previewState.CurrentEvent?.EventId == currentEvent.EventId && previewState.CompletedEvents.Count == completedCount)
+            {
+                var activeEvent = previewState.CurrentEvent;
+                var stepId = activeEvent.CurrentStepId;
+                var stepNumber = activeEvent.StepNumber;
+                if (stepId == previousStepId && stepNumber == previousStepNumber)
+                    throw new InvalidOperationException("Starship preview did not advance the current event graph.");
+                previousStepId = stepId;
+                previousStepNumber = stepNumber;
+                if (voterPolicy != StarshipPreviewVoterPolicy.Default && !activeEvent.StepEntryFailed &&
+                    activeEvent.StepDefinitions.FirstOrDefault(step => step.StepId == stepId)?.Type == StarshipEventStepType.Vote &&
+                    ChoosePreviewVote(activeEvent, seed, voterPolicy) is { } selectedChoice)
+                    activeEvent.Votes.Add(new() { UserId = "preview-voter", ChoiceId = selectedChoice.ChoiceId });
+                ResolveCurrentEventAndRewardsLocked(previewState, activeEvent.ClosesAtUtc, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            }
+            var resolvedEvent = previewState.CompletedEvents.LastOrDefault(item => item.EventId == currentEvent.EventId)
+                ?? throw new InvalidOperationException("Starship preview event did not reach an end step.");
             previewEvent.ShipContext = resolvedEvent.ShipContext;
             previewEvent.OutcomeResult = resolvedEvent.OutcomeResult;
+            previewEvent.OutcomeStory = resolvedEvent.OutcomeStory;
+            previewEvent.OutcomeRarity = resolvedEvent.OutcomeRarity;
+            previewEvent.Path.Clear();
+            previewEvent.Path.AddRange(resolvedEvent.Path);
             events.Add(previewEvent);
             if (previewState.Status != StarshipExpeditionStatus.Cruising) break;
             OpenNextEventLocked(previewState, previewState.NextEventAtUtc ?? currentEvent.ClosesAtUtc);
         }
 
         return events;
+    }
+
+    private static StarshipEventChoiceSnapshot? ChoosePreviewVote(
+        StarshipExpeditionEventSnapshot expeditionEvent,
+        int seed,
+        StarshipPreviewVoterPolicy policy)
+    {
+        if (expeditionEvent.Choices.Count == 0) return null;
+        return policy switch
+        {
+            StarshipPreviewVoterPolicy.SeededRandom => expeditionEvent.Choices[
+                StarshipExpeditionStory.StableIndex(seed, expeditionEvent.Sequence,
+                    $"preview-vote:{expeditionEvent.CurrentStepId}", expeditionEvent.Choices.Count)],
+            StarshipPreviewVoterPolicy.RiskAverse => expeditionEvent.Choices
+                .OrderBy(choice => choice.RiskMultiplierPercent)
+                .ThenByDescending(choice => choice.SuccessChanceModifierPercent)
+                .ThenByDescending(choice => choice.RewardMultiplierPercent)
+                .ThenBy(choice => choice.ChoiceId, StringComparer.Ordinal)
+                .First(),
+            StarshipPreviewVoterPolicy.RiskSeeking => expeditionEvent.Choices
+                .OrderByDescending(choice => choice.RewardMultiplierPercent)
+                .ThenByDescending(choice => choice.RiskMultiplierPercent)
+                .ThenByDescending(choice => choice.SuccessChanceModifierPercent)
+                .ThenBy(choice => choice.ChoiceId, StringComparer.Ordinal)
+                .First(),
+            _ => expeditionEvent.Choices.FirstOrDefault(choice => choice.ChoiceId == expeditionEvent.DefaultChoiceId)
+        };
     }
 
     public async Task<StarshipExpeditionSnapshot> AdvanceEventAsync(CancellationToken cancellationToken = default)
@@ -661,6 +716,26 @@ public sealed class StarshipExpeditionService(
         }
     }
 
+    public async Task<StarshipExpeditionSnapshot?> ShowEventWidgetAsync(int durationSeconds, CancellationToken cancellationToken = default)
+    {
+        await EnsureLoadedAsync(cancellationToken);
+        await _stateLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_snapshot == null || _snapshot.Status != StarshipExpeditionStatus.Boarding &&
+                _snapshot.CurrentEvent == null && _snapshot.CompletedEvents.Count == 0) return null;
+            var previousSnapshot = Clone(_snapshot);
+            var seconds = Math.Clamp(durationSeconds, 1, 3600);
+            _snapshot.EventForcedUntilUtc = _timeProvider.GetUtcNow().AddSeconds(seconds);
+            await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
+            return Clone(_snapshot);
+        }
+        finally
+        {
+            _stateLock.Release();
+        }
+    }
+
     private async Task AnnounceBoardingAsync(StarshipExpeditionSnapshot snapshot)
     {
         var defaultMessage = $"Starship Expedition boarding is open for {snapshot.BoardingDurationSeconds}s. Join before takeoff with !starship join.";
@@ -709,9 +784,16 @@ public sealed class StarshipExpeditionService(
         if (current.CompletedEvents.Count > previous.CompletedEvents.Count)
         {
             var resolvedEvent = current.CompletedEvents[^1];
-            var selectedChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
-                string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
-            await SendChatAnnouncementAsync(StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent));
+            var selectedChoice = StarshipRewardResolver.FindResolvedChoice(resolvedEvent);
+            var chatMessage = StarshipEventCatalog.IsStructural(resolvedEvent.EventType)
+                ? string.Empty
+                : StarshipExpeditionNarrative.BuildChatEventMessage(resolvedEvent);
+            if (current.Status == StarshipExpeditionStatus.Cruising)
+                chatMessage = string.IsNullOrEmpty(chatMessage)
+                    ? StarshipExpeditionNarrative.BuildCruisingStatusMessage(current.NextEventAtUtc, _timeProvider.GetUtcNow())
+                    : $"{chatMessage} {StarshipExpeditionNarrative.BuildCruisingStatusMessage(current.NextEventAtUtc, _timeProvider.GetUtcNow())}";
+            if (!string.IsNullOrEmpty(chatMessage))
+                await SendChatAnnouncementAsync(chatMessage);
             var resolvedVariables = StarshipEventVariables.ForOutcome(resolvedEvent);
             resolvedVariables["Choice"] = selectedChoice?.Label ?? resolvedEvent.ResolvedChoiceId ?? string.Empty;
             resolvedVariables["VoteCount"] = resolvedEvent.Votes.Count.ToString(CultureInfo.InvariantCulture);
@@ -749,8 +831,8 @@ public sealed class StarshipExpeditionService(
                         ["EventTitle"] = resolvedEvent.Title,
                         ["EventType"] = resolvedEvent.EventType,
                         ["PointType"] = outcome.PointTypeName,
-                        ["EarnedAmount"] = userOutcomes.Sum(item => item.EarnedAmount).ToString(CultureInfo.InvariantCulture),
-                        ["LostAmount"] = userOutcomes.Sum(item => item.LostAmount).ToString(CultureInfo.InvariantCulture),
+                        ["EarnedAmount"] = StarshipRewardResolver.SumSaturating(userOutcomes.Select(item => item.EarnedAmount)).ToString(CultureInfo.InvariantCulture),
+                        ["LostAmount"] = StarshipRewardResolver.SumSaturating(userOutcomes.Select(item => item.LostAmount)).ToString(CultureInfo.InvariantCulture),
                         ["Rarity"] = outcome.Rarity,
                         ["Choice"] = selectedChoice?.Label ?? resolvedEvent.ResolvedChoiceId ?? string.Empty,
                         ["SuccessChancePercent"] = outcome.SuccessChancePercent.ToString(CultureInfo.InvariantCulture),
@@ -864,6 +946,14 @@ public sealed class StarshipExpeditionService(
 
     private Task AnnounceEventOpenedAsync(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
     {
+        if (currentEvent.EventType == "StationStop" &&
+            StarshipShipEventDisclosure.From(snapshot, currentEvent, null) is { } stationDisclosure)
+        {
+            var stationMessage = $"Station stop at {currentEvent.Sector}. Hull {stationDisclosure.Hull}/{stationDisclosure.MaximumHull}, supplies {stationDisclosure.Supplies}/100. " +
+                $"{StarshipExpeditionNarrative.FormatStationChoices(stationDisclosure.Choices)} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
+            return SendChatAnnouncementAsync(stationMessage);
+        }
+
         var choices = StarshipExpeditionNarrative.FormatChoices(currentEvent.Choices);
         var message = $"Starship vote: {currentEvent.Title} at {currentEvent.Sector}. {currentEvent.Description} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
         return SendChatAnnouncementAsync(message);
@@ -874,7 +964,7 @@ public sealed class StarshipExpeditionService(
         var choices = StarshipExpeditionNarrative.FormatChoices(currentEvent.Choices);
         var rarity = string.IsNullOrEmpty(currentEvent.RevealedRarity) ? string.Empty : $" Known rarity: {currentEvent.RevealedRarity}.";
         return SendChatAnnouncementAsync(
-            $"{currentEvent.Title} - step {currentEvent.StepNumber}. {currentEvent.StepNote}{rarity} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.");
+            $"{currentEvent.Title}. {currentEvent.StepNote}{rarity} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.");
     }
 
     private async Task AnnounceVoyageEndedAsync(StarshipExpeditionSnapshot snapshot)
@@ -1132,6 +1222,7 @@ public sealed class StarshipExpeditionService(
 
         var sequence = snapshot.NextEventSequence;
         var definition = GetEventDefinition(snapshot, sequence);
+        var graphEvent = definition.Steps.Count > 0;
         snapshot.CurrentEvent = new StarshipExpeditionEventSnapshot
         {
             EventId = CreateDeterministicEventId(snapshot.ExpeditionId, sequence),
@@ -1140,6 +1231,8 @@ public sealed class StarshipExpeditionService(
             EventType = definition.EventType,
             Title = definition.Title,
             Description = definition.Description,
+            EventDescription = definition.Description,
+            StartStepId = definition.StartStepId,
             Subject = StarshipExpeditionStory.GenerateSubject(snapshot.Seed, sequence, definition),
             ObjectKind = definition.ObjectKind,
             ObjectImages = [.. definition.Images],
@@ -1151,9 +1244,12 @@ public sealed class StarshipExpeditionService(
             Sector = snapshot.CurrentSector,
             OpenedAtUtc = now,
             ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds),
-            Choices = FilterChoices(definition.Choices, []),
-            ChoicePool = [.. definition.Choices],
-            StepNumber = 1,
+            Choices = graphEvent ? [] : FilterChoices(definition.Choices, []),
+            ChoicePool = graphEvent ? [] : [.. definition.Choices],
+            StepDefinitions = graphEvent ? [.. definition.Steps] : [],
+            DefaultStepSuppliesCost = definition.DefaultStepSuppliesCost,
+            CurrentStepId = graphEvent ? definition.StartStepId : string.Empty,
+            StepNumber = graphEvent ? 0 : 1,
             DefaultChoiceId = definition.DefaultChoiceId,
             Votes = []
         };
@@ -1162,18 +1258,118 @@ public sealed class StarshipExpeditionService(
             if (snapshot.CurrentLeg > 0)
                 StarshipShipSystems.ApplyTravel(shipSystems, $"ship-travel:{snapshot.CurrentEvent.EventId:N}");
             StarshipShipSystems.BeginEvent(shipSystems, snapshot.CurrentEvent.EventId, definition.EventType == "StationStop");
-            snapshot.CurrentEvent.Choices = FilterChoices(definition.Choices, [], shipSystems, definition.EventType);
+            if (!graphEvent)
+                snapshot.CurrentEvent.Choices = FilterChoices(definition.Choices, [], shipSystems, definition.EventType);
             var configuredProfile = StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, definition.EventType, requireEnabled: false);
             snapshot.CurrentEvent.ShipContext = StarshipShipSystems.CreateEventContext(shipSystems, snapshot.CurrentEvent, definition, configuredProfile);
         }
         snapshot.NextEventSequence++;
-        snapshot.CurrentEvent.Description = StarshipExpeditionStory.Render(
-            definition.Description, snapshot.CurrentEvent, snapshot.Seed, [], null);
         AppendActivityLocked(snapshot, StarshipActivityKinds.EventOpened,
             snapshot.CurrentEvent.Subject.Length == 0 ? snapshot.CurrentEvent.Title : $"{snapshot.CurrentEvent.Title}: {snapshot.CurrentEvent.Subject}",
             string.Empty, now);
         snapshot.Status = StarshipExpeditionStatus.EventOpen;
         snapshot.NextEventAtUtc = null;
+        if (graphEvent)
+        {
+            if (!EnterGraphStepLocked(snapshot, snapshot.CurrentEvent, definition.StartStepId, now))
+            {
+                ResolveCurrentEventAndRewardsLocked(snapshot, now, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+                return;
+            }
+        }
+        else
+            snapshot.CurrentEvent.Description = StarshipExpeditionStory.Render(
+                definition.Description, snapshot.CurrentEvent, snapshot.Seed, [], null);
+    }
+
+    private bool EnterGraphStepLocked(StarshipExpeditionSnapshot snapshot,
+        StarshipExpeditionEventSnapshot currentEvent, string stepId, DateTimeOffset now)
+    {
+        var steps = currentEvent.StepDefinitions.ToDictionary(step => step.StepId, StringComparer.Ordinal);
+        var nextStepId = stepId;
+        while (true)
+        {
+            var step = steps[nextStepId];
+            currentEvent.CurrentStepId = step.StepId;
+            currentEvent.StepNumber++;
+            currentEvent.Description = StarshipExpeditionStory.Render(
+                string.IsNullOrWhiteSpace(step.Prompt) ? currentEvent.EventDescription : step.Prompt,
+                currentEvent, snapshot.Seed, [], currentEvent.RevealedRarity);
+            currentEvent.OpenedAtUtc = now;
+
+            var suppliesCost = step.SuppliesCostOverride ?? currentEvent.DefaultStepSuppliesCost;
+            if (snapshot.ShipSystems is { IntegrationEnabled: true } ship && suppliesCost > 0)
+            {
+                var applied = StarshipShipSystems.ApplyEffect(ship,
+                    $"ship-step-entry:{currentEvent.EventId:N}:{step.StepId}", new() { SuppliesCost = suppliesCost });
+                if (applied == StarshipShipEffectResult.InsufficientSupplies)
+                {
+                    currentEvent.StepEntryFailed = true;
+                    currentEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomeFailure;
+                    currentEvent.StepNote = $"The crew lacked {suppliesCost} supplies to enter this step.";
+                    currentEvent.Path.Add(new StarshipEventPathStepSnapshot
+                    {
+                        StepNumber = currentEvent.StepNumber,
+                        StepId = step.StepId,
+                        StepType = step.Type.ToString(),
+                        Label = step.StepId
+                    });
+                    currentEvent.Choices = [];
+                    currentEvent.ChoicePool = [];
+                    currentEvent.ClosesAtUtc = now;
+                    UpdateShipEventResources(currentEvent, ship);
+                    AppendActivityLocked(snapshot, StarshipActivityKinds.StepAdvanced, currentEvent.StepNote, string.Empty, now);
+                    return false;
+                }
+                UpdateShipEventResources(currentEvent, ship);
+                UpdateShipResourceSuccessModifier(currentEvent, ship);
+            }
+
+            switch (step.Type)
+            {
+                case StarshipEventStepType.Vote:
+                    currentEvent.ChoicePool = [.. step.Choices];
+                    currentEvent.Choices = FilterChoices(step.Choices, currentEvent.Flags,
+                        snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems ? shipSystems : null, currentEvent.EventType);
+                    currentEvent.DefaultChoiceId = step.DefaultChoiceId;
+                    currentEvent.Votes.Clear();
+                    currentEvent.PendingRiskConfirmations.Clear();
+                    currentEvent.ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds);
+                    return true;
+                case StarshipEventStepType.Automatic:
+                    currentEvent.StepNote = StarshipExpeditionStory.Render(step.Narrative ?? step.Prompt,
+                        currentEvent, snapshot.Seed, [], currentEvent.RevealedRarity);
+                    currentEvent.Path.Add(new StarshipEventPathStepSnapshot
+                    {
+                        StepNumber = currentEvent.StepNumber,
+                        StepId = step.StepId,
+                        StepType = step.Type.ToString(),
+                        Label = string.IsNullOrWhiteSpace(step.Narrative) ? step.StepId : currentEvent.StepNote
+                    });
+                    AppendActivityLocked(snapshot, StarshipActivityKinds.StepAdvanced,
+                        string.IsNullOrWhiteSpace(currentEvent.StepNote) ? currentEvent.Description : currentEvent.StepNote, string.Empty, now);
+                    nextStepId = step.NextStepId!;
+                    continue;
+                case StarshipEventStepType.End:
+                    currentEvent.StepNote = StarshipExpeditionStory.Render(step.Narrative ?? step.Prompt,
+                        currentEvent, snapshot.Seed, [], currentEvent.RevealedRarity);
+                    currentEvent.Path.Add(new StarshipEventPathStepSnapshot
+                    {
+                        StepNumber = currentEvent.StepNumber,
+                        StepId = step.StepId,
+                        StepType = step.Type.ToString(),
+                        Label = string.IsNullOrWhiteSpace(step.Narrative) ? step.StepId : currentEvent.StepNote
+                    });
+                    if (!string.IsNullOrWhiteSpace(currentEvent.StepNote))
+                        AppendActivityLocked(snapshot, StarshipActivityKinds.StepAdvanced, currentEvent.StepNote, string.Empty, now);
+                    currentEvent.Choices = [];
+                    currentEvent.ChoicePool = [];
+                    currentEvent.ClosesAtUtc = now;
+                    return false;
+                default:
+                    throw new InvalidOperationException($"Unsupported Starship step type {step.Type}.");
+            }
+        }
     }
 
     private static List<StarshipEventChoiceSnapshot> FilterChoices(
@@ -1191,21 +1387,27 @@ public sealed class StarshipExpeditionService(
             ? StarshipShipSystems.GetStationEffect(state, choice.ChoiceId)
             : choice.ShipEffect ?? new());
 
-    private static void AdvanceEventStepLocked(
+    private bool AdvanceEventStepLocked(
         StarshipExpeditionSnapshot snapshot,
         StarshipExpeditionEventSnapshot currentEvent,
         StarshipEventChoiceSnapshot choice,
         int voteCount,
         IReadOnlyList<string> voterNames,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool allowGraphAdvance = true)
     {
+        var graphEvent = currentEvent.StepDefinitions.Count > 0;
         currentEvent.Path.Add(new StarshipEventPathStepSnapshot
         {
             StepNumber = currentEvent.StepNumber,
+            StepId = graphEvent ? currentEvent.CurrentStepId : string.Empty,
+            StepType = graphEvent ? StarshipEventStepType.Vote.ToString() : string.Empty,
             ChoiceId = choice.ChoiceId,
             Label = choice.Label,
             VoteCount = voteCount
         });
+        currentEvent.ResolvedChoiceId = choice.ChoiceId;
+        if (graphEvent) currentEvent.ResolvedStepId = currentEvent.CurrentStepId;
         if (!string.IsNullOrEmpty(choice.GrantsFlag)) currentEvent.Flags.Add(choice.GrantsFlag);
         currentEvent.SuccessChanceModifierPercent += choice.SuccessChanceModifierPercent;
         currentEvent.RewardMultiplierPercent = StarshipRewardResolver.CombinePercent(currentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent);
@@ -1237,49 +1439,76 @@ public sealed class StarshipExpeditionService(
         AppendActivityLocked(snapshot, StarshipActivityKinds.StepAdvanced, currentEvent.StepNote, string.Join(", ", voterNames), now);
         if (choice.RevealsRarity && currentEvent.RevealedRarity != null)
             AppendActivityLocked(snapshot, StarshipActivityKinds.RarityRevealed, $"{currentEvent.RevealedRarity} find revealed", string.Empty, now);
-        currentEvent.StepNumber++;
         currentEvent.Votes.Clear();
         currentEvent.PendingRiskConfirmations.Clear();
+        if (graphEvent)
+        {
+            if (allowGraphAdvance && !string.IsNullOrWhiteSpace(choice.NextStepId))
+                return EnterGraphStepLocked(snapshot, currentEvent, choice.NextStepId, now);
+            return false;
+        }
+
+        currentEvent.StepNumber++;
         currentEvent.Choices = FilterChoices(currentEvent.ChoicePool, currentEvent.Flags,
             snapshot.ShipSystems is { IntegrationEnabled: true } state ? state : null, currentEvent.EventType);
         currentEvent.OpenedAtUtc = now;
         currentEvent.ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds);
+        return true;
     }
 
     /// <returns><c>true</c> when the event finished; <c>false</c> when it advanced to another step.</returns>
     private bool ResolveCurrentEventLocked(StarshipExpeditionSnapshot snapshot, DateTimeOffset now)
     {
         var currentEvent = snapshot.CurrentEvent ?? throw new InvalidOperationException("There is no open event to resolve.");
-        var voteCounts = currentEvent.Votes
-            .GroupBy(vote => vote.ChoiceId, StringComparer.OrdinalIgnoreCase)
-            .Select(group => new { ChoiceId = group.Key, Count = group.Count() })
-            .ToList();
+        var graphEvent = currentEvent.StepDefinitions.Count > 0;
+        var currentStep = graphEvent
+            ? currentEvent.StepDefinitions.FirstOrDefault(step => step.StepId == currentEvent.CurrentStepId)
+                ?? throw new InvalidDataException($"Active Starship step '{currentEvent.CurrentStepId}' is missing.")
+            : null;
+        var resolveVote = !currentEvent.StepEntryFailed && (!graphEvent || currentStep!.Type == StarshipEventStepType.Vote);
+        var voteCounts = resolveVote
+            ? currentEvent.Votes.GroupBy(vote => vote.ChoiceId, StringComparer.OrdinalIgnoreCase)
+                .Select(group => new { ChoiceId = group.Key, Count = group.Count() }).ToList()
+            : [];
         var maxVotes = voteCounts.Count == 0 ? 0 : voteCounts.Max(vote => vote.Count);
         var leaders = voteCounts.Where(vote => vote.Count == maxVotes).Select(vote => vote.ChoiceId).ToList();
-        var winningId = leaders.Count == 1
-            ? leaders[0]
-            : currentEvent.DefaultChoiceId;
-        var winningChoice = currentEvent.Choices.FirstOrDefault(choice =>
-            string.Equals(choice.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase));
+        var winningId = resolveVote
+            ? leaders.Count == 1 ? leaders[0] : currentEvent.DefaultChoiceId
+            : currentEvent.ResolvedChoiceId ?? string.Empty;
+        var winningChoice = resolveVote
+            ? currentEvent.Choices.FirstOrDefault(choice =>
+                string.Equals(choice.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase))
+            : null;
         if (snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems)
         {
-            if (winningChoice == null || !CanAffordShipChoice(shipSystems, currentEvent.EventType, winningChoice))
+            if (winningChoice != null && !CanAffordShipChoice(shipSystems, currentEvent.EventType, winningChoice))
             {
                 winningId = currentEvent.DefaultChoiceId;
                 winningChoice = currentEvent.ChoicePool.Concat(currentEvent.Choices).First(choice => choice.ChoiceId == winningId);
                 currentEvent.Choices = FilterChoices(currentEvent.ChoicePool.Count > 0 ? currentEvent.ChoicePool : currentEvent.Choices,
                     currentEvent.Flags, shipSystems, currentEvent.EventType);
             }
-            var operationId = $"ship-choice:{currentEvent.EventId:N}:{currentEvent.StepNumber}:{winningId}";
-            var applied = currentEvent.EventType == "StationStop"
-                ? StarshipShipSystems.ApplyStationChoice(shipSystems, operationId, winningId)
-                : StarshipShipSystems.ApplyEffect(shipSystems, operationId, winningChoice.ShipEffect ?? new());
-            if (applied == StarshipShipEffectResult.InsufficientSupplies)
-                throw new InvalidOperationException("The default ship choice must remain affordable.");
-            UpdateShipEventResources(currentEvent, shipSystems);
+            if (winningChoice != null)
+            {
+                var operationId = $"ship-choice:{currentEvent.EventId:N}:{currentEvent.StepNumber}:{winningId}";
+                var applied = currentEvent.EventType == "StationStop"
+                    ? StarshipShipSystems.ApplyStationChoice(shipSystems, operationId, winningId)
+                    : StarshipShipSystems.ApplyEffect(shipSystems, operationId, winningChoice.ShipEffect ?? new());
+                if (applied == StarshipShipEffectResult.InsufficientSupplies)
+                    throw new InvalidOperationException("The default ship choice must remain affordable.");
+                UpdateShipEventResources(currentEvent, shipSystems);
+                UpdateShipResourceSuccessModifier(currentEvent, shipSystems);
+            }
         }
         var hullDepleted = snapshot.ShipSystems is { IntegrationEnabled: true } activeShip && StarshipShipSystems.RequiresEmergencyReturn(activeShip);
-        if (winningChoice is { ContinuesEvent: true } && !hullDepleted)
+        if (graphEvent && currentStep?.Type == StarshipEventStepType.Vote && winningChoice != null)
+        {
+            if (AdvanceEventStepLocked(snapshot, currentEvent, winningChoice,
+                voteCounts.FirstOrDefault(vote => string.Equals(vote.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase))?.Count ?? 0,
+            StarshipExpeditionStory.GetVoterNames(snapshot, currentEvent, winningId), now, allowGraphAdvance: !hullDepleted))
+                return false;
+        }
+        else if (winningChoice is { ContinuesEvent: true } && !hullDepleted)
         {
             AdvanceEventStepLocked(snapshot, currentEvent, winningChoice,
                 voteCounts.FirstOrDefault(vote => string.Equals(vote.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase))?.Count ?? 0,
@@ -1287,12 +1516,19 @@ public sealed class StarshipExpeditionService(
             return false;
         }
 
-        currentEvent.ResolvedChoiceId = winningId;
+        if (winningChoice != null)
+        {
+            if (graphEvent) currentEvent.ResolvedStepId = currentStep!.StepId;
+            currentEvent.ResolvedChoiceId = winningId;
+        }
+        if (currentEvent.StepEntryFailed)
+            currentEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomeFailure;
         if (hullDepleted && winningChoice?.EndsWithoutReward != true)
             currentEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomeFailure;
         currentEvent.ResolvedAtUtc = now;
         currentEvent.PendingRiskConfirmations.Clear();
-        currentEvent.Path.Add(new StarshipEventPathStepSnapshot
+        if (!graphEvent && winningChoice != null)
+            currentEvent.Path.Add(new StarshipEventPathStepSnapshot
         {
             StepNumber = currentEvent.StepNumber,
             ChoiceId = winningId,
@@ -1369,6 +1605,14 @@ public sealed class StarshipExpeditionService(
         expeditionEvent.ShipContext.SuppliesAfter = state.Supplies;
     }
 
+    private static void UpdateShipResourceSuccessModifier(StarshipExpeditionEventSnapshot expeditionEvent, StarshipShipSystemsSnapshot state)
+    {
+        if (expeditionEvent.ShipContext is not { } context) return;
+        var bonus = state.ActiveBonusEventId == expeditionEvent.EventId ? state.ActiveSuccessBonusPercent : 0;
+        var shortagePenalty = state.Supplies == 0 ? state.Rules.EmptySuppliesSuccessPenaltyPercent : 0;
+        context.ResourceSuccessModifierPercent = bonus - shortagePenalty;
+    }
+
     private static void ApplyShipOutcome(StarshipExpeditionEventSnapshot resolvedEvent, StarshipShipSystemsSnapshot state)
     {
         var effect = resolvedEvent.OutcomeResult switch
@@ -1379,7 +1623,7 @@ public sealed class StarshipExpeditionService(
         };
         if (effect != null)
         {
-            var choice = resolvedEvent.Choices.FirstOrDefault(item => item.ChoiceId == resolvedEvent.ResolvedChoiceId);
+            var choice = StarshipRewardResolver.FindResolvedChoice(resolvedEvent);
             var riskPercent = StarshipRewardResolver.CombinePercent(resolvedEvent.RiskMultiplierPercent, choice?.RiskMultiplierPercent ?? 100);
             var scaled = StarshipShipSystems.ScaleOutcomeEffect(effect, riskPercent);
             StarshipShipSystems.ApplyEffect(state, $"ship-outcome:{resolvedEvent.EventId:N}", scaled);
@@ -1509,7 +1753,7 @@ public sealed class StarshipExpeditionService(
             if (!settlementActionIds.Add(pending.ActionId))
                 pending.Executed = true;
             pending.Variables["VoyageResult"] = voyageResult;
-            pending.Variables["BankedTotal"] = banked.Sum(payout => payout.Amount).ToString(CultureInfo.InvariantCulture);
+            pending.Variables["BankedTotal"] = StarshipRewardResolver.SumSaturating(banked.Select(payout => payout.Amount)).ToString(CultureInfo.InvariantCulture);
             pending.Variables["BankedCrewCount"] = banked.Select(payout => payout.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture);
         }
     }

@@ -522,7 +522,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             DispatchStarshipOverlayState(engine, Snapshot(1, Join(1, "Pilot", 4)));
             Assert.False(engine.Evaluate("document.getElementById('starship-toast').hidden").AsBoolean());
             Assert.Equal("Pilot joined the crew - 4 aboard", engine.Evaluate("document.getElementById('starship-toast').textContent").AsString());
-            Assert.Equal("false", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            Assert.Equal("true", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
             Assert.Equal("true", engine.Evaluate("document.getElementById('crew-block').dataset.pulse").AsString());
 
             DispatchStarshipOverlayState(engine, Snapshot(2, Join(2, "Medic", 5), Join(3, "Engineer", 6), Join(4, "Cook", 7)));
@@ -723,9 +723,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Theory]
-        [InlineData(4, "false")]
-        [InlineData(6, "true")]
-        public void StarshipEventWidget_SelectsCompactLayoutForMoreThanFourChoices(int count, string expectedCompact)
+        [InlineData(2, "false")]
+        [InlineData(3, "true")]
+        [InlineData(4, "true")]
+        public void StarshipEventWidget_SelectsCompactLayoutForMoreThanTwoChoices(int count, string expectedCompact)
         {
             var engine = CreateStarshipOverlayEngine("event");
             var now = DateTimeOffset.UtcNow;
@@ -766,7 +767,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
             string Faded() => engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString();
 
             DispatchStarshipOverlayState(engine, Snapshot("Boarding", now, null));
-            Assert.Equal("false", Faded());
+            Assert.Equal("true", Faded());
+            Assert.True(engine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
 
             DispatchStarshipOverlayState(engine, Snapshot("Cruising", now.AddSeconds(1), null));
             Assert.Equal("true", Faded());
@@ -778,7 +780,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal("true", Faded());
 
             DispatchStarshipOverlayState(engine, Snapshot("EventOpen", now.AddSeconds(4), null));
-            Assert.Equal("false", Faded());
+            Assert.Equal("true", Faded());
 
             DispatchStarshipOverlayState(engine, Snapshot("Returned", now.AddSeconds(5), null));
             Assert.Equal("false", Faded());
@@ -789,6 +791,25 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             DispatchStarshipOverlayState(endedEngine, Snapshot("Returned", now.AddSeconds(-59), now.AddSeconds(30)));
             Assert.Equal("false", endedEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+        }
+
+        [Fact]
+        public void StarshipStatusWidget_DoesNotOverlapEventWhileJoinToastIsVisible()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            var now = DateTimeOffset.UtcNow;
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "EventOpen",
+                updatedAtUtc = now.ToString("O"),
+                serverNowUtc = now.ToString("O"),
+                activity = new[] { new { id = 1, kind = "CrewJoined", atUtc = now.ToString("O"), actor = "Viewer", text = "Viewer joined" } },
+                currentEvent = new { sequence = 1, stepNumber = 1, closesAtUtc = now.AddSeconds(30).ToString("O"), choices = Array.Empty<object>() },
+                latestResult = (object?)null
+            });
+
+            Assert.Equal("true", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            Assert.False(engine.Evaluate("document.getElementById('starship-toast').hidden").AsBoolean());
         }
 
         [Fact]
@@ -986,19 +1007,44 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     latestResult: {{ sequence: 6, choice: 'Done', resolvedAtUtc: '{Iso(2)}' }}, currentEvent: null }};
                 tracker.update(ended);
                 window.__ended = tracker.derive(ended);
+                var idle = {{ status: 'Inactive', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}' }};
+                window.__idle = tracker.derive(idle);
+                var forcedIdle = {{ status: 'Inactive', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}',
+                    statusForcedUntilUtc: '{Iso(30)}' }};
+                window.__forcedIdle = tracker.derive(forcedIdle);
+                var activeEvent = {{ status: 'EventOpen', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}',
+                    eventForcedUntilUtc: null }};
+                window.__autoNoOverlap = tracker.derive(activeEvent, 'AutomaticNoOverlap');
+                window.__statusManual = tracker.derive(activeEvent, 'StatusOnDemand');
+                window.__bothManual = tracker.derive(activeEvent, 'BothOnDemand');
+                window.__eventManual = tracker.derive(activeEvent, 'EventOnDemand');
+                var forcedEvent = {{ status: 'Cruising', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}',
+                    eventForcedUntilUtc: '{Iso(30)}' }};
+                window.__forcedEvent = tracker.derive(forcedEvent, 'EventOnDemand');
             ");
 
             Assert.Equal("EventVoting", engine.Evaluate("window.__first").AsString());
             Assert.Equal("StepTransition", engine.Evaluate("window.__second").AsString());
             Assert.Equal("Result", engine.Evaluate("window.__result.name").AsString());
             Assert.True(engine.Evaluate("window.__result.eventVisible").AsBoolean());
-            Assert.False(engine.Evaluate("window.__result.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__result.statusFaded").AsBoolean());
             Assert.Equal("Cruising", engine.Evaluate("window.__stale.name").AsString());
             Assert.True(engine.Evaluate("window.__stale.statusFaded").AsBoolean());
             Assert.False(engine.Evaluate("window.__recent.statusFaded").AsBoolean());
             Assert.False(engine.Evaluate("window.__stale.eventVisible").AsBoolean());
             Assert.Equal("VoyageEnd", engine.Evaluate("window.__ended.name").AsString());
-            Assert.False(engine.Evaluate("window.__ended.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__ended.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__idle.statusFaded").AsBoolean());
+            Assert.False(engine.Evaluate("window.__forcedIdle.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__autoNoOverlap.eventVisible").AsBoolean());
+            Assert.True(engine.Evaluate("window.__autoNoOverlap.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__statusManual.eventVisible").AsBoolean());
+            Assert.True(engine.Evaluate("window.__statusManual.statusFaded").AsBoolean());
+            Assert.False(engine.Evaluate("window.__bothManual.eventVisible").AsBoolean());
+            Assert.True(engine.Evaluate("window.__bothManual.statusFaded").AsBoolean());
+            Assert.False(engine.Evaluate("window.__eventManual.eventVisible").AsBoolean());
+            Assert.False(engine.Evaluate("window.__eventManual.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__forcedEvent.eventVisible").AsBoolean());
         }
 
         [Fact]
