@@ -24,6 +24,10 @@
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
                     Vertical ascent minigame with rising balloons, dynamic mid-air hazards (nudges, heavy pushes, wind gusts, darts), cloud landing platform, and secure client scoring.
                 </MudText>
+                @if (_settings != null)
+                {
+                    <MudSwitch T="bool" Color="Color.Success" Label="Enable Balloon Ascent" @bind-Value="_balloonEnabled" />
+                }
             </div>
             <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
                 <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
@@ -436,6 +440,7 @@
 
 @code {
     private DropGamesSettings? _settings;
+    private bool _balloonEnabled;
     private string _testUsername = "PenguinViewer";
     private string _testEmoteInput = "";
     private string _overlayKey = "";
@@ -452,6 +457,7 @@
         }
 
         _settings = await SettingsService.GetSettingsAsync();
+        _balloonEnabled = _settings.Balloon.GameEnabled;
 
     }
 
@@ -493,7 +499,7 @@
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.subtitle2" Color="Color.Primary">Session Controls</MudText>
                 <MudStack Row="true" Spacing="2">
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" Disabled="@(_settings?.Balloon.GameEnabled != true)"
                                StartIcon="@Icons.Material.Filled.PlayArrow"
                                OnClick="StartBalloonSessionLiveAsync">
                         Start Round (@(_settings?.Balloon.DefaultSessionDurationSeconds ?? 100)s)
@@ -520,8 +526,16 @@
     private async Task SaveAllSettingsAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        _settings.Balloon.GameEnabled = _balloonEnabled;
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         Snackbar.Add("Balloon Ascent settings saved!", Severity.Success);
+    }
+
+    private async Task SaveSettingsAndClearQueueIfDisabledAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        if (!_settings.Balloon.GameEnabled) await BalloonAscentService.ClearSessionQueueAsync();
     }
 
     private async Task ResetSettingsToDefaultsAsync()
@@ -537,37 +551,42 @@
         if (_settings != null)
         {
             _settings.Balloon = new BalloonAscentGameSettings();
-            await SettingsService.SaveSettingsAsync(_settings);
+            _balloonEnabled = _settings.Balloon.GameEnabled;
+            await SaveSettingsAndClearQueueIfDisabledAsync();
             Snackbar.Add("Balloon Ascent settings have been reset to default values!", Severity.Warning);
         }
     }
 
     private async Task TestBalloonAscentAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
-        await BalloonAscentService.TriggerBalloonAscentAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
-        Snackbar.Add("Launched test Balloon Ascent! Watch your /balloon.html overlay.", Severity.Info);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
+        var token = await BalloonAscentService.TriggerBalloonAscentAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
+        Snackbar.Add(string.IsNullOrEmpty(token)
+            ? "Balloon Ascent is disabled and no timed round is active."
+            : "Launched test Balloon Ascent! Watch your /balloon.html overlay.", string.IsNullOrEmpty(token) ? Severity.Warning : Severity.Info);
     }
 
     private async Task TestGuaranteedBullseyeAscentAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var targetCenter = BalloonAscentService.GetCurrentSession()?.TargetCenterX ?? _settings.Balloon.TargetCenterX;
-        await BalloonAscentService.TriggerBalloonAscentAsync(
+        var token = await BalloonAscentService.TriggerBalloonAscentAsync(
             BuildTestEventArgs(),
             _testEmoteInput,
             forcedStartX: targetCenter,
             allowDirectUrlOrPath: true,
             forcedInitialVx: 0.0,
             forcedTargetCenterX: targetCenter);
-        Snackbar.Add("Launched guaranteed 100 pts center Balloon Ascent!", Severity.Success);
+        Snackbar.Add(string.IsNullOrEmpty(token)
+            ? "Balloon Ascent is disabled and no timed round is active."
+            : "Launched guaranteed 100 pts center Balloon Ascent!", string.IsNullOrEmpty(token) ? Severity.Warning : Severity.Success);
     }
 
     private async Task TestHazardWaveAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
-        await BalloonAscentService.SpawnHazardsAsync(new BalloonHazardSpawnRequest
+        await SaveSettingsAndClearQueueIfDisabledAsync();
+        var hazards = await BalloonAscentService.SpawnHazardsAsync(new BalloonHazardSpawnRequest
         {
             Pattern = "TopRain",
             HazardType = "Random",
@@ -575,12 +594,14 @@
             EmoteOrImage = _settings?.Balloon.DefaultHazardEmote,
             TriggeredBy = _testUsername
         });
-        Snackbar.Add("Spawned 6x hazard wave on Balloon overlay!", Severity.Info);
+        Snackbar.Add(hazards.Count == 0
+            ? "No hazards spawned. Balloon Ascent may be disabled, inactive, or have hazards disabled."
+            : $"Spawned {hazards.Count} hazards on Balloon overlay!", hazards.Count == 0 ? Severity.Warning : Severity.Info);
     }
 
     private async Task TestBalloonWithDartInterceptAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var token = await BalloonAscentService.TriggerBalloonAscentAsync(
             BuildTestEventArgs(),
             _testEmoteInput,
@@ -588,33 +609,27 @@
 
         if (!string.IsNullOrEmpty(token))
         {
-            _ = Task.Run(async () =>
+            await Task.Delay(600);
+            var hazards = await BalloonAscentService.SpawnHazardsAsync(new BalloonHazardSpawnRequest
             {
-                try
-                {
-                    await Task.Delay(600);
-                    await BalloonAscentService.SpawnHazardsAsync(new BalloonHazardSpawnRequest
-                    {
-                        Pattern = "Targeted",
-                        HazardType = "DartPop",
-                        Count = 2,
-                        TargetDropToken = token,
-                        TriggeredBy = _testUsername
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Failed to spawn test dart intercept");
-                }
+                Pattern = "Targeted",
+                HazardType = "DartPop",
+                Count = 2,
+                TargetDropToken = token,
+                TriggeredBy = _testUsername
             });
+            Snackbar.Add(hazards.Count == 0
+                ? "The balloon launched, but the dart intercept did not spawn. Check that darts are enabled and the round is still active."
+                : "Launched Balloon Ascent + Dart Intercept combo!", hazards.Count == 0 ? Severity.Warning : Severity.Info);
+            return;
         }
 
-        Snackbar.Add("Launched Balloon Ascent + Dart Intercept combo!", Severity.Info);
+        Snackbar.Add("Balloon Ascent is disabled and no timed round is active.", Severity.Warning);
     }
 
     private async Task StartBalloonSessionLiveAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var duration = _settings?.Balloon.DefaultSessionDurationSeconds ?? 100;
         var result = await BalloonAscentService.StartSessionAsync(duration, triggeredBy: "Dashboard");
         if (result.IsQueued)

@@ -26,12 +26,15 @@
     let pulseUntil = 0;
     let routeSignature = '';
     let revealCounter = 0;
+    let allowRealtimeSounds = false;
+    let soundManager = null;
+    const playedSoundKeys = new Set();
     let appearance = Object.assign({}, DEFAULT_APPEARANCE);
     const tracker = window.StarshipScene.createTracker();
     const feedHandlers = [handleActivity];
     window.StarshipOverlay = {
         onFeed: function (handler) { feedHandlers.push(handler); },
-        applyEnvelope: function (message) { applyEnvelope(message); },
+        applyEnvelope: function (message) { applyEnvelope(message, false); },
         applyAppearance: function (value) { applyAppearance(value); }
     };
 
@@ -96,9 +99,25 @@
     }
 
     function handleActivity(item) {
+        if (allowRealtimeSounds && view === 'event' && item.kind === 'BoardingOpened') {
+            playSound(snapshot?.boardingOpenSound, 'boarding-open:' + snapshot?.expeditionId);
+        } else if (allowRealtimeSounds && view === 'event' && item.kind === 'EventOpened') {
+            playSound(snapshot?.currentEvent?.openSound, 'event-open:' + snapshot?.expeditionId + ':' + snapshot?.currentEvent?.sequence);
+        } else if (allowRealtimeSounds && view === 'event' && item.kind === 'VoyageEnded' && snapshot?.shipSystems?.returnReason === 'HullDepleted') {
+            playSound(snapshot.emergencyReturnSound, 'emergency-return:' + snapshot.expeditionId);
+        }
         if (item.kind !== 'CrewJoined') return;
         toastQueue.push(item);
         pulseUntil = Date.now() + PULSE_MS;
+    }
+
+    function playSound(sound, key) {
+        if (!sound || sound.enabled !== true || !sound.url || !window.DropGamesAudio || previewMode) return;
+        if (playedSoundKeys.has(key)) return;
+        playedSoundKeys.add(key);
+        if (!soundManager) soundManager = window.DropGamesAudio.createSoundManager();
+        soundManager.updateBundle({ maxConcurrentSounds: 1 });
+        soundManager.play(sound, key, true);
     }
 
     function pumpToast() {
@@ -231,7 +250,7 @@
         document.getElementById('ship-marker').style.left = progress + '%';
     }
 
-    function applyEnvelope(message) {
+    function applyEnvelope(message, isRealtime) {
         if (!message || message.type !== 'expedition_state') return;
         if (message.appearance) applyAppearance(message.appearance);
         const incoming = message.snapshot;
@@ -242,6 +261,7 @@
         }
         snapshot = incoming;
         hasSnapshot = true;
+        allowRealtimeSounds = !!isRealtime && !previewMode;
         for (const item of tracker.update(snapshot)) {
             for (const handler of feedHandlers) handler(item);
         }
@@ -252,7 +272,7 @@
         try {
             const response = await fetch('/api/overlay/starship-state', { cache: 'no-store' });
             if (!response.ok) throw new Error('State request failed: ' + response.status);
-            applyEnvelope(await response.json());
+            applyEnvelope(await response.json(), false);
         } catch (error) {
             if (!hasSnapshot) root.dataset.connection = 'waiting';
         }
@@ -382,13 +402,14 @@
         panel.hidden = !ship;
         root.dataset.ship = ship ? 'on' : 'off';
         if (!ship) return;
-        const hull = Math.min(100, Math.max(0, Number(ship.hull) || 0));
+        const maximumHull = Math.max(1, Math.min(100, Number(ship.maximumHull) || 100));
+        const hull = Math.min(maximumHull, Math.max(0, Number(ship.hull) || 0));
         const supplies = Math.min(100, Math.max(0, Number(ship.supplies) || 0));
-        setText('ship-hull-text', 'Hull ' + hull + '/100');
+        setText('ship-hull-text', 'Hull ' + hull + '/' + maximumHull);
         setText('ship-supplies-text', 'Supplies ' + supplies + '/100');
         const hullFill = document.getElementById('ship-hull-fill');
         const suppliesFill = document.getElementById('ship-supplies-fill');
-        hullFill.style.width = hull + '%';
+        hullFill.style.width = (hull / maximumHull * 100) + '%';
         suppliesFill.style.width = supplies + '%';
         panel.dataset.hull = hull <= 25 ? 'low' : 'normal';
         panel.dataset.supplies = supplies === 0 ? 'empty' : 'normal';
@@ -632,7 +653,7 @@
                 return;
             }
             try {
-                applyEnvelope(JSON.parse(event.data));
+                applyEnvelope(JSON.parse(event.data), true);
             } catch (error) {
                 // Ignore messages for other widget protocols.
             }

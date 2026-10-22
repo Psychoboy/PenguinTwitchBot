@@ -235,6 +235,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     WS_TOPICS: {{ starship: 'starship' }},
                     __handlers: {{}},
                     __fetchCount: 0,
+                    __audioPlayed: [],
                     createWsSocket: function(name, topics) {{
                         window.__topics = topics;
                         return {{ readyState: 1, send: function() {{}}, addEventListener: function(name, handler) {{ window.__handlers[name] = handler; }} }};
@@ -248,6 +249,21 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     createElement: function() {{ return __element(); }}
                 }};
                 var WebSocket = {{ OPEN: 1 }};
+                var Audio = function(src) {{
+                    var self = this;
+                    this.src = src || '';
+                    this.volume = 1;
+                    this.preload = 'none';
+                    this.paused = true;
+                    this.ended = false;
+                    this.load = function() {{}};
+                    this.addEventListener = function() {{}};
+                    this.pause = function() {{ self.paused = true; }};
+                    this.play = function() {{
+                        self.paused = false;
+                        return Promise.resolve();
+                    }};
+                }};
                 var fetch = function() {{ window.__fetchCount++; return Promise.resolve({{ ok: true, json: function() {{ return Promise.resolve({{ type: 'expedition_state', snapshot: null }}); }} }}); }};
             ");
 
@@ -255,15 +271,133 @@ namespace PenguinTwitchBot.Test.ClientScripts
             if (extraSetup.Length > 0) engine.Execute(extraSetup);
             engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-scene.js")));
             engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-art.js")));
+            engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "drop-games-audio.js")));
             engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-overlay.js")));
             return engine;
         }
 
-        private static void DispatchStarshipOverlayState(Engine engine, object snapshot)
+        private static void DispatchStarshipOverlayState(Engine engine, object snapshot, bool realtime = true)
         {
             var payload = JsonSerializer.Serialize(new { type = "expedition_state", snapshot });
             var serializedPayload = JsonSerializer.Serialize(payload);
-            engine.Execute($"window.__handlers.message({{ data: {serializedPayload} }});");
+            if (realtime)
+                engine.Execute($"window.__handlers.message({{ data: {serializedPayload} }});");
+            else
+                engine.Execute($"window.StarshipOverlay.applyEnvelope(JSON.parse({serializedPayload}));");
+        }
+
+        [Fact]
+        public void StarshipAudio_PlaysOneEventCueAndEmergencyCueButNotOnVoteUpdatesOrBootstrap()
+        {
+            var openedAt = DateTimeOffset.UtcNow;
+            var eventSnapshot = new
+            {
+                expeditionId = "voyage-1", status = "EventOpen", updatedAtUtc = openedAt.ToString("O"), serverNowUtc = openedAt.ToString("O"),
+                currentLeg = 1, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Uncharted", crewCount = 1,
+                ship = new { name = "Test Ship", hullStyle = "cruiser", accentColor = "#66d0c2", variant = 0 },
+                currentEvent = new
+                {
+                    sequence = 1, stepNumber = 1, title = "Choose a Route", eventType = "RouteChoice", sector = "Kepler Reach",
+                    description = "Choose a route.", openedAtUtc = openedAt.ToString("O"), closesAtUtc = openedAt.AddMinutes(1).ToString("O"),
+                    choices = Array.Empty<object>(), voteCounts = new Dictionary<string, int>(), path = Array.Empty<string>(),
+                    openSound = new { enabled = true, url = "/media/starship_route_choice.wav", volume = 55 }
+                },
+                activity = new[] { new { id = 1, atUtc = openedAt.ToString("O"), kind = "EventOpened", text = "Route opened", actor = "" } },
+                timeline = Array.Empty<object>()
+            };
+
+            var bootstrapEngine = CreateStarshipOverlayEngine("event");
+            DispatchStarshipOverlayState(bootstrapEngine, eventSnapshot, realtime: false);
+            Assert.Equal(0, bootstrapEngine.Evaluate("window.__audioPlayed.length").AsNumber());
+
+            var engine = CreateStarshipOverlayEngine("event");
+            DispatchStarshipOverlayState(engine, eventSnapshot);
+            Assert.Equal("/media/starship_route_choice.wav", engine.Evaluate("window.__audioPlayed.map(sound => sound.src).join('|')").AsString());
+            Assert.Equal("/media/starship_route_choice.wav", engine.Evaluate("window.__audioPlayed[0].src").AsString());
+            Assert.Equal(0.55, engine.Evaluate("window.__audioPlayed[0].volume").AsNumber(), 2);
+
+            var voteUpdate = new
+            {
+                expeditionId = "voyage-1", status = "EventOpen", updatedAtUtc = openedAt.AddSeconds(1).ToString("O"), serverNowUtc = openedAt.ToString("O"),
+                currentLeg = 1, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Uncharted", crewCount = 1,
+                ship = new { name = "Test Ship", hullStyle = "cruiser", accentColor = "#66d0c2", variant = 0 },
+                currentEvent = new
+                {
+                    sequence = 1, stepNumber = 1, title = "Choose a Route", eventType = "RouteChoice", sector = "Kepler Reach",
+                    description = "Choose a route.", openedAtUtc = openedAt.ToString("O"), closesAtUtc = openedAt.AddMinutes(1).ToString("O"),
+                    choices = Array.Empty<object>(), voteCounts = new Dictionary<string, int> { ["direct"] = 1 }, path = Array.Empty<string>(),
+                    openSound = new { enabled = true, url = "/media/starship_route_choice.wav", volume = 55 }
+                },
+                activity = new[] { new { id = 1, atUtc = openedAt.ToString("O"), kind = "EventOpened", text = "Route opened", actor = "" } },
+                timeline = Array.Empty<object>()
+            };
+            DispatchStarshipOverlayState(engine, voteUpdate);
+            Assert.Equal(1, engine.Evaluate("window.__audioPlayed.length").AsNumber());
+
+            var stepUpdate = new
+            {
+                expeditionId = "voyage-1", status = "EventOpen", updatedAtUtc = openedAt.AddSeconds(2).ToString("O"), serverNowUtc = openedAt.ToString("O"),
+                currentLeg = 1, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Uncharted", crewCount = 1,
+                ship = new { name = "Test Ship", hullStyle = "cruiser", accentColor = "#66d0c2", variant = 0 },
+                currentEvent = new
+                {
+                    sequence = 1, stepNumber = 2, title = "Choose a Route", eventType = "RouteChoice", sector = "Kepler Reach",
+                    description = "Choose a route.", openedAtUtc = openedAt.ToString("O"), closesAtUtc = openedAt.AddMinutes(1).ToString("O"),
+                    choices = Array.Empty<object>(), voteCounts = new Dictionary<string, int>(), path = new[] { "Take the detour" },
+                    openSound = new { enabled = true, url = "/media/starship_route_choice.wav", volume = 55 }
+                },
+                activity = new[]
+                {
+                    new { id = 1, atUtc = openedAt.ToString("O"), kind = "EventOpened", text = "Route opened", actor = "" },
+                    new { id = 2, atUtc = openedAt.AddSeconds(2).ToString("O"), kind = "StepAdvanced", text = "Step 2", actor = "" }
+                },
+                timeline = Array.Empty<object>()
+            };
+            DispatchStarshipOverlayState(engine, stepUpdate);
+            Assert.Equal(1, engine.Evaluate("window.__audioPlayed.length").AsNumber());
+
+            var returned = new
+            {
+                expeditionId = "voyage-1", status = "Returned", updatedAtUtc = openedAt.AddSeconds(2).ToString("O"), serverNowUtc = openedAt.ToString("O"),
+                currentLeg = 1, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Uncharted", crewCount = 1,
+                ship = new { name = "Test Ship", hullStyle = "cruiser", accentColor = "#66d0c2", variant = 0 },
+                shipSystems = new { hull = 0, supplies = 40, pendingSuccessBonusPercent = 0, activeSuccessBonusPercent = 0, returnReason = "HullDepleted" },
+                emergencyReturnSound = new { enabled = true, url = "/media/starship_emergency_return.wav", volume = 70 },
+                currentEvent = (object?)null,
+                activity = new[]
+                {
+                    new { id = 1, atUtc = openedAt.ToString("O"), kind = "EventOpened", text = "Route opened", actor = "" },
+                    new { id = 2, atUtc = openedAt.AddSeconds(2).ToString("O"), kind = "StepAdvanced", text = "Step 2", actor = "" },
+                    new { id = 3, atUtc = openedAt.AddSeconds(3).ToString("O"), kind = "VoyageEnded", text = "Emergency return", actor = "" }
+                },
+                latestResult = (object?)null, timeline = Array.Empty<object>()
+            };
+            DispatchStarshipOverlayState(engine, returned);
+            Assert.Equal(2, engine.Evaluate("window.__audioPlayed.length").AsNumber());
+            Assert.Equal("/media/starship_emergency_return.wav", engine.Evaluate("window.__audioPlayed[1].src").AsString());
+        }
+
+        [Fact]
+        public void StarshipAudio_PlaysBoardingCueOnceWhenCrewCanJoin()
+        {
+            var openedAt = DateTimeOffset.UtcNow;
+            var boarding = new
+            {
+                expeditionId = "voyage-boarding", status = "Boarding", updatedAtUtc = openedAt.ToString("O"), serverNowUtc = openedAt.ToString("O"),
+                currentLeg = 0, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Uncharted", crewCount = 0,
+                boardingOpenSound = new { enabled = true, url = "/media/starship_boarding_open.wav", volume = 60 },
+                ship = new { name = "Test Ship", hullStyle = "cruiser", accentColor = "#66d0c2", variant = 0 },
+                activity = new[] { new { id = 1, atUtc = openedAt.ToString("O"), kind = "BoardingOpened", text = "Boarding open", actor = "" } },
+                timeline = Array.Empty<object>()
+            };
+            var engine = CreateStarshipOverlayEngine("event");
+
+            DispatchStarshipOverlayState(engine, boarding);
+            DispatchStarshipOverlayState(engine, boarding);
+
+            Assert.Equal(1, engine.Evaluate("window.__audioPlayed.length").AsNumber());
+            Assert.Equal("/media/starship_boarding_open.wav", engine.Evaluate("window.__audioPlayed[0].src").AsString());
+            Assert.Equal(0.6, engine.Evaluate("window.__audioPlayed[0].volume").AsNumber(), 2);
         }
 
         [Fact]
@@ -733,7 +867,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             {
                 status = "EventOpen", updatedAtUtc = now.ToString("O"), serverNowUtc = now.ToString("O"), currentLeg = 2, legCount = 6,
                 currentSector = "Kepler Reach", currentRoute = "Survey Route", crewCount = 3,
-                shipSystems = new { hull = 20, supplies = 0, pendingSuccessBonusPercent = 0, activeSuccessBonusPercent = 10, returnReason = "" },
+                shipSystems = new { hull = 20, maximumHull = 75, supplies = 0, pendingSuccessBonusPercent = 0, activeSuccessBonusPercent = 10, returnReason = "" },
                 currentEvent = new
                 {
                     sequence = 3, eventType = "StationStop", title = "Station", sector = "Kepler Reach", description = "A station.",
@@ -752,7 +886,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 }
             });
             Assert.False(engine.Evaluate("document.getElementById('ship-systems').hidden").AsBoolean());
-            Assert.Equal("Hull 20/100", engine.Evaluate("document.getElementById('ship-hull-text').textContent").AsString());
+            Assert.Equal("Hull 20/75", engine.Evaluate("document.getElementById('ship-hull-text').textContent").AsString());
+            Assert.Equal((20d / 75 * 100) + "%", engine.Evaluate("document.getElementById('ship-hull-fill').style.width").AsString());
             Assert.Equal("0%", engine.Evaluate("document.getElementById('ship-supplies-fill').style.width").AsString());
             Assert.Contains("Empty supplies", engine.Evaluate("document.getElementById('ship-bonus').textContent").AsString());
             if (view == "event")

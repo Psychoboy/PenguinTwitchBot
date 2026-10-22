@@ -608,6 +608,7 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         variables.SetVariable("CrewCount", "Number of viewers aboard", source, category, "4");
         variables.SetVariable("ShipSystemsEnabled", "Whether this voyage uses shared ship resources", source, category, "true");
         variables.SetVariable("Hull", "Current shared hull (empty on legacy/disabled voyages)", source, category, "85");
+        variables.SetVariable("HullMaximum", "Maximum shared hull for this voyage", source, category, "100");
         variables.SetVariable("Supplies", "Current shared supplies (empty on legacy/disabled voyages)", source, category, "60");
         variables.SetVariable("PendingSuccessBonusPercent", "Next-event success bonus in percentage points", source, category, "10");
         variables.SetVariable("ActiveSuccessBonusPercent", "Currently active success bonus in percentage points", source, category, "0");
@@ -615,6 +616,7 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         if (eventType is DefaultCommandEventTypes.StarshipEventResolved or DefaultCommandEventTypes.StarshipEventSucceeded or DefaultCommandEventTypes.StarshipEventFailed)
         {
             variables.SetVariable("HullBefore", "Hull at event opening, after travel", source, category, "100");
+            variables.SetVariable("HullMaximum", "Maximum shared hull for this voyage", source, category, "100");
             variables.SetVariable("HullAfter", "Hull after all event steps and outcome effects", source, category, "85");
             variables.SetVariable("HullChange", "Net hull change across the whole event", source, category, "-15");
             variables.SetVariable("SuppliesBefore", "Supplies at event opening, after travel", source, category, "65");

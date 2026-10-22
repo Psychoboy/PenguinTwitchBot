@@ -5,20 +5,21 @@ public sealed record StarshipShipSystemsSettings
     public const int MaximumResource = 100;
 
     public bool Enabled { get; set; } = true;
-    public int StartingHull { get; set; } = 100;
-    public int StartingSupplies { get; set; } = 100;
-    public int TravelSuppliesCost { get; set; } = 5;
+    public int MaximumHull { get; set; } = 80;
+    public int StartingHull { get; set; } = 80;
+    public int StartingSupplies { get; set; } = 55;
+    public int TravelSuppliesCost { get; set; } = 10;
     public int EmptySuppliesSuccessPenaltyPercent { get; set; } = 15;
     public int StationResupplyAmount { get; set; } = 40;
     public int StationRepairAmount { get; set; } = 30;
-    public int StationRepairSuppliesCost { get; set; } = 15;
+    public int StationRepairSuppliesCost { get; set; } = 10;
     public int ContinueSuccessBonusPercent { get; set; } = 10;
     public int DefaultEventSuccessChancePercent { get; set; } = 80;
 
     public void Validate()
     {
-        if (StartingHull is < 1 or > MaximumResource || StartingSupplies is < 0 or > MaximumResource)
-            throw new ArgumentOutOfRangeException(nameof(StartingHull), "Starting hull must be 1-100 and starting supplies 0-100.");
+        if (MaximumHull is < 1 or > MaximumResource || StartingHull < 1 || StartingHull > MaximumHull || StartingSupplies is < 0 or > MaximumResource)
+            throw new ArgumentOutOfRangeException(nameof(MaximumHull), "Maximum hull must be 1-100, starting hull cannot exceed it, and starting supplies must be 0-100.");
         if (TravelSuppliesCost is < 0 or > MaximumResource ||
             StationResupplyAmount is < 0 or > MaximumResource || StationRepairAmount is < 0 or > MaximumResource ||
             StationRepairSuppliesCost is < 0 or > MaximumResource)
@@ -61,6 +62,7 @@ public sealed class StarshipShipEventContext
     public StarshipShipEffect? SuccessEffect { get; init; }
     public StarshipShipEffect? FailureEffect { get; init; }
     public int HullBefore { get; init; }
+    public int HullMaximum { get; init; } = StarshipShipSystemsSettings.MaximumResource;
     public int SuppliesBefore { get; init; }
     public int HullAfter { get; set; }
     public int SuppliesAfter { get; set; }
@@ -68,7 +70,9 @@ public sealed class StarshipShipEventContext
     public void Validate()
     {
         if (BaseSuccessChancePercent is < 0 or > 100 || ResourceSuccessModifierPercent is < -100 or > 100 ||
-            HullBefore is < 0 or > 100 || SuppliesBefore is < 0 or > 100 || HullAfter is < 0 or > 100 || SuppliesAfter is < 0 or > 100)
+            HullMaximum is < 1 or > StarshipShipSystemsSettings.MaximumResource ||
+            HullBefore is < 0 || HullBefore > HullMaximum || SuppliesBefore is < 0 or > 100 ||
+            HullAfter is < 0 || HullAfter > HullMaximum || SuppliesAfter is < 0 or > 100)
             throw new InvalidDataException("Persisted ship event resources and chance modifiers are invalid.");
         SuccessEffect?.Validate();
         FailureEffect?.Validate();

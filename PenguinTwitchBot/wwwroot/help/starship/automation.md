@@ -24,7 +24,7 @@ Starship Expedition uses the bot's normal trigger and action system. Attach acti
 | `%Game%`, `%ExpeditionId%`, `%Leg%`, `%LegCount%`, `%Sector%`, `%CrewCount%` | All | Voyage information |
 | `%ShipSystemsEnabled%`, `%Hull%`, `%Supplies%` | All | Integrated-resource flag and current shared resources; resource numbers are empty for legacy/disabled voyages |
 | `%PendingSuccessBonusPercent%`, `%ActiveSuccessBonusPercent%`, `%ReturnReason%` | All | Next/current bonus in percentage points; `HullDepleted` for emergency return, otherwise empty |
-| `%HullBefore%`, `%HullAfter%`, `%HullChange%`, `%SuppliesBefore%`, `%SuppliesAfter%`, `%SuppliesChange%` | Resolved, Succeeded, Failed | Whole-event changes, including all steps; opening values are after travel, so travel is excluded; empty without ship context |
+| `%HullBefore%`, `%HullAfter%`, `%HullChange%`, `%HullMaximum%`, `%SuppliesBefore%`, `%SuppliesAfter%`, `%SuppliesChange%` | Resolved, Succeeded, Failed | Whole-event changes, including all steps; opening values are after travel, so travel is excluded; empty without ship context |
 | `%EventBaseSuccessChancePercent%`, `%EventSuccessModifierPercent%` | Resolved, Succeeded, Failed | Frozen base chance and resource modifier (shortage plus Continue), before choice modifiers |
 | `%User%` | Crew Joined, Risk triggers | The viewer involved |
 | `%EventTitle%`, `%EventType%` | Event triggers | Which event it was |

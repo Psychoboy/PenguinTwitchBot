@@ -15,6 +15,7 @@ using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Application.Notifications;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
@@ -30,17 +31,18 @@ public sealed class StarshipExpeditionService(
     IDefaultCommandTriggerService? defaultCommandTriggerService = null,
     IPointsSystem? pointsSystem = null,
     IViewerFeature? viewerFeature = null,
-    IServiceScopeFactory? scopeFactory = null)
+    IServiceScopeFactory? scopeFactory = null,
+    MediaUploadService? mediaUploadService = null)
     : BaseCommandService(serviceBackbone, commandHandler, "StarshipExpedition", dispatcher), IHostedService, IStarshipExpeditionService
 {
     public const string DefaultCommandName = "starship";
     public const string ShortVoteCommandName = "sv";
     public const string ShortJoinCommandName = "sj";
     public const string ShortConfirmCommandName = "sc";
-    public const int DefaultLegCount = 5;
+    public const int DefaultLegCount = 6;
     public const int DefaultMinimumEventIntervalMinutes = 15;
     public const int DefaultMaximumEventIntervalMinutes = 30;
-    public const int DefaultStationIntervalLegs = 2;
+    public const int DefaultStationIntervalLegs = 3;
     public const int DefaultVoteDurationSeconds = 60;
     public const int DefaultBoardingDurationSeconds = 60;
 
@@ -53,6 +55,7 @@ public sealed class StarshipExpeditionService(
     private readonly SemaphoreSlim _payoutLock = new(1, 1);
     private readonly SemaphoreSlim _actionLock = new(1, 1);
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly MediaUploadService? _mediaUploadService = mediaUploadService;
     private StarshipExpeditionSnapshot? _snapshot;
     private StarshipAppearanceSettings? _appearance;
     private bool _hasLoaded;
@@ -129,6 +132,12 @@ public sealed class StarshipExpeditionService(
                     if (!eventArgs.IsModOrHigher())
                     {
                         await RespondWithMessage(eventArgs, "Only a moderator or broadcaster can start the Starship Expedition.");
+                        return;
+                    }
+
+                    if (!(await settingsStore.LoadAsync()).GameEnabled)
+                    {
+                        logger.LogInformation("Ignored !starship start from {User} because Starship Expedition is disabled", eventArgs.DisplayName);
                         return;
                     }
 
@@ -349,6 +358,8 @@ public sealed class StarshipExpeditionService(
         CancellationToken cancellationToken = default)
     {
         var settings = await settingsStore.LoadAsync(cancellationToken);
+        if (!settings.GameEnabled)
+            throw new InvalidOperationException("Starship Expedition is disabled. Enable it in the game settings first.");
         var effectiveLegCount = legCount ?? settings.LegCount;
         var effectiveMinimumInterval = minimumEventIntervalMinutes ?? settings.MinimumEventIntervalMinutes;
         var effectiveMaximumInterval = maximumEventIntervalMinutes ?? settings.MaximumEventIntervalMinutes;
@@ -375,6 +386,24 @@ public sealed class StarshipExpeditionService(
                 StartedBy = startedBy?.Trim() ?? string.Empty,
                 Ship = StarshipExpeditionStory.GenerateShip(expeditionSeed),
                 ShipSystems = StarshipShipSystems.Create(settings.ShipSystems),
+                EmergencyReturnSound = settings.EmergencyReturnSound == null ? null : new DropGameSoundConfig
+                {
+                    Enabled = settings.EmergencyReturnSound.Enabled,
+                    AudioFile = settings.EmergencyReturnSound.AudioFile,
+                    Volume = settings.EmergencyReturnSound.Volume
+                },
+                BoardingOpenSound = new DropGameSoundConfig
+                {
+                    Enabled = settings.BoardingOpenSound.Enabled,
+                    AudioFile = settings.BoardingOpenSound.AudioFile,
+                    Volume = settings.BoardingOpenSound.Volume
+                },
+                EventTypeOpenSounds = settings.EventTypeOpenSounds.ToDictionary(pair => pair.Key, pair => new DropGameSoundConfig
+                {
+                    Enabled = pair.Value.Enabled,
+                    AudioFile = pair.Value.AudioFile,
+                    Volume = pair.Value.Volume
+                }, StringComparer.OrdinalIgnoreCase),
                 Status = StarshipExpeditionStatus.Boarding,
                 StartedAtUtc = now,
                 UpdatedAtUtc = now,
@@ -398,6 +427,8 @@ public sealed class StarshipExpeditionService(
                 CurrentSector = settings.GetEffectiveSectors()[GetDeterministicIndex(expeditionSeed, 0, "initial-sector", settings.GetEffectiveSectors().Count)],
                 CurrentRoute = "Uncharted"
             };
+            AppendActivityLocked(_snapshot, StarshipActivityKinds.BoardingOpened,
+                $"Crew boarding is open for {_snapshot.BoardingDurationSeconds} seconds", string.Empty, now);
 
             await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
             startedSnapshot = Clone(_snapshot);
@@ -1105,6 +1136,7 @@ public sealed class StarshipExpeditionService(
         {
             EventId = CreateDeterministicEventId(snapshot.ExpeditionId, sequence),
             Sequence = sequence,
+            VoyageProgressPercent = snapshot.LegCount <= 2 ? 0 : Math.Clamp((snapshot.CurrentLeg - 1) * 100 / (snapshot.LegCount - 2), 0, 100),
             EventType = definition.EventType,
             Title = definition.Title,
             Description = definition.Description,
@@ -1558,7 +1590,7 @@ public sealed class StarshipExpeditionService(
         var payload = JsonSerializer.Serialize(new
         {
             type = "expedition_state",
-            snapshot = _snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(_snapshot, _timeProvider.GetUtcNow()),
+            snapshot = _snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(_snapshot, _timeProvider.GetUtcNow(), GetMediaUploadService()),
             appearance = await ResolveAppearanceAsync(cancellationToken)
         }, JsonOptions);
         try
@@ -1585,6 +1617,20 @@ public sealed class StarshipExpeditionService(
         }
 
         return _appearance;
+    }
+
+    private MediaUploadService? GetMediaUploadService()
+    {
+        if (_mediaUploadService != null) return _mediaUploadService;
+        try
+        {
+            using var scope = scopeFactory?.CreateScope();
+            return scope?.ServiceProvider.GetService<MediaUploadService>();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public Task<StarshipAppearanceSettings> GetAppearanceAsync(CancellationToken cancellationToken = default) =>
@@ -1750,7 +1796,7 @@ public sealed class StarshipExpeditionService(
         if (snapshot == null) return "No Starship Expedition is active.";
         var message = $"Starship Expedition: {snapshot.Status}, leg {snapshot.CurrentLeg}/{snapshot.LegCount}, sector {snapshot.CurrentSector}.";
         if (snapshot.ShipSystems is { IntegrationEnabled: true } ship)
-            message += $" Hull: {ship.Hull}/{StarshipShipSystemsSettings.MaximumResource}, Supplies: {ship.Supplies}/{StarshipShipSystemsSettings.MaximumResource}.";
+            message += $" Hull: {ship.Hull}/{ship.Rules.MaximumHull}, Supplies: {ship.Supplies}/{StarshipShipSystemsSettings.MaximumResource}.";
         return message;
     }
 

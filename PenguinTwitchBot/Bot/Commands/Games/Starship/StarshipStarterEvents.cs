@@ -2,12 +2,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 public static class StarshipStarterEvents
 {
-    public const int CurrentVersion = 1;
     public static IReadOnlyList<string> FileNames { get; } = ["courier-relay.json", "survey-cache.json", "debris-crossing.json"];
     public static bool Install(StarshipExpeditionSettings settings, string webRootPath)
     {
-        if (settings.StarterEventsVersion == CurrentVersion) return false;
-        if (settings.StarterEventsVersion != 0) throw new InvalidDataException("Unsupported Starship starter event version.");
+        if (settings.StarterEventsInstalled) return false;
         var nextOrder = settings.EventCatalog.Count == 0 ? 0 : settings.EventCatalog.Max(definition => definition.SortOrder) + 1;
         foreach (var fileName in FileNames)
         {
@@ -34,7 +32,7 @@ public static class StarshipStarterEvents
                 settings.EventCatalog.Remove(candidate);
             }
         }
-        settings.StarterEventsVersion = CurrentVersion;
+        settings.StarterEventsInstalled = true;
         StarshipExpeditionSettings.NormalizeAndValidate(settings);
         return true;
     }

@@ -24,6 +24,10 @@
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
                     Peg board drop game with dynamic physics, customizable prize buckets, sound effects, and win actions.
                 </MudText>
+                @if (_settings != null)
+                {
+                    <MudSwitch T="bool" Color="Color.Success" Label="Enable Plinko Bounce" @bind-Value="_settings.Plinko.GameEnabled" />
+                }
             </div>
             <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
                 <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
@@ -407,7 +411,7 @@
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.subtitle2" Color="Color.Primary">Session Controls</MudText>
                 <MudStack Row="true" Spacing="2">
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" Disabled="@(_settings?.Plinko.GameEnabled != true)"
                                StartIcon="@Icons.Material.Filled.PlayArrow"
                                OnClick="StartPlinkoSessionLiveAsync">
                         Start Round (@(_settings?.Plinko.DefaultSessionDurationSeconds ?? 100)s)
@@ -448,8 +452,15 @@
     private async Task SaveAllSettingsAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         Snackbar.Add("Plinko Bounce settings saved!", Severity.Success);
+    }
+
+    private async Task SaveSettingsAndClearQueueIfDisabledAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        if (!_settings.Plinko.GameEnabled) await PlinkoDropService.ClearSessionQueueAsync();
     }
 
     private async Task ResetSettingsToDefaultsAsync()
@@ -465,7 +476,7 @@
         if (_settings != null)
         {
             _settings.Plinko = new PlinkoGameSettings();
-            await SettingsService.SaveSettingsAsync(_settings);
+            await SaveSettingsAndClearQueueIfDisabledAsync();
             Snackbar.Add("Plinko settings have been reset to default values!", Severity.Warning);
         }
     }
@@ -481,7 +492,7 @@
 
     private async Task TestPlinkoDropAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         await PlinkoDropService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched test Plinko token! Watch your /plinko.html overlay.", Severity.Info);
     }
@@ -489,7 +500,7 @@
     private async Task TestPlinkoJackpotAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var bestWinIdx = _settings.Plinko.Buckets
             .Select((b, idx) => (b, idx))
             .Where(x => x.b.IsWin)
@@ -509,7 +520,7 @@
 
     private async Task StartPlinkoSessionLiveAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var duration = _settings?.Plinko.DefaultSessionDurationSeconds ?? 100;
         var result = await PlinkoDropService.StartSessionAsync(duration, triggeredBy: "Dashboard");
         if (result.IsQueued)

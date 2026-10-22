@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
+using Xunit.Abstractions;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Bot.Commands;
@@ -15,11 +16,16 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Models.Points;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 
 public class StarshipExpeditionServiceTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public StarshipExpeditionServiceTests(ITestOutputHelper output) => _output = output;
+
     [Fact]
     public void SharedOutcomeVariables_PreserveAggregateValuesWithoutScopeSpecificFields()
     {
@@ -58,8 +64,49 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(StarshipExpeditionStatus.Boarding, snapshot.Status);
         Assert.Null(snapshot.CurrentEvent);
         Assert.NotNull(snapshot.BoardingClosesAtUtc);
+        Assert.Contains(snapshot.ActivityFeed, item => item.Kind == StarshipActivityKinds.BoardingOpened);
         Assert.Equal(1, snapshot.NextEventSequence);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.StartExpeditionAsync("another-mod", seed: 99));
+    }
+
+    [Fact]
+    public async Task StartExpedition_RequiresEnableFlagButExistingVoyageCanStillAcceptCrew()
+    {
+        var settingsStore = new InMemorySettingsStore();
+        settingsStore.Settings.GameEnabled = false;
+        var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.StartExpeditionAsync("mod-user", seed: 3));
+
+        settingsStore.Settings.GameEnabled = true;
+        await service.StartExpeditionAsync("mod-user", seed: 3);
+        await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
+        settingsStore.Settings.GameEnabled = false;
+        var joined = await service.JoinCrewAsync(CreateArgs("late-id", "Late Pilot"));
+
+        Assert.Equal(2, joined.Crew.Count);
+        Assert.Equal(StarshipExpeditionStatus.Boarding, joined.Status);
+    }
+
+    [Fact]
+    public async Task DisabledStarshipStartCommand_DoesNotReplyInChat()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(service => service.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var settingsStore = new InMemorySettingsStore();
+        settingsStore.Settings.GameEnabled = false;
+        var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore, serviceBackboneMock: backbone);
+        var args = CreateArgs("mod-id", "Mod");
+        args.Args = ["start"];
+        args.IsMod = true;
+
+        await service.OnCommand(null, args);
+
+        Assert.Empty(replies);
+        Assert.Null(await service.GetSnapshotAsync());
     }
 
     [Fact]
@@ -92,7 +139,7 @@ public class StarshipExpeditionServiceTests
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipBoardingOpened,
             It.IsAny<CommandEventArgs>(),
-            It.Is<Dictionary<string, string>>(variables => variables["ShipSystemsEnabled"] == "true" && variables["Hull"] == "100" && variables["Supplies"] == "100")), Times.Once);
+            It.Is<Dictionary<string, string>>(variables => variables["ShipSystemsEnabled"] == "true" && variables["Hull"] == "80" && variables["Supplies"] == "55")), Times.Once);
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipEventOpened,
@@ -121,7 +168,7 @@ public class StarshipExpeditionServiceTests
 
         var reply = Assert.Single(replies);
         Assert.Contains("EventOpen, leg", reply);
-        Assert.Equal(expectResources, reply.Contains("Hull: 72/100, Supplies: 34/100.", StringComparison.Ordinal));
+        Assert.Equal(expectResources, reply.Contains("Hull: 72/80, Supplies: 34/100.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -551,8 +598,8 @@ public class StarshipExpeditionServiceTests
         Assert.DoesNotContain("Changed After Start", current.SectorPool);
         Assert.Equal(62, Assert.Single(current.RewardProfiles).SuccessChancePercent);
         Assert.Equal(started.ExpeditionId, current.ExpeditionId);
-        Assert.Equal(100, current.ShipSystems!.Hull);
-        Assert.Equal(100, current.ShipSystems.Supplies);
+        Assert.Equal(80, current.ShipSystems!.Hull);
+        Assert.Equal(55, current.ShipSystems.Supplies);
         Assert.Equal(30, current.ShipSystems.Rules.StationRepairAmount);
     }
 
@@ -1223,7 +1270,7 @@ public class StarshipExpeditionServiceTests
 
         var projection = StarshipExpeditionOverlaySnapshot.From(started);
         Assert.Equal(started.Ship.Name, projection.Ship.Name);
-        Assert.Equal([3, 5], projection.StationLegs);
+        Assert.Equal([3, 4], projection.StationLegs);
         Assert.Empty(StarshipExpeditionOverlaySnapshot.From(new StarshipExpeditionSnapshot { LegCount = 5, StationIntervalLegs = 0 }).StationLegs);
     }
 
@@ -1239,6 +1286,97 @@ public class StarshipExpeditionServiceTests
             preview.Where(item => item.EventType == "StationStop").Select(item => item.Sequence),
             projectedStations);
         await Task.CompletedTask;
+    }
+
+    [Theory]
+    [InlineData(5, new[] { 3 })]
+    [InlineData(6, new[] { 4 })]
+    [InlineData(7, new[] { 3, 5 })]
+    public void StationLegs_AreDistributedAcrossVoyage(int legCount, int[] expected)
+    {
+        var legs = StarshipExpeditionOverlaySnapshot.GetStationLegs(new StarshipExpeditionSnapshot
+        {
+            LegCount = legCount,
+            StationIntervalLegs = 3
+        });
+
+        Assert.Equal(expected, legs);
+    }
+
+    [Fact]
+    public void RarityWeights_IncreaseGraduallyWithVoyageProgress()
+    {
+        var tiers = new List<StarshipRewardTier>
+        {
+            new() { Name = "Common", Weight = 70 },
+            new() { Name = "Uncommon", Weight = 25 },
+            new() { Name = "Rare", Weight = 5 }
+        };
+
+        var early = StarshipRewardResolver.GetVoyageAdjustedTierWeights(tiers, 0);
+        var middle = StarshipRewardResolver.GetVoyageAdjustedTierWeights(tiers, 50);
+        var late = StarshipRewardResolver.GetVoyageAdjustedTierWeights(tiers, 100);
+
+        Assert.Equal(new[] { 70, 25, 5 }, early);
+        Assert.True(middle[2] > early[2]);
+        Assert.True(late[2] > middle[2]);
+        Assert.Equal(10, late[2]);
+        Assert.Equal(70, late[0]);
+    }
+
+    [Theory]
+    [InlineData(6)]
+    [InlineData(24)]
+    public void BuildPreview_ScalesRarityProgressAcrossTheWholeVoyage(int legCount)
+    {
+        var service = CreateService(new InMemoryStateStore());
+        var preview = service.BuildPreview(new StarshipExpeditionSettings { LegCount = legCount }, seed: 4321);
+
+        Assert.Equal(0, preview[1].VoyageProgressPercent);
+        Assert.Equal(100, preview[^1].VoyageProgressPercent);
+    }
+
+    [Fact]
+    public void DefaultVoyageEconomy_SimulatesRepairAndSupplyPressureAcrossSeeds()
+    {
+        const int runCount = 500;
+        var service = CreateService(new InMemoryStateStore());
+        var settings = new StarshipExpeditionSettings();
+        var repairsUsefulAndAffordable = 0;
+        var resourceFailureEvents = 0;
+        var earlyReturns = 0;
+        var endingSupplies = 0;
+        var hullLost = 0;
+        var stationVisits = 0;
+        var minimumStationSupplies = int.MaxValue;
+        var maximumStationSupplies = int.MinValue;
+
+        for (var seed = 0; seed < runCount; seed++)
+        {
+            var preview = service.BuildPreview(settings, seed);
+            var station = preview.SingleOrDefault(item => item.EventType == "StationStop");
+            if (station?.ShipContext is { } context)
+            {
+                stationVisits++;
+                minimumStationSupplies = Math.Min(minimumStationSupplies, context.SuppliesBefore);
+                maximumStationSupplies = Math.Max(maximumStationSupplies, context.SuppliesBefore);
+                if (context.HullBefore < settings.ShipSystems.MaximumHull &&
+                    context.SuppliesBefore >= settings.ShipSystems.StationRepairSuppliesCost)
+                    repairsUsefulAndAffordable++;
+            }
+            resourceFailureEvents += preview.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeFailure);
+            hullLost += preview.Sum(item => Math.Max(0, (item.ShipContext?.HullBefore ?? 0) - (item.ShipContext?.HullAfter ?? 0)));
+            endingSupplies += preview.LastOrDefault()?.ShipContext?.SuppliesAfter ?? 0;
+            if (preview.Count < settings.LegCount) earlyReturns++;
+        }
+
+        Assert.Equal(runCount, stationVisits);
+        Assert.True(repairsUsefulAndAffordable > 0,
+            $"No repairs affordable/useful at station. Supplies ranged {minimumStationSupplies}-{maximumStationSupplies}.");
+        Assert.InRange(earlyReturns, 0, runCount / 20);
+        Assert.True(resourceFailureEvents > runCount / 10);
+        Assert.True(endingSupplies < runCount * settings.ShipSystems.StartingSupplies);
+        _output.WriteLine($"Runs={runCount}; station repair affordable/useful={repairsUsefulAndAffordable}/{stationVisits}; failure events={resourceFailureEvents}; early returns={earlyReturns}; avg total hull lost={hullLost / (double)runCount:F1}; avg ending supplies={endingSupplies / (double)runCount:F1}.");
     }
 
     [Fact]
@@ -1341,15 +1479,15 @@ public class StarshipExpeditionServiceTests
         var voted = await service.VoteAsync(CreateArgs("viewer-2", "Newcomer"), "1");
 
         var kinds = voted.ActivityFeed.Select(item => item.Kind).ToList();
-        Assert.Equal([StarshipActivityKinds.CrewJoined, StarshipActivityKinds.EventOpened, StarshipActivityKinds.CrewJoined], kinds);
-        Assert.Equal([1L, 2L, 3L], voted.ActivityFeed.Select(item => item.Id));
-        Assert.Equal("Pilot joined the crew - 1 aboard", voted.ActivityFeed[0].Text);
-        Assert.Equal("Newcomer", voted.ActivityFeed[2].Actor);
+        Assert.Equal([StarshipActivityKinds.BoardingOpened, StarshipActivityKinds.CrewJoined, StarshipActivityKinds.EventOpened, StarshipActivityKinds.CrewJoined], kinds);
+        Assert.Equal([1L, 2L, 3L, 4L], voted.ActivityFeed.Select(item => item.Id));
+        Assert.Equal("Pilot joined the crew - 1 aboard", voted.ActivityFeed[1].Text);
+        Assert.Equal("Newcomer", voted.ActivityFeed[3].Actor);
         Assert.All(voted.ActivityFeed, item => Assert.Equal(clock.GetUtcNow(), item.AtUtc));
 
         var projection = StarshipExpeditionOverlaySnapshot.From(voted, clock.GetUtcNow());
         Assert.Equal(clock.GetUtcNow(), projection.ServerNowUtc);
-        Assert.Equal(3, projection.Activity.Count);
+        Assert.Equal(4, projection.Activity.Count);
     }
 
     [Fact]
@@ -1897,7 +2035,7 @@ public class StarshipExpeditionServiceTests
 
     [Theory]
     [InlineData("resupply", 40, 90, 0)]
-    [InlineData("repair", 70, 35, 0)]
+    [InlineData("repair", 70, 40, 0)]
     [InlineData("continue", 40, 50, 10)]
     public async Task ShipStationChoices_ApplyDistinctEffectsAndBankEveryChoice(string choiceId, int expectedHull, int expectedSupplies, int expectedBonus)
     {
@@ -1938,7 +2076,7 @@ public class StarshipExpeditionServiceTests
 
         var station = await service.AdvanceEventAsync();
 
-        Assert.Equal(5, station.ShipSystems!.Supplies);
+        Assert.Equal(0, station.ShipSystems!.Supplies);
         Assert.Equal("StationStop", station.CurrentEvent!.EventType);
         Assert.DoesNotContain(station.CurrentEvent.Choices, choice => choice.ChoiceId == "repair");
         Assert.Contains(station.CurrentEvent.Choices, choice => choice.ChoiceId == station.CurrentEvent.DefaultChoiceId);
@@ -1946,8 +2084,8 @@ public class StarshipExpeditionServiceTests
     }
 
     [Theory]
-    [InlineData(100, "Success", 100)]
-    [InlineData(0, "Failure", 80)]
+    [InlineData(100, "Success", 80)]
+    [InlineData(0, "Failure", 60)]
     public async Task ShipOutcome_ResolvesWithoutRewardProfileAndAppliesSharedDamage(int chance, string expectedOutcome, int expectedHull)
     {
         var fixture = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new()));
@@ -2027,18 +2165,18 @@ public class StarshipExpeditionServiceTests
         await store.SaveAsync(cruising);
         service = CreateService(store, settingsStore: settingsStore);
         var opened = await service.AdvanceEventAsync();
-        Assert.Equal(95, opened.ShipSystems!.Supplies);
+        Assert.Equal(45, opened.ShipSystems!.Supplies);
         Assert.Equal(10, opened.CurrentEvent!.ShipContext!.ResourceSuccessModifierPercent);
         await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "scan");
         var stepped = await service.AdvanceEventAsync();
-        Assert.Equal(85, stepped.ShipSystems!.Supplies);
+        Assert.Equal(35, stepped.ShipSystems!.Supplies);
         Assert.Equal(10, stepped.ShipSystems.ActiveSuccessBonusPercent);
         Assert.DoesNotContain(stepped.CurrentEvent!.Choices, choice => choice.ChoiceId == "scan");
 
         var recovered = CreateService(store, settingsStore: settingsStore);
         var finished = await recovered.AdvanceEventAsync();
 
-        Assert.Equal(85, finished.ShipSystems!.Supplies);
+        Assert.Equal(35, finished.ShipSystems!.Supplies);
         Assert.Null(finished.ShipSystems.ActiveBonusEventId);
         Assert.Equal("Success", finished.CompletedEvents.Last().OutcomeResult);
     }
@@ -2129,7 +2267,7 @@ public class StarshipExpeditionServiceTests
     [Fact]
     public void ShipOverlayDisclosure_IncludesUnavailableRepairWithoutLeakingOperationLedger()
     {
-        var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingHull = 90, StartingSupplies = 10 }));
+        var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { MaximumHull = 100, StartingHull = 90, StartingSupplies = 10 }));
         snapshot.ShipSystems!.AppliedOperationIds.Add("private-operation");
         var pool = new List<StarshipEventChoiceSnapshot>
         {
@@ -2144,11 +2282,46 @@ public class StarshipExpeditionServiceTests
         var repair = choices.Single(choice => choice.ChoiceId == "repair");
         Assert.False(repair.Available);
         Assert.Null(repair.Number);
-        Assert.Equal(15, repair.SuppliesCost);
+        Assert.Equal(10, repair.SuppliesCost);
         Assert.Equal(40, choices.Single(choice => choice.ChoiceId == "resupply").SuppliesDelta);
         Assert.Equal(2, choices.Single(choice => choice.ChoiceId == "continue").Number);
         Assert.Equal(10, choices.Single(choice => choice.ChoiceId == "continue").NextEventSuccessBonusPercent);
         Assert.DoesNotContain("private-operation", JsonSerializer.Serialize(projection));
+    }
+
+    [Fact]
+    public void OverlayProjection_ResolvesGeneratedEventAndEmergencySoundsFromMediaManager()
+    {
+        var webRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot"));
+        var mediaService = new MediaUploadService(webRoot, NullLogger<MediaUploadService>.Instance);
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), Sequence = 1, EventType = "RouteChoice", Title = "Choose a Route",
+            OpenedAtUtc = DateTimeOffset.UtcNow, ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60)
+        };
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(), EventCatalog = StarshipEventCatalog.CreateDefaults(), CurrentEvent = expeditionEvent,
+            ShipSystems = StarshipShipSystems.Create(new()),
+            BoardingOpenSound = new() { Enabled = true, AudioFile = "/media/starship_boarding_open.wav", Volume = 60 },
+            EventTypeOpenSounds = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["RouteChoice"] = new() { Enabled = true, AudioFile = "/media/starship_boarding_open.wav", Volume = 31 }
+            },
+            EmergencyReturnSound = new()
+            {
+                Enabled = true, AudioFile = "/media/starship_emergency_return.wav", Volume = 70
+            }
+        };
+
+        var projection = StarshipExpeditionOverlaySnapshot.From(snapshot, mediaUploadService: mediaService);
+
+        Assert.Equal("/media/starship_boarding_open.wav", projection.CurrentEvent!.OpenSound!.Url);
+        Assert.Equal(31, projection.CurrentEvent.OpenSound.Volume);
+        Assert.Equal("/media/starship_boarding_open.wav", projection.BoardingOpenSound!.Url);
+        Assert.Equal(60, projection.BoardingOpenSound.Volume);
+        Assert.Equal("/media/starship_emergency_return.wav", projection.EmergencyReturnSound!.Url);
+        Assert.Equal(70, projection.EmergencyReturnSound.Volume);
     }
 
     [Fact]
@@ -2292,9 +2465,9 @@ public class StarshipExpeditionServiceTests
 
         public InMemorySettingsStore(StarshipExpeditionSettings? settings = null)
         {
-            Settings = settings ?? new StarshipExpeditionSettings();
+            Settings = settings ?? new StarshipExpeditionSettings { GameEnabled = true };
+            Settings.GameEnabled = true;
         }
-
         public Task<StarshipExpeditionSettings> LoadAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(Settings);
 

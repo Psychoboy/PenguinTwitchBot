@@ -2,6 +2,10 @@
 
 **Golf (Chip & Putt)** is a non-intrusive edge-strip minigame where viewers chip and putt custom golf balls across an invisible fairway toward a compact putting green with a sunken cup and flagstick.
 
+## Enable the Game
+
+Golf is off by default. Use the **Enable Golf** switch beside the page title and save settings to accept new chat commands, automation shots, and rounds. When disabled, new chat play commands are ignored and logged only when no timed round is active; commands remain accepted during an active round. Turning it off cancels queued rounds, while the active round continues. Stop controls remain available.
+
 ---
 
 ## Viewer Chat Commands

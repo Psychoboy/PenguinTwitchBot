@@ -66,7 +66,7 @@ public static class StarshipExpeditionNarrative
         }
 
         if (expeditionEvent.ShipContext is { } ship)
-            lines.Add($"Ship hull: {ship.HullBefore} -> {ship.HullAfter}. Supplies: {ship.SuppliesBefore} -> {ship.SuppliesAfter}.");
+            lines.Add($"Ship hull: {ship.HullBefore}/{ship.HullMaximum} -> {ship.HullAfter}/{ship.HullMaximum}. Supplies: {ship.SuppliesBefore}/100 -> {ship.SuppliesAfter}/100.");
 
         return lines;
     }

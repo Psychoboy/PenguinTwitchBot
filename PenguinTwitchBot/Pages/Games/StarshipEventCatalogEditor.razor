@@ -96,6 +96,12 @@
             <MudItem xs="12"><MediaUrlPicker Label="Event Images" AllowMultiple="true" Value="@string.Join(", ", draft.Images)" ValueChanged="SetImages" /></MudItem>
         </MudGrid>
 
+        <DropGameSoundEditor Title="Event Open Cue" IsThemeOverride="true" SoundOverride="draft.OpenSound"
+                             OverrideLabel="Event Cue" InheritLabel="Inherit Event-Type Default" CustomLabel="Custom Cue"
+                             MuteLabel="Mute This Event"
+                             FallbackInfo="Uses this event type's default cue configured in the Starship Audio tab."
+                             OnChanged="DraftChanged" />
+
         @if (!IsStructuralDraft)
         {
             <MudDivider />
@@ -180,7 +186,7 @@
             <MudText Typo="Typo.body2">@_preview.Description</MudText>
             @if (_previewDisclosure is { } shipPreview)
             {
-                <MudText Typo="Typo.caption">Hull @shipPreview.Hull/100; Supplies @shipPreview.Supplies/100; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
+                <MudText Typo="Typo.caption">Hull @shipPreview.Hull/@shipPreview.MaximumHull; Supplies @shipPreview.Supplies/100; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
             }
             <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
                 <thead><tr><th>#</th><th>Option</th><th>Effect</th><th>Story</th></tr></thead>

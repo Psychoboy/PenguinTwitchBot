@@ -19,7 +19,7 @@ public static class StarshipShipSystems
         if (state.Rules == null || state.AppliedOperationIds == null)
             throw new InvalidDataException("Ship rules and applied operation IDs cannot be null.");
         state.Rules.Validate();
-        if (state.Hull is < 0 or > 100 || state.Supplies is < 0 or > 100 ||
+        if (state.Hull < 0 || state.Hull > state.Rules.MaximumHull || state.Supplies is < 0 or > 100 ||
             state.PendingSuccessBonusPercent is < 0 or > 100 || state.ActiveSuccessBonusPercent is < 0 or > 100)
             throw new InvalidDataException("Ship resources and success bonuses must be 0-100.");
         if (state.ActiveBonusEventId == Guid.Empty || state.ActiveBonusEventId == null && state.ActiveSuccessBonusPercent != 0)
@@ -38,7 +38,7 @@ public static class StarshipShipSystems
         effect.Validate();
         if (state.AppliedOperationIds.Contains(operationId, StringComparer.Ordinal)) return StarshipShipEffectResult.AlreadyApplied;
         if (!CanAfford(state, effect)) return StarshipShipEffectResult.InsufficientSupplies;
-        var resources = PreviewEffect(state.Hull, state.Supplies, effect);
+        var resources = PreviewEffect(state.Hull, state.Supplies, effect, state.Rules.MaximumHull);
         state.Hull = resources.Hull;
         state.Supplies = resources.Supplies;
         state.AppliedOperationIds.Add(operationId);
@@ -107,15 +107,16 @@ public static class StarshipShipSystems
         SuccessEffect = definition.ShipSuccessEffect,
         FailureEffect = definition.ShipFailureEffect ?? StarshipEventCatalog.GetDefaultShipFailureEffect(definition.EventType),
         HullBefore = state.Hull,
+        HullMaximum = state.Rules.MaximumHull,
         SuppliesBefore = state.Supplies,
         HullAfter = state.Hull,
         SuppliesAfter = state.Supplies
     };
 
-    public static (int Hull, int Supplies) PreviewEffect(int hull, int supplies, StarshipShipEffect effect)
+    public static (int Hull, int Supplies) PreviewEffect(int hull, int supplies, StarshipShipEffect effect, int maximumHull = StarshipShipSystemsSettings.MaximumResource)
     {
         effect.Validate();
-        return (Math.Clamp(hull + effect.HullDelta, 0, StarshipShipSystemsSettings.MaximumResource),
+        return (Math.Clamp(hull + effect.HullDelta, 0, maximumHull),
             Math.Clamp(supplies - effect.SuppliesCost + effect.SuppliesDelta, 0, StarshipShipSystemsSettings.MaximumResource));
     }
 

@@ -4,7 +4,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
 {
-    public const int CurrentSchemaVersion = 1;
     public const int MaximumLegCount = 24;
     public const int MaximumEventIntervalLimitMinutes = 120;
     public const int MaximumCustomSectors = 20;
@@ -24,36 +23,42 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public static IReadOnlyList<string> RewardEventTypes { get; } =
     ["RouteChoice", "SignalDetected", "SalvageSite", "Hazard"];
 
-    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
-    public int CatalogStorageVersion { get; set; }
-    public int StarterEventsVersion { get; set; }
+    public bool StarterEventsInstalled { get; set; }
     public int LegCount { get; set; } = StarshipExpeditionService.DefaultLegCount;
     public int MinimumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMinimumEventIntervalMinutes;
     public int MaximumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMaximumEventIntervalMinutes;
     public int StationIntervalLegs { get; set; } = StarshipExpeditionService.DefaultStationIntervalLegs;
     public int EventVoteDurationSeconds { get; set; } = StarshipExpeditionService.DefaultVoteDurationSeconds;
     public int BoardingDurationSeconds { get; set; } = StarshipExpeditionService.DefaultBoardingDurationSeconds;
+    public bool GameEnabled { get; set; }
     public bool ActiveCrewRewardsOnly { get; set; } = true;
     public List<string> DisabledBuiltInSectors { get; set; } = [];
     public List<string> CustomSectors { get; set; } = [];
     public List<StarshipRewardProfile> RewardProfiles { get; set; } = CreateDefaultRewardProfiles();
     public Dictionary<string, string> EventRewardProfileIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<StarshipEventDefinition> EventCatalog { get; set; } = StarshipEventCatalog.CreateDefaults();
+    public Dictionary<string, DropGameSoundConfig> EventTypeOpenSounds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public bool AnnounceSessionStatusInChat { get; set; } = true;
     public string SessionStartChatMessageTemplate { get; set; } = "Starship Expedition boarding is OPEN for {duration}s! Type !starship join or !sj before launch!";
     public string SessionEndChatMessageTemplate { get; set; } = "Starship Expedition {result}. {count} crew members were aboard for {duration}s.";
     public StarshipAppearanceSettings Appearance { get; set; } = new();
     public StarshipShipSystemsSettings ShipSystems { get; set; } = new();
+    public DropGameSoundConfig BoardingOpenSound { get; set; } = new()
+    {
+        Enabled = true,
+        AudioFile = "/media/starship_boarding_open.wav",
+        Volume = 60
+    };
+    public DropGameSoundConfig EmergencyReturnSound { get; set; } = new()
+    {
+        Enabled = true,
+        AudioFile = "/media/starship_emergency_return.wav",
+        Volume = 70
+    };
 
     public static StarshipExpeditionSettings NormalizeAndValidate(StarshipExpeditionSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        if (settings.SchemaVersion != CurrentSchemaVersion)
-            throw new InvalidDataException($"Unsupported Starship settings version {settings.SchemaVersion}.");
-        if (settings.CatalogStorageVersion is < 0 or > 1)
-            throw new InvalidDataException($"Unsupported Starship catalog storage version {settings.CatalogStorageVersion}.");
-        if (settings.StarterEventsVersion is < 0 or > StarshipStarterEvents.CurrentVersion)
-            throw new InvalidDataException($"Unsupported Starship starter event version {settings.StarterEventsVersion}.");
         if (settings.LegCount is < 1 or > MaximumLegCount)
             throw new ArgumentOutOfRangeException(nameof(settings.LegCount), $"Voyage legs must be between 1 and {MaximumLegCount}.");
         if (settings.MinimumEventIntervalMinutes is < 1 or > MaximumEventIntervalLimitMinutes)
@@ -70,7 +75,20 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         settings.SessionEndChatMessageTemplate ??= string.Empty;
         settings.Appearance = StarshipAppearanceSettings.NormalizeAndValidate(settings.Appearance);
         settings.ShipSystems ??= new();
+        settings.EventCatalog ??= StarshipEventCatalog.CreateDefaults();
         settings.ShipSystems.Validate();
+        settings.BoardingOpenSound ??= new() { Enabled = true, AudioFile = "/media/starship_boarding_open.wav", Volume = 60 };
+        StarshipEventCatalog.ValidateSoundConfig(settings.BoardingOpenSound, "Boarding open sound");
+        settings.EmergencyReturnSound ??= new() { Enabled = true, AudioFile = "/media/starship_emergency_return.wav", Volume = 70 };
+        StarshipEventCatalog.ValidateSoundConfig(settings.EmergencyReturnSound, "Emergency return sound");
+        var configuredEventSounds = settings.EventTypeOpenSounds ?? new(StringComparer.OrdinalIgnoreCase);
+        settings.EventTypeOpenSounds = new Dictionary<string, DropGameSoundConfig>(StringComparer.OrdinalIgnoreCase);
+        foreach (var definition in settings.EventCatalog)
+        {
+            var sound = configuredEventSounds.GetValueOrDefault(definition.EventType) ?? StarshipEventCatalog.GetDefaultOpenSound(definition.EventType);
+            StarshipEventCatalog.ValidateSoundConfig(sound, $"{definition.Title} event-type sound");
+            settings.EventTypeOpenSounds[definition.EventType] = sound;
+        }
         settings.CustomSectors ??= [];
         settings.DisabledBuiltInSectors ??= [];
         if (settings.DisabledBuiltInSectors.Any(name => name == null || !BuiltInSectors.Contains(name.Trim(), StringComparer.OrdinalIgnoreCase)))
@@ -156,6 +174,14 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
 
         StarshipEventCatalog.Validate(settings.EventCatalog, settings);
         return settings;
+    }
+
+    public DropGameSoundConfig GetEventTypeOpenSound(string eventType)
+    {
+        EventTypeOpenSounds ??= new(StringComparer.OrdinalIgnoreCase);
+        if (!EventTypeOpenSounds.TryGetValue(eventType, out var sound))
+            EventTypeOpenSounds[eventType] = sound = StarshipEventCatalog.GetDefaultOpenSound(eventType);
+        return sound;
     }
 
     public List<string> GetEffectiveSectors() =>

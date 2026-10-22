@@ -2,6 +2,10 @@
 
 In **Curling / Shuffleboard**, viewers slide realistic granite curling stones across a frozen ice sheet or wooden shuffleboard track along the edge of the broadcast screen. Stones slide according to true friction physics, colliding with other stones and coming to rest in high-scoring target zones.
 
+## Enable the Game
+
+Curling / Shuffleboard is off by default. Use the **Enable Curling / Shuffleboard** switch beside the page title and save settings to accept new chat commands, automation slides, and rounds. When disabled, new chat play commands are ignored and logged only when no timed round is active; commands remain accepted during an active round. Turning it off cancels queued rounds, while the active round continues. Stop controls remain available.
+
 ## Viewer Commands
 
 Viewers can participate directly from Twitch chat:

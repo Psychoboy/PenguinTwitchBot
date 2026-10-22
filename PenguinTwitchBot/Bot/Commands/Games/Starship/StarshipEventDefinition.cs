@@ -1,3 +1,5 @@
+using PenguinTwitchBot.Bot.Commands.Games;
+
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 public sealed record StarshipEventDefinition(
@@ -23,4 +25,5 @@ public sealed record StarshipEventDefinition(
     public int? SuccessChancePercent { get; init; }
     public StarshipShipEffect? ShipSuccessEffect { get; init; }
     public StarshipShipEffect? ShipFailureEffect { get; init; }
+    public DropGameSoundOverride OpenSound { get; init; } = new();
 }

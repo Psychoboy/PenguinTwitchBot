@@ -8,14 +8,33 @@ public class StarshipEventEditingTests
     [Fact]
     public void SharedEventDocument_PreservesExportShapeAndRejectsUnsupportedVersions()
     {
-        var definition = StarshipEventCatalog.CreateDefaults()[0];
+        var definition = StarshipEventCatalog.CreateDefaults()[0] with
+        {
+            OpenSound = new() { Override = true, Enabled = true, AudioFile = "/media/signal_custom.wav", Volume = 28 }
+        };
         var json = StarshipEventDocument.Write(definition);
         Assert.Equal(json, StarshipEventEditing.Export(definition));
         var restored = StarshipEventDocument.Read(json);
         Assert.Equal(definition.EventType, restored.EventType);
         Assert.Equal(definition.Choices.Count, restored.Choices.Count);
+        Assert.True(restored.OpenSound.Override);
+        Assert.True(restored.OpenSound.Enabled);
+        Assert.Equal("/media/signal_custom.wav", restored.OpenSound.AudioFile);
+        Assert.Equal(28, restored.OpenSound.Volume);
         Assert.Throws<InvalidDataException>(() => StarshipEventDocument.Read("{\"schemaVersion\":99,\"event\":" +
             System.Text.Json.JsonSerializer.Serialize(definition, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }) + "}"));
+    }
+
+    [Fact]
+    public void LegacyEventDocument_WithoutOpenSoundInheritsBuiltinCue()
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(StarshipEventDocument.Write(StarshipEventCatalog.CreateDefaults()[0]))!;
+        json["event"]!.AsObject().Remove("openSound");
+        var restored = StarshipEventDocument.Read(json.ToJsonString());
+        var effective = StarshipEventCatalog.GetEffectiveOpenSound(restored, restored.EventType);
+
+        Assert.Equal("/media/starship_signal_detected.wav", effective.AudioFile);
+        Assert.True(effective.Enabled);
     }
 
     [Theory]

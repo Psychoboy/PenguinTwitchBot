@@ -68,9 +68,119 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 .ReturnsAsync([]);
         }
 
+        [Fact]
+        public void DropGamesSettings_DefaultsEveryGameToDisabledIncludingLegacyJson()
+        {
+            var defaults = new DropGamesSettings();
+            var legacyJson = System.Text.Json.JsonSerializer.Deserialize<DropGamesSettings>("{}")!;
+
+            Assert.False(defaults.Parachute.GameEnabled);
+            Assert.False(defaults.Plinko.GameEnabled);
+            Assert.False(defaults.Balloon.GameEnabled);
+            Assert.False(defaults.Curling.GameEnabled);
+            Assert.False(defaults.Golf.GameEnabled);
+            Assert.False(legacyJson.Parachute.GameEnabled);
+            Assert.False(legacyJson.Plinko.GameEnabled);
+            Assert.False(legacyJson.Balloon.GameEnabled);
+            Assert.False(legacyJson.Curling.GameEnabled);
+            Assert.False(legacyJson.Golf.GameEnabled);
+        }
+
+        [Fact]
+        public async Task DisabledDropGames_RejectNewSessionsAndIdleGameplayActions()
+        {
+            var settingsService = new Mock<IDropGamesSettingsService>();
+            settingsService.Setup(service => service.GetSettingsAsync()).ReturnsAsync(new DropGamesSettings());
+            var args = new CommandEventArgs { Name = "viewer", DisplayName = "Viewer", UserId = "viewer-id" };
+
+            var parachute = CreateParachuteService(settingsService.Object);
+            var plinko = CreatePlinkoService(settingsService.Object);
+            var balloon = CreateBalloonService(settingsService: settingsService.Object);
+            var curling = CreateCurlingService(CreateDropRegistry(), settingsService.Object);
+            var golf = CreateGolfService(CreateDropRegistry(), settingsService.Object);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => parachute.StartSessionAsync());
+            await Assert.ThrowsAsync<InvalidOperationException>(() => plinko.StartSessionAsync());
+            await Assert.ThrowsAsync<InvalidOperationException>(() => balloon.StartSessionAsync());
+            await Assert.ThrowsAsync<InvalidOperationException>(() => curling.StartSessionAsync());
+            await Assert.ThrowsAsync<InvalidOperationException>(() => golf.StartSessionAsync());
+
+            Assert.Empty(await parachute.TriggerParachuteDropAsync(args));
+            Assert.Empty(await plinko.TriggerPlinkoDropAsync(args));
+            Assert.Empty(await balloon.TriggerBalloonAscentAsync(args));
+            Assert.Empty(await curling.TriggerCurlingSlideAsync(args));
+            Assert.Empty(await golf.TriggerGolfShotAsync(args));
+        }
+
+        [Fact]
+        public async Task DisablingDropGames_ClearsQueuedStartsAndKeepsActiveSessions()
+        {
+            var settings = new DropGamesSettings();
+            settings.Parachute.GameEnabled = true;
+            settings.Plinko.GameEnabled = true;
+            settings.Balloon.GameEnabled = true;
+            settings.Curling.GameEnabled = true;
+            settings.Golf.GameEnabled = true;
+            var settingsService = new Mock<IDropGamesSettingsService>();
+            settingsService.Setup(service => service.GetSettingsAsync()).ReturnsAsync(settings);
+
+            var parachute = CreateParachuteService(settingsService.Object);
+            var plinko = CreatePlinkoService(settingsService.Object);
+            var balloon = CreateBalloonService(settingsService: settingsService.Object);
+            var curling = CreateCurlingService(CreateDropRegistry(), settingsService.Object);
+            var golf = CreateGolfService(CreateDropRegistry(), settingsService.Object);
+            var startSessions = new Func<Task<DropGameSessionDto>>[]
+            {
+                () => parachute.StartSessionAsync(), () => plinko.StartSessionAsync(), () => balloon.StartSessionAsync(),
+                () => curling.StartSessionAsync(), () => golf.StartSessionAsync()
+            };
+            var queuedCounts = new Func<int>[]
+            {
+                parachute.GetQueuedSessionCount, plinko.GetQueuedSessionCount, balloon.GetQueuedSessionCount,
+                curling.GetQueuedSessionCount, golf.GetQueuedSessionCount
+            };
+            var clearQueues = new Func<Task>[]
+            {
+                parachute.ClearSessionQueueAsync, plinko.ClearSessionQueueAsync, balloon.ClearSessionQueueAsync,
+                curling.ClearSessionQueueAsync, golf.ClearSessionQueueAsync
+            };
+            var currentSessions = new Func<DropGameSessionDto?>[]
+            {
+                parachute.GetCurrentSession, plinko.GetCurrentSession, balloon.GetCurrentSession,
+                curling.GetCurrentSession, golf.GetCurrentSession
+            };
+
+            for (var index = 0; index < startSessions.Length; index++)
+            {
+                Assert.True((await startSessions[index]()).IsActive);
+                Assert.True((await startSessions[index]()).IsQueued);
+                Assert.Equal(1, queuedCounts[index]());
+                await clearQueues[index]();
+                Assert.Equal(0, queuedCounts[index]());
+                Assert.True(currentSessions[index]()?.IsActive);
+            }
+        }
+
         private IDropGamesSettingsService CreateSettingsService()
         {
-            return new DropGamesSettingsService(_scopeFactory.Object, NullLogger<DropGamesSettingsService>.Instance);
+            return new EnabledDropGamesSettingsService(
+                new DropGamesSettingsService(_scopeFactory.Object, NullLogger<DropGamesSettingsService>.Instance));
+        }
+
+        private sealed class EnabledDropGamesSettingsService(IDropGamesSettingsService inner) : IDropGamesSettingsService
+        {
+            public async Task<DropGamesSettings> GetSettingsAsync()
+            {
+                var settings = await inner.GetSettingsAsync();
+                settings.Parachute.GameEnabled = true;
+                settings.Plinko.GameEnabled = true;
+                settings.Balloon.GameEnabled = true;
+                settings.Curling.GameEnabled = true;
+                settings.Golf.GameEnabled = true;
+                return settings;
+            }
+
+            public Task SaveSettingsAsync(DropGamesSettings settings) => inner.SaveSettingsAsync(settings);
         }
 
         private IOverlaySecurityService CreateOverlaySecurityService()

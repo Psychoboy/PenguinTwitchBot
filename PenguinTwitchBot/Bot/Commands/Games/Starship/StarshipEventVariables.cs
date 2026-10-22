@@ -18,6 +18,7 @@ internal static class StarshipEventVariables
             ["RewardTotal"] = expeditionEvent.RewardOutcomes.Sum(outcome => outcome.EarnedAmount).ToString(CultureInfo.InvariantCulture),
             ["LostTotal"] = expeditionEvent.RewardOutcomes.Sum(outcome => outcome.LostAmount).ToString(CultureInfo.InvariantCulture),
             ["HullBefore"] = Format(expeditionEvent.ShipContext?.HullBefore),
+            ["HullMaximum"] = Format(expeditionEvent.ShipContext?.HullMaximum),
             ["HullAfter"] = Format(expeditionEvent.ShipContext?.HullAfter),
             ["HullChange"] = Format(expeditionEvent.ShipContext is { } hull ? hull.HullAfter - hull.HullBefore : null),
             ["SuppliesBefore"] = Format(expeditionEvent.ShipContext?.SuppliesBefore),
@@ -34,6 +35,7 @@ internal static class StarshipEventVariables
         {
             ["ShipSystemsEnabled"] = ship == null ? "false" : "true",
             ["Hull"] = Format(ship?.Hull),
+            ["HullMaximum"] = Format(ship?.Rules.MaximumHull),
             ["Supplies"] = Format(ship?.Supplies),
             ["PendingSuccessBonusPercent"] = Format(ship?.PendingSuccessBonusPercent),
             ["ActiveSuccessBonusPercent"] = Format(ship?.ActiveSuccessBonusPercent),

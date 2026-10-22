@@ -1,3 +1,4 @@
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 namespace PenguinTwitchBot.Pages.Games;
@@ -25,6 +26,7 @@ public sealed class StarshipEventDraft
     public int? SuccessChancePercent { get; set; }
     public StarshipShipEffect? ShipSuccessEffect { get; set; }
     public StarshipShipEffect? ShipFailureEffect { get; set; }
+    public DropGameSoundOverride OpenSound { get; set; } = new();
 
     public StarshipEventDefinition ToDefinition() => StarshipEventEditing.Convert<StarshipEventDefinition>(this);
     public static StarshipEventDraft From(StarshipEventDefinition definition) => StarshipEventEditing.Convert<StarshipEventDraft>(definition);

@@ -1,3 +1,7 @@
+using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Common;
+using PenguinTwitchBot.Services;
+
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 public enum StarshipExpeditionStatus
@@ -17,9 +21,6 @@ public enum StarshipCrewEnrollmentMethod
 
 public sealed class StarshipExpeditionSnapshot
 {
-    public const int CurrentSchemaVersion = 3;
-
-    public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public Guid ExpeditionId { get; init; }
 
     public int Seed { get; init; }
@@ -29,7 +30,7 @@ public sealed class StarshipExpeditionSnapshot
     public DateTimeOffset UpdatedAtUtc { get; set; }
     public int CurrentLeg { get; set; }
     public int LegCount { get; init; }
-    public int StationIntervalLegs { get; init; } = 2;
+    public int StationIntervalLegs { get; init; } = 3;
     public int MinimumEventIntervalSeconds { get; init; } = 900;
     public int MaximumEventIntervalSeconds { get; init; } = 1800;
     public int EventVoteDurationSeconds { get; init; } = 60;
@@ -59,6 +60,9 @@ public sealed class StarshipExpeditionSnapshot
     public long NextActivityId { get; set; } = 1;
     public StarshipShipSnapshot Ship { get; init; } = new();
     public StarshipShipSystemsSnapshot? ShipSystems { get; init; }
+    public DropGameSoundConfig? BoardingOpenSound { get; init; }
+    public DropGameSoundConfig? EmergencyReturnSound { get; init; }
+    public Dictionary<string, DropGameSoundConfig> EventTypeOpenSounds { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     public string ReturnReason { get; set; } = string.Empty;
 }
 
@@ -75,6 +79,7 @@ public sealed class StarshipShipSnapshot
 public static class StarshipActivityKinds
 {
     public const string CrewJoined = "CrewJoined";
+    public const string BoardingOpened = "BoardingOpened";
     public const string EventOpened = "EventOpened";
     public const string StepAdvanced = "StepAdvanced";
     public const string RarityRevealed = "RarityRevealed";
@@ -108,6 +113,7 @@ public sealed class StarshipExpeditionEventSnapshot
 {
     public Guid EventId { get; init; }
     public int Sequence { get; init; }
+    public int VoyageProgressPercent { get; init; }
     public string EventType { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -268,8 +274,11 @@ public sealed record StarshipExpeditionOverlaySnapshot(
 {
     public Guid ExpeditionId { get; init; }
     public StarshipOverlayShipState? ShipSystems { get; init; }
+    public DropGameEffectiveSoundDto? BoardingOpenSound { get; init; }
+    public DropGameEffectiveSoundDto? EmergencyReturnSound { get; init; }
 
-    public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot, DateTimeOffset? serverNowUtc = null)
+    public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot, DateTimeOffset? serverNowUtc = null,
+        MediaUploadService? mediaUploadService = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         return new StarshipExpeditionOverlaySnapshot(
@@ -286,7 +295,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
                 ? null
                 : StarshipOverlayEventSnapshot.From(
                     snapshot.CurrentEvent,
-                    StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, snapshot.CurrentEvent.EventType), snapshot),
+                    StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, snapshot.CurrentEvent.EventType), snapshot, mediaUploadService),
             GetLatestOverlayResult(snapshot),
             snapshot.StatusForcedUntilUtc,
             serverNowUtc ?? DateTimeOffset.UtcNow,
@@ -298,17 +307,26 @@ public sealed record StarshipExpeditionOverlaySnapshot(
         {
             ExpeditionId = snapshot.ExpeditionId,
             ShipSystems = snapshot.ShipSystems is { IntegrationEnabled: true } ship
-                ? new(ship.Hull, ship.Supplies, ship.PendingSuccessBonusPercent, ship.ActiveSuccessBonusPercent, snapshot.ReturnReason) : null
+                ? new(ship.Hull, ship.Rules.MaximumHull, ship.Supplies, ship.PendingSuccessBonusPercent, ship.ActiveSuccessBonusPercent, snapshot.ReturnReason) : null,
+            BoardingOpenSound = DropGameMediaResolver.ResolveSound(snapshot.BoardingOpenSound ?? new StarshipExpeditionSettings().BoardingOpenSound,
+                null, mediaUploadService),
+            EmergencyReturnSound = snapshot.ShipSystems is { IntegrationEnabled: true }
+                ? DropGameMediaResolver.ResolveSound(snapshot.EmergencyReturnSound ?? new StarshipExpeditionSettings().EmergencyReturnSound,
+                    null, mediaUploadService)
+                : null
         };
     }
 
     /// <summary>1-based legs that are station stops (leg 1 is always the route choice).</summary>
-    public static IReadOnlyList<int> GetStationLegs(StarshipExpeditionSnapshot snapshot) =>
-        snapshot.StationIntervalLegs <= 0
-            ? []
-            : Enumerable.Range(2, Math.Max(0, snapshot.LegCount - 1))
-                .Where(leg => (leg - 1) % snapshot.StationIntervalLegs == 0)
-                .ToList();
+    public static IReadOnlyList<int> GetStationLegs(StarshipExpeditionSnapshot snapshot)
+    {
+        if (snapshot.LegCount < 2 || snapshot.StationIntervalLegs <= 0) return [];
+        var availableSlots = snapshot.LegCount - 1;
+        var stationCount = Math.Min(availableSlots / snapshot.StationIntervalLegs, Math.Max(0, snapshot.LegCount - 2));
+        return Enumerable.Range(1, stationCount)
+            .Select(index => 1 + (index * availableSlots + (stationCount + 1) / 2) / (stationCount + 1))
+            .ToList();
+    }
 
     public const int MaximumActivityItems = 20;
 
@@ -375,9 +393,10 @@ public sealed record StarshipOverlayEventSnapshot(
 {
     public IReadOnlyList<string> ObjectImages { get; init; } = [];
     public StarshipShipEventDisclosure? ShipDisclosure { get; init; }
+    public DropGameEffectiveSoundDto? OpenSound { get; init; }
 
     public static StarshipOverlayEventSnapshot From(StarshipExpeditionEventSnapshot expeditionEvent, StarshipRewardProfile? profile,
-        StarshipExpeditionSnapshot? voyage = null) => new(
+        StarshipExpeditionSnapshot? voyage = null, MediaUploadService? mediaUploadService = null) => new(
         expeditionEvent.Sequence,
         expeditionEvent.EventType,
         expeditionEvent.Title,
@@ -410,7 +429,12 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.RevealedRarityColor)
         {
             ObjectImages = expeditionEvent.ObjectImages,
-            ShipDisclosure = voyage == null ? null : StarshipShipEventDisclosure.From(voyage, expeditionEvent, profile)
+            ShipDisclosure = voyage == null ? null : StarshipShipEventDisclosure.From(voyage, expeditionEvent, profile),
+            OpenSound = voyage == null ? null : DropGameMediaResolver.ResolveSound(
+                StarshipEventCatalog.GetEffectiveOpenSound(
+                    voyage.EventCatalog?.FirstOrDefault(definition => definition.EventType == expeditionEvent.EventType), expeditionEvent.EventType,
+                    voyage.EventTypeOpenSounds.GetValueOrDefault(expeditionEvent.EventType)),
+                null, mediaUploadService)
         };
 }
 

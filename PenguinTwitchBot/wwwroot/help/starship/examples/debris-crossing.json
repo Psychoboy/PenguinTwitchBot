@@ -35,7 +35,7 @@
     "subjectStyle": "custom",
     "subjectNames": ["the Shattered Crown", "the Glass Wake", "the Silent Ring"],
     "objectKind": "debris",
-    "shipFailureEffect": { "hullDelta": -15, "suppliesDelta": -5 },
+    "shipFailureEffect": { "hullDelta": -25, "suppliesDelta": -10 },
     "lootByTier": {
       "Common": "salvageable shielding",
       "Uncommon": "a compact power core",
