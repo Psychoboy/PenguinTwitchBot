@@ -764,8 +764,7 @@ public sealed class StarshipExpeditionService(
         if (current.CompletedEvents.Count > previous.CompletedEvents.Count)
         {
             var resolvedEvent = current.CompletedEvents[^1];
-            var selectedChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
-                string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+            var selectedChoice = StarshipRewardResolver.FindResolvedChoice(resolvedEvent);
             var chatMessage = StarshipEventCatalog.IsStructural(resolvedEvent.EventType)
                 ? string.Empty
                 : StarshipExpeditionNarrative.BuildChatEventMessage(resolvedEvent);
@@ -1604,7 +1603,7 @@ public sealed class StarshipExpeditionService(
         };
         if (effect != null)
         {
-            var choice = resolvedEvent.Choices.FirstOrDefault(item => item.ChoiceId == resolvedEvent.ResolvedChoiceId);
+            var choice = StarshipRewardResolver.FindResolvedChoice(resolvedEvent);
             var riskPercent = StarshipRewardResolver.CombinePercent(resolvedEvent.RiskMultiplierPercent, choice?.RiskMultiplierPercent ?? 100);
             var scaled = StarshipShipSystems.ScaleOutcomeEffect(effect, riskPercent);
             StarshipShipSystems.ApplyEffect(state, $"ship-outcome:{resolvedEvent.EventId:N}", scaled);

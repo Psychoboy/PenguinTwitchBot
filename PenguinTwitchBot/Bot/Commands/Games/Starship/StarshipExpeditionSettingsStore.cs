@@ -132,19 +132,20 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
 
     public async Task<StarshipExpeditionSettings> ResetToDefaultsAsync(CancellationToken cancellationToken = default)
     {
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new StarshipExpeditionSettings());
+        StarshipStarterEvents.Install(settings, environment.WebRootPath);
         await _operationLock.WaitAsync(cancellationToken);
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await using var transaction = await unitOfWork.BeginTransactionAsync();
             var setting = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingKey)).FirstOrDefault();
             unitOfWork.StarshipEvents.RemoveRange(await unitOfWork.StarshipEvents.GetAllAsync());
             unitOfWork.StarshipRewardProfiles.RemoveRange(await unitOfWork.StarshipRewardProfiles.GetAllAsync());
             await unitOfWork.SaveChangesAsync();
-
-            var settings = StarshipExpeditionSettings.NormalizeAndValidate(new StarshipExpeditionSettings());
-            StarshipStarterEvents.Install(settings, environment.WebRootPath);
             await SaveLockedAsync(unitOfWork, settings, setting);
+            await transaction.CommitAsync(cancellationToken);
             return settings;
         }
         finally

@@ -407,6 +407,14 @@
         _preview = null;
     }
 
+    public void DiscardPendingDraft()
+    {
+        DiscardDraft();
+        _selectedStepId = string.Empty;
+        _choiceIndex = 0;
+        StateHasChanged();
+    }
+
     private void DraftChanged()
     {
         _dirty = true;
@@ -517,6 +525,11 @@
         var previousId = step.StepId;
         var nextId = (value ?? string.Empty).Trim();
         if (previousId == nextId) return;
+        if (_draft.Steps.Any(other => !ReferenceEquals(other, step) && string.Equals(other.StepId, nextId, StringComparison.Ordinal)))
+        {
+            _validationError = $"Step ID '{nextId}' is already in use.";
+            return;
+        }
         step.StepId = nextId;
         if (_draft.StartStepId == previousId) _draft.StartStepId = nextId;
         foreach (var source in _draft.Steps)

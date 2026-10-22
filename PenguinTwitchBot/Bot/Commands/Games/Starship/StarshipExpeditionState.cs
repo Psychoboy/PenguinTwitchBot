@@ -571,8 +571,7 @@ public sealed record StarshipOverlayEventResult(
         StarshipExpeditionEventSnapshot expeditionEvent,
         IEnumerable<StarshipBankedPayoutSnapshot> payouts)
     {
-        var choice = expeditionEvent.Choices.FirstOrDefault(option =>
-            string.Equals(option.ChoiceId, expeditionEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+        var choice = StarshipRewardResolver.FindResolvedChoice(expeditionEvent);
         return new StarshipOverlayEventResult(
             expeditionEvent.Sequence,
             expeditionEvent.Title,

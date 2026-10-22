@@ -841,6 +841,7 @@
         try
         {
             _settings = await SettingsStore.ResetToDefaultsAsync();
+            _eventCatalogEditor?.DiscardPendingDraft();
             _balanceSettings = StarshipEventEditing.Copy(_settings);
             _previewEvents = [];
             _balanceSummary = null;

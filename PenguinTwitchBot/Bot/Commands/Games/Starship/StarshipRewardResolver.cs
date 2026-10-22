@@ -76,7 +76,7 @@ internal static class StarshipRewardResolver
             ? expeditionEvent.StepDefinitions.SelectMany(step => step.Choices)
             : expeditionEvent.ChoicePool.Concat(expeditionEvent.Choices);
 
-    private static StarshipEventChoiceSnapshot? FindResolvedChoice(StarshipExpeditionEventSnapshot expeditionEvent)
+    internal static StarshipEventChoiceSnapshot? FindResolvedChoice(StarshipExpeditionEventSnapshot expeditionEvent)
     {
         var choices = string.IsNullOrEmpty(expeditionEvent.ResolvedStepId)
             ? AllChoices(expeditionEvent)

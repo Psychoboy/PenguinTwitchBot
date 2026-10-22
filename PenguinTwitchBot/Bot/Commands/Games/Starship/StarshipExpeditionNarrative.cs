@@ -98,8 +98,7 @@ public static class StarshipExpeditionNarrative
         var lines = BuildEventLines(expeditionEvent, includeCrewPath: includeCrewPath);
         if (lines.Count == 0)
         {
-            var choice = expeditionEvent.Choices.FirstOrDefault(option =>
-                string.Equals(option.ChoiceId, expeditionEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+            var choice = StarshipRewardResolver.FindResolvedChoice(expeditionEvent);
             return $"Starship event resolved: {expeditionEvent.Title}. Crew chose {choice?.Label ?? expeditionEvent.ResolvedChoiceId ?? "the default"}.";
         }
 

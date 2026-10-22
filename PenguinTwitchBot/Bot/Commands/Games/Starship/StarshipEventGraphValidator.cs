@@ -77,7 +77,7 @@ public static partial class StarshipEventGraphValidator
     {
         if (step.Choices == null || step.Choices.Count is < 2 or > StarshipEventCatalog.MaximumChoices)
             throw new ArgumentException($"{definition.Title}, step {step.StepId}: use 2-{StarshipEventCatalog.MaximumChoices} choices.");
-        var choiceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var choiceIds = new HashSet<string>(StringComparer.Ordinal);
         var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var choice in step.Choices)
         {
@@ -95,8 +95,12 @@ public static partial class StarshipEventGraphValidator
             if (choice.ContinuesEvent || !string.IsNullOrEmpty(choice.GrantsFlag))
                 throw new ArgumentException($"{definition.Title}, step {step.StepId}: branching choices use next-step targets instead of legacy continue flags.");
         }
-        if (!choiceIds.Contains(step.DefaultChoiceId))
+        var defaultChoice = step.Choices.FirstOrDefault(choice =>
+            string.Equals(choice.ChoiceId, step.DefaultChoiceId, StringComparison.Ordinal));
+        if (defaultChoice == null)
             throw new ArgumentException($"{definition.Title}, step {step.StepId}: choose a valid default choice.");
+        if (defaultChoice.ShipEffect?.SuppliesCost > 0)
+            throw new ArgumentException($"{definition.Title}, step {step.StepId}: the default choice cannot require supplies.");
     }
 
     private static void Visit(string stepId, IReadOnlyDictionary<string, StarshipEventStepDefinition> steps,

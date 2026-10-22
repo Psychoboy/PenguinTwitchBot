@@ -291,6 +291,32 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(reset.RewardProfiles.Count, verifyContext.StarshipRewardProfiles.Count());
     }
 
+    [Fact]
+    public async Task ResetToDefaults_RollsBackCatalogAndSettingsWhenReseedingFails()
+    {
+        var store = CreateStore();
+        await store.SaveAsync(new StarshipExpeditionSettings { GameEnabled = true, LegCount = 11 });
+        string originalSettings;
+        int originalEventCount;
+        int originalProfileCount;
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            originalSettings = context.Settings.Single(item => item.Name == StarshipExpeditionSettingsStore.SettingKey).StringSetting!;
+            originalEventCount = context.StarshipEvents.Count();
+            originalProfileCount = context.StarshipRewardProfiles.Count();
+            context.Database.ExecuteSqlRaw("CREATE TRIGGER fail_starship_event_insert BEFORE INSERT ON starship_events BEGIN SELECT RAISE(ABORT, 'forced reset failure'); END;");
+        }
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => CreateStore().ResetToDefaultsAsync());
+
+        using var verifyScope = _services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(originalSettings, verifyContext.Settings.Single(item => item.Name == StarshipExpeditionSettingsStore.SettingKey).StringSetting);
+        Assert.Equal(originalEventCount, verifyContext.StarshipEvents.Count());
+        Assert.Equal(originalProfileCount, verifyContext.StarshipRewardProfiles.Count());
+    }
+
     [Theory]
     [InlineData("Kepler Reach")]
     [InlineData("My Sector")]

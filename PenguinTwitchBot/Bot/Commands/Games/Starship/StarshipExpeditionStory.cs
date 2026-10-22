@@ -152,8 +152,7 @@ public static class StarshipExpeditionStory
 
     public static string BuildOutcomeStory(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot resolvedEvent)
     {
-        var finalChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
-            string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+        var finalChoice = StarshipRewardResolver.FindResolvedChoice(resolvedEvent);
         var voters = GetVoterNames(snapshot, resolvedEvent, resolvedEvent.ResolvedChoiceId ?? string.Empty);
         var rarity = string.IsNullOrEmpty(resolvedEvent.OutcomeRarity) ? resolvedEvent.RevealedRarity : resolvedEvent.OutcomeRarity;
         var parts = new List<string> { Render(finalChoice?.Story ?? string.Empty, resolvedEvent, snapshot.Seed, voters, rarity) };

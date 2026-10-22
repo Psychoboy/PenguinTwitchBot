@@ -66,6 +66,27 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public void ResolvedGraphChoiceMetadataIsFoundAfterActiveChoicesAreCleared()
+    {
+        var selected = new StarshipEventChoiceSnapshot
+        {
+            ChoiceId = "recover", Label = "Recover the cache", Story = "The crew recovers the archive."
+        };
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventType = "graph-event", Title = "Archive", OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess,
+            ResolvedStepId = "final-choice", ResolvedChoiceId = "recover",
+            StepDefinitions = [new() { StepId = "final-choice", Type = StarshipEventStepType.Vote, Choices = [selected] }],
+            Choices = [], ChoicePool = []
+        };
+        var snapshot = new StarshipExpeditionSnapshot { Seed = 123 };
+
+        Assert.Same(selected, StarshipRewardResolver.FindResolvedChoice(expeditionEvent));
+        Assert.Equal("Recover the cache", StarshipOverlayEventResult.From(expeditionEvent, []).Choice);
+        Assert.Contains("The crew recovers the archive.", StarshipExpeditionStory.BuildOutcomeStory(snapshot, expeditionEvent), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ChatEventMessageShowsOnlyChangedShipStats()
     {
         var unchanged = new StarshipExpeditionEventSnapshot

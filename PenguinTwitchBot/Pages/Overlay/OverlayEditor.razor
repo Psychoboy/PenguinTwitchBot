@@ -1049,9 +1049,9 @@
 
         if ((!_jsInitialized || _jsNeedsReinit) && _dotNetRef != null)
         {
+            await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale);
             _jsInitialized = true;
             _jsNeedsReinit = false;
-            await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale);
         }
 
         if (_pendingWheelZoomAnchor)

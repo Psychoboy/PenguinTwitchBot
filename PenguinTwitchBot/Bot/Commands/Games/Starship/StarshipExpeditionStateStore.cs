@@ -5,6 +5,8 @@ using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
+internal sealed class InvalidShipRulesException(string message, Exception innerException) : Exception(message, innerException);
+
 public sealed class StarshipExpeditionStateStore(
     IServiceScopeFactory scopeFactory,
     ILogger<StarshipExpeditionStateStore>? logger = null) : IStarshipExpeditionStateStore
@@ -46,7 +48,7 @@ public sealed class StarshipExpeditionStateStore(
             {
                 Validate(snapshot);
             }
-            catch (InvalidDataException ex) when (ex.Message == "Persisted Starship ship rules are invalid.")
+            catch (InvalidShipRulesException ex)
             {
                 logger?.LogWarning(ex, "Discarding persisted Starship expedition state with invalid ship rules; defaults will be recreated on the next voyage.");
                 unitOfWork.Settings.Remove(setting);
@@ -118,7 +120,7 @@ public sealed class StarshipExpeditionStateStore(
             }
             catch (ArgumentException ex)
             {
-                throw new InvalidDataException("Persisted Starship ship rules are invalid.", ex);
+                throw new InvalidShipRulesException("Persisted Starship ship rules are invalid.", ex);
             }
         }
         if (snapshot.Status == StarshipExpeditionStatus.Boarding && snapshot.BoardingClosesAtUtc == null)

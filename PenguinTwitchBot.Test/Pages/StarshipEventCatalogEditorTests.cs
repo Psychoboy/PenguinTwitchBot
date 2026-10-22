@@ -50,6 +50,20 @@ public class StarshipEventCatalogEditorTests
     }
 
     [Fact]
+    public async Task DiscardPendingDraft_ClearsDraftAndRefreshesEditor()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
+        Click(editor, "Add Event");
+        Assert.Contains("New Event Draft", editor.Markup);
+
+        await editor.InvokeAsync(() => editor.Instance.DiscardPendingDraft());
+
+        await editor.WaitForAssertionAsync(() => Assert.DoesNotContain("New Event Draft", editor.Markup));
+    }
+
+    [Fact]
     public async Task EventSoundOverride_IsExposedAndSurvivesDraftRoundTrip()
     {
         await using var context = CreateContext();
@@ -84,6 +98,21 @@ public class StarshipEventCatalogEditorTests
         Assert.Equal("opening", definition.StartStepId);
         Assert.Contains(definition.Steps, step => step.StepId == "opening");
         Assert.DoesNotContain(definition.Steps.SelectMany(step => step.Choices), choice => choice.NextStepId == "approach");
+    }
+
+    [Fact]
+    public async Task GraphStepRename_DuplicateIdDoesNotMutateDraft()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
+        editor.Find("button[aria-label='Edit SignalDetected']").Click();
+        var stepId = editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Step ID");
+        await stepId.Find("input").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "scan-report" });
+
+        Assert.Contains("Step ID 'scan-report' is already in use", editor.Markup);
+        Assert.Equal("approach", settings.EventCatalog.Single(item => item.EventType == "SignalDetected").StartStepId);
+        Assert.Contains(settings.EventCatalog.Single(item => item.EventType == "SignalDetected").Steps, step => step.StepId == "approach");
     }
 
     [Fact]

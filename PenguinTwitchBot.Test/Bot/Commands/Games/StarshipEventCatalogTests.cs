@@ -63,6 +63,33 @@ public class StarshipEventCatalogTests
     }
 
     [Theory]
+    [InlineData("case-sensitive")]
+    [InlineData("supply-cost")]
+    public void EventGraph_RejectsInvalidOrUnaffordableDefaults(string defect)
+    {
+        var definition = GraphEvent();
+        var start = definition.Steps[0];
+        if (defect == "case-sensitive")
+            start.DefaultChoiceId = "RETREAT";
+        else
+        {
+            var defaultIndex = start.Choices.FindIndex(choice => choice.ChoiceId == start.DefaultChoiceId);
+            var original = start.Choices[defaultIndex];
+            start.Choices[defaultIndex] = new()
+            {
+                ChoiceId = original.ChoiceId,
+                Label = original.Label,
+                NextStepId = original.NextStepId,
+                ShipEffect = new() { SuppliesCost = 1 }
+            };
+        }
+
+        var exception = Assert.Throws<ArgumentException>(() => StarshipEventGraphValidator.Validate(definition));
+
+        Assert.Contains(defect == "case-sensitive" ? "choose a valid default choice" : "default choice cannot require supplies", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("missing-target")]
     [InlineData("cycle")]
     [InlineData("unreachable")]
