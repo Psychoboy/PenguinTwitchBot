@@ -53,7 +53,7 @@
             <ErrorBoundary>
                 <ChildContent>
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5" KeepPanelsAlive="true"
-                     @bind-ActivePanelIndex="_activeTabIndex" @bind-ActivePanelIndex:after="OnActiveTabChanged">
+                     @bind-ActivePanelIndex="_activeTabIndex" @bind-ActivePanelIndex:after="OnActiveTabChangedAsync">
                 <MudTabPanel Text="Voyage Settings">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="7">
@@ -151,6 +151,8 @@
                 </MudTabPanel>
 
                 <MudTabPanel Text="Events & Sectors">
+                    @if (_visitedTabs.Contains(1))
+                    {
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="9">
                             <StarshipEventCatalogEditor @ref="_eventCatalogEditor" Settings="_settings" PointTypes="_rewardPointTypes" Actions="_rewardActions" />
@@ -185,9 +187,12 @@
                             </MudStack>
                         </MudItem>
                     </MudGrid>
+                    }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Reward Profiles">
+                    @if (_visitedTabs.Contains(2))
+                    {
                     <MudStack Spacing="3">
                         <div>
                             <MudText Typo="Typo.h6">Event Type Reward Bindings</MudText>
@@ -284,9 +289,12 @@
                         </MudExpansionPanels>
                         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddRewardProfile">Add Reward Profile</MudButton>
                     </MudStack>
+                    }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Test">
+                    @if (_visitedTabs.Contains(3))
+                    {
                     <MudGrid Spacing="4">
                         <MudItem xs="12">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -507,10 +515,11 @@
                             }
                         </MudItem>
                     </MudGrid>
+                    }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Appearance">
-                    @if (_activeTabIndex == 4)
+                    @if (_visitedTabs.Contains(4))
                     {
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="6">
@@ -610,18 +619,23 @@
                 </MudTabPanel>
 
                 <MudTabPanel Text="Automation & Messages">
+                    @if (_visitedTabs.Contains(5))
+                    {
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="8">
-                            <GameOutcomeAutomationPanel DefaultCommandName="starship" GameTitle="Starship Expedition" />
+                            <GameOutcomeAutomationPanel DefaultCommandName="starship" GameTitle="Starship Expedition" IsActive="@(_activeTabIndex == 5)" />
                         </MudItem>
                         <MudItem xs="12" lg="4">
                             <GameSessionMessageSettings Settings="_settings" SessionNoun="Voyage" RequiredStartAnnouncement="true"
                                                         EndMessageHelperText="Available placeholders: {count}, {duration}, {result}." />
                         </MudItem>
                     </MudGrid>
+                    }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Audio">
+                    @if (_visitedTabs.Contains(6))
+                    {
                     <MudStack Spacing="3" Style="max-width: 760px">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the boarding announcement cue, default opening cues for each event type, and the emergency return cue. Individual events can inherit, override, or mute their event-type cue in Events & Sectors.</MudText>
                         <DropGameSoundEditor Title="Crew Boarding Open Cue" SoundConfig="_settings.BoardingOpenSound" />
@@ -635,6 +649,7 @@
                         <MudDivider />
                         <DropGameSoundEditor Title="Emergency Return Cue" SoundConfig="_settings.EmergencyReturnSound" />
                     </MudStack>
+                    }
                 </MudTabPanel>
             </MudTabs>
                 </ChildContent>
@@ -668,15 +683,17 @@
     private StarshipPreviewVoterPolicy _previewVoterPolicy;
     private string _balanceError = string.Empty;
     private bool _isRunningBalanceTest;
-    private List<PenguinTwitchBot.Database.Bot.Models.Points.PointType> _pointTypes = [];
     private int _previewSeed = 12345;
     private int _activeTabIndex;
     private string _newSectorName = string.Empty;
     private string _error = string.Empty;
     private bool _isLoading = true;
+    private bool _isLoadingRewardEditorOptions;
+    private bool _rewardEditorOptionsLoaded;
     private bool _isSaving;
     private bool _isOperating;
     private string _eventSample = "event";
+    private readonly HashSet<int> _visitedTabs = new() { 0 };
     private IJSObjectReference? _editorModule;
     private StarshipEventCatalogEditor? _eventCatalogEditor;
     private Dictionary<int, string> _rewardPointTypes = [];
@@ -788,12 +805,12 @@
     {
         try
         {
-            _settings = await SettingsStore.LoadAsync();
+            var settingsTask = SettingsStore.LoadAsync();
+            var liveSnapshotTask = ExpeditionService.GetSnapshotAsync();
+            await Task.WhenAll(settingsTask, liveSnapshotTask);
+            _settings = await settingsTask;
             _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
-            _pointTypes = (await PointsSystem.GetPointTypes()).Where(pointType => pointType.Id.HasValue).OrderBy(pointType => pointType.Name).ToList();
-            _rewardPointTypes = _pointTypes.ToDictionary(pointType => pointType.GetId(), pointType => pointType.Name);
-            _rewardActions = (await ActionManagement.GetAllActionsAsync()).Where(action => action.Id.HasValue).ToDictionary(action => action.Id!.Value, action => action.Name);
-            _liveSnapshot = await ExpeditionService.GetSnapshotAsync();
+            _liveSnapshot = await liveSnapshotTask;
         }
         catch (Exception ex)
         {
@@ -923,10 +940,41 @@
         _balanceError = string.Empty;
     }
 
-    private void OnActiveTabChanged()
+    private async Task OnActiveTabChangedAsync()
     {
+        _visitedTabs.Add(_activeTabIndex);
         if (_activeTabIndex == 3 && _balanceSettings == null && _settings != null)
             _balanceSettings = StarshipEventEditing.Copy(_settings);
+        if (_activeTabIndex is 1 or 2 && !_rewardEditorOptionsLoaded)
+            await LoadRewardEditorOptionsAsync();
+    }
+
+    private async Task LoadRewardEditorOptionsAsync()
+    {
+        if (_isLoadingRewardEditorOptions || _rewardEditorOptionsLoaded) return;
+        _isLoadingRewardEditorOptions = true;
+        try
+        {
+            var pointTypesTask = PointsSystem.GetPointTypes();
+            var actionsTask = ActionManagement.GetAllActionsAsync();
+            await Task.WhenAll(pointTypesTask, actionsTask);
+            _rewardPointTypes = (await pointTypesTask)
+                .Where(pointType => pointType.Id.HasValue)
+                .OrderBy(pointType => pointType.Name)
+                .ToDictionary(pointType => pointType.GetId(), pointType => pointType.Name);
+            _rewardActions = (await actionsTask)
+                .Where(action => action.Id.HasValue)
+                .ToDictionary(action => action.Id!.Value, action => action.Name);
+            _rewardEditorOptionsLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load Starship editor options: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingRewardEditorOptions = false;
+        }
     }
 
     private static StarshipShipEffect GetBalanceFailureEffect(StarshipExpeditionSettings settings, string eventType) =>

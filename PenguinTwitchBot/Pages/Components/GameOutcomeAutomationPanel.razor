@@ -53,8 +53,10 @@
 @code {
     [Parameter, EditorRequired] public string DefaultCommandName { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string GameTitle { get; set; } = string.Empty;
+    [Parameter] public bool IsActive { get; set; } = true;
 
     private bool _isLoading = true;
+    private bool _hasLoadedActions;
     private List<ActionType> _actions = [];
     private List<TriggerItemInfo> _outcomes = [];
 
@@ -63,14 +65,21 @@
         _outcomes = TriggerCatalog.AllTriggers.Where(item =>
             item.Type == TriggerTypes.DefaultCommand &&
             string.Equals(item.DefaultCommandName, DefaultCommandName, StringComparison.OrdinalIgnoreCase)).ToList();
-        await LoadActions();
+        if (IsActive && !_hasLoadedActions) await LoadActions();
     }
 
     private async Task LoadActions()
     {
         _isLoading = true;
-        _actions = await ActionService.GetAllActionsAsync();
-        _isLoading = false;
+        try
+        {
+            _actions = await ActionService.GetAllActionsAsync();
+            _hasLoadedActions = true;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private List<ActionType> GetLinkedActions(TriggerItemInfo outcome) => _actions

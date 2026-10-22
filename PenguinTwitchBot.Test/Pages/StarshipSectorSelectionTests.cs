@@ -47,6 +47,7 @@ public class StarshipSectorSelectionTests
         await using var context = CreatePageContext(settings, store);
         var page = context.Render<StarshipExpeditionGame>();
 
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(1));
         await page.WaitForAssertionAsync(() => Assert.Contains("5 available (minimum 2)", page.Markup));
         Assert.DoesNotContain(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour");
         foreach (var sector in StarshipExpeditionSettings.BuiltInSectors.Skip(1))
@@ -67,6 +68,7 @@ public class StarshipSectorSelectionTests
         await page.WaitForAssertionAsync(() => store.Verify(instance => instance.SaveAsync(
             It.Is<StarshipExpeditionSettings>(value => value.GetEffectiveSectors().Count == 2), It.IsAny<CancellationToken>()), Times.Once));
 
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(1));
         var editor = page.FindComponent<StarshipEventCatalogEditor>();
         await editor.FindAll("button").Single(button => button.TextContent.Trim() == "Add Event").ClickAsync(new MouseEventArgs());
         await editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Title")
@@ -79,7 +81,7 @@ public class StarshipSectorSelectionTests
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(4));
         await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
-        await page.WaitForAssertionAsync(() => Assert.DoesNotContain(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
+        await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
         Assert.Single(page.FindComponents<StarshipEventCatalogEditor>());
     }
 
@@ -108,7 +110,7 @@ public class StarshipSectorSelectionTests
         var store = new Mock<IStarshipExpeditionSettingsStore>();
         await using var context = CreatePageContext(settings, store);
         var page = context.Render<StarshipExpeditionGame>();
-        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(5));
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(6));
         await page.WaitForAssertionAsync(() =>
         {
             var titles = page.FindComponents<DropGameSoundEditor>().Select(component => component.Instance.Title).ToList();
@@ -150,6 +152,24 @@ public class StarshipSectorSelectionTests
         Assert.Equal(80, settings.ShipSystems.MaximumHull);
         Assert.Equal(80, settings.ShipSystems.StartingHull);
         store.Verify(service => service.SaveAsync(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AutomationActions_LoadOnlyWhenAutomationTabIsOpened()
+    {
+        var settings = new StarshipExpeditionSettings();
+        var store = new Mock<IStarshipExpeditionSettingsStore>();
+        var actionService = new Mock<IActionManagementService>();
+        actionService.Setup(service => service.GetAllActionsAsync()).ReturnsAsync(new List<ActionType>());
+        await using var context = CreatePageContext(settings, store, actionManagementService: actionService);
+        var page = context.Render<StarshipExpeditionGame>();
+
+        await page.WaitForAssertionAsync(() => Assert.Contains("Save Settings", page.Markup));
+        actionService.Verify(service => service.GetAllActionsAsync(), Times.Never);
+
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(5));
+
+        await page.WaitForAssertionAsync(() => actionService.Verify(service => service.GetAllActionsAsync(), Times.Once));
     }
 
     [Fact]
@@ -315,7 +335,9 @@ public class StarshipSectorSelectionTests
         settings.EventCatalog[index] = settings.EventCatalog[index] with { RewardProfileId = profile.Id };
         await using var context = CreatePageContext(settings, new Mock<IStarshipExpeditionSettingsStore>());
         var page = context.Render<StarshipExpeditionGame>();
-        await page.WaitForAssertionAsync(() => Assert.Contains("5 available (minimum 2)", page.Markup));
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(2));
+        await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudExpansionPanel>(),
+            component => component.Instance.Text?.StartsWith("Review Profile", StringComparison.Ordinal) == true));
         var original = settings.EventCatalog[index] with { RewardProfileId = "REVIEW-PROFILE" };
         settings.EventCatalog[index] = original;
         var panel = page.FindComponents<MudExpansionPanel>().Single(component => component.Instance.Text?.StartsWith("Review Profile", StringComparison.Ordinal) == true);
@@ -330,7 +352,7 @@ public class StarshipSectorSelectionTests
 
     private static BunitContext CreatePageContext(StarshipExpeditionSettings settings, Mock<IStarshipExpeditionSettingsStore> store,
         Mock<IStarshipExpeditionService>? expeditionService = null, IReadOnlyList<PointType>? pointTypes = null,
-        IDialogService? dialogService = null)
+        IDialogService? dialogService = null, Mock<IActionManagementService>? actionManagementService = null)
     {
         var context = new BunitContext();
         context.JSInterop.Mode = JSRuntimeMode.Loose;
@@ -340,13 +362,12 @@ public class StarshipSectorSelectionTests
         context.Services.AddSingleton(new MediaUploadService(Path.GetTempPath(), NullLogger<MediaUploadService>.Instance));
         context.ComponentFactories.AddStub<HelpButton>();
         context.ComponentFactories.AddStub<PenguinTwitchBot.Shared.MediaUrlPicker>();
-        context.ComponentFactories.AddStub<PenguinTwitchBot.Pages.Components.GameOutcomeAutomationPanel>();
         context.ComponentFactories.AddStub<StarshipRewardProfileEditor>();
         store.Setup(instance => instance.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
         store.Setup(instance => instance.SaveAsync(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var points = new Mock<IPointsSystem>();
         points.Setup(instance => instance.GetPointTypes()).ReturnsAsync(pointTypes ?? []);
-        var actions = new Mock<IActionManagementService>();
+        var actions = actionManagementService ?? new Mock<IActionManagementService>();
         actions.Setup(instance => instance.GetAllActionsAsync()).ReturnsAsync(new List<ActionType>());
         var features = new Mock<IFeatureRuntimeCoordinator>();
         features.Setup(instance => instance.IsEnabled(It.IsAny<string>())).Returns(true);
