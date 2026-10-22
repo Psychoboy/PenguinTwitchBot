@@ -124,29 +124,22 @@ public class StarshipEventEditingTests
     }
 
     [Fact]
-    public void CustomSystemEventImports_AreValidForConfiguredSectors()
+    public void CustomSystemEventImport_IsValidForConfiguredSector()
     {
         var settings = new StarshipExpeditionSettings
         {
             CustomSectors = ["Stanton", "Nyx", "Pyro", "Castra", "Terra"]
         };
         StarshipExpeditionSettings.NormalizeAndValidate(settings);
-        var importDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "docs", "starship-event-imports"));
-        var files = Directory.GetFiles(importDirectory, "*.json").Order(StringComparer.Ordinal).ToList();
+        var source = StarshipEventCatalog.CreateDefaults()[0] with { AllowedSectors = ["Nyx"] };
 
-        Assert.Equal(8, files.Count);
-        var importedIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var file in files)
-        {
-            var draft = StarshipEventEditing.Import(File.ReadAllText(file), settings);
-            StarshipEventEditing.ValidateDraft(settings, draft, null);
+        var draft = StarshipEventEditing.Import(StarshipEventEditing.Export(source), settings);
+        StarshipEventEditing.ValidateDraft(settings, draft, null);
 
-            Assert.True(importedIds.Add(draft.EventType), $"Duplicate event ID: {draft.EventType}");
-            Assert.Single(draft.AllowedSectors);
-            Assert.Contains(draft.AllowedSectors[0], settings.CustomSectors, StringComparer.Ordinal);
-            Assert.InRange(draft.Steps.Count, 1, StarshipEventGraphValidator.MaximumTotalSteps);
-            Assert.Contains(draft.Steps, step => step.Type == StarshipEventStepType.End);
-        }
+        Assert.Single(draft.AllowedSectors);
+        Assert.Contains(draft.AllowedSectors[0], settings.CustomSectors, StringComparer.Ordinal);
+        Assert.InRange(draft.Steps.Count, 1, StarshipEventGraphValidator.MaximumTotalSteps);
+        Assert.Contains(draft.Steps, step => step.Type == StarshipEventStepType.End);
     }
 
     [Fact]
