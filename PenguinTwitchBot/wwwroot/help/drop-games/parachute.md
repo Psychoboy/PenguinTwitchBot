@@ -4,7 +4,7 @@ In **Parachute Drop**, viewers float down the screen under a parachute canopy ai
 
 ## Enable the Game
 
-Parachute Drop is off by default, including after upgrading settings that do not yet contain an enable value. Use the **Enable Parachute Drop** switch beside the page title and save settings to accept new chat commands, automation drops, and rounds. Turning it off silently ignores new chat commands and logs the attempt; an active round continues, while queued rounds are canceled. Stop controls remain available.
+Parachute Drop is off by default. Use the **Enable Parachute Drop** switch beside the page title and save settings to accept new chat commands, automation drops, and rounds. When disabled, new chat play commands are ignored and logged only when no timed round is active; commands remain accepted during an active round. Turning it off cancels queued rounds, while the active round continues. Stop controls remain available.
 
 ## Launching Parachuters
 

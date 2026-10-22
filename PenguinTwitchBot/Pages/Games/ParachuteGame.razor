@@ -607,9 +607,15 @@
     private async Task SaveAllSettingsAsync()
     {
         if (_settings == null) return;
+        await SaveSettingsAndClearQueueIfDisabledAsync();
+        Snackbar.Add("Parachute Drop settings saved!", Severity.Success);
+    }
+
+    private async Task SaveSettingsAndClearQueueIfDisabledAsync()
+    {
+        if (_settings == null) return;
         await SettingsService.SaveSettingsAsync(_settings);
         if (!_settings.Parachute.GameEnabled) await ParachuteDropService.ClearSessionQueueAsync();
-        Snackbar.Add("Parachute Drop settings saved!", Severity.Success);
     }
 
     private async Task ResetSettingsToDefaultsAsync()
@@ -626,8 +632,7 @@
         {
             _settings.Parachute = new ParachuteGameSettings();
             _selectedRandomDropletSizes = new HashSet<string>(_settings.Parachute.DefaultDropletRandomSizes, StringComparer.OrdinalIgnoreCase);
-            await SettingsService.SaveSettingsAsync(_settings);
-            await ParachuteDropService.ClearSessionQueueAsync();
+            await SaveSettingsAndClearQueueIfDisabledAsync();
             Snackbar.Add("Parachute settings have been reset to default values!", Severity.Warning);
         }
     }
@@ -643,7 +648,7 @@
 
     private async Task TestParachuteDropAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         await ParachuteDropService.TriggerParachuteDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched test Parachute Drop! Watch your /parachute.html overlay.", Severity.Info);
     }
@@ -651,7 +656,7 @@
     private async Task TestParachuteBullseyeAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
         await ParachuteDropService.TriggerParachuteDropAsync(
             BuildTestEventArgs(),
@@ -665,7 +670,7 @@
     private async Task TestComboDropAndDropletsAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
 
         var capturedEmote = _testEmoteInput;
         var capturedUser = _testUsername;
@@ -707,7 +712,7 @@
     private async Task TestDropletsNowAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
         {
             Count = _settings.Parachute.DefaultDropletCount,
@@ -741,7 +746,7 @@
 
     private async Task TestSingleRocketAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
         {
             Count = 1,
@@ -753,7 +758,7 @@
 
     private async Task TestRocketBarrageAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
         {
             Count = 6,
@@ -765,7 +770,7 @@
 
     private async Task TestNormalParachuteDropWithRocketAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var token = await ParachuteDropService.TriggerParachuteDropAsync(
             BuildTestEventArgs(),
             _testEmoteInput,
@@ -799,7 +804,7 @@
     private async Task TestHeadOnPlayerBounceAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
 
         var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
         var p1Args = new CommandEventArgs
@@ -843,7 +848,7 @@
     private async Task TestUpwardFountainKnockupAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
 
         var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
         var capturedEmote = _testEmoteInput;
@@ -885,7 +890,7 @@
 
     private async Task StartParachuteSessionLiveAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var duration = _settings?.Parachute.DefaultSessionDurationSeconds ?? 100;
         var result = await ParachuteDropService.StartSessionAsync(duration, triggeredBy: "Dashboard");
         if (result.IsQueued)

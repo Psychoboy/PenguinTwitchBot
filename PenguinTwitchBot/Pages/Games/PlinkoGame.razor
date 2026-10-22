@@ -452,9 +452,15 @@
     private async Task SaveAllSettingsAsync()
     {
         if (_settings == null) return;
+        await SaveSettingsAndClearQueueIfDisabledAsync();
+        Snackbar.Add("Plinko Bounce settings saved!", Severity.Success);
+    }
+
+    private async Task SaveSettingsAndClearQueueIfDisabledAsync()
+    {
+        if (_settings == null) return;
         await SettingsService.SaveSettingsAsync(_settings);
         if (!_settings.Plinko.GameEnabled) await PlinkoDropService.ClearSessionQueueAsync();
-        Snackbar.Add("Plinko Bounce settings saved!", Severity.Success);
     }
 
     private async Task ResetSettingsToDefaultsAsync()
@@ -470,8 +476,7 @@
         if (_settings != null)
         {
             _settings.Plinko = new PlinkoGameSettings();
-            await SettingsService.SaveSettingsAsync(_settings);
-            await PlinkoDropService.ClearSessionQueueAsync();
+            await SaveSettingsAndClearQueueIfDisabledAsync();
             Snackbar.Add("Plinko settings have been reset to default values!", Severity.Warning);
         }
     }
@@ -487,7 +492,7 @@
 
     private async Task TestPlinkoDropAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         await PlinkoDropService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched test Plinko token! Watch your /plinko.html overlay.", Severity.Info);
     }
@@ -495,7 +500,7 @@
     private async Task TestPlinkoJackpotAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var bestWinIdx = _settings.Plinko.Buckets
             .Select((b, idx) => (b, idx))
             .Where(x => x.b.IsWin)
@@ -515,7 +520,7 @@
 
     private async Task StartPlinkoSessionLiveAsync()
     {
-        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await SaveSettingsAndClearQueueIfDisabledAsync();
         var duration = _settings?.Plinko.DefaultSessionDurationSeconds ?? 100;
         var result = await PlinkoDropService.StartSessionAsync(duration, triggeredBy: "Dashboard");
         if (result.IsQueued)
