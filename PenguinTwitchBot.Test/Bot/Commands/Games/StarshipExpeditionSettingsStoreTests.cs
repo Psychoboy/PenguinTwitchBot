@@ -440,6 +440,28 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Load_PreservesUnchartedEventFiltersAsSeparateRoute()
+    {
+        var settings = await CreateStore().LoadAsync();
+        var salvageIndex = settings.EventCatalog.FindIndex(definition => definition.EventType == "SalvageSite");
+        settings.EventCatalog[salvageIndex] = settings.EventCatalog[salvageIndex] with
+        {
+            AllowedRoutes = ["Uncharted", "Survey Route"]
+        };
+        await CreateStore().SaveAsync(settings);
+
+        var loaded = await CreateStore().LoadAsync();
+        using var scope = _services.CreateScope();
+        var database = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var row = await database.StarshipEvents.SingleAsync(item => item.Id == "SalvageSite");
+        var persisted = JsonSerializer.Deserialize<StarshipEventDefinition>(row.DocumentJson,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+        Assert.Equal(["Uncharted", "Survey Route"], loaded.EventCatalog.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
+        Assert.Equal(["Uncharted", "Survey Route"], persisted.AllowedRoutes);
+    }
+
+    [Fact]
     public async Task FailedCatalogSave_RollsBackSettingsAndCatalogRows()
     {
         var store = CreateStore();

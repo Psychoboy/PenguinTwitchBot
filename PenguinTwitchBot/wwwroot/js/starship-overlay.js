@@ -295,7 +295,7 @@
         phase.textContent = snapshot?.shipSystems?.returnReason === 'HullDepleted' ? 'Emergency return' : status === 'Inactive' ? 'Awaiting' : status;
         phase.dataset.status = status;
         setText('sector', snapshot?.currentSector || (hasSnapshot ? 'No active voyage' : 'Connecting to ship'));
-        setText('route', snapshot?.currentRoute && snapshot.currentRoute !== 'Uncharted' ? snapshot.currentRoute : 'Route not yet selected');
+            setText('route', snapshot?.currentRoute && snapshot.currentRoute !== 'Start' ? snapshot.currentRoute : 'Route not yet selected');
         setText('crew-count', snapshot?.crewCount ?? 0);
 
         const legCount = snapshot?.legCount ?? 0;

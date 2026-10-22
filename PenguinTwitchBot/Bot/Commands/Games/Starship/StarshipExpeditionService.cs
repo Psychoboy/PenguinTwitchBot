@@ -283,7 +283,7 @@ public sealed class StarshipExpeditionService(
             ShipSystems = StarshipShipSystems.Create(previewSettings.ShipSystems),
             SectorPool = sectors,
             CurrentSector = sectors[GetDeterministicIndex(seed, 0, "initial-sector", sectors.Count)],
-            CurrentRoute = "Uncharted"
+            CurrentRoute = StarshipEventCatalog.StartRoute
         };
 
         var events = new List<StarshipExpeditionEventSnapshot>(previewSettings.LegCount);
@@ -480,7 +480,7 @@ public sealed class StarshipExpeditionService(
                 SessionEndChatMessageTemplate = settings.SessionEndChatMessageTemplate,
                 SectorPool = settings.GetEffectiveSectors(),
                 CurrentSector = settings.GetEffectiveSectors()[GetDeterministicIndex(expeditionSeed, 0, "initial-sector", settings.GetEffectiveSectors().Count)],
-                CurrentRoute = "Uncharted"
+                CurrentRoute = StarshipEventCatalog.StartRoute
             };
             AppendActivityLocked(_snapshot, StarshipActivityKinds.BoardingOpened,
                 $"Crew boarding is open for {_snapshot.BoardingDurationSeconds} seconds", string.Empty, now);

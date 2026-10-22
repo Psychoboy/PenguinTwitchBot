@@ -51,6 +51,61 @@ public class StarshipExpeditionStateStoreTests
     }
 
     [Fact]
+    public async Task Load_MigratesLegacyUnchartedRouteAndPersistsStartRoute()
+    {
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            LegCount = 4,
+            CurrentRoute = "Uncharted",
+            EventCatalog = [StarshipEventCatalog.CreateDefaults()[1] with { AllowedRoutes = ["Uncharted", "Survey Route"] }]
+        };
+        var rows = new List<Setting>
+        {
+            new()
+            {
+                Name = StarshipExpeditionStateStore.SettingKey,
+                DataType = Setting.DataTypeEnum.String,
+                StringSetting = JsonSerializer.Serialize(snapshot)
+            }
+        };
+
+        var loaded = await CreateStore(rows).LoadAsync();
+        var persisted = JsonSerializer.Deserialize<StarshipExpeditionSnapshot>(rows.Single().StringSetting!,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+        Assert.Equal("Start", loaded!.CurrentRoute);
+        Assert.Equal(["Uncharted", "Survey Route"], loaded.EventCatalog![0].AllowedRoutes);
+        Assert.Equal("Start", persisted.CurrentRoute);
+        Assert.Equal(["Uncharted", "Survey Route"], persisted.EventCatalog![0].AllowedRoutes);
+    }
+
+    [Fact]
+    public async Task Load_PreservesUnchartedCurrentRouteAfterMigrationVersion()
+    {
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            LegCount = 4,
+            CurrentRoute = StarshipEventCatalog.UnchartedRoute,
+            RouteNameMigrationVersion = StarshipEventCatalog.CurrentRouteNameMigrationVersion
+        };
+        var rows = new List<Setting>
+        {
+            new()
+            {
+                Name = StarshipExpeditionStateStore.SettingKey,
+                DataType = Setting.DataTypeEnum.String,
+                StringSetting = JsonSerializer.Serialize(snapshot)
+            }
+        };
+
+        var loaded = await CreateStore(rows).LoadAsync();
+
+        Assert.Equal(StarshipEventCatalog.UnchartedRoute, loaded!.CurrentRoute);
+    }
+
+    [Fact]
     public async Task Load_InvalidPersistedShipRulesDeletesSnapshotAndReturnsNoActiveVoyage()
     {
         var rows = new List<Setting>

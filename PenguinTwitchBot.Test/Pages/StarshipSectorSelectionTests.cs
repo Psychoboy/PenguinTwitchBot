@@ -363,6 +363,54 @@ public class StarshipSectorSelectionTests
                 saved.EventCatalog[index].RewardProfileId == string.Empty), It.IsAny<CancellationToken>()), Times.Once));
     }
 
+    [Fact]
+    public async Task CloneRewardProfile_CreatesIndependentCustomCopyWithUniqueNameAndId()
+    {
+        var source = new StarshipRewardProfile
+        {
+            Id = "clone-source",
+            Name = "Clone Source",
+            EventType = "SignalDetected",
+            Enabled = true,
+            Tiers =
+            [
+                new()
+                {
+                    Id = "common", Name = "Common", Weight = 2,
+                    Rewards = [new() { PointTypeId = 7, PointTypeName = "Credits", Minimum = 10, Maximum = 20 }],
+                    Actions = [new() { ActionId = 12, ActionName = "Celebrate", Timing = StarshipActionTimings.AfterBank }]
+                }
+            ],
+            Caps = [new() { PointTypeId = 7, MaximumPerEvent = 50 }],
+            LossRules = [new() { PointTypeId = 7, PointTypeName = "Credits", Percent = 20 }]
+        };
+        var settings = new StarshipExpeditionSettings { RewardProfiles = [.. new StarshipExpeditionSettings().RewardProfiles, source] };
+        var store = new Mock<IStarshipExpeditionSettingsStore>();
+        await using var context = CreatePageContext(settings, store);
+        var page = context.Render<StarshipExpeditionGame>();
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(2));
+        await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudExpansionPanel>(),
+            component => component.Instance.Text?.StartsWith(source.Name, StringComparison.Ordinal) == true));
+        var sourcePanel = page.FindComponents<MudExpansionPanel>().Single(component => component.Instance.Text?.StartsWith(source.Name, StringComparison.Ordinal) == true);
+
+        await sourcePanel.FindAll("button").Single(button => button.TextContent.Trim() == "Clone Profile").ClickAsync(new MouseEventArgs());
+
+        var clone = settings.RewardProfiles.Single(profile => profile.Name == "Clone Source Copy");
+        Assert.NotEqual(source.Id, clone.Id);
+        Assert.Equal(string.Empty, clone.EventType);
+        Assert.True(clone.Enabled);
+        Assert.Equal(source.Tiers[0].Weight, clone.Tiers[0].Weight);
+        Assert.Equal(source.Tiers[0].Rewards[0].Minimum, clone.Tiers[0].Rewards[0].Minimum);
+        Assert.Equal(source.Tiers[0].Actions[0].Timing, clone.Tiers[0].Actions[0].Timing);
+        Assert.Equal(source.Caps[0].MaximumPerEvent, clone.Caps[0].MaximumPerEvent);
+        Assert.Equal(source.LossRules[0].Percent, clone.LossRules[0].Percent);
+        Assert.NotSame(source.Tiers[0], clone.Tiers[0]);
+        Assert.NotSame(source.Tiers[0].Rewards[0], clone.Tiers[0].Rewards[0]);
+
+        clone.Tiers[0].Rewards[0].Minimum = 99;
+        Assert.Equal(10, source.Tiers[0].Rewards[0].Minimum);
+    }
+
     private static BunitContext CreatePageContext(StarshipExpeditionSettings settings, Mock<IStarshipExpeditionSettingsStore> store,
         Mock<IStarshipExpeditionService>? expeditionService = null, IReadOnlyList<PointType>? pointTypes = null,
         IDialogService? dialogService = null, Mock<IActionManagementService>? actionManagementService = null)

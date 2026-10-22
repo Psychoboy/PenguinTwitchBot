@@ -44,6 +44,15 @@ public sealed class StarshipExpeditionStateStore(
             if (snapshot == null)
                 throw new InvalidDataException("Persisted Starship expedition state is empty.");
 
+            var routeNamesNeedMigration = snapshot.RouteNameMigrationVersion < StarshipEventCatalog.CurrentRouteNameMigrationVersion;
+            var migratedRoute = routeNamesNeedMigration;
+            if (routeNamesNeedMigration)
+            {
+                if (string.Equals(snapshot.CurrentRoute, StarshipEventCatalog.UnchartedRoute, StringComparison.OrdinalIgnoreCase))
+                    snapshot.CurrentRoute = StarshipEventCatalog.StartRoute;
+                snapshot.RouteNameMigrationVersion = StarshipEventCatalog.CurrentRouteNameMigrationVersion;
+            }
+
             try
             {
                 Validate(snapshot);
@@ -55,6 +64,7 @@ public sealed class StarshipExpeditionStateStore(
                     snapshot.BankedPayouts?.Any(payout => payout is { IsPaid: false }) == true;
                 if (hasOutstandingRewards)
                 {
+                    if (migratedRoute) await PersistMigratedSnapshotAsync();
                     logger?.LogWarning(ex, "Retaining persisted Starship expedition state with invalid ship rules because it contains outstanding rewards.");
                     return snapshot;
                 }
@@ -64,7 +74,15 @@ public sealed class StarshipExpeditionStateStore(
                 await unitOfWork.SaveChangesAsync();
                 return null;
             }
+            if (migratedRoute) await PersistMigratedSnapshotAsync();
             return snapshot;
+
+            async Task PersistMigratedSnapshotAsync()
+            {
+                setting.StringSetting = JsonSerializer.Serialize(snapshot, JsonOptions);
+                unitOfWork.Settings.Update(setting);
+                await unitOfWork.SaveChangesAsync();
+            }
         }
         finally
         {
@@ -75,6 +93,7 @@ public sealed class StarshipExpeditionStateStore(
     public async Task SaveAsync(StarshipExpeditionSnapshot snapshot, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
+        snapshot.RouteNameMigrationVersion = StarshipEventCatalog.CurrentRouteNameMigrationVersion;
         Validate(snapshot);
 
         await _operationLock.WaitAsync(cancellationToken);

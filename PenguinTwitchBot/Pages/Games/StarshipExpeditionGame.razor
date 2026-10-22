@@ -305,6 +305,7 @@
                                 <MudExpansionPanel Text="@GetRewardProfileLabel(profile)" @key="profile">
                                     <StarshipRewardProfileEditor Profile="profile" PointTypes="_rewardPointTypes" Actions="_rewardActions" />
                                     <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@GetRewardProfilePreview(profile)</MudAlert>
+                                    <MudButton StartIcon="@Icons.Material.Filled.ContentCopy" Class="mt-2" OnClick="@(() => CloneRewardProfile(profile))">Clone Profile</MudButton>
                                     @if (profile.EventType.Length == 0)
                                     {
                                         <MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error" Class="mt-2" OnClick="@(() => RemoveRewardProfile(profile))">Delete Profile</MudButton>
@@ -1473,6 +1474,30 @@
             Id = Guid.NewGuid().ToString("N"), Name = $"Reward Profile {_settings.RewardProfiles.Count + 1}",
             Tiers = [new() { Id = "common", Name = "Common", Weight = 1 }]
         });
+    }
+
+    private void CloneRewardProfile(StarshipRewardProfile profile)
+    {
+        if (_settings == null) return;
+        var clone = StarshipEventEditing.Copy(profile);
+        clone.Id = Guid.NewGuid().ToString("N");
+        clone.Name = GetUniqueRewardProfileCopyName(profile.Name);
+        clone.EventType = string.Empty;
+        _settings.RewardProfiles.Add(clone);
+    }
+
+    private string GetUniqueRewardProfileCopyName(string sourceName)
+    {
+        var name = string.IsNullOrWhiteSpace(sourceName) ? "Reward Profile" : sourceName.Trim();
+        var suffix = " Copy";
+        var candidate = name[..Math.Min(name.Length, 80 - suffix.Length)] + suffix;
+        for (var copyNumber = 2; _settings!.RewardProfiles.Any(profile =>
+                 string.Equals(profile.Name, candidate, StringComparison.OrdinalIgnoreCase)); copyNumber++)
+        {
+            suffix = $" Copy {copyNumber}";
+            candidate = name[..Math.Min(name.Length, 80 - suffix.Length)] + suffix;
+        }
+        return candidate;
     }
 
     private void RemoveRewardProfile(StarshipRewardProfile profile)
