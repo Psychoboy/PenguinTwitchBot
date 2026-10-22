@@ -37,14 +37,18 @@ public class StarshipEventCatalogEditorTests
         editor.Find("button[aria-label='Duplicate SalvageSite']").Click();
         Assert.Equal(5, settings.EventCatalog.Count);
         var title = editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Title");
-        title.Find("input").Change("Archive Recovery");
+        await title.Find("input").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "Archive Recovery" });
         Assert.Equal("Derelict Salvage", settings.EventCatalog.Single(definition => definition.EventType == "SalvageSite").Title);
-        Click(editor, "Preview Event");
-        Assert.Contains("The damaged vessel", editor.Markup);
-        Assert.Contains("Choices by step (default route highlighted)", editor.Markup);
-        Assert.Contains("approach", editor.Markup);
-        Assert.Contains("recovery", editor.Markup);
-        Assert.Contains("default route", editor.Markup, StringComparison.OrdinalIgnoreCase);
+        await editor.FindAll("button").Single(button => button.TextContent.Trim() == "Preview Event")
+            .ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await editor.WaitForAssertionAsync(() =>
+        {
+            Assert.Contains("The damaged vessel", editor.Markup);
+            Assert.Contains("Choices by step (default route highlighted)", editor.Markup);
+            Assert.Contains("approach", editor.Markup);
+            Assert.Contains("recovery", editor.Markup);
+            Assert.Contains("default route", editor.Markup, StringComparison.OrdinalIgnoreCase);
+        });
         Click(editor, "Apply Event");
         var added = settings.EventCatalog.Single(definition => definition.Title == "Archive Recovery");
         Assert.Equal("SalvageSite", added.RewardProfileId);
