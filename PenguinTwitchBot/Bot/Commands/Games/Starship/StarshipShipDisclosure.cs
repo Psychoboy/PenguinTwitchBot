@@ -1,6 +1,6 @@
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
-public sealed record StarshipOverlayShipState(int Hull, int Supplies, int PendingSuccessBonusPercent,
+public sealed record StarshipOverlayShipState(int Hull, int MaximumHull, int Supplies, int PendingSuccessBonusPercent,
     int ActiveSuccessBonusPercent, string ReturnReason);
 
 public sealed record StarshipShipChoiceDisclosure(string ChoiceId, string Label, int? Number, bool Available,
@@ -24,7 +24,7 @@ public sealed record StarshipShipChoiceDisclosure(string ChoiceId, string Label,
     }
 }
 
-public sealed record StarshipShipEventDisclosure(int Hull, int Supplies, int ResourceSuccessModifierPercent,
+public sealed record StarshipShipEventDisclosure(int Hull, int MaximumHull, int Supplies, int ResourceSuccessModifierPercent,
     IReadOnlyList<StarshipShipChoiceDisclosure> Choices)
 {
     public static StarshipShipEventDisclosure? From(StarshipExpeditionSnapshot snapshot,
@@ -39,15 +39,15 @@ public sealed record StarshipShipEventDisclosure(int Hull, int Supplies, int Res
             var index = expeditionEvent.Choices.FindIndex(item => item.ChoiceId == choice.ChoiceId);
             var station = expeditionEvent.EventType == "StationStop";
             var effect = station ? StarshipShipSystems.GetStationEffect(ship, choice.ChoiceId) : choice.ShipEffect ?? new();
-            var afterChoice = StarshipShipSystems.PreviewEffect(ship.Hull, ship.Supplies, effect);
+            var afterChoice = StarshipShipSystems.PreviewEffect(ship.Hull, ship.Supplies, effect, ship.Rules.MaximumHull);
             var available = index >= 0 && StarshipShipSystems.CanAfford(ship, effect);
             var risk = StarshipRewardResolver.CombinePercent(expeditionEvent.RiskMultiplierPercent, choice.RiskMultiplierPercent);
             var successEffect = choice.EndsWithoutReward || choice.ContinuesEvent ? null : expeditionEvent.ShipContext?.SuccessEffect;
             var failureEffect = choice.EndsWithoutReward || choice.ContinuesEvent ? null : expeditionEvent.ShipContext?.FailureEffect;
             var afterSuccess = StarshipShipSystems.PreviewEffect(afterChoice.Hull, afterChoice.Supplies,
-                StarshipShipSystems.ScaleOutcomeEffect(successEffect ?? new(), risk));
+                StarshipShipSystems.ScaleOutcomeEffect(successEffect ?? new(), risk), ship.Rules.MaximumHull);
             var afterFailure = StarshipShipSystems.PreviewEffect(afterChoice.Hull, afterChoice.Supplies,
-                StarshipShipSystems.ScaleOutcomeEffect(failureEffect ?? new(), risk));
+                StarshipShipSystems.ScaleOutcomeEffect(failureEffect ?? new(), risk), ship.Rules.MaximumHull);
             int? chance = station || choice.ContinuesEvent || choice.EndsWithoutReward ||
                 StarshipEventCatalog.IsStructural(expeditionEvent.EventType) && profile == null
                     ? null : StarshipRewardResolver.GetEffectiveSuccessChance(profile, expeditionEvent, choice);
@@ -57,6 +57,6 @@ public sealed record StarshipShipEventDisclosure(int Hull, int Supplies, int Res
                 afterFailure.Hull - afterChoice.Hull, afterFailure.Supplies - afterChoice.Supplies,
                 station && choice.ChoiceId == "continue" ? ship.Rules.ContinueSuccessBonusPercent : 0, choice.ContinuesEvent));
         }
-        return new(ship.Hull, ship.Supplies, expeditionEvent.ShipContext?.ResourceSuccessModifierPercent ?? 0, disclosures);
+        return new(ship.Hull, ship.Rules.MaximumHull, ship.Supplies, expeditionEvent.ShipContext?.ResourceSuccessModifierPercent ?? 0, disclosures);
     }
 }

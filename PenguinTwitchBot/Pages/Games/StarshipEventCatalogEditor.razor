@@ -186,7 +186,7 @@
             <MudText Typo="Typo.body2">@_preview.Description</MudText>
             @if (_previewDisclosure is { } shipPreview)
             {
-                <MudText Typo="Typo.caption">Hull @shipPreview.Hull/100; Supplies @shipPreview.Supplies/100; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
+                <MudText Typo="Typo.caption">Hull @shipPreview.Hull/@shipPreview.MaximumHull; Supplies @shipPreview.Supplies/100; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
             }
             <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
                 <thead><tr><th>#</th><th>Option</th><th>Effect</th><th>Story</th></tr></thead>

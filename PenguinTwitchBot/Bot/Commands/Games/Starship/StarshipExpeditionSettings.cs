@@ -4,8 +4,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
 {
-    public const int CurrentSchemaVersion = 1;
-    public const int CurrentShipSystemsDefaultsVersion = 2;
     public const int MaximumLegCount = 24;
     public const int MaximumEventIntervalLimitMinutes = 120;
     public const int MaximumCustomSectors = 20;
@@ -25,10 +23,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public static IReadOnlyList<string> RewardEventTypes { get; } =
     ["RouteChoice", "SignalDetected", "SalvageSite", "Hazard"];
 
-    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
-    public int CatalogStorageVersion { get; set; }
-    public int StarterEventsVersion { get; set; }
-    public int ShipSystemsDefaultsVersion { get; set; }
+    public bool StarterEventsInstalled { get; set; }
     public int LegCount { get; set; } = StarshipExpeditionService.DefaultLegCount;
     public int MinimumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMinimumEventIntervalMinutes;
     public int MaximumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMaximumEventIntervalMinutes;
@@ -64,14 +59,6 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public static StarshipExpeditionSettings NormalizeAndValidate(StarshipExpeditionSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        if (settings.SchemaVersion != CurrentSchemaVersion)
-            throw new InvalidDataException($"Unsupported Starship settings version {settings.SchemaVersion}.");
-        if (settings.CatalogStorageVersion is < 0 or > 1)
-            throw new InvalidDataException($"Unsupported Starship catalog storage version {settings.CatalogStorageVersion}.");
-        if (settings.StarterEventsVersion is < 0 or > StarshipStarterEvents.CurrentVersion)
-            throw new InvalidDataException($"Unsupported Starship starter event version {settings.StarterEventsVersion}.");
-        if (settings.ShipSystemsDefaultsVersion is < 0 or > CurrentShipSystemsDefaultsVersion)
-            throw new InvalidDataException($"Unsupported Starship ship-system defaults version {settings.ShipSystemsDefaultsVersion}.");
         if (settings.LegCount is < 1 or > MaximumLegCount)
             throw new ArgumentOutOfRangeException(nameof(settings.LegCount), $"Voyage legs must be between 1 and {MaximumLegCount}.");
         if (settings.MinimumEventIntervalMinutes is < 1 or > MaximumEventIntervalLimitMinutes)
@@ -89,18 +76,6 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         settings.Appearance = StarshipAppearanceSettings.NormalizeAndValidate(settings.Appearance);
         settings.ShipSystems ??= new();
         settings.EventCatalog ??= StarshipEventCatalog.CreateDefaults();
-        if (settings.ShipSystemsDefaultsVersion < CurrentShipSystemsDefaultsVersion)
-        {
-            if (settings.ShipSystems.StartingHull == 100) settings.ShipSystems.StartingHull = 80;
-            if (settings.ShipSystems.StartingSupplies == 100) settings.ShipSystems.StartingSupplies = 55;
-            if (settings.ShipSystems.TravelSuppliesCost == 5) settings.ShipSystems.TravelSuppliesCost = 12;
-            if (settings.StationIntervalLegs == 2)
-                settings.StationIntervalLegs = StarshipExpeditionService.DefaultStationIntervalLegs;
-            if (settings.LegCount == 5)
-                settings.LegCount = StarshipExpeditionService.DefaultLegCount;
-            UpgradeStockFailureEffects(settings.EventCatalog);
-            settings.ShipSystemsDefaultsVersion = CurrentShipSystemsDefaultsVersion;
-        }
         settings.ShipSystems.Validate();
         settings.BoardingOpenSound ??= new() { Enabled = true, AudioFile = "/media/starship_boarding_open.wav", Volume = 60 };
         StarshipEventCatalog.ValidateSoundConfig(settings.BoardingOpenSound, "Boarding open sound");
@@ -226,23 +201,6 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     private static List<StarshipRewardProfile> CreateDefaultRewardProfiles() => RewardEventTypes
         .Select(eventType => new StarshipRewardProfile { EventType = eventType })
         .ToList();
-
-    private static void UpgradeStockFailureEffects(List<StarshipEventDefinition> events)
-    {
-        for (var index = 0; index < events.Count; index++)
-        {
-            var definition = events[index];
-            var previousDefault = definition.EventType switch
-            {
-                "Hazard" or "debris-crossing" => new StarshipShipEffect { HullDelta = -15, SuppliesDelta = -5 },
-                "SalvageSite" or "survey-cache" => new StarshipShipEffect { HullDelta = -10, SuppliesDelta = -5 },
-                "SignalDetected" => new StarshipShipEffect { HullDelta = -5, SuppliesDelta = -5 },
-                _ => null
-            };
-            if (previousDefault != null && definition.ShipFailureEffect == previousDefault)
-                events[index] = definition with { ShipFailureEffect = StarshipEventCatalog.GetDefaultShipFailureEffect(definition.EventType) };
-        }
-    }
 
     private static void ValidateRewardRange(long minimum, long maximum, string propertyName)
     {

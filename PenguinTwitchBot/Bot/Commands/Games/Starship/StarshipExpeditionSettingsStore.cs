@@ -25,12 +25,13 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var setting = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingKey)).FirstOrDefault();
+            var hasPersistedSettings = setting != null && !string.IsNullOrWhiteSpace(setting.StringSetting);
             StarshipExpeditionSettings? settings;
             try
             {
-                settings = setting == null || string.IsNullOrWhiteSpace(setting.StringSetting)
+                settings = !hasPersistedSettings
                     ? new StarshipExpeditionSettings()
-                    : JsonSerializer.Deserialize<StarshipExpeditionSettings>(setting.StringSetting, JsonOptions);
+                    : JsonSerializer.Deserialize<StarshipExpeditionSettings>(setting!.StringSetting!, JsonOptions);
             }
             catch (JsonException ex)
             {
@@ -39,9 +40,8 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
 
             if (settings == null)
                 throw new InvalidDataException("Persisted Starship Expedition settings are empty.");
-            var needsShipDefaultsUpgrade = settings.ShipSystemsDefaultsVersion < StarshipExpeditionSettings.CurrentShipSystemsDefaultsVersion;
 
-            if (settings.CatalogStorageVersion == 1)
+            if (hasPersistedSettings)
             {
                 var events = await unitOfWork.StarshipEvents.GetAllAsync();
                 var profiles = await unitOfWork.StarshipRewardProfiles.GetAllAsync();
@@ -52,12 +52,10 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
                 if (settings.EventCatalog.Count == 0 || settings.RewardProfiles.Count == 0)
                     throw new InvalidDataException("Persisted Starship catalog rows are missing; refusing to reset the catalog.");
             }
-            else if (settings.CatalogStorageVersion != 0)
-                throw new InvalidDataException($"Unsupported Starship catalog storage version {settings.CatalogStorageVersion}.");
 
             StarshipExpeditionSettings.NormalizeAndValidate(settings);
             var installedStarters = StarshipStarterEvents.Install(settings, environment.WebRootPath);
-            if (settings.CatalogStorageVersion == 0 || installedStarters || needsShipDefaultsUpgrade)
+            if (!hasPersistedSettings || installedStarters)
                 await SaveLockedAsync(unitOfWork, settings, setting);
             return settings;
         }
@@ -89,10 +87,8 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
     {
         try
         {
-            var document = JsonSerializer.Deserialize<CatalogDocument<T>>(json, JsonOptions);
-            if (document == null || document.SchemaVersion != 1 || document.Definition == null)
-                throw new InvalidDataException($"Unsupported or empty Starship catalog document {id}.");
-            return document.Definition;
+            return JsonSerializer.Deserialize<T>(json, JsonOptions)
+                ?? throw new InvalidDataException($"Starship catalog document {id} is empty.");
         }
         catch (JsonException ex)
         {
@@ -115,7 +111,7 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
             row.Name = definition.Title;
             row.Enabled = definition.Enabled;
             row.Weight = definition.Weight;
-            row.DocumentJson = JsonSerializer.Serialize(new CatalogDocument<StarshipEventDefinition>(1, definition), JsonOptions);
+            row.DocumentJson = JsonSerializer.Serialize(definition, JsonOptions);
         }
         unitOfWork.StarshipEvents.RemoveRange(eventRows.Values);
 
@@ -132,14 +128,13 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
             row.Name = profile.Name;
             row.Enabled = profile.Enabled;
             row.Weight = profile.GetTiers().Where(tier => tier.Enabled).Sum(tier => tier.Weight);
-            row.DocumentJson = JsonSerializer.Serialize(new CatalogDocument<StarshipRewardProfile>(1, profile), JsonOptions);
+            row.DocumentJson = JsonSerializer.Serialize(profile, JsonOptions);
         }
         unitOfWork.StarshipRewardProfiles.RemoveRange(profileRows.Values);
 
         var node = JsonSerializer.SerializeToNode(settings, JsonOptions)!.AsObject();
         node.Remove("rewardProfiles");
         node.Remove("eventCatalog");
-        node["catalogStorageVersion"] = 1;
         var json = node.ToJsonString(JsonOptions);
         if (setting == null)
             await unitOfWork.Settings.AddAsync(new Setting { Name = SettingKey, DataType = Setting.DataTypeEnum.String, StringSetting = json });
@@ -150,8 +145,5 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
             unitOfWork.Settings.Update(setting);
         }
         await unitOfWork.SaveChangesAsync();
-        settings.CatalogStorageVersion = 1;
     }
-
-    private sealed record CatalogDocument<T>(int SchemaVersion, T Definition);
 }

@@ -13,7 +13,7 @@ public class StarshipShipSystemsTests
         rules.StationRepairAmount = 1;
         Assert.Equal(80, state.Hull);
         Assert.Equal(55, state.Supplies);
-        Assert.Equal(12, state.Rules.TravelSuppliesCost);
+        Assert.Equal(10, state.Rules.TravelSuppliesCost);
         Assert.Equal(3, StarshipExpeditionService.DefaultStationIntervalLegs);
         Assert.Equal(30, state.Rules.StationRepairAmount);
         Assert.Null(StarshipShipSystems.Create(new() { Enabled = false }));
@@ -32,14 +32,14 @@ public class StarshipShipSystemsTests
         Assert.Single(state.AppliedOperationIds);
         StarshipShipSystems.ApplyEffect(state, "restore", new() { HullDelta = 100, SuppliesDelta = 100 });
         StarshipShipSystems.ApplyEffect(state, "overflow", new() { HullDelta = 100, SuppliesDelta = 100 });
-        Assert.Equal(100, state.Hull);
+        Assert.Equal(80, state.Hull);
         Assert.Equal(100, state.Supplies);
     }
 
     [Fact]
     public void Stations_ProduceDistinctEffectsAndRepairCannotOverspend()
     {
-        var state = StarshipShipSystems.Create(new() { StartingHull = 40, StartingSupplies = 10 })!;
+        var state = StarshipShipSystems.Create(new() { StartingHull = 40, StartingSupplies = 10, StationRepairSuppliesCost = 15 })!;
         Assert.Equal(StarshipShipEffectResult.InsufficientSupplies, StarshipShipSystems.ApplyStationChoice(state, "repair", "repair"));
         Assert.Equal(40, state.Hull);
         Assert.Equal(10, state.Supplies);
@@ -53,6 +53,30 @@ public class StarshipShipSystemsTests
         Assert.Equal(70, state.Hull);
         Assert.Equal(35, state.Supplies);
         Assert.Equal(10, state.PendingSuccessBonusPercent);
+    }
+
+    [Fact]
+    public void Repair_UsesConfiguredAmountAndNeverExceedsMaximumHull()
+    {
+        var state = StarshipShipSystems.Create(new() { MaximumHull = 75, StartingHull = 60, StartingSupplies = 50 })!;
+
+        Assert.Equal(StarshipShipEffectResult.Applied, StarshipShipSystems.ApplyStationChoice(state, "repair", "repair"));
+
+        Assert.Equal(75, state.Hull);
+        Assert.Equal(40, state.Supplies);
+        Assert.Throws<ArgumentOutOfRangeException>(() => StarshipShipSystems.Create(new() { MaximumHull = 75, StartingHull = 76 }));
+    }
+
+    [Fact]
+    public void EventSummary_ShowsConfiguredHullMaximum()
+    {
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            Title = "A test event",
+            ShipContext = new() { HullBefore = 60, HullMaximum = 75, HullAfter = 75, SuppliesBefore = 20, SuppliesAfter = 20 }
+        };
+
+        Assert.Contains("Ship hull: 60/75 -> 75/75", StarshipExpeditionNarrative.BuildEventMessage(expeditionEvent));
     }
 
     [Fact]

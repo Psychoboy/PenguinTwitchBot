@@ -104,6 +104,36 @@ public class StarshipSectorSelectionTests
     }
 
     [Fact]
+    public async Task BalanceTest_UsesSandboxOverridesWithoutSavingPageSettings()
+    {
+        var settings = new StarshipExpeditionSettings();
+        var store = new Mock<IStarshipExpeditionSettingsStore>();
+        var expeditionService = new Mock<IStarshipExpeditionService>();
+        expeditionService.Setup(service => service.BuildPreview(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<int>()))
+            .Returns(Array.Empty<StarshipExpeditionEventSnapshot>());
+        await using var context = CreatePageContext(settings, store, expeditionService);
+        var page = context.Render<StarshipExpeditionGame>();
+        var testTab = page.FindComponents<MudTabPanel>().Single(panel => panel.Instance.Text == "Test");
+
+        await testTab.FindComponents<MudNumericField<int>>().Single(field => field.Instance.Label == "Maximum Hull")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "70" });
+        await testTab.FindComponents<MudNumericField<int>>().Single(field => field.Instance.Label == "Starting Hull")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "65" });
+        await testTab.FindComponents<MudNumericField<int>>().Single(field => field.Instance.Label == "Travel Supplies per Leg")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "8" });
+        await testTab.FindComponents<MudNumericField<int>>().Single(field => field.Instance.Label == "Runs")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "20" });
+        await testTab.FindAll("button").Single(button => button.TextContent.Contains("Run Balance Test", StringComparison.Ordinal)).ClickAsync(new MouseEventArgs());
+
+        await page.WaitForAssertionAsync(() => expeditionService.Verify(service => service.BuildPreview(
+            It.Is<StarshipExpeditionSettings>(value => value.ShipSystems.MaximumHull == 70 &&
+                value.ShipSystems.StartingHull == 65 && value.ShipSystems.TravelSuppliesCost == 8), It.IsAny<int>()), Times.Exactly(20)));
+        Assert.Equal(80, settings.ShipSystems.MaximumHull);
+        Assert.Equal(80, settings.ShipSystems.StartingHull);
+        store.Verify(service => service.SaveAsync(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task RemoveRewardProfile_ClearsCatalogReferencesCaseInsensitivelyWithImmutableUpdates()
     {
         var settings = new StarshipExpeditionSettings();
@@ -127,7 +157,8 @@ public class StarshipSectorSelectionTests
         Assert.Equal("REVIEW-PROFILE", original.RewardProfileId);
     }
 
-    private static BunitContext CreatePageContext(StarshipExpeditionSettings settings, Mock<IStarshipExpeditionSettingsStore> store)
+    private static BunitContext CreatePageContext(StarshipExpeditionSettings settings, Mock<IStarshipExpeditionSettingsStore> store,
+        Mock<IStarshipExpeditionService>? expeditionService = null)
     {
         var context = new BunitContext();
         context.JSInterop.Mode = JSRuntimeMode.Loose;
@@ -151,7 +182,7 @@ public class StarshipSectorSelectionTests
         context.Services.AddSingleton(points.Object);
         context.Services.AddSingleton(actions.Object);
         context.Services.AddSingleton(features.Object);
-        context.Services.AddSingleton(Mock.Of<IStarshipExpeditionService>());
+        context.Services.AddSingleton(expeditionService?.Object ?? Mock.Of<IStarshipExpeditionService>());
         context.Render<MudPopoverProvider>();
         return context;
     }

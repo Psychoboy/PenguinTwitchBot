@@ -867,7 +867,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             {
                 status = "EventOpen", updatedAtUtc = now.ToString("O"), serverNowUtc = now.ToString("O"), currentLeg = 2, legCount = 6,
                 currentSector = "Kepler Reach", currentRoute = "Survey Route", crewCount = 3,
-                shipSystems = new { hull = 20, supplies = 0, pendingSuccessBonusPercent = 0, activeSuccessBonusPercent = 10, returnReason = "" },
+                shipSystems = new { hull = 20, maximumHull = 75, supplies = 0, pendingSuccessBonusPercent = 0, activeSuccessBonusPercent = 10, returnReason = "" },
                 currentEvent = new
                 {
                     sequence = 3, eventType = "StationStop", title = "Station", sector = "Kepler Reach", description = "A station.",
@@ -886,7 +886,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 }
             });
             Assert.False(engine.Evaluate("document.getElementById('ship-systems').hidden").AsBoolean());
-            Assert.Equal("Hull 20/100", engine.Evaluate("document.getElementById('ship-hull-text').textContent").AsString());
+            Assert.Equal("Hull 20/75", engine.Evaluate("document.getElementById('ship-hull-text').textContent").AsString());
+            Assert.Equal((20d / 75 * 100) + "%", engine.Evaluate("document.getElementById('ship-hull-fill').style.width").AsString());
             Assert.Equal("0%", engine.Evaluate("document.getElementById('ship-supplies-fill').style.width").AsString());
             Assert.Contains("Empty supplies", engine.Evaluate("document.getElementById('ship-bonus').textContent").AsString());
             if (view == "event")

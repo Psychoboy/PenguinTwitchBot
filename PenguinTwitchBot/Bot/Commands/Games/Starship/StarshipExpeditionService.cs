@@ -1796,7 +1796,7 @@ public sealed class StarshipExpeditionService(
         if (snapshot == null) return "No Starship Expedition is active.";
         var message = $"Starship Expedition: {snapshot.Status}, leg {snapshot.CurrentLeg}/{snapshot.LegCount}, sector {snapshot.CurrentSector}.";
         if (snapshot.ShipSystems is { IntegrationEnabled: true } ship)
-            message += $" Hull: {ship.Hull}/{StarshipShipSystemsSettings.MaximumResource}, Supplies: {ship.Supplies}/{StarshipShipSystemsSettings.MaximumResource}.";
+            message += $" Hull: {ship.Hull}/{ship.Rules.MaximumHull}, Supplies: {ship.Supplies}/{StarshipShipSystemsSettings.MaximumResource}.";
         return message;
     }
 

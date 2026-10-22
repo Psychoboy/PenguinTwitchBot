@@ -71,7 +71,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
             {
                 ["SignalDetected"] = new() { Enabled = true, AudioFile = "/media/custom_type_signal.wav", Volume = 36 }
             },
-            ShipSystems = new() { StartingHull = 80, StartingSupplies = 60, TravelSuppliesCost = 4, StationRepairAmount = 25 },
+            ShipSystems = new() { MaximumHull = 90, StartingHull = 80, StartingSupplies = 60, TravelSuppliesCost = 4, StationRepairAmount = 25 },
             AnnounceSessionStatusInChat = false,
             SessionStartChatMessageTemplate = "Boarding {duration}s",
             SessionEndChatMessageTemplate = "Returned {count} in {duration}s",
@@ -121,6 +121,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(45, loaded.BoardingDurationSeconds);
         Assert.False(loaded.ActiveCrewRewardsOnly);
         Assert.Equal(80, loaded.ShipSystems.StartingHull);
+        Assert.Equal(90, loaded.ShipSystems.MaximumHull);
         Assert.Equal(60, loaded.ShipSystems.StartingSupplies);
         Assert.Equal(4, loaded.ShipSystems.TravelSuppliesCost);
         Assert.Equal(25, loaded.ShipSystems.StationRepairAmount);
@@ -156,82 +157,13 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(6, settings.LegCount);
         Assert.Equal(80, settings.ShipSystems.StartingHull);
         Assert.Equal(55, settings.ShipSystems.StartingSupplies);
-        Assert.Equal(12, settings.ShipSystems.TravelSuppliesCost);
+        Assert.Equal(10, settings.ShipSystems.TravelSuppliesCost);
         Assert.Equal(3, settings.StationIntervalLegs);
         Assert.True(settings.ActiveCrewRewardsOnly);
         Assert.True(settings.AnnounceSessionStatusInChat);
         Assert.All(settings.RewardProfiles, profile => Assert.False(profile.Enabled));
         Assert.Empty(settings.CustomSectors);
         Assert.Equal(5, settings.GetEffectiveSectors().Count);
-    }
-
-    [Fact]
-    public async Task Load_PersistsLegacyStockDefaultsUpgradeForFutureLoads()
-    {
-        await CreateStore().LoadAsync();
-        using (var scope = _services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var row = await context.Settings.SingleAsync(item => item.Name == StarshipExpeditionSettingsStore.SettingKey);
-            var document = JsonNode.Parse(row.StringSetting!)!.AsObject();
-            document["shipSystemsDefaultsVersion"] = 0;
-            document["legCount"] = 5;
-            document["stationIntervalLegs"] = 2;
-            document["shipSystems"]!["startingHull"] = 100;
-            document["shipSystems"]!["startingSupplies"] = 100;
-            document["shipSystems"]!["travelSuppliesCost"] = 5;
-            row.StringSetting = document.ToJsonString();
-            await context.SaveChangesAsync();
-        }
-
-        var upgraded = await CreateStore().LoadAsync();
-        var reloaded = await CreateStore().LoadAsync();
-
-        Assert.Equal(6, upgraded.LegCount);
-        Assert.Equal(80, upgraded.ShipSystems.StartingHull);
-        Assert.Equal(55, upgraded.ShipSystems.StartingSupplies);
-        Assert.Equal(12, upgraded.ShipSystems.TravelSuppliesCost);
-        Assert.Equal(6, reloaded.LegCount);
-        Assert.Equal(80, reloaded.ShipSystems.StartingHull);
-        Assert.Equal(55, reloaded.ShipSystems.StartingSupplies);
-    }
-
-    [Fact]
-    public void NormalizeAndValidate_UpgradesLegacyStockDefaultsButPreservesCustomShipValues()
-    {
-        var legacy = new StarshipExpeditionSettings
-        {
-            StationIntervalLegs = 2,
-            ShipSystems = new() { StartingHull = 100, StartingSupplies = 100, TravelSuppliesCost = 5 }
-        };
-        var hazardIndex = legacy.EventCatalog.FindIndex(item => item.EventType == "Hazard");
-        legacy.EventCatalog[hazardIndex] = legacy.EventCatalog[hazardIndex] with
-        {
-            ShipFailureEffect = new() { HullDelta = -15, SuppliesDelta = -5 }
-        };
-
-        StarshipExpeditionSettings.NormalizeAndValidate(legacy);
-
-        Assert.Equal(80, legacy.ShipSystems.StartingHull);
-        Assert.Equal(55, legacy.ShipSystems.StartingSupplies);
-        Assert.Equal(12, legacy.ShipSystems.TravelSuppliesCost);
-        Assert.Equal(3, legacy.StationIntervalLegs);
-        Assert.Equal(6, legacy.LegCount);
-        Assert.Equal(new StarshipShipEffect { HullDelta = -25, SuppliesDelta = -10 }, legacy.EventCatalog[hazardIndex].ShipFailureEffect);
-
-        var customized = new StarshipExpeditionSettings
-        {
-            StationIntervalLegs = 4,
-            LegCount = 8,
-            ShipSystems = new() { StartingHull = 90, StartingSupplies = 70, TravelSuppliesCost = 8 }
-        };
-        StarshipExpeditionSettings.NormalizeAndValidate(customized);
-
-        Assert.Equal(90, customized.ShipSystems.StartingHull);
-        Assert.Equal(70, customized.ShipSystems.StartingSupplies);
-        Assert.Equal(8, customized.ShipSystems.TravelSuppliesCost);
-        Assert.Equal(4, customized.StationIntervalLegs);
-        Assert.Equal(8, customized.LegCount);
     }
 
     [Theory]
@@ -313,28 +245,12 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_ImportsLegacyBlobOnceAndThenUsesCanonicalRows()
+    public async Task SaveAndLoad_UsesDatabaseCatalogRowsAsTheSingleCatalogSource()
     {
-        var legacy = new StarshipExpeditionSettings();
-        legacy.RewardProfiles[0].Name = "My original reward";
-        var json = JsonSerializer.SerializeToNode(legacy, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!.AsObject();
-        json.Remove("eventCatalog");
-        json.Remove("catalogStorageVersion");
-        json.Remove("disabledBuiltInSectors");
-        using (var scope = _services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.Settings.Add(new Setting { Name = StarshipExpeditionSettingsStore.SettingKey, StringSetting = json.ToJsonString(), DataType = Setting.DataTypeEnum.String });
-            await context.SaveChangesAsync();
-        }
-        var imported = await CreateStore().LoadAsync();
-        Assert.Equal(1, imported.CatalogStorageVersion);
-        Assert.Empty(imported.DisabledBuiltInSectors);
-        Assert.Equal(StarshipExpeditionSettings.BuiltInSectors, imported.GetEffectiveSectors());
-        Assert.Equal("My original reward", imported.RewardProfiles.Single(profile => profile.EventType == "RouteChoice").Name);
-        imported.EventCatalog.Add(new StarshipEventDefinition("custom-event", "Custom Event", "A custom event.",
+        var settings = await CreateStore().LoadAsync();
+        settings.EventCatalog.Add(new StarshipEventDefinition("custom-event", "Custom Event", "A custom event.",
             [new() { ChoiceId = "yes", Label = "Yes" }, new() { ChoiceId = "no", Label = "No" }], "yes"));
-        await CreateStore().SaveAsync(imported);
+        await CreateStore().SaveAsync(settings);
 
         var loaded = await CreateStore().LoadAsync();
         Assert.Contains(loaded.EventCatalog, definition => definition.EventType == "custom-event");
@@ -348,37 +264,39 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task FailedCatalogImport_RollsBackRowsAndLeavesLegacyBlobIntact()
+    public async Task FailedCatalogSave_RollsBackSettingsAndCatalogRows()
     {
-        var json = JsonSerializer.Serialize(new StarshipExpeditionSettings(), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        var store = CreateStore();
+        var settings = await store.LoadAsync();
+        string originalJson;
         using (var scope = _services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.Settings.Add(new Setting { Name = StarshipExpeditionSettingsStore.SettingKey, StringSetting = json, DataType = Setting.DataTypeEnum.String });
-            await context.SaveChangesAsync();
+            originalJson = (await context.Settings.SingleAsync()).StringSetting!;
             await context.Database.ExecuteSqlRawAsync("CREATE TRIGGER reject_starship_profiles BEFORE INSERT ON starship_reward_profiles BEGIN SELECT RAISE(ABORT, 'test import failure'); END;");
         }
+        settings.EventCatalog.Add(new StarshipEventDefinition("rollback-event", "Rollback Event", "A custom event.",
+            [new() { ChoiceId = "yes", Label = "Yes" }, new() { ChoiceId = "no", Label = "No" }], "yes"));
+        settings.RewardProfiles.Add(new StarshipRewardProfile { Id = "rollback-profile", Name = "Rollback Profile" });
 
-        await Assert.ThrowsAsync<DbUpdateException>(() => CreateStore().LoadAsync());
+        await Assert.ThrowsAsync<DbUpdateException>(() => store.SaveAsync(settings));
 
         using var check = _services.CreateScope();
         var database = check.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Assert.Empty(database.StarshipEvents);
-        Assert.Empty(database.StarshipRewardProfiles);
-        Assert.Equal(json, (await database.Settings.SingleAsync()).StringSetting);
+        Assert.Equal(8, await database.StarshipEvents.CountAsync());
+        Assert.Equal(4, await database.StarshipRewardProfiles.CountAsync());
+        Assert.Equal(originalJson, (await database.Settings.SingleAsync()).StringSetting);
     }
 
     [Fact]
-    public async Task Load_RejectsUnsupportedCatalogDocumentAndMissingRows()
+    public async Task Load_RejectsMalformedCatalogJsonAndMissingRows()
     {
         await CreateStore().LoadAsync();
         using (var scope = _services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var row = await context.StarshipEvents.FirstAsync();
-            var document = JsonNode.Parse(row.DocumentJson)!;
-            document["schemaVersion"] = 99;
-            row.DocumentJson = document.ToJsonString();
+            row.DocumentJson = "{";
             await context.SaveChangesAsync();
         }
         await Assert.ThrowsAsync<InvalidDataException>(() => CreateStore().LoadAsync());
@@ -460,7 +378,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     public async Task StarterEvents_AreInstalledOnceAndKeepEditsAndDeletions()
     {
         var settings = await CreateStore().LoadAsync();
-        Assert.Equal(1, settings.StarterEventsVersion);
+        Assert.True(settings.StarterEventsInstalled);
         Assert.Equal(8, settings.EventCatalog.Count);
         var index = settings.EventCatalog.FindIndex(definition => definition.EventType == "courier-relay");
         settings.EventCatalog[index] = settings.EventCatalog[index] with { Title = "My Relay" };
@@ -471,28 +389,6 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(7, reloaded.EventCatalog.Count);
         Assert.Equal("My Relay", reloaded.EventCatalog.Single(definition => definition.EventType == "courier-relay").Title);
         Assert.DoesNotContain(reloaded.EventCatalog, definition => definition.EventType == "debris-crossing");
-    }
-
-    [Fact]
-    public async Task StarterEvents_UpgradeExistingCatalogWithoutDuplicatesOrOverwritingNames()
-    {
-        var settings = await CreateStore().LoadAsync();
-        var index = settings.EventCatalog.FindIndex(definition => definition.EventType == "courier-relay");
-        settings.EventCatalog[index] = settings.EventCatalog[index] with { Title = "Existing Relay" };
-        await CreateStore().SaveAsync(settings);
-        using (var scope = _services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var row = await context.Settings.SingleAsync();
-            var json = JsonNode.Parse(row.StringSetting!)!;
-            json.AsObject().Remove("starterEventsVersion");
-            row.StringSetting = json.ToJsonString();
-            await context.SaveChangesAsync();
-        }
-        var upgraded = await CreateStore().LoadAsync();
-        Assert.Equal(8, upgraded.EventCatalog.Count);
-        Assert.Equal("Existing Relay", upgraded.EventCatalog.Single(definition => definition.EventType == "courier-relay").Title);
-        Assert.Equal(1, (await CreateStore().LoadAsync()).StarterEventsVersion);
     }
 
     [Fact]
@@ -577,7 +473,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task StarterEvents_InvalidCandidateDoesNotDiscardValidStartersOrBlockSavedVersion()
+    public async Task StarterEvents_InvalidCandidateDoesNotDiscardValidStartersOrResetInstalledFlag()
     {
         var root = Directory.CreateTempSubdirectory("starship-starter-review-");
         try
@@ -601,7 +497,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
             Assert.Equal(5, settings.EventCatalog.Single(definition => definition.EventType == "courier-relay").SortOrder);
             Assert.Equal(6, settings.EventCatalog.Single(definition => definition.EventType == "debris-crossing").SortOrder);
             Assert.DoesNotContain(settings.EventCatalog, definition => definition.EventType == "survey-cache");
-            Assert.Equal(StarshipStarterEvents.CurrentVersion, (await store.LoadAsync()).StarterEventsVersion);
+            Assert.True((await store.LoadAsync()).StarterEventsInstalled);
         }
         finally
         {

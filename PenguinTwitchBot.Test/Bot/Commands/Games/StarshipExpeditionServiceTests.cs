@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
+using Xunit.Abstractions;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Bot.Commands;
@@ -21,6 +22,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 
 public class StarshipExpeditionServiceTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public StarshipExpeditionServiceTests(ITestOutputHelper output) => _output = output;
+
     [Fact]
     public void SharedOutcomeVariables_PreserveAggregateValuesWithoutScopeSpecificFields()
     {
@@ -163,7 +168,7 @@ public class StarshipExpeditionServiceTests
 
         var reply = Assert.Single(replies);
         Assert.Contains("EventOpen, leg", reply);
-        Assert.Equal(expectResources, reply.Contains("Hull: 72/100, Supplies: 34/100.", StringComparison.Ordinal));
+        Assert.Equal(expectResources, reply.Contains("Hull: 72/80, Supplies: 34/100.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1332,6 +1337,49 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public void DefaultVoyageEconomy_SimulatesRepairAndSupplyPressureAcrossSeeds()
+    {
+        const int runCount = 500;
+        var service = CreateService(new InMemoryStateStore());
+        var settings = new StarshipExpeditionSettings();
+        var repairsUsefulAndAffordable = 0;
+        var resourceFailureEvents = 0;
+        var earlyReturns = 0;
+        var endingSupplies = 0;
+        var hullLost = 0;
+        var stationVisits = 0;
+        var minimumStationSupplies = int.MaxValue;
+        var maximumStationSupplies = int.MinValue;
+
+        for (var seed = 0; seed < runCount; seed++)
+        {
+            var preview = service.BuildPreview(settings, seed);
+            var station = preview.SingleOrDefault(item => item.EventType == "StationStop");
+            if (station?.ShipContext is { } context)
+            {
+                stationVisits++;
+                minimumStationSupplies = Math.Min(minimumStationSupplies, context.SuppliesBefore);
+                maximumStationSupplies = Math.Max(maximumStationSupplies, context.SuppliesBefore);
+                if (context.HullBefore < settings.ShipSystems.MaximumHull &&
+                    context.SuppliesBefore >= settings.ShipSystems.StationRepairSuppliesCost)
+                    repairsUsefulAndAffordable++;
+            }
+            resourceFailureEvents += preview.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeFailure);
+            hullLost += preview.Sum(item => Math.Max(0, (item.ShipContext?.HullBefore ?? 0) - (item.ShipContext?.HullAfter ?? 0)));
+            endingSupplies += preview.LastOrDefault()?.ShipContext?.SuppliesAfter ?? 0;
+            if (preview.Count < settings.LegCount) earlyReturns++;
+        }
+
+        Assert.Equal(runCount, stationVisits);
+        Assert.True(repairsUsefulAndAffordable > 0,
+            $"No repairs affordable/useful at station. Supplies ranged {minimumStationSupplies}-{maximumStationSupplies}.");
+        Assert.InRange(earlyReturns, 0, runCount / 20);
+        Assert.True(resourceFailureEvents > runCount / 10);
+        Assert.True(endingSupplies < runCount * settings.ShipSystems.StartingSupplies);
+        _output.WriteLine($"Runs={runCount}; station repair affordable/useful={repairsUsefulAndAffordable}/{stationVisits}; failure events={resourceFailureEvents}; early returns={earlyReturns}; avg total hull lost={hullLost / (double)runCount:F1}; avg ending supplies={endingSupplies / (double)runCount:F1}.");
+    }
+
+    [Fact]
     public void BuildPreview_GivesEveryEventADeterministicObjectLook()
     {
         var service = CreateService(new InMemoryStateStore());
@@ -1987,7 +2035,7 @@ public class StarshipExpeditionServiceTests
 
     [Theory]
     [InlineData("resupply", 40, 90, 0)]
-    [InlineData("repair", 70, 35, 0)]
+    [InlineData("repair", 70, 40, 0)]
     [InlineData("continue", 40, 50, 10)]
     public async Task ShipStationChoices_ApplyDistinctEffectsAndBankEveryChoice(string choiceId, int expectedHull, int expectedSupplies, int expectedBonus)
     {
@@ -2117,18 +2165,18 @@ public class StarshipExpeditionServiceTests
         await store.SaveAsync(cruising);
         service = CreateService(store, settingsStore: settingsStore);
         var opened = await service.AdvanceEventAsync();
-        Assert.Equal(43, opened.ShipSystems!.Supplies);
+        Assert.Equal(45, opened.ShipSystems!.Supplies);
         Assert.Equal(10, opened.CurrentEvent!.ShipContext!.ResourceSuccessModifierPercent);
         await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "scan");
         var stepped = await service.AdvanceEventAsync();
-        Assert.Equal(33, stepped.ShipSystems!.Supplies);
+        Assert.Equal(35, stepped.ShipSystems!.Supplies);
         Assert.Equal(10, stepped.ShipSystems.ActiveSuccessBonusPercent);
         Assert.DoesNotContain(stepped.CurrentEvent!.Choices, choice => choice.ChoiceId == "scan");
 
         var recovered = CreateService(store, settingsStore: settingsStore);
         var finished = await recovered.AdvanceEventAsync();
 
-        Assert.Equal(33, finished.ShipSystems!.Supplies);
+        Assert.Equal(35, finished.ShipSystems!.Supplies);
         Assert.Null(finished.ShipSystems.ActiveBonusEventId);
         Assert.Equal("Success", finished.CompletedEvents.Last().OutcomeResult);
     }
@@ -2219,7 +2267,7 @@ public class StarshipExpeditionServiceTests
     [Fact]
     public void ShipOverlayDisclosure_IncludesUnavailableRepairWithoutLeakingOperationLedger()
     {
-        var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingHull = 90, StartingSupplies = 10 }));
+        var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { MaximumHull = 100, StartingHull = 90, StartingSupplies = 10 }));
         snapshot.ShipSystems!.AppliedOperationIds.Add("private-operation");
         var pool = new List<StarshipEventChoiceSnapshot>
         {
@@ -2234,7 +2282,7 @@ public class StarshipExpeditionServiceTests
         var repair = choices.Single(choice => choice.ChoiceId == "repair");
         Assert.False(repair.Available);
         Assert.Null(repair.Number);
-        Assert.Equal(15, repair.SuppliesCost);
+        Assert.Equal(10, repair.SuppliesCost);
         Assert.Equal(40, choices.Single(choice => choice.ChoiceId == "resupply").SuppliesDelta);
         Assert.Equal(2, choices.Single(choice => choice.ChoiceId == "continue").Number);
         Assert.Equal(10, choices.Single(choice => choice.ChoiceId == "continue").NextEventSuccessBonusPercent);

@@ -21,8 +21,6 @@ public enum StarshipCrewEnrollmentMethod
 
 public sealed class StarshipExpeditionSnapshot
 {
-    public const int CurrentSchemaVersion = 3;
-    public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public Guid ExpeditionId { get; init; }
 
     public int Seed { get; init; }
@@ -309,7 +307,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
         {
             ExpeditionId = snapshot.ExpeditionId,
             ShipSystems = snapshot.ShipSystems is { IntegrationEnabled: true } ship
-                ? new(ship.Hull, ship.Supplies, ship.PendingSuccessBonusPercent, ship.ActiveSuccessBonusPercent, snapshot.ReturnReason) : null,
+                ? new(ship.Hull, ship.Rules.MaximumHull, ship.Supplies, ship.PendingSuccessBonusPercent, ship.ActiveSuccessBonusPercent, snapshot.ReturnReason) : null,
             BoardingOpenSound = DropGameMediaResolver.ResolveSound(snapshot.BoardingOpenSound ?? new StarshipExpeditionSettings().BoardingOpenSound,
                 null, mediaUploadService),
             EmergencyReturnSound = snapshot.ShipSystems is { IntegrationEnabled: true }

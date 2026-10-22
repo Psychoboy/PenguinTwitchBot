@@ -107,8 +107,8 @@
                                 </MudStack>
                                 @if (_liveSnapshot?.ShipSystems is { IntegrationEnabled: true } liveShip)
                                 {
-                                    <MudText Typo="Typo.body2">Hull @liveShip.Hull / 100</MudText>
-                                    <MudProgressLinear Value="@liveShip.Hull" Color="@(liveShip.Hull <= 25 ? Color.Error : Color.Success)" Class="mb-2" />
+                                    <MudText Typo="Typo.body2">Hull @liveShip.Hull / @liveShip.Rules.MaximumHull</MudText>
+                                    <MudProgressLinear Value="@(100d * liveShip.Hull / liveShip.Rules.MaximumHull)" Color="@(liveShip.Hull <= liveShip.Rules.MaximumHull / 4 ? Color.Error : Color.Success)" Class="mb-2" />
                                     <MudText Typo="Typo.body2">Supplies @liveShip.Supplies / 100</MudText>
                                     <MudProgressLinear Value="@liveShip.Supplies" Color="@(liveShip.Supplies == 0 ? Color.Warning : Color.Info)" Class="mb-2" />
                                     <MudText Typo="Typo.caption">Pending bonus +@liveShip.PendingSuccessBonusPercent pp | Active bonus +@liveShip.ActiveSuccessBonusPercent pp</MudText>
@@ -213,8 +213,80 @@
                     </MudStack>
                 </MudTabPanel>
 
-                <MudTabPanel Text="Test Preview">
+                <MudTabPanel Text="Test">
                     <MudGrid Spacing="4">
+                        <MudItem xs="12">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Balance Test</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Runs deterministic seeds using a temporary copy of these values. Changes here do not alter settings or save anything.</MudText>
+                                    </div>
+                                    <MudStack Row="true" Spacing="2">
+                                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+                                                   Disabled="@_isRunningBalanceTest" OnClick="ResetBalanceTestSettings">Reload Current Settings</MudButton>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Science"
+                                                   Disabled="@(_isRunningBalanceTest || _balanceSettings == null)" OnClick="RunBalanceTestAsync">
+                                            @(_isRunningBalanceTest ? "Testing..." : "Run Balance Test")
+                                        </MudButton>
+                                    </MudStack>
+                                </MudStack>
+                                @if (_balanceSettings is { } balanceSettings)
+                                {
+                                    <MudGrid Spacing="2">
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Voyage Legs" Min="1" Max="@StarshipExpeditionSettings.MaximumLegCount" @bind-Value="balanceSettings.LegCount" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Base Stop Interval" Min="1" Max="@StarshipExpeditionSettings.MaximumLegCount" @bind-Value="balanceSettings.StationIntervalLegs" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Maximum Hull" Min="1" Max="100" @bind-Value="balanceSettings.ShipSystems.MaximumHull" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Starting Hull" Min="1" Max="@balanceSettings.ShipSystems.MaximumHull" @bind-Value="balanceSettings.ShipSystems.StartingHull" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Starting Supplies" Min="0" Max="100" @bind-Value="balanceSettings.ShipSystems.StartingSupplies" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Travel Supplies per Leg" Min="0" Max="100" @bind-Value="balanceSettings.ShipSystems.TravelSuppliesCost" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Default Success Chance (%)" Min="0" Max="100" @bind-Value="balanceSettings.ShipSystems.DefaultEventSuccessChancePercent" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Empty Supplies Penalty (pp)" Min="0" Max="100" @bind-Value="balanceSettings.ShipSystems.EmptySuppliesSuccessPenaltyPercent" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Station Hull Repair" Min="0" Max="100" @bind-Value="balanceSettings.ShipSystems.StationRepairAmount" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Repair Supplies Cost" Min="0" Max="100" @bind-Value="balanceSettings.ShipSystems.StationRepairSuppliesCost" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Station Supplies Restored" Min="0" Max="100" @bind-Value="balanceSettings.ShipSystems.StationResupplyAmount" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Runs" Min="20" Max="2000" @bind-Value="_balanceRunCount" /></MudItem>
+                                        <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="First Seed" @bind-Value="_balanceFirstSeed" /></MudItem>
+                                    </MudGrid>
+                                    <MudExpansionPanels Class="mt-3">
+                                        <MudExpansionPanel Text="Event Failure Damage">
+                                            <MudGrid Spacing="2">
+                                                @foreach (var definition in balanceSettings.EventCatalog.Where(item => !StarshipEventCatalog.IsStructural(item.EventType)))
+                                                {
+                                                    var eventType = definition.EventType;
+                                                    var failure = GetBalanceFailureEffect(balanceSettings, eventType);
+                                                    <MudItem xs="12" sm="6" lg="4">
+                                                        <MudText Typo="Typo.subtitle2">@definition.Title</MudText>
+                                                        <MudStack Row="true" Spacing="2">
+                                                            <MudNumericField T="int" Label="Hull Lost" Min="-100" Max="0" Value="@failure.HullDelta"
+                                                                             ValueChanged="@(value => SetBalanceFailureEffect(eventType, value, failure.SuppliesDelta))" />
+                                                            <MudNumericField T="int" Label="Supplies Lost" Min="-100" Max="0" Value="@failure.SuppliesDelta"
+                                                                             ValueChanged="@(value => SetBalanceFailureEffect(eventType, failure.HullDelta, value))" />
+                                                        </MudStack>
+                                                    </MudItem>
+                                                }
+                                            </MudGrid>
+                                        </MudExpansionPanel>
+                                    </MudExpansionPanels>
+                                }
+                                @if (!string.IsNullOrEmpty(_balanceError))
+                                {
+                                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_balanceError</MudAlert>
+                                }
+                                @if (_balanceSummary is { } summary)
+                                {
+                                    <MudDivider Class="my-3" />
+                                    <MudGrid Spacing="2">
+                                        <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Failure rate</MudText><MudText Typo="Typo.h6">@summary.FailureRatePercent.ToString("F1")%</MudText></MudItem>
+                                        <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Early returns</MudText><MudText Typo="Typo.h6">@summary.EarlyReturns / @summary.Runs</MudText></MudItem>
+                                        <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Repair useful &amp; affordable</MudText><MudText Typo="Typo.h6">@summary.RepairWindows / @summary.StationVisits</MudText></MudItem>
+                                        <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Avg hull lost</MudText><MudText Typo="Typo.h6">@summary.AverageHullLost.ToString("F1")</MudText></MudItem>
+                                        <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Avg ending hull</MudText><MudText Typo="Typo.h6">@summary.AverageEndingHull.ToString("F1")</MudText></MudItem>
+                                        <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Avg ending supplies</MudText><MudText Typo="Typo.h6">@summary.AverageEndingSupplies.ToString("F1")</MudText></MudItem>
+                                    </MudGrid>
+                                }
+                            </MudPaper>
+                        </MudItem>
                         <MudItem xs="12" md="4">
                             <MudPaper Class="pa-4" Outlined="true">
                                 <MudText Typo="Typo.h6" Class="mb-3">Seeded Route Preview</MudText>
@@ -248,7 +320,7 @@
                                             <MudText Typo="Typo.body2">@previewEvent.Description</MudText>
                                             @if (previewEvent.ShipContext is { } shipPreview)
                                             {
-                                                <MudText Typo="Typo.caption">Default path: Hull @shipPreview.HullBefore to @shipPreview.HullAfter; Supplies @shipPreview.SuppliesBefore to @shipPreview.SuppliesAfter; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
+                                                <MudText Typo="Typo.caption">Default path: Hull @shipPreview.HullBefore/@shipPreview.HullMaximum to @shipPreview.HullAfter/@shipPreview.HullMaximum; Supplies @shipPreview.SuppliesBefore to @shipPreview.SuppliesAfter; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
                                                 @if (shipPreview.HullAfter == 0)
                                                 {
                                                     <MudText Typo="Typo.body2" Color="Color.Warning">Emergency return: hull depleted.</MudText>
@@ -449,6 +521,12 @@
     private StarshipExpeditionSettings? _settings;
     private StarshipExpeditionSnapshot? _liveSnapshot;
     private IReadOnlyList<StarshipExpeditionEventSnapshot> _previewEvents = [];
+    private StarshipExpeditionSettings? _balanceSettings;
+    private BalanceTestSummary? _balanceSummary;
+    private int _balanceRunCount = 500;
+    private int _balanceFirstSeed = 0;
+    private string _balanceError = string.Empty;
+    private bool _isRunningBalanceTest;
     private List<PenguinTwitchBot.Database.Bot.Models.Points.PointType> _pointTypes = [];
     private int _previewSeed = 12345;
     private int _activeTabIndex;
@@ -557,6 +635,7 @@
         {
             _settings = await SettingsStore.LoadAsync();
             _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
+            _balanceSettings = StarshipEventEditing.Copy(_settings);
             _pointTypes = (await PointsSystem.GetPointTypes()).Where(pointType => pointType.Id.HasValue).OrderBy(pointType => pointType.Name).ToList();
             _rewardPointTypes = _pointTypes.ToDictionary(pointType => pointType.GetId(), pointType => pointType.Name);
             _rewardActions = (await ActionManagement.GetAllActionsAsync()).Where(action => action.Id.HasValue).ToDictionary(action => action.Id!.Value, action => action.Name);
@@ -642,6 +721,99 @@
             _previewEvents = [];
             _error = ex.Message;
         }
+    }
+
+    private void ResetBalanceTestSettings()
+    {
+        if (_settings == null) return;
+        _balanceSettings = StarshipEventEditing.Copy(_settings);
+        _balanceSummary = null;
+        _balanceError = string.Empty;
+    }
+
+    private static StarshipShipEffect GetBalanceFailureEffect(StarshipExpeditionSettings settings, string eventType) =>
+        settings.EventCatalog.First(item => item.EventType == eventType).ShipFailureEffect ??
+        StarshipEventCatalog.GetDefaultShipFailureEffect(eventType) ?? new();
+
+    private void SetBalanceFailureEffect(string eventType, int hullDelta, int suppliesDelta)
+    {
+        if (_balanceSettings == null) return;
+        var index = _balanceSettings.EventCatalog.FindIndex(item => item.EventType == eventType);
+        if (index < 0) return;
+        _balanceSettings.EventCatalog[index] = _balanceSettings.EventCatalog[index] with
+        {
+            ShipFailureEffect = new() { HullDelta = Math.Clamp(hullDelta, -100, 0), SuppliesDelta = Math.Clamp(suppliesDelta, -100, 0) }
+        };
+    }
+
+    private async Task RunBalanceTestAsync()
+    {
+        if (_balanceSettings == null || _isRunningBalanceTest) return;
+        _isRunningBalanceTest = true;
+        _balanceError = string.Empty;
+        try
+        {
+            var testSettings = StarshipExpeditionSettings.NormalizeAndValidate(StarshipEventEditing.Copy(_balanceSettings));
+            var runCount = Math.Clamp(_balanceRunCount, 20, 2000);
+            _balanceSummary = await Task.Run(() => SimulateBalance(testSettings, runCount, _balanceFirstSeed));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            _balanceSummary = null;
+            _balanceError = ex.Message;
+        }
+        finally
+        {
+            _isRunningBalanceTest = false;
+        }
+    }
+
+    private BalanceTestSummary SimulateBalance(StarshipExpeditionSettings settings, int runCount, int firstSeed)
+    {
+        var repairWindows = 0;
+        var stationVisits = 0;
+        var failures = 0;
+        var randomEvents = 0;
+        var earlyReturns = 0;
+        long hullLost = 0;
+        long endingHull = 0;
+        long endingSupplies = 0;
+
+        for (var run = 0; run < runCount; run++)
+        {
+            var seed = unchecked(firstSeed + run);
+            var preview = ExpeditionService.BuildPreview(settings, seed);
+            foreach (var item in preview)
+            {
+                if (item.EventType == "StationStop" && item.ShipContext is { } station)
+                {
+                    stationVisits++;
+                    if (station.HullBefore < settings.ShipSystems.MaximumHull &&
+                        station.SuppliesBefore >= settings.ShipSystems.StationRepairSuppliesCost)
+                        repairWindows++;
+                }
+                else if (!StarshipEventCatalog.IsStructural(item.EventType))
+                {
+                    randomEvents++;
+                    if (item.OutcomeResult == StarshipExpeditionNarrative.OutcomeFailure) failures++;
+                }
+                if (item.ShipContext is { } context)
+                    hullLost += Math.Max(0, context.HullBefore - context.HullAfter);
+            }
+
+            if (preview.Count < settings.LegCount) earlyReturns++;
+            endingHull += preview.LastOrDefault()?.ShipContext?.HullAfter ?? settings.ShipSystems.StartingHull;
+            endingSupplies += preview.LastOrDefault()?.ShipContext?.SuppliesAfter ?? settings.ShipSystems.StartingSupplies;
+        }
+
+        return new(runCount, stationVisits, repairWindows, failures, randomEvents, earlyReturns,
+            hullLost / (double)runCount, endingHull / (double)runCount, endingSupplies / (double)runCount);
+    }
+
+    private sealed record BalanceTestSummary(int Runs, int StationVisits, int RepairWindows, int Failures,
+        int RandomEvents, int EarlyReturns, double AverageHullLost, double AverageEndingHull, double AverageEndingSupplies)
+    {
+        public double FailureRatePercent => RandomEvents == 0 ? 0 : Failures * 100d / RandomEvents;
     }
 
     private static IReadOnlyList<StarshipEventChoiceSnapshot> GetPreviewOptions(StarshipExpeditionEventSnapshot previewEvent) =>

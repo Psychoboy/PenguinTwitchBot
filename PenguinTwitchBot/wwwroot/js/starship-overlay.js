@@ -402,13 +402,14 @@
         panel.hidden = !ship;
         root.dataset.ship = ship ? 'on' : 'off';
         if (!ship) return;
-        const hull = Math.min(100, Math.max(0, Number(ship.hull) || 0));
+        const maximumHull = Math.max(1, Math.min(100, Number(ship.maximumHull) || 100));
+        const hull = Math.min(maximumHull, Math.max(0, Number(ship.hull) || 0));
         const supplies = Math.min(100, Math.max(0, Number(ship.supplies) || 0));
-        setText('ship-hull-text', 'Hull ' + hull + '/100');
+        setText('ship-hull-text', 'Hull ' + hull + '/' + maximumHull);
         setText('ship-supplies-text', 'Supplies ' + supplies + '/100');
         const hullFill = document.getElementById('ship-hull-fill');
         const suppliesFill = document.getElementById('ship-supplies-fill');
-        hullFill.style.width = hull + '%';
+        hullFill.style.width = (hull / maximumHull * 100) + '%';
         suppliesFill.style.width = supplies + '%';
         panel.dataset.hull = hull <= 25 ? 'low' : 'normal';
         panel.dataset.supplies = supplies === 0 ? 'empty' : 'normal';

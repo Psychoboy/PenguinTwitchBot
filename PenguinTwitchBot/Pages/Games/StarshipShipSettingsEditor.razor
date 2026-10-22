@@ -1,17 +1,18 @@
 @using PenguinTwitchBot.Bot.Commands.Games.Starship
 
 <MudText Typo="Typo.h6">Ship Systems</MudText>
-<MudText Typo="Typo.caption" Color="Color.Secondary">Default five-leg voyages start at 80 Hull and 55 Supplies, spend 12 Supplies per travel leg, and include one station stop. Failure damage can make repairs necessary.</MudText>
+<MudText Typo="Typo.caption" Color="Color.Secondary">Default voyages start at 80 Hull and 55 Supplies. Maximum Hull defaults to 100; station repair adds the configured amount (30 by default) without exceeding that cap.</MudText>
 <MudSwitch T="bool" Label="Enable Hull & Supplies" Color="Color.Primary" @bind-Value="Settings.Enabled" />
 @if (Settings.Enabled)
 {
     <MudGrid Spacing="2">
-        <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Starting Hull" Variant="Variant.Outlined" Min="1" Max="100" @bind-Value="Settings.StartingHull" /></MudItem>
+        <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Maximum Hull" Variant="Variant.Outlined" Min="1" Max="100" @bind-Value="Settings.MaximumHull" /></MudItem>
+        <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Starting Hull" Variant="Variant.Outlined" Min="1" Max="@Settings.MaximumHull" @bind-Value="Settings.StartingHull" /></MudItem>
         <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Starting Supplies" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.StartingSupplies" /></MudItem>
         <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Travel Supplies Per Leg" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.TravelSuppliesCost" /></MudItem>
         <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Empty-Supplies Success Penalty (pp)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.EmptySuppliesSuccessPenaltyPercent" /></MudItem>
         <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Station Supplies Restored" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.StationResupplyAmount" /></MudItem>
-        <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Station Hull Repaired" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.StationRepairAmount" /></MudItem>
+        <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Hull Repaired at a Station" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.StationRepairAmount" /></MudItem>
         <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Repair Supplies Cost" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.StationRepairSuppliesCost" /></MudItem>
         <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Continue Success Bonus (pp)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.ContinueSuccessBonusPercent" /></MudItem>
         <MudItem xs="12"><MudNumericField T="int" Label="Default Event Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.DefaultEventSuccessChancePercent" /></MudItem>

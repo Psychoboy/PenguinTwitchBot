@@ -87,8 +87,6 @@ public sealed class StarshipExpeditionStateStore(IServiceScopeFactory scopeFacto
 
     private static void Validate(StarshipExpeditionSnapshot snapshot)
     {
-        if (snapshot.SchemaVersion != StarshipExpeditionSnapshot.CurrentSchemaVersion)
-            throw new InvalidDataException($"Unsupported Starship expedition state version {snapshot.SchemaVersion}.");
         if (snapshot.ExpeditionId == Guid.Empty)
             throw new InvalidDataException("Starship expedition state must have an expedition ID.");
         if (snapshot.LegCount < 1 || snapshot.CurrentLeg < 0 || snapshot.CurrentLeg > snapshot.LegCount)
