@@ -62,6 +62,77 @@ public class StarshipEventCatalogTests
         Assert.Equal(0, definition.Steps.Single(step => step.StepId == "shared").SuppliesCostOverride);
     }
 
+    [Fact]
+    public void EventGraph_AllowsMoreTotalStepsThanTheMaximumPathDepth()
+    {
+        var definition = new StarshipEventDefinition("branched-event", "Branched Event", "Choose a route.", [], "")
+        {
+            StartStepId = "start",
+            Steps =
+            [
+                new()
+                {
+                    StepId = "start", Type = StarshipEventStepType.Vote, DefaultChoiceId = "route-a",
+                    Choices =
+                    [
+                        new() { ChoiceId = "route-a", Label = "Route A", NextStepId = "branch-a" },
+                        new() { ChoiceId = "route-b", Label = "Route B", NextStepId = "branch-b" },
+                        new() { ChoiceId = "route-c", Label = "Route C", NextStepId = "branch-c" },
+                        new() { ChoiceId = "route-d", Label = "Route D", NextStepId = "branch-d" }
+                    ]
+                },
+                new() { StepId = "branch-a", Type = StarshipEventStepType.Automatic, NextStepId = "end-a" },
+                new() { StepId = "branch-b", Type = StarshipEventStepType.Automatic, NextStepId = "end-b" },
+                new() { StepId = "branch-c", Type = StarshipEventStepType.Automatic, NextStepId = "end-c" },
+                new() { StepId = "branch-d", Type = StarshipEventStepType.Automatic, NextStepId = "end-d" },
+                new() { StepId = "end-a", Type = StarshipEventStepType.End },
+                new() { StepId = "end-b", Type = StarshipEventStepType.End },
+                new() { StepId = "end-c", Type = StarshipEventStepType.End },
+                new() { StepId = "end-d", Type = StarshipEventStepType.End }
+            ]
+        };
+
+        var choices = StarshipEventGraphValidator.Validate(definition);
+
+        Assert.Equal(9, definition.Steps.Count);
+        Assert.Equal(4, choices.Count);
+    }
+
+    [Fact]
+    public void EventGraph_EnforcesPathDepthAfterSharedBranchesConverge()
+    {
+        var definition = new StarshipEventDefinition("deep-branch", "Deep Branch", "Choose a route.", [], "")
+        {
+            StartStepId = "start",
+            Steps =
+            [
+                new()
+                {
+                    StepId = "start", Type = StarshipEventStepType.Vote, DefaultChoiceId = "short",
+                    Choices =
+                    [
+                        new() { ChoiceId = "short", Label = "Short route", NextStepId = "short-branch" },
+                        new() { ChoiceId = "long", Label = "Long route", NextStepId = "long-a" }
+                    ]
+                },
+                new() { StepId = "short-branch", Type = StarshipEventStepType.Automatic, NextStepId = "shared" },
+                new() { StepId = "long-a", Type = StarshipEventStepType.Automatic, NextStepId = "long-b" },
+                new() { StepId = "long-b", Type = StarshipEventStepType.Automatic, NextStepId = "long-c" },
+                new() { StepId = "long-c", Type = StarshipEventStepType.Automatic, NextStepId = "long-d" },
+                new() { StepId = "long-d", Type = StarshipEventStepType.Automatic, NextStepId = "long-e" },
+                new() { StepId = "long-e", Type = StarshipEventStepType.Automatic, NextStepId = "long-f" },
+                new() { StepId = "long-f", Type = StarshipEventStepType.Automatic, NextStepId = "shared" },
+                new() { StepId = "shared", Type = StarshipEventStepType.Automatic, NextStepId = "tail" },
+                new() { StepId = "tail", Type = StarshipEventStepType.Automatic, NextStepId = "end" },
+                new() { StepId = "end", Type = StarshipEventStepType.End }
+            ]
+        };
+
+        var exception = Assert.Throws<ArgumentException>(() => StarshipEventGraphValidator.Validate(definition));
+
+        Assert.Contains("branch paths cannot exceed", exception.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("case-sensitive")]
     [InlineData("supply-cost")]

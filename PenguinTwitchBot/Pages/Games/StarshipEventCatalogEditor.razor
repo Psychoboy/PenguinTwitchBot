@@ -132,6 +132,7 @@
         {
             <MudDivider Class="my-3" />
             <MudText Typo="Typo.subtitle1">Event Flow</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Up to @StarshipEventGraphValidator.MaximumTotalSteps total steps; each route can be up to @StarshipEventGraphValidator.MaximumPathSteps steps.</MudText>
             <MudGrid Spacing="2" Class="mb-2">
                 <MudItem xs="12" sm="6">
                     <MudNumericField T="int" Label="Default Supplies Cost per Step" Variant="Variant.Outlined" Min="0" Max="100"
@@ -174,7 +175,7 @@
                     <MudSelectItem Value="@StarshipEventStepType.Automatic">Automatic</MudSelectItem>
                     <MudSelectItem Value="@StarshipEventStepType.End">End</MudSelectItem>
                 </MudSelect>
-                <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(draft.Steps.Count >= StarshipEventGraphValidator.MaximumSteps)" OnClick="AddStep">Add Step</MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(draft.Steps.Count >= StarshipEventGraphValidator.MaximumTotalSteps)" OnClick="AddStep">Add Step</MudButton>
             </MudStack>
             @if (CurrentStep is { } editStep)
             {
@@ -551,7 +552,7 @@
 
     private void AddStep()
     {
-        if (_draft == null || _draft.Steps.Count >= StarshipEventGraphValidator.MaximumSteps) return;
+        if (_draft == null || _draft.Steps.Count >= StarshipEventGraphValidator.MaximumTotalSteps) return;
         var stepId = UniqueStepId(_draft, _newStepType.ToString().ToLowerInvariant());
         var endStepId = _draft.Steps.FirstOrDefault(step => step.Type == StarshipEventStepType.End)?.StepId;
         var step = new StarshipEventStepDraft
@@ -740,7 +741,7 @@
         var paths = new List<string>();
         void Visit(string stepId, List<string> path, int depth)
         {
-            if (paths.Count >= maximumPaths || depth > StarshipEventGraphValidator.MaximumSteps) return;
+            if (paths.Count >= maximumPaths || depth > StarshipEventGraphValidator.MaximumPathSteps) return;
             var step = steps[stepId];
             var label = step.Type == StarshipEventStepType.Vote
                 ? step.StepId

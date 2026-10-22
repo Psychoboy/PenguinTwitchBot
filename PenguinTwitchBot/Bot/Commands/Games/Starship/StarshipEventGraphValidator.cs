@@ -4,7 +4,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 public static partial class StarshipEventGraphValidator
 {
-    public const int MaximumSteps = 8;
+    public const int MaximumTotalSteps = 16;
+    public const int MaximumPathSteps = 8;
 
     public static IReadOnlyList<StarshipEventChoiceSnapshot> Validate(StarshipEventDefinition definition)
     {
@@ -13,8 +14,8 @@ public static partial class StarshipEventGraphValidator
             throw new ArgumentException($"{definition.Title}: choose a start step.");
         if (definition.DefaultStepSuppliesCost is < 0 or > StarshipShipSystemsSettings.MaximumResource)
             throw new ArgumentException($"{definition.Title}: default step Supplies cost must be 0-100.");
-        if (definition.Steps == null || definition.Steps.Count is < 1 or > MaximumSteps)
-            throw new ArgumentException($"{definition.Title}: use 1-{MaximumSteps} event steps.");
+        if (definition.Steps == null || definition.Steps.Count is < 1 or > MaximumTotalSteps)
+            throw new ArgumentException($"{definition.Title}: use 1-{MaximumTotalSteps} total event steps.");
 
         var steps = new Dictionary<string, StarshipEventStepDefinition>(StringComparer.Ordinal);
         foreach (var step in definition.Steps)
@@ -66,7 +67,8 @@ public static partial class StarshipEventGraphValidator
 
         var visited = new HashSet<string>(StringComparer.Ordinal);
         var visiting = new HashSet<string>(StringComparer.Ordinal);
-        Visit(definition.StartStepId, steps, visiting, visited, definition.Title, 1);
+        var deepestVisit = new Dictionary<string, int>(StringComparer.Ordinal);
+        Visit(definition.StartStepId, steps, visiting, visited, deepestVisit, definition.Title, 1);
         if (visited.Count != steps.Count)
             throw new ArgumentException($"{definition.Title}: every step must be reachable from the start step.");
         return choices;
@@ -104,13 +106,15 @@ public static partial class StarshipEventGraphValidator
     }
 
     private static void Visit(string stepId, IReadOnlyDictionary<string, StarshipEventStepDefinition> steps,
-        HashSet<string> visiting, HashSet<string> visited, string eventTitle, int depth)
+        HashSet<string> visiting, HashSet<string> visited, Dictionary<string, int> deepestVisit, string eventTitle, int depth)
     {
-        if (depth > MaximumSteps)
-            throw new ArgumentException($"{eventTitle}: branch paths cannot exceed {MaximumSteps} steps.");
+        if (depth > MaximumPathSteps)
+            throw new ArgumentException($"{eventTitle}: branch paths cannot exceed {MaximumPathSteps} steps.");
         if (visiting.Contains(stepId))
             throw new ArgumentException($"{eventTitle}: the step graph contains a cycle at '{stepId}'.");
-        if (!visited.Add(stepId)) return;
+        visited.Add(stepId);
+        if (deepestVisit.TryGetValue(stepId, out var previousDepth) && depth <= previousDepth) return;
+        deepestVisit[stepId] = depth;
 
         visiting.Add(stepId);
         var step = steps[stepId];
@@ -123,7 +127,7 @@ public static partial class StarshipEventGraphValidator
         if (step.Type != StarshipEventStepType.End && !targets.Any())
             throw new ArgumentException($"{eventTitle}, step {step.StepId}: every path must lead to another step or an end step.");
         foreach (var target in targets)
-            Visit(target, steps, visiting, visited, eventTitle, depth + 1);
+            Visit(target, steps, visiting, visited, deepestVisit, eventTitle, depth + 1);
         visiting.Remove(stepId);
     }
 
