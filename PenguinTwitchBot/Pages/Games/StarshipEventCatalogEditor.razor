@@ -17,13 +17,14 @@
         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="NewEvent">Add Event</MudButton>
     </MudStack>
     <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
-        <thead><tr><th>Event</th><th>State</th><th>Weight</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Event</th><th>State</th><th>Reward Profile</th><th>Weight</th><th>Actions</th></tr></thead>
         <tbody>
             @foreach (var definition in FilteredEvents)
             {
                 <tr @key="definition.EventType">
                     <td>@definition.Title<br /><small>@definition.EventType</small></td>
                     <td>@(StarshipEventCatalog.IsStructural(definition.EventType) ? "Structural" : definition.Enabled ? "Enabled" : "Disabled")</td>
+                    <td>@GetRewardProfileListLabel(definition)</td>
                     <td>@(StarshipEventCatalog.IsStructural(definition.EventType) ? "-" : definition.Weight.ToString())</td>
                     <td style="white-space:nowrap">
                         <MudTooltip Text="Edit event"><MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="@($"Edit {definition.EventType}")" OnClick="@(() => OpenEvent(definition))" /></MudTooltip>
@@ -52,7 +53,7 @@
         <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
             <MudText Typo="Typo.h6">@(_originalId == null ? "New Event Draft" : "Edit Event")</MudText>
             <MudSpacer />
-            <MudButton StartIcon="@Icons.Material.Filled.Check" Color="Color.Primary" Variant="Variant.Filled" OnClick="ApplyDraft">Apply Event</MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.Check" Color="Color.Primary" Variant="Variant.Filled" OnClick="ApplyDraft">@(EventApplied.HasDelegate ? "Save Event" : "Apply Event")</MudButton>
             <MudButton StartIcon="@Icons.Material.Filled.Undo" OnClick="DiscardDraft">Discard Draft</MudButton>
             <MudButton StartIcon="@Icons.Material.Filled.Download" Disabled="@(!string.IsNullOrEmpty(_validationError))" OnClick="ExportAsync">Export JSON</MudButton>
         </MudStack>
@@ -377,6 +378,8 @@
     [Parameter, EditorRequired] public StarshipExpeditionSettings Settings { get; set; } = default!;
     [Parameter] public IReadOnlyDictionary<int, string> PointTypes { get; set; } = new Dictionary<int, string>();
     [Parameter] public IReadOnlyDictionary<int, string> Actions { get; set; } = new Dictionary<int, string>();
+    [Parameter] public EventCallback<StarshipEventDefinition> EventApplied { get; set; }
+    [Parameter] public EventCallback<string> EventDeleted { get; set; }
     private StarshipEventDraft? _draft;
     private StarshipRewardProfile? _ownedProfile;
     private string? _originalId;
@@ -402,6 +405,14 @@
     private string InheritedBinding => Settings.EventRewardProfileIds.GetValueOrDefault(_originalId ?? "", "");
     private StarshipRewardProfile? CurrentProfile => _ownedProfile != null && _ownedProfile.Id == _draft?.RewardProfileId ? _ownedProfile :
         Settings.RewardProfiles.FirstOrDefault(profile => profile.Id == (_draft?.RewardProfileId ?? InheritedBinding));
+    private string GetRewardProfileListLabel(StarshipEventDefinition definition)
+    {
+        if (StarshipEventCatalog.IsStructural(definition.EventType)) return "Structural";
+        var profileId = definition.RewardProfileId ?? Settings.EventRewardProfileIds.GetValueOrDefault(definition.EventType, "");
+        if (string.IsNullOrWhiteSpace(profileId)) return "No rewards";
+        return Settings.RewardProfiles.FirstOrDefault(profile => profile.Id == profileId)?.Name ?? profileId;
+    }
+
     private static bool IsBuiltIn(string id) => StarshipEventCatalog.IsBuiltIn(id);
 
     private bool CanChangeDraft()
@@ -486,23 +497,34 @@
         }
     }
 
-    public bool TryApplyDraft()
+    private async Task ApplyDraft()
     {
-        if (_draft == null || !_dirty) return true;
-        if (!ValidateCurrent()) return false;
+        if (_draft == null || !_dirty) return;
+        if (!ValidateCurrent()) return;
         var definition = _draft.ToDefinition();
-        var index = _originalId == null ? -1 : Settings.EventCatalog.FindIndex(item => item.EventType == _originalId);
-        if (_ownedProfile != null) Settings.RewardProfiles.Add(StarshipEventEditing.Copy(_ownedProfile));
-        if (index < 0)
-            Settings.EventCatalog.Add(definition);
-        else
-            Settings.EventCatalog[index] = definition;
-        Begin(definition, definition.EventType);
-        _notice = "Event applied. Save Settings to persist changes.";
-        return true;
-    }
+        var addedProfileId = string.Empty;
+        try
+        {
+            if (_ownedProfile != null && Settings.RewardProfiles.All(profile => profile.Id != _ownedProfile.Id))
+            {
+                Settings.RewardProfiles.Add(StarshipEventEditing.Copy(_ownedProfile));
+                addedProfileId = _ownedProfile.Id;
+            }
+            if (EventApplied.HasDelegate) await EventApplied.InvokeAsync(definition);
 
-    private void ApplyDraft() => TryApplyDraft();
+            var index = _originalId == null ? -1 : Settings.EventCatalog.FindIndex(item => item.EventType == _originalId);
+            if (index < 0) Settings.EventCatalog.Add(definition);
+            else Settings.EventCatalog[index] = definition;
+            Begin(definition, definition.EventType);
+            _notice = EventApplied.HasDelegate ? "Event saved." : "Event applied to the current settings.";
+        }
+        catch (Exception ex)
+        {
+            if (addedProfileId.Length > 0)
+                Settings.RewardProfiles.RemoveAll(profile => profile.Id == addedProfileId);
+            _operationError = ex.Message;
+        }
+    }
 
     private void ToggleFilter(List<string> filter, string value, bool enabled)
     {
@@ -711,7 +733,7 @@
         SuccessChanceModifierPercent = choice.SuccessChanceModifierPercent, RewardMultiplierPercent = choice.RewardMultiplierPercent,
         RiskMultiplierPercent = choice.RiskMultiplierPercent, Hint = choice.Hint ?? ""
     });
-    private void DeleteEvent()
+    private async Task DeleteEvent()
     {
         if (_deleteId == null || IsBuiltIn(_deleteId)) return;
         try
@@ -720,12 +742,13 @@
             var copy = StarshipEventEditing.Copy(Settings);
             copy.EventCatalog.RemoveAll(item => item.EventType == _deleteId);
             StarshipExpeditionSettings.NormalizeAndValidate(copy);
+            if (EventDeleted.HasDelegate) await EventDeleted.InvokeAsync(_deleteId);
             Settings.EventCatalog.RemoveAll(item => item.EventType == _deleteId);
             if (_originalId == _deleteId) DiscardDraft();
             _deleteId = null;
-            _notice = "Event deleted. Save Settings to persist changes.";
+            _notice = EventDeleted.HasDelegate ? "Event deleted and saved." : "Event deleted from the current settings.";
         }
-        catch (ArgumentException ex)
+        catch (Exception ex)
         {
             _operationError = ex.Message;
         }

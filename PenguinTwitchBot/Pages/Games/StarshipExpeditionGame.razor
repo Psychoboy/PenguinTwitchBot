@@ -25,15 +25,12 @@
                 {
                     <MudSwitch T="bool" Color="Color.Success" Label="Enable Starship Expedition" @bind-Value="_settings.GameEnabled" />
                 }
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Save each settings section where you edit it. Saving one section leaves other unsaved edits untouched; events persist when you choose Save Event.</MudText>
             </div>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                 <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteSweep"
                            Disabled="@(_isSaving || _isLoading)" OnClick="ResetAllSettingsAsync">
                     Reset All
-                </MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
-                           Disabled="@_isSaving" OnClick="SaveSettingsAsync">
-                    Save Settings
                 </MudButton>
                 <HelpButton Topic="starship-game" />
             </MudStack>
@@ -97,9 +94,17 @@
                                                    Label="Only Reward Active Crew" />
                                     </MudItem>
                                 </MudGrid>
+                                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                               Disabled="@_isSaving" OnClick="SaveExpeditionConfigurationAsync">Save Expedition Configuration</MudButton>
+                                </MudStack>
                             </MudPaper>
                             <MudDivider Class="my-4" />
                             <StarshipShipSettingsEditor Settings="_settings.ShipSystems" />
+                            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                           Disabled="@_isSaving" OnClick="SaveShipSystemsAsync">Save Ship Systems</MudButton>
+                            </MudStack>
                         </MudItem>
 
                         <MudItem xs="12" lg="5">
@@ -136,7 +141,7 @@
                                 }
                                 <MudDivider Class="my-3" />
                                 <MudStack Row="true" Spacing="2">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_isOperating || IsLive || _settings.GameEnabled != true)"
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_isOperating || IsLive || _persistedSettings?.GameEnabled != true)"
                                                StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="StartLiveExpeditionAsync">Start Voyage</MudButton>
                                     <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_isOperating || !IsLive)"
                                                StartIcon="@Icons.Material.Filled.SkipNext" OnClick="AdvanceLiveEventAsync">
@@ -162,7 +167,8 @@
                     {
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="9">
-                            <StarshipEventCatalogEditor @ref="_eventCatalogEditor" Settings="_settings" PointTypes="_rewardPointTypes" Actions="_rewardActions" />
+                            <StarshipEventCatalogEditor @ref="_eventCatalogEditor" Settings="_settings" PointTypes="_rewardPointTypes" Actions="_rewardActions"
+                                                        EventApplied="SaveEventDefinitionAsync" EventDeleted="DeleteEventDefinitionAsync" />
                         </MudItem>
                         <MudItem xs="12" lg="3">
                             <MudText Typo="Typo.h6">Sectors</MudText>
@@ -190,6 +196,10 @@
                                     <MudTextField T="string" Label="New Sector Name" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_newSectorName" />
                                     <MudTooltip Text="Add sector"><MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" aria-label="Add custom sector"
                                         Disabled="@(_settings.CustomSectors.Count >= StarshipExpeditionSettings.MaximumCustomSectors || string.IsNullOrWhiteSpace(_newSectorName))" OnClick="AddSector" /></MudTooltip>
+                                </MudStack>
+                                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                               Disabled="@_isSaving" OnClick="SaveSectorsAsync">Save Sectors</MudButton>
                                 </MudStack>
                             </MudStack>
                         </MudItem>
@@ -303,6 +313,10 @@
                             }
                         </MudExpansionPanels>
                         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddRewardProfile">Add Reward Profile</MudButton>
+                        <MudStack Row="true" Justify="Justify.FlexEnd">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                       Disabled="@_isSaving" OnClick="SaveRewardProfilesAsync">Save Reward Profiles</MudButton>
+                        </MudStack>
                     </MudStack>
                     }
                     }
@@ -531,6 +545,10 @@
                             }
                         </MudItem>
                     </MudGrid>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@_isSaving" OnClick="SaveAppearanceAsync">Save Appearance</MudButton>
+                    </MudStack>
                     }
                 </MudTabPanel>
 
@@ -580,6 +598,15 @@
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Animations" @bind-Value="_settings.Appearance.AnimationsEnabled" /></MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Join toasts" @bind-Value="_settings.Appearance.ShowToasts" /></MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Route map (status widget)" @bind-Value="_settings.Appearance.ShowRouteMap" /></MudItem>
+                                        <MudItem xs="12">
+                                            <MudSelect T="string" Label="Overlay visibility" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Appearance.OverlayDisplayMode">
+                                                @foreach (var mode in StarshipAppearanceSettings.OverlayDisplayModes)
+                                                {
+                                                    <MudSelectItem T="string" Value="@mode.Key">@mode.Value</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Effect chips on choices" @bind-Value="_settings.Appearance.ShowEffectChips" /></MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Live vote bars" @bind-Value="_settings.Appearance.ShowVoteBars" /></MudItem>
                                         <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Odds and loss lines" @bind-Value="_settings.Appearance.ShowOddsPanel" /></MudItem>
@@ -614,7 +641,7 @@
                         <MudItem xs="12" lg="6">
                             <MudPaper Class="pa-4" Outlined="true">
                                 <MudText Typo="Typo.h6" Class="mb-1">Live preview</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Shows sample data with your unsaved changes. Save settings to apply them to your overlays; connected overlays update immediately.</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Shows sample data with your current appearance edits. Save Appearance to persist them; connected overlays update immediately.</MudText>
                                 <MudText Typo="Typo.caption">Status widget</MudText>
                                 <iframe class="starship-preview-frame" src="/starship-status.html?preview=1&sample=status" title="Status widget preview"
                                         style="width:520px;height:180px;max-width:100%;border:1px dashed #666;background:#222;"></iframe>
@@ -646,6 +673,11 @@
                                                         EndMessageHelperText="Available placeholders: {count}, {duration}, {result}." />
                         </MudItem>
                     </MudGrid>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Automation actions save in their setup flow. This button saves only the session message templates.</MudText>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@_isSaving" OnClick="SaveSessionMessagesAsync">Save Session Messages</MudButton>
+                    </MudStack>
                     }
                 </MudTabPanel>
 
@@ -664,6 +696,10 @@
                         }
                         <MudDivider />
                         <DropGameSoundEditor Title="Emergency Return Cue" SoundConfig="_settings.EmergencyReturnSound" />
+                    </MudStack>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@_isSaving" OnClick="SaveAudioSettingsAsync">Save Audio Settings</MudButton>
                     </MudStack>
                     }
                 </MudTabPanel>
@@ -689,6 +725,7 @@
     }
 
     private StarshipExpeditionSettings? _settings;
+    private StarshipExpeditionSettings? _persistedSettings;
     private StarshipExpeditionSnapshot? _liveSnapshot;
     private IReadOnlyList<StarshipExpeditionEventSnapshot> _previewEvents = [];
     private StarshipExpeditionSettings? _balanceSettings;
@@ -826,6 +863,7 @@
             await Task.WhenAll(settingsTask, liveSnapshotTask);
             _settings = await settingsTask;
             _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
+            _persistedSettings = StarshipEventEditing.Copy(_settings);
             _liveSnapshot = await liveSnapshotTask;
         }
         catch (Exception ex)
@@ -864,35 +902,99 @@
         _settings.CustomSectors.RemoveAt(index);
     }
 
-    private async Task SaveSettingsAsync()
+    private Task SaveExpeditionConfigurationAsync() => SaveSectionAsync("Expedition configuration", (saved, current) =>
     {
-        if (_settings == null) return;
+        saved.LegCount = current.LegCount;
+        saved.MinimumEventIntervalMinutes = current.MinimumEventIntervalMinutes;
+        saved.MaximumEventIntervalMinutes = current.MaximumEventIntervalMinutes;
+        saved.StationIntervalLegs = current.StationIntervalLegs;
+        saved.EventVoteDurationSeconds = current.EventVoteDurationSeconds;
+        saved.BoardingDurationSeconds = current.BoardingDurationSeconds;
+        saved.GameEnabled = current.GameEnabled;
+        saved.ActiveCrewRewardsOnly = current.ActiveCrewRewardsOnly;
+    });
+
+    private Task SaveShipSystemsAsync() => SaveSectionAsync("Ship systems", (saved, current) =>
+        saved.ShipSystems = StarshipEventEditing.Copy(current.ShipSystems));
+
+    private Task SaveSectorsAsync() => SaveSectionAsync("Sectors", (saved, current) =>
+    {
+        saved.CustomSectors = [.. current.CustomSectors];
+        saved.DisabledBuiltInSectors = [.. current.DisabledBuiltInSectors];
+    });
+
+    private Task SaveRewardProfilesAsync() => SaveSectionAsync("Reward profiles", (saved, current) =>
+    {
+        saved.RewardProfiles = StarshipEventEditing.Copy(current.RewardProfiles);
+        saved.EventRewardProfileIds = new(current.EventRewardProfileIds, StringComparer.OrdinalIgnoreCase);
+        saved.EventCatalog = StarshipEventEditing.Copy(current.EventCatalog);
+    });
+
+    private Task SaveAppearanceAsync() => SaveSectionAsync("Appearance", (saved, current) =>
+        saved.Appearance = StarshipEventEditing.Copy(current.Appearance));
+
+    private Task SaveSessionMessagesAsync() => SaveSectionAsync("Session messages", (saved, current) =>
+    {
+        saved.AnnounceSessionStatusInChat = current.AnnounceSessionStatusInChat;
+        saved.SessionStartChatMessageTemplate = current.SessionStartChatMessageTemplate;
+        saved.SessionEndChatMessageTemplate = current.SessionEndChatMessageTemplate;
+    });
+
+    private Task SaveAudioSettingsAsync() => SaveSectionAsync("Audio settings", (saved, current) =>
+    {
+        saved.BoardingOpenSound = StarshipEventEditing.Copy(current.BoardingOpenSound);
+        saved.EmergencyReturnSound = StarshipEventEditing.Copy(current.EmergencyReturnSound);
+        saved.EventTypeOpenSounds = StarshipEventEditing.Copy(current.EventTypeOpenSounds);
+    });
+
+    private async Task<bool> SaveSectionAsync(string sectionName, Action<StarshipExpeditionSettings, StarshipExpeditionSettings> applySection)
+    {
+        if (_settings == null || _persistedSettings == null || _isSaving) return false;
         _isSaving = true;
         _error = string.Empty;
         try
         {
-            if (_eventCatalogEditor?.TryApplyDraft() == false)
-            {
-                _error = "The event draft is invalid. Review the Events & Sectors tab.";
-                return;
-            }
-            _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
-            await SettingsStore.SaveAsync(_settings);
+            var candidate = StarshipEventEditing.Copy(_persistedSettings);
+            applySection(candidate, _settings);
+            candidate = StarshipExpeditionSettings.NormalizeAndValidate(candidate);
+            await SettingsStore.SaveAsync(candidate);
+            _persistedSettings = StarshipEventEditing.Copy(candidate);
             await ExpeditionService.RefreshAppearanceAsync();
-            Snackbar.Add("Starship Expedition settings saved.", Severity.Success);
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
-        {
-            _error = ex.Message;
+            Snackbar.Add($"{sectionName} saved.", Severity.Success);
+            return true;
         }
         catch (Exception ex)
         {
-            _error = $"Could not save Starship settings: {ex.Message}";
+            _error = $"Could not save {sectionName.ToLowerInvariant()}: {ex.Message}";
+            return false;
         }
         finally
         {
             _isSaving = false;
         }
+    }
+
+    private async Task SaveEventDefinitionAsync(StarshipEventDefinition definition)
+    {
+        var saved = await SaveSectionAsync($"Event '{definition.Title}'", (candidate, current) =>
+        {
+            var index = candidate.EventCatalog.FindIndex(item => item.EventType == definition.EventType);
+            if (index < 0) candidate.EventCatalog.Add(definition);
+            else candidate.EventCatalog[index] = definition;
+
+            if (!string.IsNullOrWhiteSpace(definition.RewardProfileId) &&
+                candidate.RewardProfiles.All(profile => profile.Id != definition.RewardProfileId) &&
+                current.RewardProfiles.FirstOrDefault(profile => profile.Id == definition.RewardProfileId) is { } newProfile)
+                candidate.RewardProfiles.Add(StarshipEventEditing.Copy(newProfile));
+        });
+        if (!saved) throw new InvalidOperationException(_error);
+    }
+
+    private async Task DeleteEventDefinitionAsync(string eventType)
+    {
+        var saved = await SaveSectionAsync($"Event '{eventType}' deletion", (candidate, _) =>
+            candidate.EventCatalog.RemoveAll(item => item.EventType == eventType));
+        if (!saved) throw new InvalidOperationException(_error);
     }
 
     private async Task ResetAllSettingsAsync()
@@ -909,6 +1011,7 @@
         try
         {
             _settings = await SettingsStore.ResetToDefaultsAsync();
+            _persistedSettings = StarshipEventEditing.Copy(_settings);
             _eventCatalogEditor?.DiscardPendingDraft();
             _balanceSettings = _activeTabIndex == 3 ? StarshipEventEditing.Copy(_settings) : null;
             _previewEvents = [];
@@ -1121,13 +1224,10 @@
 
     private async Task StartLiveExpeditionAsync()
     {
-        if (_settings == null || IsLive) return;
+        if (_settings == null || _persistedSettings?.GameEnabled != true || IsLive) return;
         _isOperating = true;
         try
         {
-            _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
-            await SettingsStore.SaveAsync(_settings);
-            await ExpeditionService.RefreshAppearanceAsync();
             _liveSnapshot = await ExpeditionService.StartExpeditionAsync("Streamer");
             Snackbar.Add("Starship Expedition started.", Severity.Success);
         }

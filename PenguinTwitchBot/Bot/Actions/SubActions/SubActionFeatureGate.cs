@@ -25,6 +25,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 [SubActionTypes.CurlingSlide] = FeatureKeys.DropGames,
                 [SubActionTypes.GolfPutt] = FeatureKeys.DropGames,
                 [SubActionTypes.StarshipShowStatus] = FeatureKeys.DropGames,
+                [SubActionTypes.StarshipShowEvent] = FeatureKeys.DropGames,
+                [SubActionTypes.StarshipStartExpedition] = FeatureKeys.DropGames,
+                [SubActionTypes.StarshipStopExpedition] = FeatureKeys.DropGames,
                 [SubActionTypes.StartDropGameSession] = FeatureKeys.DropGames,
                 [SubActionTypes.StopDropGameSession] = FeatureKeys.DropGames
             };

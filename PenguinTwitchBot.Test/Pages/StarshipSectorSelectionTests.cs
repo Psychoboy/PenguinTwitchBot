@@ -57,27 +57,29 @@ public class StarshipSectorSelectionTests
             Assert.Contains(sector, settings.DisabledBuiltInSectors);
         }
         await page.WaitForAssertionAsync(() => Assert.Contains("1 available (minimum 2)", page.Markup));
-        await page.FindAll("button").Single(button => button.TextContent.Contains("Save Settings", StringComparison.Ordinal)).ClickAsync(new MouseEventArgs());
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Save Sectors").ClickAsync(new MouseEventArgs());
         await page.WaitForAssertionAsync(() => Assert.Contains("Enable or add at least two expedition sectors.", page.Markup));
         store.Verify(instance => instance.SaveAsync(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<CancellationToken>()), Times.Never);
 
         await page.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Ternion Belt")
             .Find("input").ChangeAsync(new ChangeEventArgs { Value = true });
         Assert.DoesNotContain("Ternion Belt", settings.DisabledBuiltInSectors);
-        await page.FindAll("button").Single(button => button.TextContent.Contains("Save Settings", StringComparison.Ordinal)).ClickAsync(new MouseEventArgs());
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Save Sectors").ClickAsync(new MouseEventArgs());
         await page.WaitForAssertionAsync(() => store.Verify(instance => instance.SaveAsync(
             It.Is<StarshipExpeditionSettings>(value => value.GetEffectiveSectors().Count == 2), It.IsAny<CancellationToken>()), Times.Once));
 
+        settings.LegCount = 12;
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(1));
         var editor = page.FindComponent<StarshipEventCatalogEditor>();
         await editor.FindAll("button").Single(button => button.TextContent.Trim() == "Add Event").ClickAsync(new MouseEventArgs());
         await editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Title")
             .Find("input").ChangeAsync(new ChangeEventArgs { Value = "Page Save Draft" });
+        await editor.FindAll("button").Single(button => button.TextContent.Trim() == "Save Event").ClickAsync(new MouseEventArgs());
+        await page.WaitForAssertionAsync(() => store.Verify(instance => instance.SaveAsync(
+            It.Is<StarshipExpeditionSettings>(value => value.EventCatalog.Any(definition => definition.Title == "Page Save Draft") &&
+                value.LegCount != 12), It.IsAny<CancellationToken>()), Times.Once));
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
         Assert.Single(page.FindComponents<StarshipEventCatalogEditor>());
-        await page.FindAll("button").Single(button => button.TextContent.Contains("Save Settings", StringComparison.Ordinal)).ClickAsync(new MouseEventArgs());
-        await page.WaitForAssertionAsync(() => store.Verify(instance => instance.SaveAsync(
-            It.Is<StarshipExpeditionSettings>(value => value.EventCatalog.Any(definition => definition.Title == "Page Save Draft")), It.IsAny<CancellationToken>()), Times.Exactly(2)));
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(4));
         await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
@@ -97,7 +99,7 @@ public class StarshipSectorSelectionTests
         Assert.False(enable.Find("input").HasAttribute("checked"));
         await enable.Find("input").ChangeAsync(new ChangeEventArgs { Value = true });
         Assert.True(settings.GameEnabled);
-        await page.FindAll("button").Single(button => button.TextContent.Contains("Save Settings", StringComparison.Ordinal)).ClickAsync(new MouseEventArgs());
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Save Expedition Configuration").ClickAsync(new MouseEventArgs());
 
         await page.WaitForAssertionAsync(() => store.Verify(instance => instance.SaveAsync(
             It.Is<StarshipExpeditionSettings>(value => value.GameEnabled), It.IsAny<CancellationToken>()), Times.Once));
@@ -164,7 +166,7 @@ public class StarshipSectorSelectionTests
         await using var context = CreatePageContext(settings, store, actionManagementService: actionService);
         var page = context.Render<StarshipExpeditionGame>();
 
-        await page.WaitForAssertionAsync(() => Assert.Contains("Save Settings", page.Markup));
+        await page.WaitForAssertionAsync(() => Assert.Contains("Save Expedition Configuration", page.Markup));
         actionService.Verify(service => service.GetAllActionsAsync(), Times.Never);
 
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(5));
@@ -333,7 +335,8 @@ public class StarshipSectorSelectionTests
         settings.EventRewardProfileIds["SignalDetected"] = profile.Id;
         var index = settings.EventCatalog.FindIndex(definition => definition.EventType == "SignalDetected");
         settings.EventCatalog[index] = settings.EventCatalog[index] with { RewardProfileId = profile.Id };
-        await using var context = CreatePageContext(settings, new Mock<IStarshipExpeditionSettingsStore>());
+        var store = new Mock<IStarshipExpeditionSettingsStore>();
+        await using var context = CreatePageContext(settings, store);
         var page = context.Render<StarshipExpeditionGame>();
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(2));
         await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudExpansionPanel>(),
@@ -348,6 +351,12 @@ public class StarshipSectorSelectionTests
         Assert.Equal(string.Empty, settings.EventRewardProfileIds["SignalDetected"]);
         Assert.Equal(original with { RewardProfileId = string.Empty }, settings.EventCatalog[index]);
         Assert.Equal("REVIEW-PROFILE", original.RewardProfileId);
+
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Save Reward Profiles")
+            .ClickAsync(new MouseEventArgs());
+        await page.WaitForAssertionAsync(() => store.Verify(service => service.SaveAsync(
+            It.Is<StarshipExpeditionSettings>(saved => saved.RewardProfiles.All(item => item.Id != profile.Id) &&
+                saved.EventCatalog[index].RewardProfileId == string.Empty), It.IsAny<CancellationToken>()), Times.Once));
     }
 
     private static BunitContext CreatePageContext(StarshipExpeditionSettings settings, Mock<IStarshipExpeditionSettingsStore> store,

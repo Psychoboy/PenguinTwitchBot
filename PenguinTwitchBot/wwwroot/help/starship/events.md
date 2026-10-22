@@ -7,8 +7,8 @@ Use **Events & Sectors** on the Starship Expedition page to manage the catalog. 
 1. Open an event with its edit icon, use **Add Event**, or duplicate a built-in as a custom draft.
 2. Set its wording, availability, subject/art and choices. Select a reward profile if the event should award points. Integrated voyages roll success/failure even without point rewards.
 3. Use **Preview Event** to inspect the description, choice effects and story text with a sample seed. Previewing never starts a voyage, sends chat, runs actions or changes balances.
-4. **Apply Event** validates the whole candidate catalog and updates the page's unsaved settings.
-5. **Save Settings** persists the catalog. It also validates and applies an open draft; invalid drafts prevent saving. Drafts survive tab switches, but not closing or reloading the page.
+4. **Save Event** validates and immediately persists that event. It does not save unrelated edits in other sections. Drafts survive tab switches, but not closing or reloading the page.
+5. Save changes in other sections with the save button in that section. Imported events remain drafts until you choose **Save Event**.
 6. Start a new voyage to use the saved catalog. A running voyage retains its departure-time catalog, reward profiles and sector pool, including after a restart.
 
 Apply or discard the current draft before opening another event. Deleting a custom event requires confirmation and cannot leave a route/sector without an eligible event.
@@ -101,7 +101,7 @@ Earn-time eligibility uses the existing active-viewer/subscriber policy when **O
 
 **Export JSON** downloads one validated event and fills the JSON text field. **Open JSON File** or **Import as Draft** accepts schema version 2, up to 256 KB. Imports always get a new custom ID and never replace an existing event. Version 1 documents are not imported; export or recreate them using the current editor.
 
-Reward profiles, point types and actions are not bundled in an event export. If its profile reference is absent locally, the editor opens an invalid draft so you can select or create a local profile. This placeholder validation does not create a saved profile. Remap the reference, Apply Event, then Save Settings.
+Reward profiles, point types and actions are not bundled in an event export. If its profile reference is absent locally, the editor opens an invalid draft so you can select or create a local profile. This placeholder validation does not create a saved profile. Remap the reference, then choose **Save Event**. A new reward profile created in the event editor is saved with that event.
 
 ## Troubleshooting
 

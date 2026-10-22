@@ -64,6 +64,8 @@ public sealed class StarshipExpeditionSnapshot
     public StarshipExpeditionEventSnapshot? CurrentEvent { get; set; }
     /// <summary>While in the future, the status widget stays visible even when it would otherwise fade out during cruising.</summary>
     public DateTimeOffset? StatusForcedUntilUtc { get; set; }
+    /// <summary>While in the future, the event widget may display when its appearance mode requires an explicit trigger.</summary>
+    public DateTimeOffset? EventForcedUntilUtc { get; set; }
     public List<StarshipActivityItem> ActivityFeed { get; init; } = [];
     public long NextActivityId { get; set; } = 1;
     public StarshipShipSnapshot Ship { get; init; } = new();
@@ -292,6 +294,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
 {
     public Guid ExpeditionId { get; init; }
     public StarshipOverlayShipState? ShipSystems { get; init; }
+    public DateTimeOffset? EventForcedUntilUtc { get; init; }
     public DropGameEffectiveSoundDto? BoardingOpenSound { get; init; }
     public DropGameEffectiveSoundDto? EmergencyReturnSound { get; init; }
 
@@ -324,6 +327,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
                 item.Sequence, item.Title, item.OutcomeResult, item.OutcomeRarity, item.ObjectKind)).ToList())
         {
             ExpeditionId = snapshot.ExpeditionId,
+            EventForcedUntilUtc = snapshot.EventForcedUntilUtc,
             ShipSystems = snapshot.ShipSystems is { IntegrationEnabled: true } ship
                 ? new(ship.Hull, ship.Rules.MaximumHull, ship.Supplies, ship.PendingSuccessBonusPercent, ship.ActiveSuccessBonusPercent, snapshot.ReturnReason) : null,
             BoardingOpenSound = DropGameMediaResolver.ResolveSound(snapshot.BoardingOpenSound ?? new StarshipExpeditionSettings().BoardingOpenSound,

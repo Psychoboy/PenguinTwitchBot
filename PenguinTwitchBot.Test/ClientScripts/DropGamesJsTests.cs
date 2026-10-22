@@ -767,7 +767,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             string Faded() => engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString();
 
             DispatchStarshipOverlayState(engine, Snapshot("Boarding", now, null));
-            Assert.Equal("false", Faded());
+            Assert.Equal("true", Faded());
 
             DispatchStarshipOverlayState(engine, Snapshot("Cruising", now.AddSeconds(1), null));
             Assert.Equal("true", Faded());
@@ -779,7 +779,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal("true", Faded());
 
             DispatchStarshipOverlayState(engine, Snapshot("EventOpen", now.AddSeconds(4), null));
-            Assert.Equal("false", Faded());
+            Assert.Equal("true", Faded());
 
             DispatchStarshipOverlayState(engine, Snapshot("Returned", now.AddSeconds(5), null));
             Assert.Equal("false", Faded());
@@ -992,21 +992,39 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 var forcedIdle = {{ status: 'Inactive', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}',
                     statusForcedUntilUtc: '{Iso(30)}' }};
                 window.__forcedIdle = tracker.derive(forcedIdle);
+                var activeEvent = {{ status: 'EventOpen', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}',
+                    eventForcedUntilUtc: null }};
+                window.__autoNoOverlap = tracker.derive(activeEvent, 'AutomaticNoOverlap');
+                window.__statusManual = tracker.derive(activeEvent, 'StatusOnDemand');
+                window.__bothManual = tracker.derive(activeEvent, 'BothOnDemand');
+                window.__eventManual = tracker.derive(activeEvent, 'EventOnDemand');
+                var forcedEvent = {{ status: 'Cruising', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}',
+                    eventForcedUntilUtc: '{Iso(30)}' }};
+                window.__forcedEvent = tracker.derive(forcedEvent, 'EventOnDemand');
             ");
 
             Assert.Equal("EventVoting", engine.Evaluate("window.__first").AsString());
             Assert.Equal("StepTransition", engine.Evaluate("window.__second").AsString());
             Assert.Equal("Result", engine.Evaluate("window.__result.name").AsString());
             Assert.True(engine.Evaluate("window.__result.eventVisible").AsBoolean());
-            Assert.False(engine.Evaluate("window.__result.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__result.statusFaded").AsBoolean());
             Assert.Equal("Cruising", engine.Evaluate("window.__stale.name").AsString());
             Assert.True(engine.Evaluate("window.__stale.statusFaded").AsBoolean());
             Assert.False(engine.Evaluate("window.__recent.statusFaded").AsBoolean());
             Assert.False(engine.Evaluate("window.__stale.eventVisible").AsBoolean());
             Assert.Equal("VoyageEnd", engine.Evaluate("window.__ended.name").AsString());
-            Assert.False(engine.Evaluate("window.__ended.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__ended.statusFaded").AsBoolean());
             Assert.True(engine.Evaluate("window.__idle.statusFaded").AsBoolean());
             Assert.False(engine.Evaluate("window.__forcedIdle.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__autoNoOverlap.eventVisible").AsBoolean());
+            Assert.True(engine.Evaluate("window.__autoNoOverlap.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__statusManual.eventVisible").AsBoolean());
+            Assert.True(engine.Evaluate("window.__statusManual.statusFaded").AsBoolean());
+            Assert.False(engine.Evaluate("window.__bothManual.eventVisible").AsBoolean());
+            Assert.True(engine.Evaluate("window.__bothManual.statusFaded").AsBoolean());
+            Assert.False(engine.Evaluate("window.__eventManual.eventVisible").AsBoolean());
+            Assert.False(engine.Evaluate("window.__eventManual.statusFaded").AsBoolean());
+            Assert.True(engine.Evaluate("window.__forcedEvent.eventVisible").AsBoolean());
         }
 
         [Fact]

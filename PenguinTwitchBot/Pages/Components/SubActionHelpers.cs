@@ -68,6 +68,9 @@ namespace PenguinTwitchBot.Pages.Components
                 StartDropGameSessionType startSession => $"Start {startSession.GameType} Session ({startSession.DurationSeconds}s)",
                 StopDropGameSessionType stopSession => $"Stop {stopSession.GameType} Session",
                 StarshipShowStatusType starshipShow => $"Starship Status Widget: show for {starshipShow.DurationSeconds}s",
+                StarshipShowEventType starshipShow => $"Starship Event Widget: show for {starshipShow.DurationSeconds}s",
+                StarshipStartExpeditionType => "Start Starship Expedition using saved game settings",
+                StarshipStopExpeditionType => "Stop the active Starship Expedition",
                 _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
             };
         }

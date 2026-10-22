@@ -124,6 +124,32 @@ public class StarshipEventEditingTests
     }
 
     [Fact]
+    public void CustomSystemEventImports_AreValidForConfiguredSectors()
+    {
+        var settings = new StarshipExpeditionSettings
+        {
+            CustomSectors = ["Stanton", "Nyx", "Pyro", "Castra", "Terra"]
+        };
+        StarshipExpeditionSettings.NormalizeAndValidate(settings);
+        var importDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "docs", "starship-event-imports"));
+        var files = Directory.GetFiles(importDirectory, "*.json").Order(StringComparer.Ordinal).ToList();
+
+        Assert.Equal(8, files.Count);
+        var importedIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var file in files)
+        {
+            var draft = StarshipEventEditing.Import(File.ReadAllText(file), settings);
+            StarshipEventEditing.ValidateDraft(settings, draft, null);
+
+            Assert.True(importedIds.Add(draft.EventType), $"Duplicate event ID: {draft.EventType}");
+            Assert.Single(draft.AllowedSectors);
+            Assert.Contains(draft.AllowedSectors[0], settings.CustomSectors, StringComparer.Ordinal);
+            Assert.InRange(draft.Steps.Count, 1, StarshipEventGraphValidator.MaximumTotalSteps);
+            Assert.Contains(draft.Steps, step => step.Type == StarshipEventStepType.End);
+        }
+    }
+
+    [Fact]
     public void ValidateDraft_RejectsStructuralChangesAndLeavesSettingsUntouched()
     {
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());

@@ -54,6 +54,28 @@ public class StarshipEventCatalogEditorTests
     }
 
     [Fact]
+    public async Task EventList_ShowsEffectiveRewardProfileAndUnboundState()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var profile = new StarshipRewardProfile
+        {
+            Id = "signal-crew-rewards", Name = "Signal Crew Rewards", Tiers = [new() { Name = "Common", Weight = 1 }]
+        };
+        settings.RewardProfiles.Add(profile);
+        settings.EventRewardProfileIds["SignalDetected"] = profile.Id;
+        settings.EventCatalog.Add(StarshipEventEditing.NewEvent(settings));
+        StarshipExpeditionSettings.NormalizeAndValidate(settings);
+
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
+        var signalRow = editor.FindAll("tbody tr").Single(row => row.TextContent.Contains("SignalDetected", StringComparison.Ordinal));
+        var customRow = editor.FindAll("tbody tr").Single(row => row.TextContent.Contains("New Event", StringComparison.Ordinal));
+
+        Assert.Contains("Signal Crew Rewards", signalRow.TextContent);
+        Assert.Contains("No rewards", customRow.TextContent);
+    }
+
+    [Fact]
     public async Task DiscardPendingDraft_ClearsDraftAndRefreshesEditor()
     {
         await using var context = CreateContext();

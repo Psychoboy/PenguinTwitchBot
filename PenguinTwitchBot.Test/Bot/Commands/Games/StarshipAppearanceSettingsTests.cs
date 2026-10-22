@@ -16,6 +16,7 @@ public class StarshipAppearanceSettingsTests
         Assert.Equal(94, appearance.PanelOpacityPercent);
         Assert.Equal(7, appearance.CornerRadiusPx);
         Assert.Equal("Barlow Condensed", appearance.FontFamily);
+        Assert.Equal(StarshipAppearanceSettings.AutomaticNoOverlap, appearance.OverlayDisplayMode);
         Assert.True(appearance.UseShipAccent && appearance.UseBuiltInShipArt && appearance.UseBuiltInObjectArt);
         Assert.Equal(StarshipAppearanceSettings.ObjectKinds.Order(), appearance.ObjectImages.Keys.Order());
     }
@@ -52,6 +53,8 @@ public class StarshipAppearanceSettingsTests
             new StarshipAppearanceSettings { CornerRadiusPx = 25 }));
         Assert.Throws<ArgumentException>(() => StarshipAppearanceSettings.NormalizeAndValidate(
             new StarshipAppearanceSettings { FontFamily = "Comic Sans'; background:url(x)" }));
+        Assert.Throws<ArgumentException>(() => StarshipAppearanceSettings.NormalizeAndValidate(
+            new StarshipAppearanceSettings { OverlayDisplayMode = "surprise" }));
     }
 
     [Fact]

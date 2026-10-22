@@ -716,6 +716,26 @@ public sealed class StarshipExpeditionService(
         }
     }
 
+    public async Task<StarshipExpeditionSnapshot?> ShowEventWidgetAsync(int durationSeconds, CancellationToken cancellationToken = default)
+    {
+        await EnsureLoadedAsync(cancellationToken);
+        await _stateLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_snapshot == null || _snapshot.Status != StarshipExpeditionStatus.Boarding &&
+                _snapshot.CurrentEvent == null && _snapshot.CompletedEvents.Count == 0) return null;
+            var previousSnapshot = Clone(_snapshot);
+            var seconds = Math.Clamp(durationSeconds, 1, 3600);
+            _snapshot.EventForcedUntilUtc = _timeProvider.GetUtcNow().AddSeconds(seconds);
+            await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
+            return Clone(_snapshot);
+        }
+        finally
+        {
+            _stateLock.Release();
+        }
+    }
+
     private async Task AnnounceBoardingAsync(StarshipExpeditionSnapshot snapshot)
     {
         var defaultMessage = $"Starship Expedition boarding is open for {snapshot.BoardingDurationSeconds}s. Join before takeoff with !starship join.";

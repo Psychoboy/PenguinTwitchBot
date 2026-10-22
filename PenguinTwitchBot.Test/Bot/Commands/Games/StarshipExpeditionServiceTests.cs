@@ -1406,6 +1406,24 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public async Task ShowEventWidget_SetsForcedVisibilityWindowAndBroadcastsIt()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var stateStore = new InMemoryStateStore();
+        var service = CreateService(stateStore, clock);
+        Assert.Null(await service.ShowEventWidgetAsync(30));
+
+        await service.StartExpeditionAsync("moderator", seed: 5);
+        var shown = await service.ShowEventWidgetAsync(45);
+
+        Assert.Equal(clock.GetUtcNow().AddSeconds(45), shown!.EventForcedUntilUtc);
+        Assert.Equal(shown.EventForcedUntilUtc, StarshipExpeditionOverlaySnapshot.From(shown).EventForcedUntilUtc);
+        Assert.Equal(shown.EventForcedUntilUtc, (await stateStore.LoadAsync())!.EventForcedUntilUtc);
+        var capped = await service.ShowEventWidgetAsync(100000);
+        Assert.Equal(clock.GetUtcNow().AddSeconds(3600), capped!.EventForcedUntilUtc);
+    }
+
+    [Fact]
     public async Task MultiStepEvent_FiresStepAdvancedAndOutcomeTriggers()
     {
         var stateStore = new InMemoryStateStore();

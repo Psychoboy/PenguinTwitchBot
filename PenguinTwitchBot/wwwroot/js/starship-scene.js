@@ -72,12 +72,13 @@
             return fresh;
         }
 
-        function derive(snapshot) {
+        function derive(snapshot, displayMode) {
             const t = now();
             const status = snapshot?.status ?? 'Inactive';
             const terminal = status === 'Returned' || status === 'Aborted';
             const updatedAt = parse(snapshot?.updatedAtUtc);
-            const forced = parse(snapshot?.statusForcedUntilUtc) > t;
+            const statusForced = parse(snapshot?.statusForcedUntilUtc) > t;
+            const eventForced = parse(snapshot?.eventForcedUntilUtc) > t;
             const resolvedAt = parse(snapshot?.latestResult?.resolvedAtUtc);
             const holding = status === 'Cruising' && resolvedAt > 0 && t < resolvedAt + CRUISE_HOLD_MS;
             const resultVisible = !!snapshot?.latestResult && t <= resultUntil &&
@@ -98,11 +99,23 @@
                 name = 'Cruising';
             }
 
+            const mode = displayMode || 'AutomaticNoOverlap';
+            if (mode === 'BothOnDemand' || mode === 'EventOnDemand') eventVisible = eventForced;
+            const autoStatusVisible = status !== 'Inactive' && !(
+                status === 'Cruising' && !holding ||
+                terminal && t > updatedAt + STATUS_END_WINDOW_MS);
+            let statusVisible = mode === 'StatusOnDemand' || mode === 'BothOnDemand'
+                ? statusForced
+                : statusForced || autoStatusVisible;
+            if (mode === 'AutomaticNoOverlap' && eventVisible) statusVisible = false;
+
             return {
                 name: name,
                 eventVisible: eventVisible,
-                forced: forced,
-                statusFaded: !forced && !holding && (status === 'Inactive' || status === 'Cruising' || (terminal && t > updatedAt + STATUS_END_WINDOW_MS))
+                forced: statusForced,
+                eventForced: eventForced,
+                statusVisible: statusVisible,
+                statusFaded: !statusVisible
             };
         }
 
