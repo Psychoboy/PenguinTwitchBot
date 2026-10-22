@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,6 +52,44 @@ public class StarshipEventCatalogEditorTests
         editor.Find($"button[aria-label='Delete {added.EventType}']").Click();
         Click(editor, "Delete Event");
         Assert.Equal(5, settings.EventCatalog.Count);
+    }
+
+    [Fact]
+    public async Task ApplyDraft_DisablesSaveAndIgnoresRepeatedApplyWhileCallbackIsActive()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var callbackStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishCallback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackCount = 0;
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters
+            .Add(component => component.Settings, settings)
+            .Add(component => component.EventApplied, EventCallback.Factory.Create<StarshipEventDefinition>(this, async _ =>
+            {
+                callbackCount++;
+                callbackStarted.SetResult();
+                await finishCallback.Task;
+            })));
+        Click(editor, "Add Event");
+        var saveButton = editor.FindAll("button").Single(button => button.TextContent.Trim() == "Save Event");
+
+        var applyTask = saveButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await callbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await editor.WaitForAssertionAsync(() =>
+            Assert.True(editor.FindAll("button").Single(button => button.TextContent.Trim() == "Save Event").HasAttribute("disabled")));
+
+        await editor.InvokeAsync(async () =>
+        {
+            var applyDraft = typeof(StarshipEventCatalogEditor).GetMethod(
+                "ApplyDraft", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            await (Task)applyDraft.Invoke(editor.Instance, null)!;
+        });
+        Assert.Equal(1, callbackCount);
+
+        finishCallback.SetResult();
+        await applyTask;
+        await editor.WaitForAssertionAsync(() =>
+            Assert.False(editor.FindAll("button").Single(button => button.TextContent.Trim() == "Save Event").HasAttribute("disabled")));
     }
 
     [Fact]

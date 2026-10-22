@@ -959,7 +959,15 @@
             candidate = StarshipExpeditionSettings.NormalizeAndValidate(candidate);
             await SettingsStore.SaveAsync(candidate);
             _persistedSettings = StarshipEventEditing.Copy(candidate);
-            await ExpeditionService.RefreshAppearanceAsync();
+            try
+            {
+                await ExpeditionService.RefreshAppearanceAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"{sectionName} saved, but the appearance refresh failed: {ex.Message}", Severity.Warning);
+                return true;
+            }
             Snackbar.Add($"{sectionName} saved.", Severity.Success);
             return true;
         }

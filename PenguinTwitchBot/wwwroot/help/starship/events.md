@@ -38,7 +38,7 @@ Survey Cache cannot appear if Ternion Belt is disabled or the crew takes the Dir
 
 ## Branching Steps
 
-Each narrative event is a directed graph with one start step and one or more end steps. Vote steps offer two to four choices; each choice points to another named step, and multiple choices may share a target. Automatic steps show their narrative and advance immediately without a vote. End steps finish the event and resolve its outcome. All steps must be reachable, the graph cannot contain cycles, and an event may contain at most eight steps. Route Choice and Station Stop remain fixed structural events.
+Each narrative event is a directed graph with one start step and one or more end steps. Vote steps offer two to four choices; each choice points to another named step, and multiple choices may share a target. Automatic steps show their narrative and advance immediately without a vote. End steps finish the event and resolve its outcome. All steps must be reachable, the graph cannot contain cycles, an event may contain at most 16 total steps, and no single route may exceed eight steps. Route Choice and Station Stop remain fixed structural events.
 
 The editor shows graph connections, lets you choose a start step, and lists reachable paths in the seeded preview. **Default**, **Seeded Random**, **Risk-Averse**, and **Risk-Seeking** policies in the Test tab simulate different deterministic votes through normal graph transitions.
 

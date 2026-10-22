@@ -50,6 +50,15 @@ public sealed class StarshipExpeditionStateStore(
             }
             catch (InvalidShipRulesException ex)
             {
+                var hasOutstandingRewards = snapshot.Crew?.Any(member =>
+                    member?.UnbankedBalances?.Any(balance => balance?.Amount > 0) == true) == true ||
+                    snapshot.BankedPayouts?.Any(payout => payout is { IsPaid: false }) == true;
+                if (hasOutstandingRewards)
+                {
+                    logger?.LogWarning(ex, "Retaining persisted Starship expedition state with invalid ship rules because it contains outstanding rewards.");
+                    return snapshot;
+                }
+
                 logger?.LogWarning(ex, "Discarding persisted Starship expedition state with invalid ship rules; defaults will be recreated on the next voyage.");
                 unitOfWork.Settings.Remove(setting);
                 await unitOfWork.SaveChangesAsync();

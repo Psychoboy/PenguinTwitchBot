@@ -63,6 +63,8 @@ public class StarshipExpeditionStateStoreTests
                 {
                     ExpeditionId = Guid.NewGuid(),
                     LegCount = 4,
+                    Crew = null!,
+                    BankedPayouts = null!,
                     ShipSystems = new StarshipShipSystemsSnapshot
                     {
                         IntegrationEnabled = true,
@@ -79,6 +81,56 @@ public class StarshipExpeditionStateStoreTests
 
         Assert.Null(loaded);
         Assert.Empty(rows);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Load_InvalidPersistedShipRulesPreservesSnapshotWithOutstandingRewards(bool hasUnbankedBalance, bool hasUnpaidPayout)
+    {
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            LegCount = 4,
+            Crew = hasUnbankedBalance ?
+            [
+                new StarshipCrewMemberSnapshot
+                {
+                    UserId = "viewer-1",
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 1, Amount = 20 }]
+                }
+            ] : [],
+            BankedPayouts = hasUnpaidPayout ?
+            [
+                new StarshipBankedPayoutSnapshot
+                {
+                    OperationId = "starship:pending-payout", UserId = "viewer-1", PointTypeId = 1, Amount = 30
+                }
+            ] : [],
+            ShipSystems = new StarshipShipSystemsSnapshot
+            {
+                IntegrationEnabled = true,
+                Rules = new() { MaximumHull = 0 },
+                Hull = 0,
+                Supplies = 20
+            }
+        };
+        var rows = new List<Setting>
+        {
+            new()
+            {
+                Name = StarshipExpeditionStateStore.SettingKey,
+                DataType = Setting.DataTypeEnum.String,
+                StringSetting = JsonSerializer.Serialize(snapshot)
+            }
+        };
+
+        var loaded = await CreateStore(rows).LoadAsync();
+
+        Assert.NotNull(loaded);
+        Assert.Single(rows);
+        Assert.Equal(hasUnbankedBalance, loaded.Crew.Any(member => member.UnbankedBalances.Any(balance => balance.Amount > 0)));
+        Assert.Equal(hasUnpaidPayout, loaded.BankedPayouts.Any(payout => !payout.IsPaid));
     }
 
     [Fact]

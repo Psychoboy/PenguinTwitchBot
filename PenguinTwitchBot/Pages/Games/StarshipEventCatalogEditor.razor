@@ -53,7 +53,7 @@
         <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
             <MudText Typo="Typo.h6">@(_originalId == null ? "New Event Draft" : "Edit Event")</MudText>
             <MudSpacer />
-            <MudButton StartIcon="@Icons.Material.Filled.Check" Color="Color.Primary" Variant="Variant.Filled" OnClick="ApplyDraft">@(EventApplied.HasDelegate ? "Save Event" : "Apply Event")</MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.Check" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_applying" OnClick="ApplyDraft">@(EventApplied.HasDelegate ? "Save Event" : "Apply Event")</MudButton>
             <MudButton StartIcon="@Icons.Material.Filled.Undo" OnClick="DiscardDraft">Discard Draft</MudButton>
             <MudButton StartIcon="@Icons.Material.Filled.Download" Disabled="@(!string.IsNullOrEmpty(_validationError))" OnClick="ExportAsync">Export JSON</MudButton>
         </MudStack>
@@ -390,6 +390,7 @@
     private string _notice = "";
     private string _json = "";
     private bool _dirty;
+    private bool _applying;
     private int _choiceIndex;
     private string _selectedStepId = string.Empty;
     private StarshipEventStepType _newStepType = StarshipEventStepType.Vote;
@@ -499,12 +500,13 @@
 
     private async Task ApplyDraft()
     {
-        if (_draft == null || !_dirty) return;
+        if (_applying || _draft == null || !_dirty) return;
         if (!ValidateCurrent()) return;
-        var definition = _draft.ToDefinition();
+        _applying = true;
         var addedProfileId = string.Empty;
         try
         {
+            var definition = _draft.ToDefinition();
             if (_ownedProfile != null && Settings.RewardProfiles.All(profile => profile.Id != _ownedProfile.Id))
             {
                 Settings.RewardProfiles.Add(StarshipEventEditing.Copy(_ownedProfile));
@@ -523,6 +525,10 @@
             if (addedProfileId.Length > 0)
                 Settings.RewardProfiles.RemoveAll(profile => profile.Id == addedProfileId);
             _operationError = ex.Message;
+        }
+        finally
+        {
+            _applying = false;
         }
     }
 
