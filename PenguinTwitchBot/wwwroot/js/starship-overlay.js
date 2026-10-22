@@ -313,7 +313,7 @@
         setText('timing', timer);
 
         const scene = tracker.derive(snapshot, appearance.overlayDisplayMode);
-        root.hidden = appearance.overlayDisplayMode === 'AutomaticNoOverlap' && scene.eventVisible;
+        root.hidden = appearance.overlayDisplayMode === 'AutomaticNoOverlap' && scene.eventVisible && !scene.forced;
         root.dataset.faded = scene.statusFaded ? 'true' : 'false';
         document.getElementById('crew-block').dataset.pulse = Date.now() < pulseUntil ? 'true' : 'false';
     }
