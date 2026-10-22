@@ -58,7 +58,7 @@ public sealed class StarshipShipEventContext
 {
     public bool HasRewards { get; init; }
     public int BaseSuccessChancePercent { get; init; } = 80;
-    public int ResourceSuccessModifierPercent { get; init; }
+    public int ResourceSuccessModifierPercent { get; set; }
     public StarshipShipEffect? SuccessEffect { get; init; }
     public StarshipShipEffect? FailureEffect { get; init; }
     public int HullBefore { get; init; }

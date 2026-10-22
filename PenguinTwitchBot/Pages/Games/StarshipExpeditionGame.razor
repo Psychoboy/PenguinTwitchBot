@@ -27,6 +27,10 @@
                 }
             </div>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteSweep"
+                           Disabled="@(_isSaving || _isLoading)" OnClick="ResetAllSettingsAsync">
+                    Reset All
+                </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                            Disabled="@_isSaving" OnClick="SaveSettingsAsync">
                     Save Settings
@@ -35,17 +39,19 @@
             </MudStack>
         </MudStack>
 
+        @if (!_isLoading && !string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_error</MudAlert>
+        }
+
         @if (_isLoading)
         {
             <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
         }
         else if (_settings != null)
         {
-            @if (!string.IsNullOrWhiteSpace(_error))
-            {
-                <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_error</MudAlert>
-            }
-
+            <ErrorBoundary>
+                <ChildContent>
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5" KeepPanelsAlive="true" @bind-ActivePanelIndex="_activeTabIndex">
                 <MudTabPanel Text="Voyage Settings">
                     <MudGrid Spacing="4">
@@ -182,6 +188,10 @@
 
                 <MudTabPanel Text="Reward Profiles">
                     <MudStack Spacing="3">
+                        <div>
+                            <MudText Typo="Typo.h6">Event Type Reward Bindings</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">These dropdowns choose which shared reward profile each built-in event uses. They do not edit profile payouts; custom events select their profile in Events &amp; Sectors.</MudText>
+                        </div>
                         <MudGrid Spacing="2">
                             @foreach (var eventType in StarshipExpeditionSettings.RewardEventTypes)
                             {
@@ -196,6 +206,68 @@
                                 </MudItem>
                             }
                         </MudGrid>
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudText Typo="Typo.h6">Bulk Edit Rarity Rewards</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Choose profiles, a rarity, and a point type. Update the selected currency’s existing payouts, or add it to selected tiers where it is not already paid.</MudText>
+                            @if (_rewardPointTypes.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">No point types are configured. Create a point type before editing payouts.</MudAlert>
+                            }
+                            <MudSwitch T="bool" Label="Add reward to tiers instead of updating existing rewards" Color="Color.Primary"
+                                       @bind-Value="_bulkAddReward" @bind-Value:after="InvalidateBulkRewardPreview" />
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" lg="5">
+                                    <MudText Typo="Typo.subtitle2">Profiles</MudText>
+                                    <MudStack Row="true" Wrap="Wrap.Wrap">
+                                        @foreach (var profile in _settings.RewardProfiles)
+                                        {
+                                            var profileId = profile.Id;
+                                            <MudCheckBox T="bool" Label="@profile.Name" Value="@_bulkProfileIds.Contains(profileId)"
+                                                         ValueChanged="@(selected => ToggleBulkProfile(profileId, selected))" />
+                                        }
+                                    </MudStack>
+                                </MudItem>
+                                <MudItem xs="12" sm="6" lg="3">
+                                    <MudSelect T="string" Label="Rarity" Variant="Variant.Outlined" @bind-Value="_bulkRarityName" @bind-Value:after="InvalidateBulkRewardPreview">
+                                        @foreach (var rarity in GetBulkRarityOptions())
+                                        {
+                                            <MudSelectItem T="string" Value="@rarity">@rarity</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" sm="6" lg="3">
+                                    <MudSelect T="int?" Label="Point Type" Variant="Variant.Outlined" Value="_bulkPointTypeId" ValueChanged="SetBulkPointType" Placeholder="Select a point type">
+                                        @if (!_bulkAddReward)
+                                        {
+                                            <MudSelectItem T="int?" Value="@((int?)null)">All point types</MudSelectItem>
+                                        }
+                                        @foreach (var pointType in _rewardPointTypes)
+                                        {
+                                            <MudSelectItem T="int?" Value="@((int?)pointType.Key)">@pointType.Value</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="6" sm="3" lg="2"><MudNumericField T="long?" Label="Minimum" Variant="Variant.Outlined" Min="0" Clearable="true" @bind-Value="_bulkMinimum" @bind-Value:after="InvalidateBulkRewardPreview" /></MudItem>
+                                <MudItem xs="6" sm="3" lg="2"><MudNumericField T="long?" Label="Maximum" Variant="Variant.Outlined" Min="0" Clearable="true" @bind-Value="_bulkMaximum" @bind-Value:after="InvalidateBulkRewardPreview" /></MudItem>
+                                <MudItem xs="6" sm="3" lg="2"><MudNumericField T="int?" Label="Reward Chance (%)" Variant="Variant.Outlined" Min="1" Max="100" Clearable="true" @bind-Value="_bulkChancePercent" @bind-Value:after="InvalidateBulkRewardPreview" /></MudItem>
+                                <MudItem xs="12" Class="d-flex align-center">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@GetBulkRewardTargetCount() @(_bulkAddReward ? "tiers can receive this point type" : "reward entries match")</MudText>
+                                    <MudSpacer />
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Preview"
+                                               Disabled="@(GetBulkRewardTargetCount() == 0 || !HasBulkRewardChanges)" OnClick="PreviewBulkRewardEditAsync">Preview Changes</MudButton>
+                                </MudItem>
+                            </MudGrid>
+                            @if (!string.IsNullOrWhiteSpace(_bulkRewardPreview))
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@_bulkRewardPreview</MudAlert>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Check"
+                                           Class="mt-2" Disabled="@_isApplyingBulkRewards" OnClick="ApplyBulkRewardEditAsync">Apply to Unsaved Settings</MudButton>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(_bulkRewardError))
+                            {
+                                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_bulkRewardError</MudAlert>
+                            }
+                        </MudPaper>
                         <MudExpansionPanels>
                             @foreach (var profile in _settings.RewardProfiles)
                             {
@@ -247,6 +319,12 @@
                                         <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Station Supplies Restored" Min="0" Max="100" @bind-Value="balanceSettings.ShipSystems.StationResupplyAmount" /></MudItem>
                                         <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="Runs" Min="20" Max="2000" @bind-Value="_balanceRunCount" /></MudItem>
                                         <MudItem xs="12" sm="6" md="3"><MudNumericField T="int" Label="First Seed" @bind-Value="_balanceFirstSeed" /></MudItem>
+                                        <MudItem xs="12" sm="6"><MudSelect T="StarshipPreviewVoterPolicy" Label="Voter Policy" Variant="Variant.Outlined" @bind-Value="_balanceVoterPolicy">
+                                            <MudSelectItem Value="@StarshipPreviewVoterPolicy.Default">Default choices</MudSelectItem>
+                                            <MudSelectItem Value="@StarshipPreviewVoterPolicy.SeededRandom">Seeded random</MudSelectItem>
+                                            <MudSelectItem Value="@StarshipPreviewVoterPolicy.RiskAverse">Risk-averse</MudSelectItem>
+                                            <MudSelectItem Value="@StarshipPreviewVoterPolicy.RiskSeeking">Risk-seeking</MudSelectItem>
+                                        </MudSelect></MudItem>
                                     </MudGrid>
                                     <MudExpansionPanels Class="mt-3">
                                         <MudExpansionPanel Text="Event Failure Damage">
@@ -279,7 +357,12 @@
                                     <MudGrid Spacing="2">
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Failure rate</MudText><MudText Typo="Typo.h6">@summary.FailureRatePercent.ToString("F1")%</MudText></MudItem>
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Early returns</MudText><MudText Typo="Typo.h6">@summary.EarlyReturns / @summary.Runs</MudText></MudItem>
-                                        <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Repair useful &amp; affordable</MudText><MudText Typo="Typo.h6">@summary.RepairWindows / @summary.StationVisits</MudText></MudItem>
+                                        <MudItem xs="6" sm="4" md="2">
+                                            <MudTooltip Text="A useful, affordable repair requires damaged hull and enough supplies to pay the station repair cost.">
+                                                <MudText Typo="Typo.caption">Repair useful &amp; affordable</MudText>
+                                            </MudTooltip>
+                                            <MudText Typo="Typo.h6">@(summary.StationVisits == 0 ? "No station visits" : $"{summary.RepairWindows} / {summary.StationVisits}")</MudText>
+                                        </MudItem>
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Avg hull lost</MudText><MudText Typo="Typo.h6">@summary.AverageHullLost.ToString("F1")</MudText></MudItem>
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Avg ending hull</MudText><MudText Typo="Typo.h6">@summary.AverageEndingHull.ToString("F1")</MudText></MudItem>
                                         <MudItem xs="6" sm="4" md="2"><MudText Typo="Typo.caption">Avg ending supplies</MudText><MudText Typo="Typo.h6">@summary.AverageEndingSupplies.ToString("F1")</MudText></MudItem>
@@ -292,6 +375,12 @@
                                 <MudText Typo="Typo.h6" Class="mb-3">Seeded Route Preview</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Preview uses unsaved settings and does not create a live voyage, save state, award points, send chat, or fire actions.</MudText>
                                 <MudNumericField T="int" Label="Preview Seed" Variant="Variant.Outlined" @bind-Value="_previewSeed" />
+                                <MudSelect T="StarshipPreviewVoterPolicy" Label="Voter Policy" Variant="Variant.Outlined" @bind-Value="_previewVoterPolicy">
+                                    <MudSelectItem Value="@StarshipPreviewVoterPolicy.Default">Default choices</MudSelectItem>
+                                    <MudSelectItem Value="@StarshipPreviewVoterPolicy.SeededRandom">Seeded random</MudSelectItem>
+                                    <MudSelectItem Value="@StarshipPreviewVoterPolicy.RiskAverse">Risk-averse</MudSelectItem>
+                                    <MudSelectItem Value="@StarshipPreviewVoterPolicy.RiskSeeking">Risk-seeking</MudSelectItem>
+                                </MudSelect>
                                 <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary"
                                            StartIcon="@Icons.Material.Filled.Visibility" OnClick="GeneratePreview">Generate Preview</MudButton>
                             </MudPaper>
@@ -318,19 +407,28 @@
                                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@previewEvent.Sector</MudChip>
                                             </MudStack>
                                             <MudText Typo="Typo.body2">@previewEvent.Description</MudText>
-                                            @if (previewEvent.ShipContext is { } shipPreview)
-                                            {
-                                                <MudText Typo="Typo.caption">Default path: Hull @shipPreview.HullBefore/@shipPreview.HullMaximum to @shipPreview.HullAfter/@shipPreview.HullMaximum; Supplies @shipPreview.SuppliesBefore to @shipPreview.SuppliesAfter; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
-                                                @if (shipPreview.HullAfter == 0)
+                                            <MudStack Spacing="1" Class="mt-2">
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Subject: @previewEvent.Subject</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">No-vote default: @previewEvent.Choices.FirstOrDefault(choice => choice.ChoiceId == previewEvent.DefaultChoiceId)?.Label</MudText>
+                                                @if (previewEvent.ShipContext is { } shipPreview)
                                                 {
-                                                    <MudText Typo="Typo.body2" Color="Color.Warning">Emergency return: hull depleted.</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@GetVoterPolicyLabel(_previewVoterPolicy) resources: hull @shipPreview.HullBefore → @shipPreview.HullAfter / @shipPreview.HullMaximum; supplies @shipPreview.SuppliesBefore → @shipPreview.SuppliesAfter; success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
+                                                    @if (shipPreview.HullAfter == 0)
+                                                    {
+                                                        <MudText Typo="Typo.body2" Color="Color.Warning">Emergency return: hull depleted.</MudText>
+                                                    }
                                                 }
-                                            }
-                                            @if (!string.IsNullOrEmpty(previewEvent.Subject))
-                                            {
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Generated subject: @previewEvent.Subject</MudText>
-                                            }
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">Default: @previewEvent.Choices.FirstOrDefault(choice => choice.ChoiceId == previewEvent.DefaultChoiceId)?.Label</MudText>
+                                                @if (previewEvent.Path.Count > 0)
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Primary">@GetVoterPolicyLabel(_previewVoterPolicy) path</MudText>
+                                                    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                                                        @foreach (var pathStep in previewEvent.Path)
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@pathStep.Label</MudChip>
+                                                        }
+                                                    </MudStack>
+                                                }
+                                            </MudStack>
                                             @if (GetRewardProfile(previewEvent.EventType) is { } previewProfile)
                                             {
                                                 <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@GetRewardProfilePreview(previewProfile)</MudAlert>
@@ -468,7 +566,7 @@
                                     </MudSelect>
                                 </MudStack>
                                 <iframe class="starship-preview-frame" src="@($"/starship-event.html?preview=1&sample={_eventSample}")" title="Event widget preview"
-                                        style="width:620px;height:360px;max-width:100%;border:1px dashed #666;background:#222;"></iframe>
+                                    style="width:780px;height:460px;max-width:100%;border:1px dashed #666;background:#222;"></iframe>
                             </MudPaper>
                         </MudItem>
                     </MudGrid>
@@ -503,6 +601,11 @@
                     </MudStack>
                 </MudTabPanel>
             </MudTabs>
+                </ChildContent>
+                <ErrorContent Context="renderError">
+                    <MudAlert Severity="Severity.Error" Dense="true">Could not render Starship settings: @renderError.Message</MudAlert>
+                </ErrorContent>
+            </ErrorBoundary>
         }
     </MudContainer>
 </FeatureGate>
@@ -525,6 +628,8 @@
     private BalanceTestSummary? _balanceSummary;
     private int _balanceRunCount = 500;
     private int _balanceFirstSeed = 0;
+    private StarshipPreviewVoterPolicy _balanceVoterPolicy;
+    private StarshipPreviewVoterPolicy _previewVoterPolicy;
     private string _balanceError = string.Empty;
     private bool _isRunningBalanceTest;
     private List<PenguinTwitchBot.Database.Bot.Models.Points.PointType> _pointTypes = [];
@@ -540,6 +645,20 @@
     private StarshipEventCatalogEditor? _eventCatalogEditor;
     private Dictionary<int, string> _rewardPointTypes = [];
     private Dictionary<int, string> _rewardActions = [];
+    private readonly HashSet<string> _bulkProfileIds = new(StringComparer.OrdinalIgnoreCase);
+    private string _bulkRarityName = string.Empty;
+    private int? _bulkPointTypeId;
+    private bool _bulkAddReward;
+    private long? _bulkMinimum;
+    private long? _bulkMaximum;
+    private int? _bulkChancePercent;
+    private string _bulkRewardPreview = string.Empty;
+    private string _bulkRewardError = string.Empty;
+    private bool _isApplyingBulkRewards;
+
+    private bool HasBulkRewardChanges => _bulkAddReward
+        ? _bulkPointTypeId is > 0 && _bulkMinimum.HasValue && _bulkMaximum.HasValue
+        : _bulkMinimum.HasValue || _bulkMaximum.HasValue || _bulkChancePercent.HasValue;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -708,13 +827,50 @@
         }
     }
 
+    private async Task ResetAllSettingsAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset Starship Settings",
+            "This permanently deletes all custom events and reward profiles and resets every Starship setting to its default. Bundled starter events will be installed again. An active voyage and its unbanked rewards are not changed.",
+            yesText: "Delete Custom Data and Reset",
+            cancelText: "Cancel");
+        if (confirmed != true || _isSaving) return;
+
+        _isSaving = true;
+        _error = string.Empty;
+        try
+        {
+            _settings = await SettingsStore.ResetToDefaultsAsync();
+            _balanceSettings = StarshipEventEditing.Copy(_settings);
+            _previewEvents = [];
+            _balanceSummary = null;
+            _balanceError = string.Empty;
+            _bulkProfileIds.Clear();
+            _bulkRarityName = string.Empty;
+            _bulkPointTypeId = null;
+            _bulkAddReward = false;
+            _bulkMinimum = _bulkMaximum = null;
+            _bulkChancePercent = null;
+            _bulkRewardPreview = _bulkRewardError = string.Empty;
+            Snackbar.Add("Starship settings and custom catalog data were reset to defaults.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not reset Starship settings: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
     private void GeneratePreview()
     {
         if (_settings == null) return;
         try
         {
             _error = string.Empty;
-            _previewEvents = ExpeditionService.BuildPreview(_settings, _previewSeed);
+            _previewEvents = ExpeditionService.BuildPreview(_settings, _previewSeed, _previewVoterPolicy);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
         {
@@ -734,6 +890,14 @@
     private static StarshipShipEffect GetBalanceFailureEffect(StarshipExpeditionSettings settings, string eventType) =>
         settings.EventCatalog.First(item => item.EventType == eventType).ShipFailureEffect ??
         StarshipEventCatalog.GetDefaultShipFailureEffect(eventType) ?? new();
+
+    private static string GetVoterPolicyLabel(StarshipPreviewVoterPolicy policy) => policy switch
+    {
+        StarshipPreviewVoterPolicy.SeededRandom => "Seeded random",
+        StarshipPreviewVoterPolicy.RiskAverse => "Risk-averse",
+        StarshipPreviewVoterPolicy.RiskSeeking => "Risk-seeking",
+        _ => "Default choices"
+    };
 
     private void SetBalanceFailureEffect(string eventType, int hullDelta, int suppliesDelta)
     {
@@ -755,7 +919,7 @@
         {
             var testSettings = StarshipExpeditionSettings.NormalizeAndValidate(StarshipEventEditing.Copy(_balanceSettings));
             var runCount = Math.Clamp(_balanceRunCount, 20, 2000);
-            _balanceSummary = await Task.Run(() => SimulateBalance(testSettings, runCount, _balanceFirstSeed));
+            _balanceSummary = await Task.Run(() => SimulateBalance(testSettings, runCount, _balanceFirstSeed, _balanceVoterPolicy));
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
         {
@@ -768,7 +932,7 @@
         }
     }
 
-    private BalanceTestSummary SimulateBalance(StarshipExpeditionSettings settings, int runCount, int firstSeed)
+    private BalanceTestSummary SimulateBalance(StarshipExpeditionSettings settings, int runCount, int firstSeed, StarshipPreviewVoterPolicy voterPolicy)
     {
         var repairWindows = 0;
         var stationVisits = 0;
@@ -782,7 +946,7 @@
         for (var run = 0; run < runCount; run++)
         {
             var seed = unchecked(firstSeed + run);
-            var preview = ExpeditionService.BuildPreview(settings, seed);
+            var preview = ExpeditionService.BuildPreview(settings, seed, voterPolicy);
             foreach (var item in preview)
             {
                 if (item.EventType == "StationStop" && item.ShipContext is { } station)
@@ -921,6 +1085,159 @@
         var index = _settings.EventCatalog.FindIndex(definition => definition.EventType == eventType);
         if (index >= 0 && !StarshipEventCatalog.IsStructural(eventType))
             _settings.EventCatalog[index] = _settings.EventCatalog[index] with { RewardProfileId = profileId ?? string.Empty };
+    }
+
+    private void ToggleBulkProfile(string profileId, bool selected)
+    {
+        if (selected) _bulkProfileIds.Add(profileId);
+        else _bulkProfileIds.Remove(profileId);
+        InvalidateBulkRewardPreview();
+    }
+
+    private void SetBulkPointType(int? pointTypeId)
+    {
+        _bulkPointTypeId = pointTypeId;
+        InvalidateBulkRewardPreview();
+    }
+
+    private void InvalidateBulkRewardPreview()
+    {
+        _bulkRewardPreview = string.Empty;
+        _bulkRewardError = string.Empty;
+    }
+
+    private IReadOnlyList<string> GetBulkRarityOptions() => _settings?.RewardProfiles
+        .SelectMany(profile => profile.GetTiers().Select(tier => tier.Name))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+        .ToList() ?? [];
+
+    private int GetBulkRewardTargetCount()
+    {
+        if (_settings == null) return 0;
+        var tiers = _settings.RewardProfiles.Where(profile => _bulkProfileIds.Contains(profile.Id))
+            .SelectMany(profile => profile.GetTiers())
+            .Where(tier => string.Equals(tier.Name, _bulkRarityName, StringComparison.OrdinalIgnoreCase));
+        if (_bulkAddReward)
+            return _bulkPointTypeId is > 0
+                ? tiers.Count(tier => tier.Rewards.Count < StarshipRewardProfile.MaximumRewardsPerTier &&
+                                      !tier.Rewards.Any(reward => reward.PointTypeId == _bulkPointTypeId.Value))
+                : 0;
+        return tiers.SelectMany(tier => tier.Rewards)
+            .Count(reward => !_bulkPointTypeId.HasValue || reward.PointTypeId == _bulkPointTypeId.Value);
+    }
+
+    private async Task PreviewBulkRewardEditAsync()
+    {
+        _bulkRewardError = string.Empty;
+        _bulkRewardPreview = string.Empty;
+        try
+        {
+            var candidate = CreateBulkRewardCandidate();
+            StarshipExpeditionSettings.NormalizeAndValidate(candidate);
+            var pointName = _bulkPointTypeId is { } pointTypeId
+                ? _rewardPointTypes.GetValueOrDefault(pointTypeId, "selected point type")
+                : "all point types";
+            var selectedProfiles = string.Join(", ", candidate.RewardProfiles.Where(profile => _bulkProfileIds.Contains(profile.Id)).Select(profile => profile.Name));
+            if (_bulkAddReward)
+                _bulkRewardPreview = $"Add {_bulkMinimum}-{_bulkMaximum} {pointName} rewards to {GetBulkRewardTargetCount()} {_bulkRarityName} tiers in {selectedProfiles}. Chance: {_bulkChancePercent ?? 100}%. Existing rewards and other profile settings stay unchanged.";
+            else
+            {
+                var changes = new List<string>();
+                if (_bulkMinimum is { } minimum) changes.Add($"minimum {minimum}");
+                if (_bulkMaximum is { } maximum) changes.Add($"maximum {maximum}");
+                if (_bulkChancePercent is { } chance) changes.Add($"chance {chance}%");
+                _bulkRewardPreview = $"Set {string.Join(", ", changes)} on {GetBulkRewardTargetCount()} {pointName} reward entries in {selectedProfiles} at the {_bulkRarityName} tier. Other reward fields stay unchanged.";
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            _bulkRewardError = ex.Message;
+        }
+    }
+
+    private async Task ApplyBulkRewardEditAsync()
+    {
+        if (_settings == null || string.IsNullOrEmpty(_bulkRewardPreview) || _isApplyingBulkRewards) return;
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Apply Bulk Rarity Changes",
+            _bulkRewardPreview,
+            yesText: "Apply Changes",
+            cancelText: "Cancel");
+        if (confirmed != true) return;
+
+        _isApplyingBulkRewards = true;
+        try
+        {
+            var candidate = CreateBulkRewardCandidate();
+            _settings.RewardProfiles = candidate.RewardProfiles;
+            _bulkProfileIds.Clear();
+            _bulkRarityName = string.Empty;
+            _bulkPointTypeId = null;
+            _bulkAddReward = false;
+            _bulkMinimum = _bulkMaximum = null;
+            _bulkChancePercent = null;
+            _bulkRewardPreview = string.Empty;
+            Snackbar.Add("Bulk rarity reward changes applied to unsaved settings.", Severity.Success);
+        }
+        catch (ArgumentException ex)
+        {
+            _bulkRewardError = ex.Message;
+        }
+        finally
+        {
+            _isApplyingBulkRewards = false;
+        }
+    }
+
+    private StarshipExpeditionSettings CreateBulkRewardCandidate()
+    {
+        if (_settings == null) throw new InvalidOperationException("Settings are not loaded.");
+        if (_bulkProfileIds.Count == 0) throw new ArgumentException("Select at least one reward profile.");
+        if (string.IsNullOrWhiteSpace(_bulkRarityName)) throw new ArgumentException("Select a rarity tier.");
+        if (!HasBulkRewardChanges) throw new ArgumentException(_bulkAddReward
+            ? "Select a point type and enter a minimum and maximum payout to add."
+            : "Enter at least one payout or chance value to update.");
+        if (_bulkMinimum < 0 || _bulkMaximum < 0) throw new ArgumentOutOfRangeException(nameof(_bulkMinimum), "Reward amounts must be non-negative.");
+        if (_bulkChancePercent is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(_bulkChancePercent), "Reward chance must be between 1 and 100 percent.");
+        if (_bulkAddReward && (_bulkMinimum == null || _bulkMaximum == null || _bulkMaximum < _bulkMinimum))
+            throw new ArgumentException("Enter an ordered minimum and maximum payout for the new reward.");
+
+        var candidate = StarshipEventEditing.Copy(_settings);
+        var affected = 0;
+        foreach (var profile in candidate.RewardProfiles.Where(profile => _bulkProfileIds.Contains(profile.Id)))
+        {
+            var tier = profile.GetTiers().FirstOrDefault(item => string.Equals(item.Name, _bulkRarityName, StringComparison.OrdinalIgnoreCase));
+            if (tier == null) continue;
+            if (_bulkAddReward)
+            {
+                if (_bulkPointTypeId is not { } pointTypeId || tier.Rewards.Count >= StarshipRewardProfile.MaximumRewardsPerTier ||
+                    tier.Rewards.Any(reward => reward.PointTypeId == pointTypeId)) continue;
+                tier.Rewards.Add(new StarshipRewardEntry
+                {
+                    PointTypeId = pointTypeId,
+                    PointTypeName = _rewardPointTypes.GetValueOrDefault(pointTypeId, string.Empty),
+                    Minimum = _bulkMinimum!.Value,
+                    Maximum = _bulkMaximum!.Value,
+                    ChancePercent = _bulkChancePercent ?? 100
+                });
+                affected++;
+                continue;
+            }
+            foreach (var reward in tier.Rewards)
+            {
+                if (_bulkPointTypeId.HasValue && reward.PointTypeId != _bulkPointTypeId.Value) continue;
+                if (_bulkMinimum is { } minimum) reward.Minimum = minimum;
+                if (_bulkMaximum is { } maximum) reward.Maximum = maximum;
+                if (_bulkChancePercent is { } chance) reward.ChancePercent = chance;
+                affected++;
+            }
+        }
+        if (affected == 0) throw new ArgumentException(_bulkAddReward
+            ? "No selected rarity tiers can receive this point type. It may already be present or the tiers may be full."
+            : "No reward entries match the selected profiles, rarity, and point type.");
+        StarshipExpeditionSettings.NormalizeAndValidate(candidate);
+        return candidate;
     }
 
     private void AddRewardProfile()

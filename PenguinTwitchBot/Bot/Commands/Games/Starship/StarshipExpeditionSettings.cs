@@ -8,8 +8,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public const int MaximumEventIntervalLimitMinutes = 120;
     public const int MaximumCustomSectors = 20;
     public const int MaximumSectorNameLength = 40;
-    public const long MaximumConfiguredReward = 100_000;
-    public const long MaximumUnbankedReward = 1_000_000;
+    public const long MaximumConfiguredReward = long.MaxValue;
+    public const long MaximumUnbankedReward = long.MaxValue;
 
     public static IReadOnlyList<string> BuiltInSectors { get; } =
     [

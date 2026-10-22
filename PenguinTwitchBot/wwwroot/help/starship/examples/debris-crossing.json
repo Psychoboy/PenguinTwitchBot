@@ -1,33 +1,11 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "event": {
     "eventType": "debris-crossing",
     "title": "Debris Crossing",
     "description": "{Subject} blocks the passage through {sector}. The crew must choose how to cross.",
-    "choices": [
-      {
-        "choiceId": "navigate",
-        "label": "Navigate the gaps",
-        "story": "{crew} plots a course through {subject}."
-      },
-      {
-        "choiceId": "shield",
-        "label": "Divert power to shields",
-        "story": "{crewlist} reinforces the shields before entering {subject}.",
-        "successChanceModifierPercent": 20,
-        "rewardMultiplierPercent": 80,
-        "riskMultiplierPercent": 50
-      },
-      {
-        "choiceId": "push",
-        "label": "Push through the center",
-        "story": "{crew} holds the helm steady through {subject}.",
-        "successChanceModifierPercent": -15,
-        "rewardMultiplierPercent": 130,
-        "riskMultiplierPercent": 150
-      }
-    ],
-    "defaultChoiceId": "navigate",
+    "choices": [],
+    "defaultChoiceId": "",
     "successStory": "The ship clears {subject} and recovers {loot}.",
     "failureStory": "The crew retreats from a rough crossing through {subject}.",
     "enabled": true,
@@ -41,6 +19,35 @@
       "Uncommon": "a compact power core",
       "Rare": "a pristine navigation array"
     },
-    "rewardProfileId": "Hazard"
+    "rewardProfileId": "Hazard",
+    "startStepId": "crossing",
+    "defaultStepSuppliesCost": 0,
+    "steps": [
+      {
+        "stepId": "crossing",
+        "type": "Vote",
+        "prompt": "{Subject} blocks the passage through {sector}. How will the crew cross?",
+        "defaultChoiceId": "navigate",
+        "choices": [
+          { "choiceId": "navigate", "label": "Navigate the gaps", "story": "{crew} plots a course through {subject}.", "riskMultiplierPercent": 50, "nextStepId": "clear-ending" },
+          { "choiceId": "shield", "label": "Divert power to shields", "story": "{crewlist} reinforces the shields before entering {subject}.", "successChanceModifierPercent": 20, "rewardMultiplierPercent": 80, "riskMultiplierPercent": 50, "shipEffect": { "suppliesCost": 6 }, "nextStepId": "shield-report" },
+          { "choiceId": "push-center", "label": "Push through the center", "story": "{crew} holds the helm steady through {subject}.", "successChanceModifierPercent": -15, "rewardMultiplierPercent": 150, "riskMultiplierPercent": 180, "nextStepId": "clear-ending" }
+        ]
+      },
+      { "stepId": "shield-report", "type": "Automatic", "prompt": "The reinforced shields hold.", "narrative": "The debris field is thinning, but a dense cluster remains ahead.", "suppliesCostOverride": 3, "nextStepId": "follow-through" },
+      {
+        "stepId": "follow-through",
+        "type": "Vote",
+        "prompt": "The crew has reached the edge of the field. How do they finish the crossing?",
+        "defaultChoiceId": "wide-exit",
+        "choices": [
+          { "choiceId": "wide-exit", "label": "Take the wider exit", "successChanceModifierPercent": 10, "riskMultiplierPercent": 50, "nextStepId": "clear-ending" },
+          { "choiceId": "sprint-exit", "label": "Sprint through the last cluster", "successChanceModifierPercent": -10, "rewardMultiplierPercent": 150, "riskMultiplierPercent": 200, "nextStepId": "clear-ending" },
+          { "choiceId": "abort-crossing", "label": "Abort the crossing", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      { "stepId": "clear-ending", "type": "End", "prompt": "The ship clears {subject} and recovers {loot}." },
+      { "stepId": "pass-ending", "type": "End", "prompt": "The crew retreats from a rough crossing through {subject}." }
+    ]
   }
 }

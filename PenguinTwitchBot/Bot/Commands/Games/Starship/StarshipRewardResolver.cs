@@ -7,10 +7,9 @@ internal static class StarshipRewardResolver
         StarshipExpeditionEventSnapshot resolvedEvent,
         StarshipRewardProfile? profile)
     {
-        var finalChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
-            string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+        var finalChoice = FindResolvedChoice(resolvedEvent);
         var committed = finalChoice?.IsRisky == true;
-        var offersCommit = resolvedEvent.ChoicePool.Concat(resolvedEvent.Choices).Any(choice => choice.IsRisky);
+        var offersCommit = AllChoices(resolvedEvent).Any(choice => choice.IsRisky);
         if (finalChoice?.EndsWithoutReward == true || (!committed && offersCommit))
         {
             resolvedEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomePassed;
@@ -34,8 +33,7 @@ internal static class StarshipRewardResolver
     {
         if (string.IsNullOrEmpty(resolvedEvent.OutcomeResult)) ResolveOutcome(snapshot, resolvedEvent, profile);
         if (resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomePassed) return;
-        var finalChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
-            string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+        var finalChoice = FindResolvedChoice(resolvedEvent);
         var committed = finalChoice?.IsRisky == true;
         var chance = GetEffectiveSuccessChance(profile, resolvedEvent, finalChoice);
         var succeeded = resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess;
@@ -72,6 +70,20 @@ internal static class StarshipRewardResolver
             (choice?.SuccessChanceModifierPercent ?? 0), 0, 100);
 
     internal static int CombinePercent(int first, int second) => Math.Clamp((int)((long)first * second / 100), 0, 1000);
+
+    private static IEnumerable<StarshipEventChoiceSnapshot> AllChoices(StarshipExpeditionEventSnapshot expeditionEvent) =>
+        expeditionEvent.StepDefinitions.Count > 0
+            ? expeditionEvent.StepDefinitions.SelectMany(step => step.Choices)
+            : expeditionEvent.ChoicePool.Concat(expeditionEvent.Choices);
+
+    private static StarshipEventChoiceSnapshot? FindResolvedChoice(StarshipExpeditionEventSnapshot expeditionEvent)
+    {
+        var choices = string.IsNullOrEmpty(expeditionEvent.ResolvedStepId)
+            ? AllChoices(expeditionEvent)
+            : expeditionEvent.StepDefinitions.FirstOrDefault(step => step.StepId == expeditionEvent.ResolvedStepId)?.Choices ?? [];
+        return choices.FirstOrDefault(choice =>
+            string.Equals(choice.ChoiceId, expeditionEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+    }
 
     private static void ApplyRewardToParticipant(
         StarshipExpeditionSnapshot snapshot,
@@ -126,12 +138,12 @@ internal static class StarshipRewardResolver
                 if (reward.ChancePercent < 100 && StarshipExpeditionStory.StableIndex(snapshot.Seed, resolvedEvent.Sequence,
                         $"reward-chance:{resolvedEvent.EventId:N}:{member.UserId}:{rarity}:{index}", 100) >= reward.ChancePercent)
                     continue;
-                var range = checked((int)Math.Min(int.MaxValue, reward.Maximum - reward.Minimum + 1));
                 var amountKey = $"reward-amount:{resolvedEvent.EventId:N}:{member.UserId}:{rarity}";
                 if (index > 0) amountKey += $":{index}";
-                var rolledAmount = reward.Minimum + StarshipExpeditionStory.StableIndex(snapshot.Seed, resolvedEvent.Sequence, amountKey, Math.Max(1, range));
-                rolledAmount = (long)((decimal)rolledAmount * rewardPercent / 100m);
-                rolledByType[reward.PointTypeId] = rolledByType.GetValueOrDefault(reward.PointTypeId) + rolledAmount;
+                var rolledAmount = StarshipExpeditionStory.StableLongRange(snapshot.Seed, resolvedEvent.Sequence,
+                    amountKey, reward.Minimum, reward.Maximum);
+                rolledAmount = ScaleRewardAmount(rolledAmount, rewardPercent);
+                rolledByType[reward.PointTypeId] = AddSaturating(rolledByType.GetValueOrDefault(reward.PointTypeId), rolledAmount);
             }
         }
 
@@ -156,13 +168,13 @@ internal static class StarshipRewardResolver
                     .SelectMany(expeditionEvent => expeditionEvent.RewardOutcomes)
                     .Where(previous => string.Equals(previous.UserId, member.UserId, StringComparison.OrdinalIgnoreCase) &&
                                        previous.PointTypeId == typeId)
-                    .Sum(previous => previous.EarnedAmount);
+                    .Aggregate(0L, (total, previous) => AddSaturating(total, previous.EarnedAmount));
                 var availableVoyageCap = cap.MaximumUnbankedPerVoyage is { } voyageLimit ? Math.Max(0, voyageLimit - earnedThisVoyage) : long.MaxValue;
                 earnedAmount = Math.Min(rolledByType.GetValueOrDefault(typeId), Math.Min(cap.MaximumPerEvent ?? long.MaxValue, availableVoyageCap));
                 if (earnedAmount > 0)
                 {
                     currentBalance ??= AddUnbankedBalance(member, typeId, typeName);
-                    currentBalance.Amount += earnedAmount;
+                    currentBalance.Amount = AddSaturating(currentBalance.Amount, earnedAmount);
                 }
             }
             else if (succeeded)
@@ -188,8 +200,20 @@ internal static class StarshipRewardResolver
     internal static (long Proportional, long Maximum) ScaleRiskLoss(StarshipLossRule rule, long balance, int riskPercent)
     {
         var lossPercent = Math.Min(100m, rule.Percent * riskPercent / 100m);
-        return ((long)(balance * lossPercent / 100m), rule.MaximumPerEvent is { } maximum ? (long)((decimal)maximum * riskPercent / 100m) : long.MaxValue);
+        var maximum = rule.MaximumPerEvent is { } configuredMaximum
+            ? (long)Math.Min(long.MaxValue, (decimal)configuredMaximum * riskPercent / 100m)
+            : long.MaxValue;
+        return ((long)(balance * lossPercent / 100m), maximum);
     }
+
+    private static long ScaleRewardAmount(long amount, int rewardPercent) =>
+        (long)Math.Min(long.MaxValue, (decimal)amount * rewardPercent / 100m);
+
+    private static long AddSaturating(long first, long second) =>
+        second > long.MaxValue - first ? long.MaxValue : first + second;
+
+    internal static long SumSaturating(IEnumerable<long> values) =>
+        values.Aggregate(0L, AddSaturating);
 
     internal static StarshipRewardTier? ChooseEventTier(
         StarshipExpeditionSnapshot snapshot,

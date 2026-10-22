@@ -6,6 +6,10 @@ public interface IStarshipExpeditionService
 {
     Task<StarshipExpeditionSnapshot?> GetSnapshotAsync(CancellationToken cancellationToken = default);
     IReadOnlyList<StarshipExpeditionEventSnapshot> BuildPreview(StarshipExpeditionSettings settings, int seed);
+    IReadOnlyList<StarshipExpeditionEventSnapshot> BuildPreview(
+        StarshipExpeditionSettings settings,
+        int seed,
+        StarshipPreviewVoterPolicy voterPolicy);
     Task<StarshipExpeditionSnapshot> StartExpeditionAsync(
         string? startedBy,
         int? legCount = null,

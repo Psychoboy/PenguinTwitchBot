@@ -51,6 +51,37 @@ public class StarshipExpeditionStateStoreTests
     }
 
     [Fact]
+    public async Task Load_InvalidPersistedShipRulesDeletesSnapshotAndReturnsNoActiveVoyage()
+    {
+        var rows = new List<Setting>
+        {
+            new()
+            {
+                Name = StarshipExpeditionStateStore.SettingKey,
+                DataType = Setting.DataTypeEnum.String,
+                StringSetting = JsonSerializer.Serialize(new StarshipExpeditionSnapshot
+                {
+                    ExpeditionId = Guid.NewGuid(),
+                    LegCount = 4,
+                    ShipSystems = new StarshipShipSystemsSnapshot
+                    {
+                        IntegrationEnabled = true,
+                        Rules = new() { MaximumHull = 0 },
+                        Hull = 0,
+                        Supplies = 20
+                    }
+                })
+            }
+        };
+        var store = CreateStore(rows);
+
+        var loaded = await store.LoadAsync();
+
+        Assert.Null(loaded);
+        Assert.Empty(rows);
+    }
+
+    [Fact]
     public async Task ShipSystems_SaveRejectsInvalidResourcesAndDuplicateOperations()
     {
         var state = StarshipShipSystems.Create(new())!;
@@ -277,6 +308,8 @@ public class StarshipExpeditionStateStoreTests
                 var index = settingRows.FindIndex(existing => existing.Name == setting.Name);
                 if (index >= 0) settingRows[index] = setting;
             });
+        settingsRepository.Setup(repository => repository.Remove(It.IsAny<Setting>()))
+            .Callback<Setting>(setting => settingRows.Remove(setting));
 
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.SetupGet(work => work.Settings).Returns(settingsRepository.Object);

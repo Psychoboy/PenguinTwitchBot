@@ -18,11 +18,11 @@ public sealed record StarshipEventDocument(int SchemaVersion, StarshipEventDefin
     public static StarshipEventDefinition Read(string json)
     {
         var document = JsonSerializer.Deserialize<StarshipEventDocument>(json, JsonOptions);
-        if (document == null || document.SchemaVersion != 1 || document.Event == null)
-            throw new InvalidDataException("Use a supported single-event JSON document (schemaVersion 1).");
+        if (document == null || document.SchemaVersion != 2 || document.Event == null)
+            throw new InvalidDataException("Use a supported branching event JSON document (schemaVersion 2).");
         return document.Event;
     }
 
     public static string Write(StarshipEventDefinition definition) =>
-        JsonSerializer.Serialize(new StarshipEventDocument(1, definition), JsonOptions);
+        JsonSerializer.Serialize(new StarshipEventDocument(2, definition), JsonOptions);
 }

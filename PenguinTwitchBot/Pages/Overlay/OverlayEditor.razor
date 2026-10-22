@@ -1069,11 +1069,15 @@
 
     public async ValueTask DisposeAsync()
     {
-        try
+        if (_jsInitialized)
         {
-            await JS.InvokeVoidAsync("overlayEditor.destroy");
+            try
+            {
+                await JS.InvokeVoidAsync("overlayEditor.destroy");
+            }
+            catch (JSDisconnectedException) { /* circuit already gone - safe to ignore */ }
+            catch (InvalidOperationException) { /* prerendered or disposed JS runtime */ }
         }
-        catch (JSDisconnectedException) { /* circuit already gone - safe to ignore */ }
         _dotNetRef?.Dispose();
     }
     // ---- JS callbacks ----

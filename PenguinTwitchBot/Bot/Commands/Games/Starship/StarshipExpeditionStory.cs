@@ -50,6 +50,15 @@ public static class StarshipExpeditionStory
         return (int)(BinaryPrimitives.ReadUInt32LittleEndian(hash) % (uint)count);
     }
 
+    public static long StableLongRange(int seed, int sequence, string purpose, long minimum, long maximum)
+    {
+        if (minimum < 0 || maximum < minimum)
+            throw new ArgumentOutOfRangeException(nameof(minimum), "Reward range must be non-negative and ordered.");
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{seed}:{sequence}:{purpose}"));
+        var range = (ulong)(maximum - minimum) + 1UL;
+        return minimum + (long)(BinaryPrimitives.ReadUInt64LittleEndian(hash) % range);
+    }
+
     public static string GenerateSubject(int seed, int sequence, string eventType)
     {
         string Pick(string[] items, string purpose) => items[StableIndex(seed, sequence, $"story-{purpose}", items.Length)];

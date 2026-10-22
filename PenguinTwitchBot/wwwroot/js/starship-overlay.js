@@ -4,7 +4,7 @@
     const view = document.body.dataset.starshipView;
     const root = document.getElementById('starship-widget');
     const stage = document.getElementById('stage');
-    const BASE_SIZE = view === 'event' ? { width: 620, height: 360 } : { width: 520, height: 180 };
+    const BASE_SIZE = view === 'event' ? { width: 780, height: 460 } : { width: 520, height: 180 };
     const DEFAULT_ACCENT = '#66d0c2';
     const FONTS = ['Barlow Condensed', 'Arial Narrow', 'Segoe UI', 'Verdana', 'Georgia', 'Trebuchet MS', 'Impact', 'Courier New'];
     const DEFAULT_APPEARANCE = {
@@ -324,7 +324,7 @@
         disclosure.filter(details => details.available === false).forEach(details => {
             if (!choices.some(choice => choice.choiceId === details.choiceId)) choices.push({ choiceId: details.choiceId, label: details.label, unavailable: true });
         });
-        list.dataset.compact = choices.length > 4 ? 'true' : 'false';
+        list.dataset.compact = choices.length > 2 ? 'true' : 'false';
         root.dataset.dense = choices.length >= 4 && disclosure.length ? 'true' : 'false';
         const counts = currentEvent.voteCounts || {};
         const totalVotes = Object.keys(counts).reduce(function (sum, key) { return sum + counts[key]; }, 0);

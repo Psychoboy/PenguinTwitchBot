@@ -1,10 +1,13 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
-public sealed class StarshipExpeditionStateStore(IServiceScopeFactory scopeFactory) : IStarshipExpeditionStateStore
+public sealed class StarshipExpeditionStateStore(
+    IServiceScopeFactory scopeFactory,
+    ILogger<StarshipExpeditionStateStore>? logger = null) : IStarshipExpeditionStateStore
 {
     public const string SettingKey = "starship_expedition.state.v1";
 
@@ -39,7 +42,17 @@ public sealed class StarshipExpeditionStateStore(IServiceScopeFactory scopeFacto
             if (snapshot == null)
                 throw new InvalidDataException("Persisted Starship expedition state is empty.");
 
-            Validate(snapshot);
+            try
+            {
+                Validate(snapshot);
+            }
+            catch (InvalidDataException ex) when (ex.Message == "Persisted Starship ship rules are invalid.")
+            {
+                logger?.LogWarning(ex, "Discarding persisted Starship expedition state with invalid ship rules; defaults will be recreated on the next voyage.");
+                unitOfWork.Settings.Remove(setting);
+                await unitOfWork.SaveChangesAsync();
+                return null;
+            }
             return snapshot;
         }
         finally
@@ -134,8 +147,22 @@ public sealed class StarshipExpeditionStateStore(IServiceScopeFactory scopeFacto
         {
             try
             {
+                if (expeditionEvent.StepDefinitions.Count > 0)
+                {
+                    StarshipEventGraphValidator.Validate(new StarshipEventDefinition(
+                        expeditionEvent.EventType, expeditionEvent.Title, expeditionEvent.EventDescription, [], string.Empty)
+                    {
+                        StartStepId = expeditionEvent.StartStepId,
+                        DefaultStepSuppliesCost = expeditionEvent.DefaultStepSuppliesCost,
+                        Steps = expeditionEvent.StepDefinitions
+                    });
+                    if (expeditionEvent == snapshot.CurrentEvent &&
+                        !expeditionEvent.StepDefinitions.Any(step => step.StepId == expeditionEvent.CurrentStepId))
+                        throw new InvalidDataException("The active Starship event step does not exist in its graph.");
+                }
                 expeditionEvent.ShipContext?.Validate();
-                foreach (var choice in expeditionEvent.Choices.Concat(expeditionEvent.ChoicePool))
+                foreach (var choice in expeditionEvent.Choices.Concat(expeditionEvent.ChoicePool)
+                             .Concat(expeditionEvent.StepDefinitions.SelectMany(step => step.Choices)))
                     choice.ShipEffect?.Validate();
             }
             catch (ArgumentException ex)

@@ -52,6 +52,48 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public void EventChatMessageOmitsCrewPathWhileOverlayLinesKeepIt()
+    {
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventType = "custom-cache", Title = "Cache", OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess,
+            Path = [new() { Label = "Secure the area" }, new() { Label = "Recover the cache" }]
+        };
+
+        Assert.Contains(StarshipExpeditionNarrative.BuildEventLines(expeditionEvent), line => line.StartsWith("Crew path:", StringComparison.Ordinal));
+        Assert.Contains("Crew path:", StarshipExpeditionNarrative.BuildEventMessage(expeditionEvent), StringComparison.Ordinal);
+        Assert.DoesNotContain("Crew path:", StarshipExpeditionNarrative.BuildEventMessage(expeditionEvent, includeCrewPath: false), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChatEventMessageShowsOnlyChangedShipStats()
+    {
+        var unchanged = new StarshipExpeditionEventSnapshot
+        {
+            Title = "Route",
+            OutcomeStory = "The route is clear.",
+            OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess,
+            ShipContext = new() { HullBefore = 80, HullMaximum = 80, HullAfter = 80, SuppliesBefore = 55, SuppliesAfter = 55 }
+        };
+        var changed = new StarshipExpeditionEventSnapshot
+        {
+            Title = "Derelict Salvage",
+            OutcomeStory = "The transmission fades before the link is restored.",
+            OutcomeResult = StarshipExpeditionNarrative.OutcomeFailure,
+            ShipContext = new() { HullBefore = 80, HullMaximum = 80, HullAfter = 65, SuppliesBefore = 55, SuppliesAfter = 55 }
+        };
+
+        var unchangedMessage = StarshipExpeditionNarrative.BuildChatEventMessage(unchanged);
+        var changedMessage = StarshipExpeditionNarrative.BuildChatEventMessage(changed);
+
+        Assert.DoesNotContain("Ship:", unchangedMessage, StringComparison.Ordinal);
+        Assert.Contains("The transmission fades before the link is restored.", changedMessage, StringComparison.Ordinal);
+        Assert.Contains("FAILED - the encounter was unsuccessful.", changedMessage, StringComparison.Ordinal);
+        Assert.Contains("Ship: hull -15 (65/80).", changedMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("supplies", changedMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task StartExpedition_OpensBoardingAndRejectsSecondActiveVoyage()
     {
         var stateStore = new InMemoryStateStore();
@@ -67,6 +109,139 @@ public class StarshipExpeditionServiceTests
         Assert.Contains(snapshot.ActivityFeed, item => item.Kind == StarshipActivityKinds.BoardingOpened);
         Assert.Equal(1, snapshot.NextEventSequence);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.StartExpeditionAsync("another-mod", seed: 99));
+    }
+
+    [Fact]
+    public async Task GraphEvent_SplitsMergesRunsAutomaticStepsAndChargesEntryCostsOnce()
+    {
+        var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingSupplies = 50 }));
+        snapshot.RewardProfiles.Clear();
+        snapshot.CurrentEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), Sequence = 2, EventType = "graph-event", Title = "Signal",
+            CurrentStepId = "start", StepNumber = 1, DefaultStepSuppliesCost = 5,
+            StepDefinitions =
+            [
+                new()
+                {
+                    StepId = "start", Type = StarshipEventStepType.Vote, Prompt = "Approach the signal.",
+                    DefaultChoiceId = "scan", Choices =
+                    [
+                        new() { ChoiceId = "scan", Label = "Scan", NextStepId = "auto-report", ShipEffect = new() { SuppliesCost = 2 } },
+                        new() { ChoiceId = "trace", Label = "Trace", NextStepId = "shared" },
+                        new() { ChoiceId = "withdraw", Label = "Withdraw", NextStepId = "end", EndsWithoutReward = true }
+                    ]
+                },
+                new() { StepId = "auto-report", Type = StarshipEventStepType.Automatic, Prompt = "The signal resolves.", Narrative = "The signal is decoded.", NextStepId = "shared", SuppliesCostOverride = 0 },
+                new()
+                {
+                    StepId = "shared", Type = StarshipEventStepType.Vote, Prompt = "Choose what to do.",
+                    DefaultChoiceId = "recover", Choices =
+                    [new() { ChoiceId = "recover", Label = "Investigate", NextStepId = "end" }, new() { ChoiceId = "leave", Label = "Leave", NextStepId = "end", EndsWithoutReward = true }]
+                },
+                new() { StepId = "end", Type = StarshipEventStepType.End, Prompt = "The encounter is over.", SuppliesCostOverride = 3 }
+            ],
+            Choices =
+            [
+                new() { ChoiceId = "scan", Label = "Scan", NextStepId = "auto-report", ShipEffect = new() { SuppliesCost = 2 } },
+                new() { ChoiceId = "trace", Label = "Trace", NextStepId = "shared" },
+                new() { ChoiceId = "withdraw", Label = "Withdraw", NextStepId = "end", EndsWithoutReward = true }
+            ],
+            ChoicePool =
+            [
+                new() { ChoiceId = "scan", Label = "Scan", NextStepId = "auto-report", ShipEffect = new() { SuppliesCost = 2 } },
+                new() { ChoiceId = "trace", Label = "Trace", NextStepId = "shared" },
+                new() { ChoiceId = "withdraw", Label = "Withdraw", NextStepId = "end", EndsWithoutReward = true }
+            ],
+            ShipContext = new() { BaseSuccessChancePercent = 100, HullBefore = 80, HullMaximum = 80, SuppliesBefore = 50, HullAfter = 80, SuppliesAfter = 50 },
+            ClosesAtUtc = DateTimeOffset.UtcNow.AddMinutes(1)
+        };
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var chatMessages = new List<string>();
+        var chat = new Mock<IServiceBackbone>();
+        chat.Setup(backbone => backbone.SendChatMessage(It.IsAny<string>()))
+            .Callback<string>(chatMessages.Add)
+            .Returns(Task.CompletedTask);
+        var service = CreateService(store, serviceBackboneMock: chat);
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "scan");
+        var atSharedStep = await service.AdvanceEventAsync();
+
+        Assert.Equal("shared", atSharedStep.CurrentEvent!.CurrentStepId);
+        Assert.Equal("Choose what to do.", atSharedStep.CurrentEvent.Description);
+        Assert.Equal(43, atSharedStep.ShipSystems!.Supplies);
+        Assert.Equal(["start", "auto-report"], atSharedStep.CurrentEvent.Path.Select(path => path.StepId));
+        Assert.Contains(chatMessages, message => message.Contains("The signal is decoded.", StringComparison.Ordinal));
+        Assert.DoesNotContain(chatMessages, message => message.Contains("step 2", StringComparison.OrdinalIgnoreCase));
+
+        service = CreateService(store);
+        var recovered = await service.GetSnapshotAsync();
+        Assert.Equal("shared", recovered!.CurrentEvent!.CurrentStepId);
+        Assert.Equal(43, recovered.ShipSystems!.Supplies);
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "recover");
+        var resolved = await service.AdvanceEventAsync();
+
+        Assert.Equal(StarshipExpeditionNarrative.OutcomeSuccess, resolved.CompletedEvents[^1].OutcomeResult);
+        Assert.Equal(["start", "auto-report", "shared", "end"], resolved.CompletedEvents[^1].Path.Select(path => path.StepId));
+        Assert.Equal(40, resolved.ShipSystems!.Supplies);
+    }
+
+    [Fact]
+    public void BuildPreview_VoterPoliciesFollowDistinctDeterministicGraphPaths()
+    {
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new() { LegCount = 3 });
+        settings.EventCatalog = settings.EventCatalog.Select(definition =>
+            StarshipEventCatalog.IsStructural(definition.EventType) || definition.EventType == "SignalDetected"
+                ? definition
+                : definition with { Enabled = false }).ToList();
+        StarshipExpeditionSettings.NormalizeAndValidate(settings);
+        var service = CreateService(new InMemoryStateStore());
+
+        IReadOnlyList<StarshipEventPathStepSnapshot> GetSignalPath(StarshipPreviewVoterPolicy policy) =>
+            service.BuildPreview(settings, 42, policy).First(item => item.EventType == "SignalDetected").Path;
+
+        var defaultPath = GetSignalPath(StarshipPreviewVoterPolicy.Default);
+        var riskAversePath = GetSignalPath(StarshipPreviewVoterPolicy.RiskAverse);
+        var riskSeekingPath = GetSignalPath(StarshipPreviewVoterPolicy.RiskSeeking);
+        var randomPath = GetSignalPath(StarshipPreviewVoterPolicy.SeededRandom);
+
+        Assert.Equal("pass-ending", defaultPath[^1].StepId);
+        Assert.Contains(riskAversePath, step => step.StepId == "trace-report");
+        Assert.Contains(riskSeekingPath, step => step.StepId == "investigation");
+        Assert.Equal(randomPath.Select(step => step.StepId), GetSignalPath(StarshipPreviewVoterPolicy.SeededRandom).Select(step => step.StepId));
+        Assert.NotEqual(riskAversePath.Select(step => step.StepId), riskSeekingPath.Select(step => step.StepId));
+    }
+
+    [Fact]
+    public void RewardResolver_AwardsLongMaxValueWithoutOverflow()
+    {
+        var member = new StarshipCrewMemberSnapshot { UserId = "pilot", UserName = "pilot", DisplayName = "Pilot" };
+        var snapshot = new StarshipExpeditionSnapshot { Seed = 17, Crew = [member] };
+        var profile = new StarshipRewardProfile
+        {
+            EventType = "SignalDetected",
+            Enabled = true,
+            Tiers = [new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 4, Minimum = long.MaxValue, Maximum = long.MaxValue }] }],
+            Caps = [new() { PointTypeId = 4, MaximumPerEvent = long.MaxValue, MaximumUnbankedPerVoyage = long.MaxValue }]
+        };
+        var resolvedEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), Sequence = 1, EventType = "SignalDetected",
+            OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess, OutcomeRarity = "Common", RewardMultiplierPercent = 200
+        };
+
+        StarshipRewardResolver.ApplyRewardProfile(snapshot, resolvedEvent, profile, new HashSet<string>(["pilot"]));
+
+        Assert.Equal(long.MaxValue, Assert.Single(resolvedEvent.RewardOutcomes).EarnedAmount);
+        Assert.Equal(long.MaxValue, Assert.Single(member.UnbankedBalances).Amount);
+    }
+
+    [Fact]
+    public void RewardSummaries_SaturateInsteadOfWrapping()
+    {
+        Assert.Equal(long.MaxValue, StarshipRewardResolver.SumSaturating([long.MaxValue, 1]));
+        Assert.Equal(long.MaxValue, StarshipRewardResolver.SumSaturating([long.MaxValue - 4, 3, 2]));
     }
 
     [Fact]
@@ -518,12 +693,18 @@ public class StarshipExpeditionServiceTests
         {
             Assert.NotEmpty(item.Subject);
             Assert.DoesNotContain("{", item.Description, StringComparison.Ordinal);
-            Assert.True(item.ChoicePool.Count >= 3);
-            Assert.All(item.ChoicePool, choice => Assert.NotEmpty(choice.Story));
+            Assert.NotEmpty(item.StepDefinitions);
+            Assert.NotEmpty(item.Path);
+            Assert.Equal(StarshipEventStepType.End.ToString(), item.Path[^1].StepType);
+            Assert.All(item.StepDefinitions.Where(step => step.Type == StarshipEventStepType.Vote), step =>
+            {
+                Assert.InRange(step.Choices.Count, 2, StarshipEventCatalog.MaximumChoices);
+                Assert.All(step.Choices, choice => Assert.Contains(item.StepDefinitions, target => target.StepId == choice.NextStepId));
+            });
             Assert.NotEmpty(item.SuccessStory);
         });
         Assert.All(preview.Where(item => item.EventType == "SalvageSite"), item =>
-            Assert.Contains(item.ChoicePool, choice => choice.ContinuesEvent));
+            Assert.Contains(item.StepDefinitions, step => step.StepId == "scan-report" && step.Type == StarshipEventStepType.Automatic));
     }
 
     [Fact]
@@ -1082,7 +1263,7 @@ public class StarshipExpeditionServiceTests
         Assert.Contains(chatMessages, message => message.Contains("Pilot sweeps the sensors over the ISV Quiet Meridian.", StringComparison.Ordinal));
         Assert.Contains(chatMessages, message => message.Contains("SUCCESS - Common find", StringComparison.Ordinal)
             && message.Contains("Earned 8 Salvage Credits", StringComparison.Ordinal)
-            && message.Contains("Scan the wreck > Secure the area > Recover salvage", StringComparison.Ordinal));
+            && !message.Contains("Crew path:", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -2476,6 +2657,13 @@ public class StarshipExpeditionServiceTests
             SaveCount++;
             Settings = settings;
             return Task.CompletedTask;
+        }
+
+        public Task<StarshipExpeditionSettings> ResetToDefaultsAsync(CancellationToken cancellationToken = default)
+        {
+            SaveCount++;
+            Settings = new StarshipExpeditionSettings();
+            return Task.FromResult(Settings);
         }
     }
 }

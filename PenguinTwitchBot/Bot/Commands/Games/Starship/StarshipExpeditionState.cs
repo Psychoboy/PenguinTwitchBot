@@ -13,6 +13,14 @@ public enum StarshipExpeditionStatus
     Boarding
 }
 
+public enum StarshipPreviewVoterPolicy
+{
+    Default,
+    SeededRandom,
+    RiskAverse,
+    RiskSeeking
+}
+
 public enum StarshipCrewEnrollmentMethod
 {
     ExplicitJoin,
@@ -114,9 +122,13 @@ public sealed class StarshipExpeditionEventSnapshot
     public Guid EventId { get; init; }
     public int Sequence { get; init; }
     public int VoyageProgressPercent { get; init; }
+    public string StartStepId { get; init; } = string.Empty;
+    public string CurrentStepId { get; set; } = string.Empty;
+    public List<StarshipEventStepDefinition> StepDefinitions { get; init; } = [];
     public string EventType { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string EventDescription { get; init; } = string.Empty;
     public string Subject { get; init; } = string.Empty;
     /// <summary>Kind of object the overlay draws (wreck, beacon, debris, station, fork) and which of its looks.</summary>
     public string ObjectKind { get; init; } = string.Empty;
@@ -128,13 +140,15 @@ public sealed class StarshipExpeditionEventSnapshot
     public string SuccessStory { get; init; } = string.Empty;
     public string FailureStory { get; init; } = string.Empty;
     public string OutcomeStory { get; set; } = string.Empty;
+    public int DefaultStepSuppliesCost { get; init; }
+    public bool StepEntryFailed { get; set; }
     public string Sector { get; init; } = string.Empty;
     public DateTimeOffset OpenedAtUtc { get; set; }
     public DateTimeOffset ClosesAtUtc { get; set; }
     public List<StarshipEventChoiceSnapshot> Choices { get; set; } = [];
     /// <summary>Every choice this event can offer; <see cref="Choices"/> is the subset available at the current step.</summary>
     public List<StarshipEventChoiceSnapshot> ChoicePool { get; set; } = [];
-    public string DefaultChoiceId { get; init; } = string.Empty;
+    public string DefaultChoiceId { get; set; } = string.Empty;
     public int StepNumber { get; set; } = 1;
     public List<string> Flags { get; init; } = [];
     public List<StarshipEventPathStepSnapshot> Path { get; init; } = [];
@@ -153,12 +167,14 @@ public sealed class StarshipExpeditionEventSnapshot
     public List<StarshipRewardOutcomeSnapshot> RewardOutcomes { get; init; } = [];
     public List<StarshipRiskConfirmationSnapshot> PendingRiskConfirmations { get; init; } = [];
     public string? ResolvedChoiceId { get; set; }
+    public string? ResolvedStepId { get; set; }
     public DateTimeOffset? ResolvedAtUtc { get; set; }
 }
 
 public sealed class StarshipEventChoiceSnapshot
 {
     public string ChoiceId { get; init; } = string.Empty;
+    public string? NextStepId { get; init; }
     public string Label { get; init; } = string.Empty;
     public bool IsRisky { get; init; }
     /// <summary>Story template shown when this choice is made (see StarshipExpeditionStory for tokens).</summary>
@@ -179,6 +195,8 @@ public sealed class StarshipEventChoiceSnapshot
 public sealed class StarshipEventPathStepSnapshot
 {
     public int StepNumber { get; init; }
+    public string StepId { get; init; } = string.Empty;
+    public string StepType { get; init; } = string.Empty;
     public string ChoiceId { get; init; } = string.Empty;
     public string Label { get; init; } = string.Empty;
     public int VoteCount { get; init; }
@@ -350,7 +368,8 @@ public sealed record StarshipExpeditionOverlaySnapshot(
             snapshot.BankedPayouts.Where(payout => payout.EventId == snapshot.ExpeditionId)
                 .GroupBy(payout => new { payout.PointTypeId, payout.PointTypeName })
                 .Select(group => new StarshipOverlayBankedAmount(
-                    group.Key.PointTypeId, group.Key.PointTypeName, group.Sum(payout => payout.Amount), group.All(payout => payout.IsPaid)))
+                    group.Key.PointTypeId, group.Key.PointTypeName,
+                    StarshipRewardResolver.SumSaturating(group.Select(payout => payout.Amount)), group.All(payout => payout.IsPaid)))
                 .ToList(),
             snapshot.Status.ToString(),
             string.Empty,
@@ -564,7 +583,7 @@ public sealed record StarshipOverlayEventResult(
                 .Select(group => new StarshipOverlayBankedAmount(
                     group.Key.PointTypeId,
                     group.Key.PointTypeName,
-                    group.Sum(payout => payout.Amount),
+                    StarshipRewardResolver.SumSaturating(group.Select(payout => payout.Amount)),
                     group.All(payout => payout.IsPaid)))
                 .ToList(),
             expeditionEvent.OutcomeResult,

@@ -6,7 +6,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 public static partial class StarshipEventCatalog
 {
-    public const int MaximumChoices = 6;
+    public const int MaximumChoices = 4;
     public static IReadOnlyList<string> Routes { get; } = ["Uncharted", "Direct Route", "Survey Route"];
     public static IReadOnlyList<string> SubjectStyles { get; } = ["", "ship", "signal", "hazard", "custom"];
     public static IReadOnlyList<string> ObjectKinds { get; } = ["", .. StarshipAppearanceSettings.ObjectKinds];
@@ -17,28 +17,85 @@ public static partial class StarshipEventCatalog
     public static List<StarshipEventDefinition> CreateDefaults() =>
     [
         new("SignalDetected", "Unidentified Signal", "A signal from {subject} is repeating at the edge of sensor range. Scan it, trace its origin, then investigate - or move on.",
+            [], "", "It was real: the crew recovers {loot}.", "The signal was a trap. The ship limps home damaged and empty.")
+        {
+            SortOrder = 0, SubjectStyle = "signal", ObjectKind = "beacon", ShipFailureEffect = GetDefaultShipFailureEffect("SignalDetected"),
+            StartStepId = "approach", DefaultStepSuppliesCost = 0,
+            Steps =
             [
-                new() { ChoiceId = "scan", Label = "Scan the signal", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true, Story = "{crew} decodes the looping message from {subject}: a plea in a long-dead dialect, guarding {loot}." },
-                new() { ChoiceId = "trace", Label = "Trace its origin", ContinuesEvent = true, GrantsFlag = "traced", SuccessChanceModifierPercent = 15, RewardMultiplierPercent = 85, RiskMultiplierPercent = 60, Story = "{crewlist} triangulate {subject} to a hidden dock deep in the {sector}." },
-                new() { ChoiceId = "investigate", Label = "Investigate the source", Story = "{crew} takes a shuttle out to {subject}." },
-                new() { ChoiceId = "ignore", Label = "Continue on course", EndsWithoutReward = true, Story = "The crew lets {subject} fade into static." }
-            ], "ignore", "It was real: the crew recovers {loot}.", "It was a decoy. The shuttle limps home empty and the crew loses cargo.")
-        { SortOrder = 0, SubjectStyle = "signal", ObjectKind = "beacon", ShipFailureEffect = GetDefaultShipFailureEffect("SignalDetected"), LootByTier = new() { ["Common"] = "a fragment of old star charts", ["Uncommon"] = "an encrypted data cache", ["Rare"] = "a lost explorer's black-box archive" } },
+                VoteStep("approach", "The signal repeats from {subject}. How should the crew investigate?", "pass",
+                    new() { ChoiceId = "scan", Label = "Scan the signal", NextStepId = "scan-report", RevealsRarity = true, Story = "{crew} sweeps the signal for a reply." },
+                    new() { ChoiceId = "trace", Label = "Trace its origin", NextStepId = "trace-report", SuccessChanceModifierPercent = 15, RewardMultiplierPercent = 85, RiskMultiplierPercent = 60, Story = "{crewlist} triangulate {subject} across the {sector}." },
+                    new() { ChoiceId = "investigate", Label = "Investigate in person", NextStepId = "investigation", Story = "{crew} takes a shuttle out to {subject}." },
+                    new() { ChoiceId = "pass", Label = "Continue on course", NextStepId = "pass-ending", EndsWithoutReward = true, Story = "The crew lets {subject} fade into static." }),
+                AutomaticStep("scan-report", "The scan returns a faint response.", "The message is a plea in a long-dead dialect. Its source lies deeper in the signal field.", "analysis", 3),
+                VoteStep("analysis", "The crew has a partial translation. What now?", "decode",
+                    new() { ChoiceId = "decode", Label = "Decode the message", NextStepId = "recovery-ending", Story = "{crew} follows the coordinates to {loot}." },
+                    new() { ChoiceId = "triangulate", Label = "Track the carrier signal", NextStepId = "ambush", RiskMultiplierPercent = 140, Story = "{crewlist} follow the signal into a narrow approach." },
+                    new() { ChoiceId = "withdraw", Label = "Withdraw safely", NextStepId = "pass-ending", EndsWithoutReward = true, Story = "The crew records the signal and turns away." }),
+                AutomaticStep("trace-report", "The signal resolves to a hidden dock.", "The dock is silent, but its beacon is still transmitting.", "ambush", 4),
+                VoteStep("investigation", "The shuttle reaches the beacon. How does the crew proceed?", "secure",
+                    new() { ChoiceId = "secure", Label = "Secure the beacon", NextStepId = "recovery-ending", SuccessChanceModifierPercent = 10, RiskMultiplierPercent = 60 },
+                    new() { ChoiceId = "rush", Label = "Rush the transmitter", NextStepId = "recovery-ending", SuccessChanceModifierPercent = -15, RewardMultiplierPercent = 150, RiskMultiplierPercent = 160 },
+                    new() { ChoiceId = "retreat", Label = "Recall the shuttle", NextStepId = "pass-ending", EndsWithoutReward = true }),
+                VoteStep("ambush", "The dock's defenses wake up. What is the crew's response?", "evade",
+                    new() { ChoiceId = "evade", Label = "Evade and recover the archive", NextStepId = "recovery-ending", SuccessChanceModifierPercent = 10, RiskMultiplierPercent = 50 },
+                    new() { ChoiceId = "counter", Label = "Push through the defenses", NextStepId = "recovery-ending", SuccessChanceModifierPercent = -20, RewardMultiplierPercent = 160, RiskMultiplierPercent = 180 },
+                    new() { ChoiceId = "retreat", Label = "Break off the approach", NextStepId = "pass-ending", EndsWithoutReward = true }),
+                EndStep("recovery-ending", "The crew returns with {loot}.", "The signal was real: the crew recovers {loot}."),
+                EndStep("pass-ending", "The crew turns away from the signal.")
+            ],
+            LootByTier = new() { ["Common"] = "a fragment of old star charts", ["Uncommon"] = "an encrypted data cache", ["Rare"] = "a lost explorer's black-box archive" }
+        },
         new("SalvageSite", "Derelict Salvage", "A damaged vessel, {subject}, is drifting near the route. Scan it, secure the area, then recover the salvage - or pass.",
+            [], "", "The hatch gives way and the crew hauls out {loot}.", "A reactor surge rips through {subject}. The crew drops {loot} and flees.")
+        {
+            SortOrder = 1, SubjectStyle = "ship", ObjectKind = "wreck", ShipFailureEffect = GetDefaultShipFailureEffect("SalvageSite"), AllowedRoutes = ["Uncharted", "Survey Route"],
+            StartStepId = "approach", DefaultStepSuppliesCost = 0,
+            Steps =
             [
-                new() { ChoiceId = "scan", Label = "Scan the wreck", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true, Story = "{crew} sweeps the sensors over {subject}. Warm signatures flicker behind the cargo hold - it looks like {loot}." },
-                new() { ChoiceId = "secure", Label = "Secure the area", ContinuesEvent = true, GrantsFlag = "secured", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, RiskMultiplierPercent = 50, Story = "{crewlist} lock docking clamps onto {subject} and seal its breached corridors." },
-                new() { ChoiceId = "salvage", Label = "Recover salvage", Story = "{crew} boards {subject} and starts cutting toward the cargo hold." },
-                new() { ChoiceId = "pass", Label = "Pass it by", EndsWithoutReward = true, Story = "The crew leaves {subject} to drift on." }
-            ], "pass", "The hatch gives way and the crew hauls out {loot}.", "A reactor surge rips through {subject}. The crew drops {loot} and flees.")
-        { SortOrder = 1, SubjectStyle = "ship", ObjectKind = "wreck", ShipFailureEffect = GetDefaultShipFailureEffect("SalvageSite"), AllowedRoutes = ["Uncharted", "Survey Route"], LootByTier = new() { ["Common"] = "salvage plating and spare parts", ["Uncommon"] = "a sealed navigation core", ["Rare"] = "an intact cryo-vault" } },
+                VoteStep("approach", "The damaged vessel {subject} is drifting nearby. Choose an approach.", "pass",
+                    new() { ChoiceId = "scan", Label = "Scan the wreck", NextStepId = "scan-report", RevealsRarity = true, Story = "{crew} sweeps the sensors over {subject}." },
+                    new() { ChoiceId = "secure", Label = "Secure the area", NextStepId = "secure-report", SuccessChanceModifierPercent = 10, RewardMultiplierPercent = 90, RiskMultiplierPercent = 50 },
+                    new() { ChoiceId = "rush", Label = "Board the wreck now", NextStepId = "recovery", SuccessChanceModifierPercent = -15, RewardMultiplierPercent = 150, RiskMultiplierPercent = 160 },
+                    new() { ChoiceId = "pass", Label = "Pass it by", NextStepId = "pass-ending", EndsWithoutReward = true, Story = "The crew leaves {subject} to drift on." }),
+                AutomaticStep("scan-report", "The scan finds warm signatures behind the cargo hold.", "The wreck contains {loot}; its frame is still unstable.", "plan", 3),
+                VoteStep("plan", "How should the crew handle the unstable wreck?", "secure",
+                    new() { ChoiceId = "secure", Label = "Seal the breached corridors", NextStepId = "secure-report", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, RiskMultiplierPercent = 50 },
+                    new() { ChoiceId = "rush", Label = "Cut straight to the cargo hold", NextStepId = "recovery", SuccessChanceModifierPercent = -10, RewardMultiplierPercent = 140, RiskMultiplierPercent = 150 },
+                    new() { ChoiceId = "withdraw", Label = "Leave the wreck", NextStepId = "pass-ending", EndsWithoutReward = true }),
+                AutomaticStep("secure-report", "The wreck is secured.", "{crewlist} lock docking clamps onto {subject} and seal its breached corridors.", "recovery", 4),
+                VoteStep("recovery", "The cargo hold is reachable. What should the crew recover?", "salvage",
+                    new() { ChoiceId = "salvage", Label = "Recover the salvage", NextStepId = "recovery-ending", RewardMultiplierPercent = 100, Story = "{crew} boards {subject} and cuts toward the cargo hold." },
+                    new() { ChoiceId = "deep-cut", Label = "Cut into the reactor vault", NextStepId = "recovery-ending", SuccessChanceModifierPercent = -20, RewardMultiplierPercent = 170, RiskMultiplierPercent = 200 },
+                    new() { ChoiceId = "leave", Label = "Return to the ship", NextStepId = "pass-ending", EndsWithoutReward = true }),
+                EndStep("recovery-ending", "The crew hauls {loot} back aboard."),
+                EndStep("pass-ending", "The crew leaves {subject} to drift on.")
+            ],
+            LootByTier = new() { ["Common"] = "salvage plating and spare parts", ["Uncommon"] = "a sealed navigation core", ["Rare"] = "an intact cryo-vault" }
+        },
         new("Hazard", "Navigation Hazard", "{Subject} has appeared across the current flight path.",
+            [], "", "The crew clears {subject} and scoops up {loot}.", "{Subject} clips the hull and cargo is lost.")
+        {
+            SortOrder = 2, SubjectStyle = "hazard", ObjectKind = "debris", ShipFailureEffect = GetDefaultShipFailureEffect("Hazard"), AllowedRoutes = ["Uncharted", "Direct Route"],
+            StartStepId = "reaction", DefaultStepSuppliesCost = 0,
+            Steps =
             [
-                new() { ChoiceId = "maneuver", Label = "Maneuver around it", Story = "{crew} takes the helm and arcs around {subject}." },
-                new() { ChoiceId = "shield", Label = "Raise shields", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, Story = "{crew} diverts power to the shields as {subject} closes in." },
-                new() { ChoiceId = "hold", Label = "Hold course", SuccessChanceModifierPercent = -15, RewardMultiplierPercent = 130, Story = "{crew} grits their teeth and holds course through {subject}." }
-            ], "maneuver", "The crew clears {subject} and scoops up {loot}.", "{Subject} clips the hull and cargo is lost.")
-        { SortOrder = 2, SubjectStyle = "hazard", ObjectKind = "debris", ShipFailureEffect = GetDefaultShipFailureEffect("Hazard"), AllowedRoutes = ["Uncharted", "Direct Route"], LootByTier = new() { ["Common"] = "scattered ore chunks", ["Uncommon"] = "a cluster of crystal shards", ["Rare"] = "a glowing rare-earth nugget" } },
+                VoteStep("reaction", "{Subject} has appeared across the current flight path. React.", "maneuver",
+                    new() { ChoiceId = "maneuver", Label = "Maneuver around it", NextStepId = "clear-ending", RiskMultiplierPercent = 50, Story = "{crew} takes the helm and arcs around {subject}." },
+                    new() { ChoiceId = "shield", Label = "Raise shields", NextStepId = "shield-report", SuccessChanceModifierPercent = 15, RewardMultiplierPercent = 80, RiskMultiplierPercent = 50 },
+                    new() { ChoiceId = "hold", Label = "Hold course", NextStepId = "impact-ending", SuccessChanceModifierPercent = -15, RewardMultiplierPercent = 150, RiskMultiplierPercent = 180, Story = "{crew} grits their teeth and holds course through {subject}." }),
+                AutomaticStep("shield-report", "The shields absorb the first impact.", "{crew} diverts power to the shields as {subject} closes in.", "follow-up", 3),
+                VoteStep("follow-up", "The ship is through the first impact. What is the next move?", "clear",
+                    new() { ChoiceId = "clear", Label = "Finish the maneuver", NextStepId = "clear-ending", SuccessChanceModifierPercent = 10, RiskMultiplierPercent = 50 },
+                    new() { ChoiceId = "push", Label = "Push through the densest debris", NextStepId = "clear-ending", SuccessChanceModifierPercent = -20, RewardMultiplierPercent = 170, RiskMultiplierPercent = 200 },
+                    new() { ChoiceId = "abort", Label = "Abort the route", NextStepId = "abort-ending", EndsWithoutReward = true }),
+                EndStep("clear-ending", "The ship clears {subject} and recovers {loot}."),
+                EndStep("impact-ending", "{Subject} clips the hull and cargo is lost."),
+                EndStep("abort-ending", "The crew retreats from {subject} without a salvage run.")
+            ],
+            LootByTier = new() { ["Common"] = "scattered ore chunks", ["Uncommon"] = "a cluster of crystal shards", ["Rare"] = "a glowing rare-earth nugget" }
+        },
         new("RouteChoice", "Choose a Route", "The crew can take a direct route or detour through a survey area.",
             [new() { ChoiceId = "direct", Label = "Take the direct route" }, new() { ChoiceId = "detour", Label = "Take the survey detour" }], "direct")
         { SortOrder = 3, ObjectKind = "fork", LootByTier = new() { ["Common"] = "some useful scrap", ["Uncommon"] = "a valuable cache", ["Rare"] = "a priceless find" } },
@@ -142,20 +199,27 @@ public static partial class StarshipEventCatalog
                 throw new ArgumentException($"{definition.Title}: outcome effects cannot require a supply payment.");
             if (definition.Weight is < 1 or > 10 || definition.SortOrder < 0)
                 throw new ArgumentException($"{definition.Title}: weight must be 1-10 and sort order non-negative.");
-            if (definition.Choices == null || definition.Choices.Count is < 2 or > MaximumChoices)
+            var isGraphEvent = definition.Steps is { Count: > 0 };
+            if (isGraphEvent && definition.Choices.Count > 0)
+                throw new ArgumentException($"{definition.Title}: graph event choices must belong to their steps.");
+            var eventChoices = isGraphEvent
+                ? StarshipEventGraphValidator.Validate(definition)
+                : definition.Choices ?? throw new ArgumentException($"{definition.Title}: choices cannot be null.");
+            if (!isGraphEvent && eventChoices.Count is < 2 or > MaximumChoices)
                 throw new ArgumentException($"{definition.Title}: use 2-{MaximumChoices} choices.");
             var choiceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var flags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var choice in definition.Choices)
+            foreach (var choice in eventChoices)
             {
-                if (choice == null || !SlugPattern().IsMatch(choice.ChoiceId ?? "") || choice.ChoiceId!.Length > 40 || !choiceIds.Add(choice.ChoiceId))
+                if (choice == null || !SlugPattern().IsMatch(choice.ChoiceId ?? "") || choice.ChoiceId!.Length > 40 ||
+                    !isGraphEvent && !choiceIds.Add(choice.ChoiceId))
                     throw new ArgumentException($"{definition.Title}: choice IDs must be unique slugs.");
                 ValidateText(choice.Label, 80, true, false);
                 ValidateText(choice.Story, 1000);
                 ValidateText(choice.Hint, 160, false, false);
                 choice.ShipEffect?.Validate();
-                if (!labels.Add(choice.Label.Trim())) throw new ArgumentException($"{definition.Title}: choice labels must be unique.");
+                if (!isGraphEvent && !labels.Add(choice.Label.Trim())) throw new ArgumentException($"{definition.Title}: choice labels must be unique.");
                 if (choice.IsRisky || choice.SuccessChanceModifierPercent is < -50 or > 50 ||
                     choice.RewardMultiplierPercent is < 10 or > 300 || choice.RiskMultiplierPercent is < 0 or > 300)
                     throw new ArgumentException($"{definition.Title}: choice effects exceed their allowed bounds.");
@@ -164,14 +228,14 @@ public static partial class StarshipEventCatalog
                 if (choice.ContinuesEvent && (string.IsNullOrEmpty(choice.GrantsFlag) || choice.EndsWithoutReward))
                     throw new ArgumentException($"{definition.Title}: continuing choices must grant a flag and cannot end the event.");
             }
-            if (!definition.Choices.Any(choice => choice.ChoiceId == definition.DefaultChoiceId && !choice.ContinuesEvent && choice.GrantsFlag.Length == 0))
+            if (!isGraphEvent && !definition.Choices.Any(choice => choice.ChoiceId == definition.DefaultChoiceId && !choice.ContinuesEvent && choice.GrantsFlag.Length == 0))
                 throw new ArgumentException($"{definition.Title}: choose a terminal, always-available default.");
-            if (definition.Choices.Single(choice => choice.ChoiceId == definition.DefaultChoiceId).ShipEffect?.SuppliesCost > 0)
+            if (!isGraphEvent && definition.Choices.Single(choice => choice.ChoiceId == definition.DefaultChoiceId).ShipEffect?.SuppliesCost > 0)
                 throw new ArgumentException($"{definition.Title}: the default choice cannot require supplies.");
             var binding = definition.RewardProfileId ?? settings.EventRewardProfileIds.GetValueOrDefault(definition.EventType, "");
             if (binding.Length > 0 && !settings.RewardProfiles.Any(profile => profile.Id == binding))
                 throw new ArgumentException($"{definition.Title}: the reward profile does not exist.");
-            if (!IsBuiltIn(definition.EventType) && definition.Choices.Any(choice => choice.RevealsRarity) && binding.Length == 0)
+            if (!IsBuiltIn(definition.EventType) && eventChoices.Any(choice => choice.RevealsRarity) && binding.Length == 0)
                 throw new ArgumentException($"{definition.Title}: revealing rarity requires a reward profile.");
             if (definition.AllowedRoutes == null || definition.AllowedRoutes.Any(route => !Routes.Contains(route, StringComparer.Ordinal)))
                 throw new ArgumentException($"{definition.Title}: unknown route filter.");
@@ -205,7 +269,7 @@ public static partial class StarshipEventCatalog
 
     private static void ValidateStructural(StarshipEventDefinition definition, StarshipEventDefinition baseline)
     {
-        if (!definition.Enabled || definition.Weight != 1 || definition.DefaultChoiceId != baseline.DefaultChoiceId ||
+        if (definition.Steps.Count > 0 || !definition.Enabled || definition.Weight != 1 || definition.DefaultChoiceId != baseline.DefaultChoiceId ||
             definition.AllowedRoutes.Count > 0 || definition.AllowedSectors.Count > 0 ||
             definition.Choices.Count != baseline.Choices.Count || definition.RewardProfileId != baseline.RewardProfileId ||
             definition.SuccessChancePercent != null || definition.ShipSuccessEffect != null || definition.ShipFailureEffect != null)
@@ -220,7 +284,36 @@ public static partial class StarshipEventCatalog
         }
     }
 
-    private static void ValidateText(string? value, int maximum, bool required = false, bool templates = true)
+    private static StarshipEventStepDefinition VoteStep(string stepId, string prompt, string defaultChoiceId,
+        params StarshipEventChoiceSnapshot[] choices) => new()
+    {
+        StepId = stepId,
+        Prompt = prompt,
+        Type = StarshipEventStepType.Vote,
+        DefaultChoiceId = defaultChoiceId,
+        Choices = [.. choices]
+    };
+
+    private static StarshipEventStepDefinition AutomaticStep(string stepId, string prompt, string narrative,
+        string nextStepId, int? suppliesCostOverride = null) => new()
+    {
+        StepId = stepId,
+        Prompt = prompt,
+        Narrative = narrative,
+        Type = StarshipEventStepType.Automatic,
+        NextStepId = nextStepId,
+        SuppliesCostOverride = suppliesCostOverride
+    };
+
+    private static StarshipEventStepDefinition EndStep(string stepId, string prompt, string? narrative = null) => new()
+    {
+        StepId = stepId,
+        Prompt = prompt,
+        Narrative = narrative,
+        Type = StarshipEventStepType.End
+    };
+
+    internal static void ValidateText(string? value, int maximum, bool required = false, bool templates = true)
     {
         if (value == null || value.Length > maximum || required && string.IsNullOrWhiteSpace(value) ||
             value.Split('\n').Any(line => line.TrimStart().StartsWith('/') || line.TrimStart().StartsWith('.') || line.TrimStart().StartsWith('!')) ||

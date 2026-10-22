@@ -51,6 +51,63 @@ public class StarshipEventCatalogTests
     }
 
     [Fact]
+    public void EventGraph_AllowsBranchesToShareStepsAndCostOverrides()
+    {
+        var definition = GraphEvent();
+
+        var choices = StarshipEventGraphValidator.Validate(definition);
+
+        Assert.Equal(3, choices.Count);
+        Assert.Equal(5, definition.DefaultStepSuppliesCost);
+        Assert.Equal(0, definition.Steps.Single(step => step.StepId == "shared").SuppliesCostOverride);
+    }
+
+    [Theory]
+    [InlineData("missing-target")]
+    [InlineData("cycle")]
+    [InlineData("unreachable")]
+    public void EventGraph_RejectsInvalidTargetsCyclesAndUnreachableSteps(string defect)
+    {
+        var definition = GraphEvent();
+        if (defect == "missing-target")
+        {
+            definition.Steps[0].Choices[0] = new() { ChoiceId = "scan", Label = "Scan", NextStepId = "missing" };
+        }
+        else if (defect == "cycle")
+        {
+            definition.Steps.Single(step => step.StepId == "shared").NextStepId = "start";
+        }
+        else
+        {
+            definition.Steps.Add(new() { StepId = "unreachable-end", Type = StarshipEventStepType.End });
+        }
+
+        Assert.Throws<ArgumentException>(() => StarshipEventGraphValidator.Validate(definition));
+    }
+
+    private static StarshipEventDefinition GraphEvent() => new(
+        "graph-event", "Graph Event", "Choose a route.", [], "")
+    {
+        StartStepId = "start",
+        DefaultStepSuppliesCost = 5,
+        Steps =
+        [
+            new()
+            {
+                StepId = "start", Type = StarshipEventStepType.Vote, DefaultChoiceId = "retreat",
+                Choices =
+                [
+                    new() { ChoiceId = "scan", Label = "Scan", NextStepId = "shared" },
+                    new() { ChoiceId = "trace", Label = "Trace", NextStepId = "shared" },
+                    new() { ChoiceId = "retreat", Label = "Retreat", NextStepId = "end" }
+                ]
+            },
+            new() { StepId = "shared", Type = StarshipEventStepType.Automatic, NextStepId = "end", SuppliesCostOverride = 0 },
+            new() { StepId = "end", Type = StarshipEventStepType.End }
+        ]
+    };
+
+    [Fact]
     public void GeneratedStarshipWavs_AreInMediaManagerAndHaveValidWaveHeaders()
     {
         var webRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot"));

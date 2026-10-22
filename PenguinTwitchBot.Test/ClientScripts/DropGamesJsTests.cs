@@ -723,9 +723,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Theory]
-        [InlineData(4, "false")]
-        [InlineData(6, "true")]
-        public void StarshipEventWidget_SelectsCompactLayoutForMoreThanFourChoices(int count, string expectedCompact)
+        [InlineData(2, "false")]
+        [InlineData(3, "true")]
+        [InlineData(4, "true")]
+        public void StarshipEventWidget_SelectsCompactLayoutForMoreThanTwoChoices(int count, string expectedCompact)
         {
             var engine = CreateStarshipOverlayEngine("event");
             var now = DateTimeOffset.UtcNow;

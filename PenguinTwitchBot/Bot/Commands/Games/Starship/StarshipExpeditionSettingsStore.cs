@@ -41,21 +41,68 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
             if (settings == null)
                 throw new InvalidDataException("Persisted Starship Expedition settings are empty.");
 
+            var repairedCatalogRows = false;
             if (hasPersistedSettings)
             {
                 var events = await unitOfWork.StarshipEvents.GetAllAsync();
                 var profiles = await unitOfWork.StarshipRewardProfiles.GetAllAsync();
-                settings.EventCatalog = events.Select(row => ReadDocument<StarshipEventDefinition>(row.DocumentJson, row.Id))
+                settings.EventCatalog = events.Select(row =>
+                    {
+                        if (string.IsNullOrWhiteSpace(row.Id))
+                            throw new InvalidDataException("A persisted Starship event row has no ID.");
+                        var definition = ReadDocument<StarshipEventDefinition>(row.DocumentJson, row.Id);
+                        if (string.Equals(definition.EventType, row.Id, StringComparison.Ordinal)) return definition;
+                        repairedCatalogRows = true;
+                        return definition with { EventType = row.Id };
+                    })
                     .OrderBy(definition => definition.SortOrder).ThenBy(definition => definition.EventType, StringComparer.Ordinal).ToList();
-                settings.RewardProfiles = profiles.Select(row => ReadDocument<StarshipRewardProfile>(row.DocumentJson, row.Id))
+                settings.RewardProfiles = profiles.Select(row =>
+                    {
+                        if (string.IsNullOrWhiteSpace(row.Id))
+                            throw new InvalidDataException("A persisted Starship reward-profile row has no ID.");
+                        var profile = ReadDocument<StarshipRewardProfile>(row.DocumentJson, row.Id);
+                        if (!string.Equals(profile.Id, row.Id, StringComparison.Ordinal))
+                        {
+                            repairedCatalogRows = true;
+                            profile.Id = row.Id;
+                        }
+                        if (string.IsNullOrWhiteSpace(profile.Name) || profile.Name.Trim().Length > 80)
+                        {
+                            var rowName = row.Name?.Trim();
+                            if (string.IsNullOrWhiteSpace(rowName) || rowName.Length > 80)
+                                throw new InvalidDataException($"Persisted Starship reward profile {row.Id} has no valid name.");
+                            repairedCatalogRows = true;
+                            profile.Name = rowName;
+                        }
+                        return profile;
+                    })
                     .OrderBy(profile => profile.Id, StringComparer.Ordinal).ToList();
                 if (settings.EventCatalog.Count == 0 || settings.RewardProfiles.Count == 0)
                     throw new InvalidDataException("Persisted Starship catalog rows are missing; refusing to reset the catalog.");
             }
 
+            var resetShipSystems = false;
+            if (settings.ShipSystems == null)
+            {
+                settings.ShipSystems = new();
+                resetShipSystems = true;
+            }
+            else
+            {
+                try
+                {
+                    settings.ShipSystems.Validate();
+                }
+                catch (ArgumentException)
+                {
+                    settings.ShipSystems = new();
+                    resetShipSystems = true;
+                }
+            }
+
             StarshipExpeditionSettings.NormalizeAndValidate(settings);
             var installedStarters = StarshipStarterEvents.Install(settings, environment.WebRootPath);
-            if (!hasPersistedSettings || installedStarters)
+            if (!hasPersistedSettings || installedStarters || resetShipSystems || repairedCatalogRows)
                 await SaveLockedAsync(unitOfWork, settings, setting);
             return settings;
         }
@@ -76,6 +123,29 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var setting = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingKey)).FirstOrDefault();
             await SaveLockedAsync(unitOfWork, normalized, setting);
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public async Task<StarshipExpeditionSettings> ResetToDefaultsAsync(CancellationToken cancellationToken = default)
+    {
+        await _operationLock.WaitAsync(cancellationToken);
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var setting = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingKey)).FirstOrDefault();
+            unitOfWork.StarshipEvents.RemoveRange(await unitOfWork.StarshipEvents.GetAllAsync());
+            unitOfWork.StarshipRewardProfiles.RemoveRange(await unitOfWork.StarshipRewardProfiles.GetAllAsync());
+            await unitOfWork.SaveChangesAsync();
+
+            var settings = StarshipExpeditionSettings.NormalizeAndValidate(new StarshipExpeditionSettings());
+            StarshipStarterEvents.Install(settings, environment.WebRootPath);
+            await SaveLockedAsync(unitOfWork, settings, setting);
+            return settings;
         }
         finally
         {

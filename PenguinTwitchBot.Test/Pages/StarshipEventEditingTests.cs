@@ -1,5 +1,6 @@
 using PenguinTwitchBot.Bot.Commands.Games.Starship;
 using PenguinTwitchBot.Pages.Games;
+using System.Text.Json;
 
 namespace PenguinTwitchBot.Test.Pages;
 
@@ -50,16 +51,27 @@ public class StarshipEventEditingTests
         StarshipEventEditing.ValidateDraft(settings, draft, null);
 
         Assert.Equal(5, settings.EventCatalog.Count);
-        Assert.InRange(draft.Choices.Count, 2, 6);
-        Assert.All(draft.Choices, choice => Assert.False(choice.IsRisky));
-        var defaultChoice = Assert.Single(draft.Choices, choice => choice.ChoiceId == draft.DefaultChoiceId);
-        Assert.False(defaultChoice.ContinuesEvent);
+        Assert.NotEmpty(draft.Steps);
+        Assert.Contains(draft.Steps, step => step.StepId == draft.StartStepId);
+        Assert.Contains(draft.Steps, step => step.Type == StarshipEventStepType.End);
+        Assert.All(draft.Steps.Where(step => step.Type == StarshipEventStepType.Vote), step =>
+        {
+            Assert.InRange(step.Choices.Count, 2, 6);
+            Assert.Contains(step.Choices, choice => choice.ChoiceId == step.DefaultChoiceId);
+            Assert.All(step.Choices, choice =>
+            {
+                Assert.False(choice.IsRisky);
+                Assert.Contains(draft.Steps, target => target.StepId == choice.NextStepId);
+            });
+        });
         var expeditionEvent = new StarshipExpeditionEventSnapshot
         {
             EventType = draft.EventType, Subject = StarshipExpeditionStory.GenerateSubject(12345, 2, draft),
             Sector = "Ternion Belt", LootByTier = draft.LootByTier
         };
-        var templates = draft.Choices.Select(choice => choice.Story).Concat([draft.Description, draft.SuccessStory, draft.FailureStory]);
+        var templates = draft.Steps.SelectMany(step => step.Choices.Select(choice => choice.Story)
+            .Append(step.Prompt).Append(step.Narrative ?? string.Empty))
+            .Concat([draft.Description, draft.SuccessStory, draft.FailureStory]);
         foreach (var template in templates)
         {
             var rendered = StarshipExpeditionStory.Render(template, expeditionEvent, 12345, ["Viewer"], "Rare");
@@ -77,8 +89,8 @@ public class StarshipEventEditingTests
         var original = settings.EventCatalog.Single(definition => definition.EventType == "SalvageSite");
         var copy = StarshipEventEditing.Duplicate(original, settings);
         StarshipEventEditing.ValidateDraft(settings, copy, null);
-        copy.Choices.Clear();
-        Assert.Equal(4, original.Choices.Count);
+        copy.Steps[0].Choices.Clear();
+        Assert.Equal(4, original.Steps[0].Choices.Count);
         Assert.Equal("SalvageSite", copy.RewardProfileId);
         Assert.Equal(original.ShipFailureEffect, copy.ShipFailureEffect);
         Assert.DoesNotContain(settings.EventCatalog, definition => definition.EventType == copy.EventType);
@@ -90,12 +102,15 @@ public class StarshipEventEditingTests
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var original = settings.EventCatalog[0];
         var json = StarshipEventEditing.Export(original);
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal(2, document.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.True(document.RootElement.GetProperty("event").GetProperty("steps").GetArrayLength() > 0);
         var first = StarshipEventEditing.Import(json, settings);
         settings.EventCatalog.Add(first);
         var second = StarshipEventEditing.Import(json, settings);
         Assert.NotEqual(first.EventType, second.EventType);
         Assert.Equal(original.Description, first.Description);
-        Assert.Equal(original.Choices.Count, first.Choices.Count);
+        Assert.Equal(original.Steps.Count, first.Steps.Count);
         Assert.Equal(6, settings.EventCatalog.Count);
     }
 

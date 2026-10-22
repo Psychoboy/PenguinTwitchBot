@@ -23,6 +23,23 @@ namespace PenguinTwitchBot.Test.Pages;
 public class StarshipSectorSelectionTests
 {
     [Fact]
+    public async Task SettingsLoadFailure_ShowsErrorInsteadOfBlankTabsArea()
+    {
+        var store = new Mock<IStarshipExpeditionSettingsStore>();
+        await using var context = CreatePageContext(new StarshipExpeditionSettings(), store);
+        store.Setup(instance => instance.LoadAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidDataException("Persisted Starship catalog rows are missing."));
+
+        var page = context.Render<StarshipExpeditionGame>();
+
+        await page.WaitForAssertionAsync(() =>
+        {
+            Assert.Contains("Persisted Starship catalog rows are missing.", page.Markup);
+            Assert.Contains("Reset All", page.Markup);
+        });
+    }
+
+    [Fact]
     public async Task SectorCheckboxes_UpdatePoolAndPreventSavingFewerThanTwoSectors()
     {
         var settings = new StarshipExpeditionSettings();
@@ -109,7 +126,7 @@ public class StarshipSectorSelectionTests
         var settings = new StarshipExpeditionSettings();
         var store = new Mock<IStarshipExpeditionSettingsStore>();
         var expeditionService = new Mock<IStarshipExpeditionService>();
-        expeditionService.Setup(service => service.BuildPreview(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<int>()))
+        expeditionService.Setup(service => service.BuildPreview(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<int>(), It.IsAny<StarshipPreviewVoterPolicy>()))
             .Returns(Array.Empty<StarshipExpeditionEventSnapshot>());
         await using var context = CreatePageContext(settings, store, expeditionService);
         var page = context.Render<StarshipExpeditionGame>();
@@ -127,10 +144,105 @@ public class StarshipSectorSelectionTests
 
         await page.WaitForAssertionAsync(() => expeditionService.Verify(service => service.BuildPreview(
             It.Is<StarshipExpeditionSettings>(value => value.ShipSystems.MaximumHull == 70 &&
-                value.ShipSystems.StartingHull == 65 && value.ShipSystems.TravelSuppliesCost == 8), It.IsAny<int>()), Times.Exactly(20)));
+                value.ShipSystems.StartingHull == 65 && value.ShipSystems.TravelSuppliesCost == 8), It.IsAny<int>(),
+            StarshipPreviewVoterPolicy.Default), Times.Exactly(20)));
         Assert.Equal(80, settings.ShipSystems.MaximumHull);
         Assert.Equal(80, settings.ShipSystems.StartingHull);
         store.Verify(service => service.SaveAsync(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BulkRarityPreview_ShowsValuesAndIsInvalidatedWhenInputsChange()
+    {
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var profile = new StarshipRewardProfile
+        {
+            Id = "bulk-test", Name = "Bulk Test", Tiers = [new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 7, Minimum = 5, Maximum = 10 }] }]
+        };
+        settings.RewardProfiles.Add(profile);
+        var store = new Mock<IStarshipExpeditionSettingsStore>();
+        await using var context = CreatePageContext(settings, store);
+        var page = context.Render<StarshipExpeditionGame>();
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(2));
+
+        await page.FindComponents<MudCheckBox<bool>>().Single(item => item.Instance.Label == profile.Name)
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = true });
+        var rarity = page.FindComponents<MudSelect<string>>().Single(item => item.Instance.Label == "Rarity");
+        await page.InvokeAsync(() => rarity.Instance.ValueChanged.InvokeAsync("Common"));
+        await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Minimum")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "20" });
+        await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Maximum")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "30" });
+
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Preview Changes").ClickAsync(new MouseEventArgs());
+        Assert.Contains("minimum 20, maximum 30", page.Markup);
+        Assert.Contains("1 reward entries", page.Markup);
+
+        await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Minimum")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "25" });
+        Assert.DoesNotContain("Set minimum 20", page.Markup);
+        Assert.DoesNotContain("Apply to Unsaved Settings", page.Markup);
+    }
+
+    [Fact]
+    public async Task BulkRarityEditor_UpdatesOneCurrencyAndAddsANewCurrencyReward()
+    {
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var profile = new StarshipRewardProfile
+        {
+            Id = "bulk-two-types", Name = "Two Types", Tiers =
+            [
+                new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 7, Minimum = 5, Maximum = 10 }] },
+                new() { Name = "Uncommon", Weight = 1, Rewards = [] }
+            ]
+        };
+        settings.RewardProfiles.Add(profile);
+        var store = new Mock<IStarshipExpeditionSettingsStore>();
+        var dialog = new Mock<IDialogService>();
+        dialog.Setup(service => service.ShowMessageBoxAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DialogOptions?>()))
+            .Returns(Task.FromResult<bool?>(true));
+        await using var context = CreatePageContext(settings, store,
+            pointTypes: [new() { Id = 7, Name = "Credits" }, new() { Id = 9, Name = "Tokens" }],
+            dialogService: dialog.Object);
+        var page = context.Render<StarshipExpeditionGame>();
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(2));
+
+        await page.FindComponents<MudCheckBox<bool>>().Single(item => item.Instance.Label == profile.Name)
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = true });
+        var rarity = page.FindComponents<MudSelect<string>>().Single(item => item.Instance.Label == "Rarity");
+        await page.InvokeAsync(() => rarity.Instance.ValueChanged.InvokeAsync("Common"));
+        var pointType = page.FindComponents<MudSelect<int?>>().Single(item => item.Instance.Label == "Point Type");
+        await page.InvokeAsync(() => pointType.Instance.ValueChanged.InvokeAsync(7));
+        await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Minimum")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "20" });
+        await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Maximum")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "30" });
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Preview Changes").ClickAsync(new MouseEventArgs());
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Apply to Unsaved Settings").ClickAsync(new MouseEventArgs());
+
+        var updatedProfile = settings.RewardProfiles.Single(item => item.Id == profile.Id);
+        Assert.Equal((20L, 30L), (updatedProfile.Tiers[0].Rewards[0].Minimum, updatedProfile.Tiers[0].Rewards[0].Maximum));
+        Assert.DoesNotContain(updatedProfile.Tiers[0].Rewards, reward => reward.PointTypeId == 9);
+
+        await page.FindComponents<MudCheckBox<bool>>().Single(item => item.Instance.Label == profile.Name)
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = true });
+        var addMode = page.FindComponents<MudSwitch<bool>>().Single(item => item.Instance.Label == "Add reward to tiers instead of updating existing rewards");
+        await page.InvokeAsync(() => addMode.Instance.ValueChanged.InvokeAsync(true));
+        var addRarity = page.FindComponents<MudSelect<string>>().Single(item => item.Instance.Label == "Rarity");
+        var addPointType = page.FindComponents<MudSelect<int?>>().Single(item => item.Instance.Label == "Point Type");
+        await page.InvokeAsync(() => addRarity.Instance.ValueChanged.InvokeAsync("Common"));
+        await page.InvokeAsync(() => addPointType.Instance.ValueChanged.InvokeAsync(9));
+        await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Minimum")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "40" });
+        await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Maximum")
+            .Find("input").ChangeAsync(new ChangeEventArgs { Value = "60" });
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Preview Changes").ClickAsync(new MouseEventArgs());
+        Assert.DoesNotContain("mud-alert-error", page.Markup);
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Apply to Unsaved Settings").ClickAsync(new MouseEventArgs());
+
+        var addedReward = Assert.Single(settings.RewardProfiles.Single(item => item.Id == profile.Id).Tiers[0].Rewards,
+            reward => reward.PointTypeId == 9);
+        Assert.Equal((40L, 60L), (addedReward.Minimum, addedReward.Maximum));
     }
 
     [Fact]
@@ -158,7 +270,8 @@ public class StarshipSectorSelectionTests
     }
 
     private static BunitContext CreatePageContext(StarshipExpeditionSettings settings, Mock<IStarshipExpeditionSettingsStore> store,
-        Mock<IStarshipExpeditionService>? expeditionService = null)
+        Mock<IStarshipExpeditionService>? expeditionService = null, IReadOnlyList<PointType>? pointTypes = null,
+        IDialogService? dialogService = null)
     {
         var context = new BunitContext();
         context.JSInterop.Mode = JSRuntimeMode.Loose;
@@ -173,7 +286,7 @@ public class StarshipSectorSelectionTests
         store.Setup(instance => instance.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
         store.Setup(instance => instance.SaveAsync(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var points = new Mock<IPointsSystem>();
-        points.Setup(instance => instance.GetPointTypes()).ReturnsAsync(new List<PointType>());
+        points.Setup(instance => instance.GetPointTypes()).ReturnsAsync(pointTypes ?? []);
         var actions = new Mock<IActionManagementService>();
         actions.Setup(instance => instance.GetAllActionsAsync()).ReturnsAsync(new List<ActionType>());
         var features = new Mock<IFeatureRuntimeCoordinator>();
@@ -181,6 +294,7 @@ public class StarshipSectorSelectionTests
         context.Services.AddSingleton(store.Object);
         context.Services.AddSingleton(points.Object);
         context.Services.AddSingleton(actions.Object);
+        if (dialogService != null) context.Services.AddSingleton(dialogService);
         context.Services.AddSingleton(features.Object);
         context.Services.AddSingleton(expeditionService?.Object ?? Mock.Of<IStarshipExpeditionService>());
         context.Render<MudPopoverProvider>();

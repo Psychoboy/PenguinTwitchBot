@@ -72,7 +72,8 @@ Images must be media-library files (a path starting with `/media/`) or an `http(
 - On success every eligible crew member earns unbanked points based on the revealed rarity.
 - On failure the **whole crew** loses a share of their unbanked points. Securing first reduces that share.
 - Unbanked points are banked at station stops, when the voyage returns, or when it is aborted. Failed payouts are retried without paying twice.
-- Open **Reward Profiles** to create named profiles and assign them to event types. Multiple events can share one profile; choose **No rewards** to leave an event unbound.
+- Open **Reward Profiles** to create named profiles and assign them to event types. The top dropdowns bind built-in event types to shared profiles; they do not change profile payouts. Multiple events can share one profile; choose **No rewards** to leave an event unbound.
+- **Bulk Edit Rarity Rewards** can update an existing point type’s payout range/chance across selected profiles and tiers, or add a new point-type payout where it is missing. It changes unsaved settings only and requires preview and confirmation.
 - Each profile has ordered, enabled rarity tiers with names, badge colours and relative weights. Weights do not need to total 100; the editor displays each tier's resulting chance.
 - A tier can award multiple point currencies, each with a minimum, maximum and optional bonus chance. Point limits default to **unlimited**. Add a limit to cap a currency per event or voyage; clearing a limit field or deleting its row makes that limit unlimited. An explicit voyage limit includes points already banked.
 - Failure loss rules select a currency, percentage and optional maximum loss amount (unlimited by default). An explicit zero maximum prevents loss. Even without an amount cap, losses still respect the configured percentage and cannot exceed unbanked balances; banked points are safe.
@@ -106,4 +107,4 @@ Event definitions and reward profiles are stored as versioned database documents
 
 New voyages copy their event catalog, reward profiles and bindings at departure. Editing settings cannot change an active voyage, including after a restart. Older voyages without a saved catalog continue using the built-in event definitions. Missing or unsupported catalog documents fail visibly rather than silently resetting to defaults.
 
-Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Definitions permit two to six choices; more than four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized.
+Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Each vote step permits two to four choices; three or four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized.
