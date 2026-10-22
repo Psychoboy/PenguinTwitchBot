@@ -290,6 +290,7 @@
         </MudStack>
         @if (_preview != null)
         {
+            var defaultRouteChoices = GetDefaultRouteChoices();
             <MudText Typo="Typo.subtitle1">@_preview.Title</MudText>
             <MudText Typo="Typo.body2">@_preview.Description</MudText>
             @if (_previewPaths.Count > 0)
@@ -306,6 +307,45 @@
             {
                 <MudText Typo="Typo.caption">Hull @shipPreview.Hull/@shipPreview.MaximumHull; Supplies @shipPreview.Supplies/100; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
             }
+            @if (_draft is { Steps.Count: > 0 })
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-2">Choices by step (default route highlighted)</MudText>
+                <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
+                    <thead><tr><th>Step</th><th>Type</th><th>Option / result</th><th>Route</th><th>Effect and story</th></tr></thead>
+                    <tbody>
+                        @foreach (var step in _draft.Steps)
+                        {
+                            var onDefaultRoute = defaultRouteChoices.ContainsKey(step.StepId);
+                            if (step.Type == StarshipEventStepType.Vote)
+                            {
+                                foreach (var choice in step.Choices)
+                                {
+                                    var isDefaultChoice = defaultRouteChoices.GetValueOrDefault(step.StepId) == choice.ChoiceId;
+                                    <tr style="@(isDefaultChoice ? "background:var(--mud-palette-action-default-hover)" : null)">
+                                        <td>@step.StepId</td>
+                                        <td>Vote</td>
+                                        <td>@choice.Label@(isDefaultChoice ? " (default route)" : "")</td>
+                                        <td>@(onDefaultRoute ? isDefaultChoice ? "Default route" : "Branch" : "Other path")</td>
+                                        <td>@ChoiceEffect(choice) @RenderStory(choice.Story) -> @choice.NextStepId</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr style="@(onDefaultRoute ? "background:var(--mud-palette-action-default-hover)" : null)">
+                                    <td>@step.StepId</td>
+                                    <td>@step.Type</td>
+                                    <td>@RenderStory(step.Narrative ?? step.Prompt)</td>
+                                    <td>@(onDefaultRoute ? "Default route" : "Other path")</td>
+                                    <td>@(step.Type == StarshipEventStepType.Automatic ? $"Continues to {step.NextStepId}" : "Terminal result")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
+            else
+            {
             <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
                 <thead><tr><th>#</th><th>Option</th><th>Effect</th><th>Story</th></tr></thead>
                 <tbody>
@@ -317,6 +357,7 @@
                     }
                 </tbody>
             </MudSimpleTable>
+            }
             <MudText Typo="Typo.body2">Success: @RenderStory(_preview.SuccessStory)</MudText>
             <MudText Typo="Typo.body2">Failure: @RenderStory(_preview.FailureStory)</MudText>
         }
@@ -760,6 +801,31 @@
         Visit(definition.StartStepId, [], 1);
         return paths;
     }
+
+    private Dictionary<string, string> GetDefaultRouteChoices()
+    {
+        var routeChoices = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (_draft == null || _draft.Steps.Count == 0) return routeChoices;
+        var steps = _draft.Steps.ToDictionary(step => step.StepId, StringComparer.Ordinal);
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var stepId = _draft.StartStepId;
+        while (visited.Add(stepId) && steps.TryGetValue(stepId, out var step) && visited.Count <= StarshipEventGraphValidator.MaximumPathSteps)
+        {
+            if (step.Type == StarshipEventStepType.End) break;
+            if (step.Type == StarshipEventStepType.Automatic)
+            {
+                stepId = step.NextStepId ?? string.Empty;
+                continue;
+            }
+
+            var choice = step.Choices.FirstOrDefault(item => item.ChoiceId == step.DefaultChoiceId);
+            if (choice == null) break;
+            routeChoices[step.StepId] = choice.ChoiceId;
+            stepId = choice.NextStepId ?? string.Empty;
+        }
+        return routeChoices;
+    }
+
     private string RenderStory(string template) => StarshipExpeditionStory.Render(template, _preview!, _sampleSeed, ["Viewer"], CurrentProfile?.GetTiers().FirstOrDefault(tier => tier.Enabled)?.Name);
     private async Task ExportAsync()
     {

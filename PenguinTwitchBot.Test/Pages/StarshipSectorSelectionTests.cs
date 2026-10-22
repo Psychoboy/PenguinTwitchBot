@@ -153,6 +153,63 @@ public class StarshipSectorSelectionTests
     }
 
     [Fact]
+    public async Task SeededPreview_ShowsEveryResolvedGraphStepAndOutcome()
+    {
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var expeditionService = new Mock<IStarshipExpeditionService>();
+        var steps = new List<StarshipEventStepDefinition>
+        {
+            new()
+            {
+                StepId = "approach", Type = StarshipEventStepType.Vote,
+                Choices = [new() { ChoiceId = "scan", Label = "Scan the debris", NextStepId = "scan-report" }]
+            },
+            new() { StepId = "scan-report", Type = StarshipEventStepType.Automatic, NextStepId = "plan" },
+            new()
+            {
+                StepId = "plan", Type = StarshipEventStepType.Vote,
+                Choices = [new() { ChoiceId = "proceed", Label = "Proceed to the wreck", NextStepId = "recovery" }]
+            },
+            new()
+            {
+                StepId = "recovery", Type = StarshipEventStepType.Vote,
+                Choices = [new() { ChoiceId = "secure", Label = "Secure the cache", NextStepId = "ending" }]
+            },
+            new() { StepId = "ending", Type = StarshipEventStepType.End }
+        };
+        var previewEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), Sequence = 1, EventType = "Hazard", Title = "Five Step Preview",
+            Sector = "Kepler Reach", StepDefinitions = steps,
+            Path =
+            [
+                new() { StepNumber = 1, StepId = "approach", StepType = "Vote", ChoiceId = "scan", Label = "Scan the debris" },
+                new() { StepNumber = 2, StepId = "scan-report", StepType = "Automatic", Label = "The scan returns a signal." },
+                new() { StepNumber = 3, StepId = "plan", StepType = "Vote", ChoiceId = "proceed", Label = "Proceed to the wreck" },
+                new() { StepNumber = 4, StepId = "recovery", StepType = "Vote", ChoiceId = "secure", Label = "Secure the cache" },
+                new() { StepNumber = 5, StepId = "ending", StepType = "End", Label = "The crew recovers the cache." }
+            ],
+            OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess,
+            OutcomeRarity = "Rare",
+            OutcomeStory = "The crew returns with a rare cache."
+        };
+        expeditionService.Setup(service => service.BuildPreview(settings, 12345, StarshipPreviewVoterPolicy.Default))
+            .Returns([previewEvent]);
+        await using var context = CreatePageContext(settings, new Mock<IStarshipExpeditionSettingsStore>(), expeditionService);
+        var page = context.Render<StarshipExpeditionGame>();
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(3));
+
+        await page.FindAll("button").Single(button => button.TextContent.Trim() == "Generate Preview")
+            .ClickAsync(new MouseEventArgs());
+
+        Assert.Contains("Resolved path", page.Markup);
+        Assert.Contains("Scan the debris", page.Markup);
+        Assert.Contains("Automatic step", page.Markup);
+        Assert.Contains("Seeded outcome: Success (Rare)", page.Markup);
+        Assert.Equal(5, page.Find("table tbody").Children.Length);
+    }
+
+    [Fact]
     public async Task BulkRarityPreview_ShowsValuesAndIsInvalidatedWhenInputsChange()
     {
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());

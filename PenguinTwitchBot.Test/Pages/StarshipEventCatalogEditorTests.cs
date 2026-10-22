@@ -40,6 +40,10 @@ public class StarshipEventCatalogEditorTests
         Assert.Equal("Derelict Salvage", settings.EventCatalog.Single(definition => definition.EventType == "SalvageSite").Title);
         Click(editor, "Preview Event");
         Assert.Contains("The damaged vessel", editor.Markup);
+        Assert.Contains("Choices by step (default route highlighted)", editor.Markup);
+        Assert.Contains("approach", editor.Markup);
+        Assert.Contains("recovery", editor.Markup);
+        Assert.Contains("default route", editor.Markup, StringComparison.OrdinalIgnoreCase);
         Click(editor, "Apply Event");
         var added = settings.EventCatalog.Single(definition => definition.Title == "Archive Recovery");
         Assert.Equal("SalvageSite", added.RewardProfileId);

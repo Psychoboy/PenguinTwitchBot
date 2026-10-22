@@ -434,28 +434,63 @@
                                             {
                                                 <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@GetRewardProfilePreview(previewProfile)</MudAlert>
                                             }
-                                            <MudSimpleTable Dense="true" Bordered="true" Class="mt-2">
-                                                <thead>
-                                                    <tr><th>#</th><th>Option</th><th>Effect</th><th>Story (sample viewer: Viewer)</th></tr>
-                                                </thead>
-                                                <tbody>
-                                                    @{ var previewOptions = GetPreviewOptions(previewEvent); var shipDisclosure = GetPreviewShipDisclosure(previewEvent); }
-                                                    @for (var optionIndex = 0; optionIndex < previewOptions.Count; optionIndex++)
-                                                    {
-                                                        var option = previewOptions[optionIndex];
-                                                        var shipChoice = shipDisclosure?.Choices.FirstOrDefault(item => item.ChoiceId == option.ChoiceId);
-                                                        <tr>
-                                                            <td>@(shipChoice == null ? (optionIndex + 1).ToString() : shipChoice.Number?.ToString() ?? "-")</td>
-                                                            <td>@option.Label@(option.ContinuesEvent ? " (next step)" : option.EndsWithoutReward ? " (ends, no reward)" : "")</td>
-                                                            <td>@StarshipExpeditionNarrative.DescribeEffects(option) @shipChoice?.Describe()</td>
-                                                            <td>@StarshipExpeditionStory.Render(option.Story, previewEvent, _previewSeed, ["Viewer"], null)</td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </MudSimpleTable>
-                                            @if (GetExamplePath(previewEvent) is { } examplePath)
+                                            @if (previewEvent.StepDefinitions.Count > 0)
                                             {
-                                                <MudText Typo="Typo.caption" Class="mt-2" Style="display:block">Example full path: @examplePath</MudText>
+                                                <MudText Typo="Typo.subtitle2" Class="mt-2">Resolved path</MudText>
+                                                <MudSimpleTable Dense="true" Bordered="true" Class="mt-1">
+                                                    <thead><tr><th>#</th><th>Step</th><th>Selected result</th><th>Effect</th><th>Story</th></tr></thead>
+                                                    <tbody>
+                                                        @for (var pathIndex = 0; pathIndex < previewEvent.Path.Count; pathIndex++)
+                                                        {
+                                                            var pathStep = previewEvent.Path[pathIndex];
+                                                            var stepDefinition = previewEvent.StepDefinitions.FirstOrDefault(step => step.StepId == pathStep.StepId);
+                                                            var selectedChoice = stepDefinition?.Choices.FirstOrDefault(choice => choice.ChoiceId == pathStep.ChoiceId);
+                                                            var stepCost = stepDefinition == null ? 0 : stepDefinition.SuppliesCostOverride ?? previewEvent.DefaultStepSuppliesCost;
+                                                            <tr>
+                                                                <td>@(pathIndex + 1)</td>
+                                                                <td>@pathStep.StepId <span class="text-secondary">(@pathStep.StepType)</span></td>
+                                                                <td>@(selectedChoice?.Label ?? (pathStep.StepType == StarshipEventStepType.End.ToString() ? "Event ended" : pathStep.StepType == StarshipEventStepType.Automatic.ToString() ? "Automatic step" : pathStep.Label))</td>
+                                                                <td>@(selectedChoice == null ? (stepCost > 0 ? $"Entry cost {stepCost} supplies" : "-") : StarshipExpeditionNarrative.DescribeEffects(selectedChoice))</td>
+                                                                <td>@GetPreviewPathStory(previewEvent, pathStep, selectedChoice)</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </MudSimpleTable>
+                                                @if (!string.IsNullOrEmpty(previewEvent.OutcomeResult))
+                                                {
+                                                    var outcomeSeverity = previewEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess ? Severity.Success : Severity.Warning;
+                                                    <MudAlert Severity="outcomeSeverity" Dense="true" Class="mt-2">
+                                                        Seeded outcome: @previewEvent.OutcomeResult@(string.IsNullOrEmpty(previewEvent.OutcomeRarity) ? string.Empty : $" ({previewEvent.OutcomeRarity})")
+                                                        @if (!string.IsNullOrWhiteSpace(previewEvent.OutcomeStory))
+                                                        {
+                                                            <span> @previewEvent.OutcomeStory</span>
+                                                        }
+                                                    </MudAlert>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <MudSimpleTable Dense="true" Bordered="true" Class="mt-2">
+                                                    <thead><tr><th>#</th><th>Option</th><th>Effect</th><th>Story (sample viewer: Viewer)</th></tr></thead>
+                                                    <tbody>
+                                                        @{ var previewOptions = GetPreviewOptions(previewEvent); var shipDisclosure = GetPreviewShipDisclosure(previewEvent); }
+                                                        @for (var optionIndex = 0; optionIndex < previewOptions.Count; optionIndex++)
+                                                        {
+                                                            var option = previewOptions[optionIndex];
+                                                            var shipChoice = shipDisclosure?.Choices.FirstOrDefault(item => item.ChoiceId == option.ChoiceId);
+                                                            <tr>
+                                                                <td>@(shipChoice == null ? (optionIndex + 1).ToString() : shipChoice.Number?.ToString() ?? "-")</td>
+                                                                <td>@option.Label@(option.ContinuesEvent ? " (next step)" : option.EndsWithoutReward ? " (ends, no reward)" : "")</td>
+                                                                <td>@StarshipExpeditionNarrative.DescribeEffects(option) @shipChoice?.Describe()</td>
+                                                                <td>@StarshipExpeditionStory.Render(option.Story, previewEvent, _previewSeed, ["Viewer"], null)</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </MudSimpleTable>
+                                                @if (GetExamplePath(previewEvent) is { } examplePath)
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="mt-2" Style="display:block">Example full path: @examplePath</MudText>
+                                                }
                                             }
                                             @if (!string.IsNullOrEmpty(previewEvent.SuccessStory) || !string.IsNullOrEmpty(previewEvent.FailureStory))
                                             {
@@ -989,6 +1024,14 @@
 
     private static IReadOnlyList<StarshipEventChoiceSnapshot> GetPreviewOptions(StarshipExpeditionEventSnapshot previewEvent) =>
         previewEvent.ChoicePool.Count > 0 ? previewEvent.ChoicePool : previewEvent.Choices;
+
+    private string GetPreviewPathStory(StarshipExpeditionEventSnapshot previewEvent,
+        StarshipEventPathStepSnapshot pathStep, StarshipEventChoiceSnapshot? choice)
+    {
+        if (choice == null) return pathStep.Label;
+        if (string.IsNullOrWhiteSpace(choice.Story)) return $"Crew chose: {choice.Label}.";
+        return StarshipExpeditionStory.Render(choice.Story, previewEvent, _previewSeed, ["Viewer"], previewEvent.OutcomeRarity);
+    }
 
     private string? GetExamplePath(StarshipExpeditionEventSnapshot previewEvent)
     {
