@@ -1,7 +1,7 @@
 @using PenguinTwitchBot.Bot.Commands.Games.Starship
 
 <MudText Typo="Typo.h6">Ship Systems</MudText>
-<MudText Typo="Typo.caption" Color="Color.Secondary">Default voyages start at 80 Hull and 55 Supplies. Maximum Hull defaults to 100; station repair adds the configured amount (30 by default) without exceeding that cap.</MudText>
+<MudText Typo="Typo.caption" Color="Color.Secondary">Default voyages start at 80 Hull and 55 Supplies. Maximum Hull defaults to 80; station repair adds the configured amount (30 by default) without exceeding that cap.</MudText>
 <MudSwitch T="bool" Label="Enable Hull & Supplies" Color="Color.Primary" @bind-Value="Settings.Enabled" />
 @if (Settings.Enabled)
 {
