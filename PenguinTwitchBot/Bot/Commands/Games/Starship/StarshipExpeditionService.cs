@@ -132,6 +132,12 @@ public sealed class StarshipExpeditionService(
                         return;
                     }
 
+                    if (!(await settingsStore.LoadAsync()).GameEnabled)
+                    {
+                        logger.LogInformation("Ignored !starship start from {User} because Starship Expedition is disabled", eventArgs.DisplayName);
+                        return;
+                    }
+
                     var legCount = ParseOptionalInteger(args, 1);
                     var minimumInterval = ParseOptionalInteger(args, 2);
                     var maximumInterval = ParseOptionalInteger(args, 3);
@@ -349,6 +355,8 @@ public sealed class StarshipExpeditionService(
         CancellationToken cancellationToken = default)
     {
         var settings = await settingsStore.LoadAsync(cancellationToken);
+        if (!settings.GameEnabled)
+            throw new InvalidOperationException("Starship Expedition is disabled. Enable it in the game settings first.");
         var effectiveLegCount = legCount ?? settings.LegCount;
         var effectiveMinimumInterval = minimumEventIntervalMinutes ?? settings.MinimumEventIntervalMinutes;
         var effectiveMaximumInterval = maximumEventIntervalMinutes ?? settings.MaximumEventIntervalMinutes;

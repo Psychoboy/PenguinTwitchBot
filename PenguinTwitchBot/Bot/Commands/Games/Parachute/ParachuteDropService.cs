@@ -102,6 +102,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             string? triggeredBy = null)
         {
             var settings = await settingsService.GetSettingsAsync();
+            if (!settings.Parachute.GameEnabled)
+                throw new InvalidOperationException("Parachute Drop is disabled. Enable it in the game settings first.");
             var duration = durationSeconds.HasValue && durationSeconds.Value > 0
                 ? durationSeconds.Value
                 : settings.Parachute.DefaultSessionDurationSeconds;
@@ -393,6 +395,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
             var pSettings = settings.Parachute;
+            if (!pSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                return string.Empty;
             var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, pSettings.ActiveThemeId);
             var characterImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(emoteService, eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
             dropRegistry.RegisterAllowedProxyUrl(characterImageUrl);
@@ -616,6 +620,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
             var pSettings = settings.Parachute;
+            if (!pSettings.GameEnabled && !_sessionManager.HasActiveTimedSession()) return [];
             var theme = DropGameMediaResolver.ResolveTheme(settings, null, pSettings.ActiveThemeId);
 
             var count = Math.Clamp(request.Count > 0 ? request.Count : pSettings.DefaultDropletCount, 1, 30);
@@ -702,6 +707,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
             var pSettings = settings.Parachute;
+            if (!pSettings.GameEnabled && !_sessionManager.HasActiveTimedSession()) return [];
             if (!pSettings.EnableRockets)
             {
                 return [];
@@ -892,6 +898,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                             {
                                 customDuration = parsedDuration;
                             }
+                            if (!pSettings.GameEnabled)
+                            {
+                                logger.LogInformation("Ignored !drop start from {User} because Parachute Drop is disabled", e.DisplayName);
+                                return;
+                            }
                             await StartSessionAsync(customDuration, triggeredBy: e.DisplayName);
                             return;
                         }
@@ -899,6 +910,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                         if (e.IsModOrHigher() && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
                         {
                             await StopSessionAsync(triggeredBy: e.DisplayName);
+                            return;
+                        }
+
+                        if (!pSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                        {
+                            logger.LogInformation("Ignored !drop from {User} because Parachute Drop is disabled", e.DisplayName);
                             return;
                         }
 

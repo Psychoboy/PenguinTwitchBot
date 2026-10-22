@@ -2,6 +2,10 @@
 
 In **Parachute Drop**, viewers float down the screen under a parachute canopy aiming to land squarely on the moving target platform at the bottom of the screen.
 
+## Enable the Game
+
+Parachute Drop is off by default, including after upgrading settings that do not yet contain an enable value. Use the **Enable Parachute Drop** switch beside the page title and save settings to accept new chat commands, automation drops, and rounds. Turning it off silently ignores new chat commands and logs the attempt; an active round continues, while queued rounds are canceled. Stop controls remain available.
+
 ## Launching Parachuters
 
 Viewers participate directly from Twitch chat:

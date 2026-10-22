@@ -44,11 +44,20 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void LegacySettingsJson_DefaultsGameToDisabled()
+    {
+        var legacySettings = JsonSerializer.Deserialize<StarshipExpeditionSettings>("{}")!;
+
+        Assert.False(legacySettings.GameEnabled);
+    }
+
+    [Fact]
     public async Task SaveAndLoad_PreservesSettingsAndNormalizedCustomSectors()
     {
         var store = CreateStore();
         var settings = new StarshipExpeditionSettings
         {
+            GameEnabled = true,
             LegCount = 8,
             MinimumEventIntervalMinutes = 20,
             MaximumEventIntervalMinutes = 35,
@@ -83,6 +92,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         var loaded = await CreateStore().LoadAsync();
 
         Assert.Equal(8, loaded.LegCount);
+        Assert.True(loaded.GameEnabled);
         Assert.Equal(20, loaded.MinimumEventIntervalMinutes);
         Assert.Equal(35, loaded.MaximumEventIntervalMinutes);
         Assert.Equal(45, loaded.BoardingDurationSeconds);
@@ -393,6 +403,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     {
         var settingsStore = CreateStore();
         var settings = await settingsStore.LoadAsync();
+        settings.GameEnabled = true;
         settings.LegCount = 4;
         settings.StationIntervalLegs = 24;
         settings.ActiveCrewRewardsOnly = false;

@@ -64,6 +64,24 @@ public class StarshipSectorSelectionTests
     }
 
     [Fact]
+    public async Task GameEnableSwitch_IsVisibleDefaultOffAndSavedWithPageSettings()
+    {
+        var settings = new StarshipExpeditionSettings();
+        var store = new Mock<IStarshipExpeditionSettingsStore>();
+        await using var context = CreatePageContext(settings, store);
+        var page = context.Render<StarshipExpeditionGame>();
+        var enable = page.FindComponents<MudSwitch<bool>>().Single(component => component.Instance.Label == "Enable Starship Expedition");
+
+        Assert.False(enable.Find("input").HasAttribute("checked"));
+        await enable.Find("input").ChangeAsync(new ChangeEventArgs { Value = true });
+        Assert.True(settings.GameEnabled);
+        await page.FindAll("button").Single(button => button.TextContent.Contains("Save Settings", StringComparison.Ordinal)).ClickAsync(new MouseEventArgs());
+
+        await page.WaitForAssertionAsync(() => store.Verify(instance => instance.SaveAsync(
+            It.Is<StarshipExpeditionSettings>(value => value.GameEnabled), It.IsAny<CancellationToken>()), Times.Once));
+    }
+
+    [Fact]
     public async Task RemoveRewardProfile_ClearsCatalogReferencesCaseInsensitivelyWithImmutableUpdates()
     {
         var settings = new StarshipExpeditionSettings();

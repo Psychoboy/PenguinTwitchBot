@@ -102,6 +102,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             string? triggeredBy = null)
         {
             var settings = await settingsService.GetSettingsAsync();
+            if (!settings.Plinko.GameEnabled)
+                throw new InvalidOperationException("Plinko Bounce is disabled. Enable it in the game settings first.");
             var duration = durationSeconds.HasValue && durationSeconds.Value > 0
                 ? durationSeconds.Value
                 : settings.Plinko.DefaultSessionDurationSeconds;
@@ -386,6 +388,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
             var plinkoSettings = settings.Plinko;
+            if (!plinkoSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                return string.Empty;
             var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, plinkoSettings.ActiveThemeId);
             var characterImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(
                 emoteService, eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
@@ -636,6 +640,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     {
                         customDuration = parsedDuration;
                     }
+                    if (!plinkoSettings.GameEnabled)
+                    {
+                        logger.LogInformation("Ignored !plinko start from {User} because Plinko Bounce is disabled", e.DisplayName);
+                        return;
+                    }
                     await StartSessionAsync(customDuration, triggeredBy: e.DisplayName);
                     return;
                 }
@@ -643,6 +652,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 if (e.IsModOrHigher() && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
                 {
                     await StopSessionAsync(triggeredBy: e.DisplayName);
+                    return;
+                }
+
+                if (!plinkoSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                {
+                    logger.LogInformation("Ignored !plinko from {User} because Plinko Bounce is disabled", e.DisplayName);
                     return;
                 }
 

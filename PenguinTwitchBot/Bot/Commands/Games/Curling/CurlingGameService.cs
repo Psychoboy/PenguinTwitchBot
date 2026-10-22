@@ -112,6 +112,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             {
                 var settings = await settingsService.GetSettingsAsync();
                 var cSettings = settings.Curling;
+                if (!cSettings.GameEnabled)
+                    throw new InvalidOperationException("Curling / Shuffleboard is disabled. Enable it in the game settings first.");
 
                 if (_sessionManager.HasActiveTimedSession())
                 {
@@ -405,6 +407,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             var dropToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
             var settings = await settingsService.GetSettingsAsync();
             var cSettings = settings.Curling;
+            if (!cSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                return string.Empty;
 
             // Check Last Call Cutoff if session is active
             if (_sessionManager.IsWithinLastCallCutoff(cSettings.LastCallCutoffSeconds, out var remainingSec))
@@ -618,6 +622,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                     {
                         customDuration = parsedDuration;
                     }
+                    if (!cSettings.GameEnabled)
+                    {
+                        logger.LogInformation("Ignored !curling start from {User} because Curling is disabled", e.DisplayName);
+                        return;
+                    }
                     await StartSessionAsync(customDuration, triggeredBy: e.DisplayName);
                     return;
                 }
@@ -625,6 +634,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 if (e.IsModOrHigher() && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
                 {
                     await StopSessionAsync(triggeredBy: e.DisplayName);
+                    return;
+                }
+
+                if (!cSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                {
+                    logger.LogInformation("Ignored !curling from {User} because Curling is disabled", e.DisplayName);
                     return;
                 }
 

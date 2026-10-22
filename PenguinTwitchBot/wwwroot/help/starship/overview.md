@@ -2,6 +2,10 @@
 
 A shared, long-form voyage. Viewers board, then vote in chat on occasional events while the ship travels between sectors. Everything is decided by the bot, so every overlay shows the same result.
 
+## Enable the Game
+
+Starship Expedition is off by default, including after upgrading settings that do not yet contain an enable value. Use the **Enable Starship Expedition** switch beside the page title and save settings before starting a voyage. When off, chat commands are silently ignored and logged unless a voyage is already active; an active voyage continues to accept joins and votes and can still be advanced or stopped. The toggle does not abort a voyage already underway.
+
 ## Running a voyage
 
 1. **Start** it from the Starship Expedition page (or with `!starship start [legs] [min minutes] [max minutes]` as a moderator).

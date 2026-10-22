@@ -124,6 +124,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             {
                 var settings = await settingsService.GetSettingsAsync();
                 var gSettings = settings.Golf;
+                if (!gSettings.GameEnabled)
+                    throw new InvalidOperationException("Golf is disabled. Enable it in the game settings first.");
 
                 if (_sessionManager.HasActiveTimedSession())
                 {
@@ -454,6 +456,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             var dropToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
             var settings = await settingsService.GetSettingsAsync();
             var gSettings = settings.Golf;
+            if (!gSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                return string.Empty;
 
             // Check Last Call Cutoff if session is active
             if (_sessionManager.IsWithinLastCallCutoff(gSettings.LastCallCutoffSeconds, out var remainingSec))
@@ -811,6 +815,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     {
                         customDuration = parsedDuration;
                     }
+                    if (!gSettings.GameEnabled)
+                    {
+                        logger.LogInformation("Ignored !golf start from {User} because Golf is disabled", e.DisplayName);
+                        return;
+                    }
                     await StartSessionAsync(customDuration, triggeredBy: e.DisplayName);
                     return;
                 }
@@ -818,6 +827,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 if (e.IsModOrHigher() && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
                 {
                     await StopSessionAsync(triggeredBy: e.DisplayName);
+                    return;
+                }
+
+                if (!gSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                {
+                    logger.LogInformation("Ignored !golf from {User} because Golf is disabled", e.DisplayName);
                     return;
                 }
 

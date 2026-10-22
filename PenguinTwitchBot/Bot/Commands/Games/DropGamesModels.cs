@@ -366,6 +366,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
     public interface IDropGameSessionSettings : IGameSessionMessageSettings
     {
+        bool GameEnabled { get; set; }
         bool SessionModeEnabled { get; set; }
         bool AutoStartOnCommand { get; set; }
         int DefaultSessionDurationSeconds { get; set; }
@@ -374,6 +375,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
     public class BalloonAscentGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
+        public bool GameEnabled { get; set; }
         public string ActiveThemeId { get; set; } = "spring";
         public double TargetCenterX { get; set; } = 0.50;
         public double TargetWidthPercent { get; set; } = 18.0;
@@ -499,6 +501,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
     public class CurlingGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
+        public bool GameEnabled { get; set; }
         public string ActiveThemeId { get; set; } = "spring";
 
         // Track Layout & Positioning
@@ -609,6 +612,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
     public class GolfGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
+        public bool GameEnabled { get; set; }
         public string ActiveThemeId { get; set; } = "spring";
 
         // Strip Layout & Invisible Fairway
@@ -733,6 +737,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
     public class ParachuteGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
+        public bool GameEnabled { get; set; }
         public string ActiveThemeId { get; set; } = "spring";
         public double TargetCenterX { get; set; } = 0.50;
         public double TargetWidthPercent { get; set; } = 18.0;
@@ -822,6 +827,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
     public class PlinkoGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
+        public bool GameEnabled { get; set; }
         private int _pegTransparency = 15;
 
         public string ActiveThemeId { get; set; } = "spring";

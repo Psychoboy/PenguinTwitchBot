@@ -33,6 +33,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public int StationIntervalLegs { get; set; } = StarshipExpeditionService.DefaultStationIntervalLegs;
     public int EventVoteDurationSeconds { get; set; } = StarshipExpeditionService.DefaultVoteDurationSeconds;
     public int BoardingDurationSeconds { get; set; } = StarshipExpeditionService.DefaultBoardingDurationSeconds;
+    public bool GameEnabled { get; set; }
     public bool ActiveCrewRewardsOnly { get; set; } = true;
     public List<string> DisabledBuiltInSectors { get; set; } = [];
     public List<string> CustomSectors { get; set; } = [];

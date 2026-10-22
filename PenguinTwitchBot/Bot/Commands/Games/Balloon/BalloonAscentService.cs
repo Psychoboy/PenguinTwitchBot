@@ -107,6 +107,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 var now = DateTime.UtcNow;
                 var settings = await settingsService.GetSettingsAsync();
                 var bSettings = settings.Balloon;
+                if (!bSettings.GameEnabled)
+                    throw new InvalidOperationException("Balloon Ascent is disabled. Enable it in the game settings first.");
 
                 if (_sessionManager.HasActiveTimedSession())
                 {
@@ -377,6 +379,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
             var bSettings = settings.Balloon;
+            if (!bSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                return string.Empty;
             var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, bSettings.ActiveThemeId);
             var characterImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(emoteService, eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
 
@@ -497,6 +501,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
         {
             var settings = await settingsService.GetSettingsAsync();
             var bSettings = settings.Balloon;
+            if (!bSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                return [];
             if (!bSettings.EnableHazards)
             {
                 return new List<DropletInstanceDto>();
@@ -696,6 +702,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                     {
                         customDuration = parsedDuration;
                     }
+                    if (!bSettings.GameEnabled)
+                    {
+                        logger.LogInformation("Ignored !balloon start from {User} because Balloon Ascent is disabled", e.DisplayName);
+                        return;
+                    }
                     await StartSessionAsync(customDuration, triggeredBy: e.DisplayName);
                     return;
                 }
@@ -703,6 +714,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 if (e.IsModOrHigher() && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
                 {
                     await StopSessionAsync(triggeredBy: e.DisplayName);
+                    return;
+                }
+
+                if (!bSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+                {
+                    logger.LogInformation("Ignored !balloon from {User} because Balloon Ascent is disabled", e.DisplayName);
                     return;
                 }
 

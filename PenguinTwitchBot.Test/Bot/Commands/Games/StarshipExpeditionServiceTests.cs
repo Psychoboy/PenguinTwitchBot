@@ -63,6 +63,46 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public async Task StartExpedition_RequiresEnableFlagButExistingVoyageCanStillAcceptCrew()
+    {
+        var settingsStore = new InMemorySettingsStore();
+        settingsStore.Settings.GameEnabled = false;
+        var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.StartExpeditionAsync("mod-user", seed: 3));
+
+        settingsStore.Settings.GameEnabled = true;
+        await service.StartExpeditionAsync("mod-user", seed: 3);
+        await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
+        settingsStore.Settings.GameEnabled = false;
+        var joined = await service.JoinCrewAsync(CreateArgs("late-id", "Late Pilot"));
+
+        Assert.Equal(2, joined.Crew.Count);
+        Assert.Equal(StarshipExpeditionStatus.Boarding, joined.Status);
+    }
+
+    [Fact]
+    public async Task DisabledStarshipStartCommand_DoesNotReplyInChat()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(service => service.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var settingsStore = new InMemorySettingsStore();
+        settingsStore.Settings.GameEnabled = false;
+        var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore, serviceBackboneMock: backbone);
+        var args = CreateArgs("mod-id", "Mod");
+        args.Args = ["start"];
+        args.IsMod = true;
+
+        await service.OnCommand(null, args);
+
+        Assert.Empty(replies);
+        Assert.Null(await service.GetSnapshotAsync());
+    }
+
+    [Fact]
     public async Task StartAndTakeoff_AnnounceJoinAndVoteInstructionsAndFireTriggers()
     {
         var chatMessages = new List<string>();
@@ -2292,9 +2332,9 @@ public class StarshipExpeditionServiceTests
 
         public InMemorySettingsStore(StarshipExpeditionSettings? settings = null)
         {
-            Settings = settings ?? new StarshipExpeditionSettings();
+            Settings = settings ?? new StarshipExpeditionSettings { GameEnabled = true };
+            Settings.GameEnabled = true;
         }
-
         public Task<StarshipExpeditionSettings> LoadAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(Settings);
 

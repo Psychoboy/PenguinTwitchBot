@@ -2,6 +2,10 @@
 
 In **Plinko Bounce**, viewer tokens drop from the top of a triangular or rectangular pegboard, ricocheting off pegs before settling into prize buckets at the bottom.
 
+## Enable the Game
+
+Plinko Bounce is off by default, including after upgrading settings that do not yet contain an enable value. Use the **Enable Plinko Bounce** switch beside the page title and save settings to accept new chat commands, automation drops, and rounds. Turning it off silently ignores new chat commands and logs the attempt; an active round continues, while queued rounds are canceled. Stop controls remain available.
+
 ## Dropping Plinko Tokens
 
 Viewers participate directly from Twitch chat:

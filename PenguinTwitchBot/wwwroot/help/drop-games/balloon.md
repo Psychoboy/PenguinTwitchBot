@@ -2,6 +2,10 @@
 
 In **Balloon Ascent**, viewers launch hot air balloons from the bottom of the screen, floating upward against gravity and crosswinds aiming to dock on a moving cloud platform at the top of the stream.
 
+## Enable the Game
+
+Balloon Ascent is off by default, including after upgrading settings that do not yet contain an enable value. Use the **Enable Balloon Ascent** switch beside the page title and save settings to accept new chat commands, automation drops, hazards, and rounds. Turning it off silently ignores new chat commands and logs the attempt; an active round continues, while queued rounds are canceled. Stop controls remain available.
+
 ## Launching Balloons
 
 Viewers can participate directly from Twitch chat:

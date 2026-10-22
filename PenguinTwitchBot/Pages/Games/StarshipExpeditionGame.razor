@@ -21,6 +21,10 @@
             <div>
                 <MudText Typo="Typo.h4">Starship Expedition</MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the voyage, preview a seeded route, and control the active expedition.</MudText>
+                @if (_settings != null)
+                {
+                    <MudSwitch T="bool" Color="Color.Success" Label="Enable Starship Expedition" @bind-Value="_settings.GameEnabled" />
+                }
             </div>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
@@ -124,7 +128,7 @@
                                 }
                                 <MudDivider Class="my-3" />
                                 <MudStack Row="true" Spacing="2">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_isOperating || IsLive)"
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_isOperating || IsLive || _settings.GameEnabled != true)"
                                                StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="StartLiveExpeditionAsync">Start Voyage</MudButton>
                                     <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_isOperating || !IsLive)"
                                                StartIcon="@Icons.Material.Filled.SkipNext" OnClick="AdvanceLiveEventAsync">
