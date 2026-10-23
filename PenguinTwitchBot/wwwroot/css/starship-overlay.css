@@ -664,7 +664,7 @@ h1 {
 
 .event-widget .choices[data-compact='true'] {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .event-widget .choices[data-compact='true'] .choice-row {
@@ -675,9 +675,9 @@ h1 {
 }
 
 .event-widget .choices[data-compact='true'] .choice-label {
-    flex: 1 1 100%;
+    flex: 1 1 110px;
     min-width: 0;
-    font-size: 12px;
+    font-size: 24px;
     overflow-wrap: anywhere;
 }
 
@@ -754,7 +754,7 @@ h1 {
 
 .event-widget[data-ship='on'] .ship-choice-effects { flex: 1 1 100%; }
 .event-widget[data-ship='on'] .chip-row:empty { display: none; }
-.event-widget[data-dense='true'] .choices[data-compact='true'] .choice-label { flex: 1 1 110px; font-size: 14px; white-space: normal; }
+.event-widget[data-dense='true'] .choices[data-compact='true'] .choice-label { flex: 1 1 110px; font-size: 24px; white-space: normal; }
 .event-widget[data-dense='true'] .choices[data-compact='true'] .chip-row { order: 5; }
 .event-widget[data-dense='true'] .ship-choice-effects { order: 6; }
 
@@ -877,3 +877,103 @@ h1 {
         transition-duration: 0.01ms !important;
     }
 }
+
+#stage { letter-spacing: 0; }
+#starship-widget { background-image: none; }
+.eyebrow, .section-label, .result-banner { letter-spacing: 0; }
+.identity { flex: 1; }
+.ship-icon { width: 40px; height: 30px; }
+.toast { font-size: 24px; line-height: 1.15; }
+
+#starship-widget.event-widget {
+    padding: 12px 14px;
+    gap: 8px;
+    grid-template-rows: 44px minmax(0, 1fr);
+    align-content: stretch;
+}
+.event-widget h1 { font-size: 30px; }
+.event-widget .eyebrow { font: 600 15px/1.1 var(--font, 'Barlow Condensed'), sans-serif; color: var(--muted); }
+.event-widget .ship-systems { display: none; }
+.ring-timer { width: 74px; height: 44px; }
+.ring-timer svg { display: none; }
+.ring-timer .countdown { font: 700 30px/1 var(--font, 'Barlow Condensed'), sans-serif; font-variant-numeric: tabular-nums; }
+.scene-body { grid-template-columns: 130px minmax(0, 1fr); align-items: center; min-height: 0; }
+.scene-main { height: 100%; min-height: 0; gap: 8px; align-content: center; }
+.scene-object { width: 124px; height: 124px; }
+#scene-subject { font: 500 18px/1.15 var(--font, 'Barlow Condensed'), sans-serif; overflow-wrap: anywhere; }
+.event-widget[data-scene='EventVoting'] .scene-body,
+.event-widget[data-scene='StepTransition'] .scene-body { grid-template-columns: minmax(0, 1fr); }
+.event-widget[data-scene='EventVoting'] .scene-art,
+.event-widget[data-scene='StepTransition'] .scene-art { display: none; }
+.event-widget[data-scene='EventVoting'] .scene-main,
+.event-widget[data-scene='StepTransition'] .scene-main { display: flex; flex-direction: column; }
+.event-widget .event-description { font-size: 21px; line-height: 1.12; max-height: 1.12em; color: var(--text); white-space: nowrap; text-overflow: ellipsis; }
+#event-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; gap: 7px; }
+.step-row:has(.step-note[hidden]) { display: none; }
+.step-row .step-note { font-size: 21px; max-height: 2.24em; line-height: 1.12; color: var(--text); }
+.rarity-badge { font-size: 15px; border-radius: 4px; }
+.event-widget .choices,
+.event-widget .choices[data-compact='true'] {
+    flex: 1; display: flex; flex-direction: column;
+    gap: 5px; min-height: 0; overflow-y: auto; scrollbar-width: none;
+}
+.event-widget .choice-row,
+.event-widget .choices[data-compact='true'] .choice-row,
+.event-widget[data-dense='true'] .choice-row {
+    display: grid; grid-template-columns: 72px minmax(0, 1fr) 54px;
+    flex: 1 0 auto;
+    align-content: center; gap: 0 8px; padding: 3px 9px 5px;
+    min-height: 52px; min-width: 0; background: rgba(231, 245, 239, 0.07);
+}
+.event-widget .choice-label,
+.event-widget .choices[data-compact='true'] .choice-label,
+.event-widget[data-dense='true'] .choices[data-compact='true'] .choice-label {
+    grid-column: 2; grid-row: 1; min-width: 0; font-size: 28px;
+    line-height: 1; white-space: normal; overflow-wrap: anywhere;
+}
+.event-widget .choice-command { grid-column: 1; grid-row: 1 / 3; font: 700 28px/1 var(--font, 'Barlow Condensed'), sans-serif; }
+.event-widget .choice-votes { grid-column: 3; grid-row: 1; font: 600 20px/1 var(--font, 'Barlow Condensed'), sans-serif; min-width: 0; }
+.event-widget .chip-row { grid-column: 2 / 4; grid-row: 2; gap: 8px; }
+.event-widget .chip { border: 0; padding: 0; font: 500 16px/1 var(--font, 'Barlow Condensed'), sans-serif; }
+.event-widget .ship-choice-effects { grid-column: 2 / 4; grid-row: 2; font: 500 16px/1.1 var(--font, 'Barlow Condensed'), sans-serif; }
+.event-widget .ship-choice-effects { display: none; }
+.event-widget .choice-note { grid-column: 2 / 4; grid-row: 2; font-size: 16px; line-height: 1; color: var(--muted); overflow-wrap: anywhere; }
+.event-widget .choices::-webkit-scrollbar { display: none; }
+.event-widget .choice-row:has(.ship-choice-effects:not(:empty)) .chip-row { display: none; }
+.choice-row[data-unavailable='true'] .choice-command { font-size: 16px; }
+.event-widget .reward-disclosure { display: none; }
+.reward-summary { color: var(--muted); font-size: 17px; line-height: 1.1; }
+#stage[data-odds='off'] .reward-summary { display: none; }
+.event-widget .vote-footer { display: none; }
+.event-widget .vote-footer > span:last-child { display: none; }
+.event-widget #event-sector { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.boarding-panel, .result-panel { background: none; border: 0; padding: 0; gap: 10px; }
+.boarding-panel .section-label, #result-detail, .timeline { display: none; }
+.event-widget[data-scene='Boarding'] #scene-subject,
+.event-widget[data-scene='VoyageEnd'] #scene-subject { display: none; }
+.boarding-panel strong { font-size: 32px; }
+.boarding-panel > span { font-size: 26px; }
+.result-banner { font: 700 28px/1.1 var(--font, 'Barlow Condensed'), sans-serif; border: 0; border-radius: 0; padding: 0; }
+.result-panel strong { font-size: 24px; }
+.result-story { font-size: 23px; line-height: 1.15; max-height: 4.6em; overflow: hidden; }
+.result-lines, .banked-list { font: 600 21px/1.15 var(--font, 'Barlow Condensed'), sans-serif; gap: 8px; }
+
+#starship-widget.status-widget,
+#starship-widget.status-widget[data-ship='on'] {
+    padding: 10px 16px; display: flex; flex-direction: column; gap: 5px;
+}
+.status-widget .widget-header { min-height: 0; flex: 0 0 34px; }
+.status-widget .eyebrow, .status-widget .section-label, .status-widget .route { display: none; }
+.status-widget h1 { font-size: 26px; }
+.status-widget .phase { border: 0; padding: 0; font: 600 18px/1 var(--font, 'Barlow Condensed'), sans-serif; }
+.status-widget .status-main,
+#starship-widget.status-widget[data-ship='on'] .status-main { margin: 0; gap: 12px; flex: 1; min-height: 0; }
+.status-widget .route-block strong { font-size: 28px; }
+.status-widget .crew-block { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.status-widget .crew-block strong { font: 700 28px/1 var(--font, 'Barlow Condensed'), sans-serif; }
+.status-widget .crew-block span { font: 500 18px/1 var(--font, 'Barlow Condensed'), sans-serif; }
+.status-widget .ship-systems { flex: 0 0 25px; font: 600 19px/1 var(--font, 'Barlow Condensed'), sans-serif; }
+.status-widget .ship-bonus { font: 600 16px/1 var(--font, 'Barlow Condensed'), sans-serif; }
+.status-widget .route-map { height: 8px; flex: 0 0 8px; margin: 0 8px; }
+.status-widget .status-footer { margin: 0; gap: 12px; flex: 0 0 30px; font: 600 24px/1 var(--font, 'Barlow Condensed'), sans-serif; text-transform: none; }
+.status-widget .status-footer span:last-child { color: var(--amber); font-size: 28px; }

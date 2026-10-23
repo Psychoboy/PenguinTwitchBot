@@ -4,7 +4,7 @@
     const view = document.body.dataset.starshipView;
     const root = document.getElementById('starship-widget');
     const stage = document.getElementById('stage');
-    const BASE_SIZE = view === 'event' ? { width: 780, height: 460 } : { width: 520, height: 180 };
+    const BASE_SIZE = view === 'event' ? { width: 620, height: 360 } : { width: 520, height: 180 };
     const DEFAULT_ACCENT = '#66d0c2';
     const FONTS = ['Barlow Condensed', 'Arial Narrow', 'Segoe UI', 'Verdana', 'Georgia', 'Trebuchet MS', 'Impact', 'Courier New'];
     const DEFAULT_APPEARANCE = {
@@ -26,6 +26,9 @@
     let pulseUntil = 0;
     let routeSignature = '';
     let revealCounter = 0;
+    let choicesSignature = '';
+    let choicesScrollAfter = 0;
+    let choicesScrollDirection = 1;
     let allowRealtimeSounds = false;
     let soundManager = null;
     const playedSoundKeys = new Set();
@@ -295,7 +298,7 @@
         phase.textContent = snapshot?.shipSystems?.returnReason === 'HullDepleted' ? 'Emergency return' : status === 'Inactive' ? 'Awaiting' : status;
         phase.dataset.status = status;
         setText('sector', snapshot?.currentSector || (hasSnapshot ? 'No active voyage' : 'Connecting to ship'));
-            setText('route', snapshot?.currentRoute && snapshot.currentRoute !== 'Start' ? snapshot.currentRoute : 'Route not yet selected');
+        setText('route', snapshot?.currentRoute && snapshot.currentRoute !== 'Start' ? snapshot.currentRoute : 'Route not yet selected');
         setText('crew-count', snapshot?.crewCount ?? 0);
 
         const legCount = snapshot?.legCount ?? 0;
@@ -320,6 +323,12 @@
 
     function renderChoices(currentEvent) {
         const list = document.getElementById('choices');
+        const signature = JSON.stringify([snapshot?.expeditionId, currentEvent.sequence, currentEvent.stepNumber, currentEvent.choices, currentEvent.shipDisclosure, currentEvent.voteCounts]);
+        if (signature === choicesSignature) return;
+        choicesSignature = signature;
+        list.scrollTop = 0;
+        choicesScrollAfter = Date.now() + 5000;
+        choicesScrollDirection = 1;
         list.replaceChildren();
         const disclosure = currentEvent.shipDisclosure?.choices || [];
         const choices = (currentEvent.choices || []).slice();
@@ -370,8 +379,38 @@
                 effects.className = 'ship-choice-effects';
                 effects.textContent = shipChoiceText(details);
                 row.appendChild(effects);
+                const note = document.createElement('span');
+                note.className = 'choice-note';
+                const parts = [];
+                if (unavailable) parts.push('Requires ' + details.suppliesCost + ' supplies');
+                else {
+                    if (choice.endsWithoutReward) parts.push('No reward, no loss');
+                    else if (choice.revealsRarity) parts.push('Reveals the find');
+                    if (details.suppliesCost) parts.push('Cost ' + details.suppliesCost + ' supplies');
+                    if (details.hullDelta) parts.push('Hull ' + signed(details.hullDelta));
+                    if (details.suppliesDelta) parts.push('Supplies ' + signed(details.suppliesDelta));
+                    if (!choice.endsWithoutReward && details.successChancePercent != null) parts.push(details.successChancePercent + '% success');
+                    if (choice.rewardMultiplierPercent != null && choice.rewardMultiplierPercent !== 100) parts.push('x' + choice.rewardMultiplierPercent / 100 + ' reward');
+                    if (choice.riskMultiplierPercent != null && choice.riskMultiplierPercent !== 100) parts.push('x' + choice.riskMultiplierPercent / 100 + ' loss');
+                    if (details.nextEventSuccessBonusPercent) parts.push('Next event +' + details.nextEventSuccessBonusPercent + 'pp success');
+                }
+                note.textContent = parts.join(' · ');
+                row.appendChild(note);
             }
             list.appendChild(row);
+        }
+    }
+
+    function scrollOverflowChoices() {
+        if (view !== 'event' || snapshot?.status !== 'EventOpen' || root.hidden || appearance.animationsEnabled === false) return;
+        if (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const list = document.getElementById('choices');
+        const maximum = list.scrollHeight - list.clientHeight;
+        if (!(maximum > 1) || Date.now() < choicesScrollAfter) return;
+        list.scrollTop = Math.max(0, Math.min(maximum, list.scrollTop + choicesScrollDirection * 5));
+        if (list.scrollTop >= maximum || list.scrollTop <= 0) {
+            choicesScrollDirection *= -1;
+            choicesScrollAfter = Date.now() + 4000;
         }
     }
 
@@ -476,6 +515,8 @@
         const panel = document.getElementById('reward-disclosure');
         const profile = currentEvent.rewardDisclosure;
         panel.hidden = !profile;
+        const summary = document.getElementById('reward-summary');
+        summary.hidden = !profile;
         const riskElement = document.getElementById('reward-risk');
         const hasRiskyChoice = (currentEvent.choices || []).some(choice => choice.isRisky);
         riskElement.hidden = !profile;
@@ -484,6 +525,18 @@
         const currencies = profile.currencies && profile.currencies.length ? profile.currencies : [profile];
         setText('reward-point-type', currencies.map(currency => currency.pointTypeName).join(' / ') + ' · per eligible crew member');
         const chance = currentEvent.effectiveSuccessChancePercent ?? profile.successChancePercent;
+        const summaryParts = [];
+        const summaryTier = (profile.tiers || []).find(tier => tier.name === currentEvent.revealedRarity);
+        if (summaryTier?.rewardText) summaryParts.push(summaryTier.rewardText + ' / crew');
+        else summaryParts.push(chance + '% success');
+        const loss = currencies.filter(currency => currency.riskLossPercent > 0).map(currency => {
+            const percent = Math.min(100, currency.riskLossPercent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
+            const cap = currency.maximumRiskLossPerEvent == null ? '' : ', max ' +
+                Number(Math.floor(currency.maximumRiskLossPerEvent * (currentEvent.riskMultiplierPercent ?? 100) / 100)).toLocaleString();
+            return percent + '% unbanked ' + currency.pointTypeName + cap;
+        });
+        if (loss.length) summaryParts.push('Failure risks ' + loss.join(', '));
+        summary.textContent = summaryParts.join(' · ');
         setText('reward-success', 'Success chance: ' + chance + '% / failure ' + (100 - chance) + '%');
         setText('reward-scope', hasRiskyChoice
             ? 'Scope: only viewers who commit to the risky option can win or lose points.'
@@ -519,9 +572,17 @@
         container.hidden = lines.length === 0;
         for (const text of lines) {
             const line = document.createElement('span');
-            line.textContent = text;
+            line.textContent = compactResultText(text);
+            line.hidden = /^(Crew path:|SUCCESS\b|FAILED\b|The crew passed|Ship hull:)/i.test(text);
             container.appendChild(line);
         }
+    }
+
+    function compactResultText(text) {
+        return String(text || '').replace('on average per eligible crew member', '(avg / crew)')
+            .replace('average per eligible crew member', '(avg / crew)')
+            .replace('average per banked crew member', '(avg / crew)')
+            .replace(' (unbanked until a station stop or voyage end)', ' unbanked');
     }
 
     function renderBankedAmounts(latest) {
@@ -535,7 +596,7 @@
                 ? payout.averagePerCrewMember
                 : payout.amount;
             line.textContent = Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + payout.pointTypeName + (payout.isPaid ? ' banked' : ' banking') +
-                (payout.averagePerCrewMember != null ? ' average per banked crew member' : ' crew total');
+                (payout.averagePerCrewMember != null ? ' (avg / crew)' : ' crew total');
             container.appendChild(line);
         }
     }
@@ -557,6 +618,7 @@
     function renderEvent() {
         const scene = tracker.derive(snapshot, appearance.overlayDisplayMode);
         root.dataset.scene = scene.name;
+        if (snapshot?.status !== 'EventOpen') root.dataset.dense = 'false';
         if (!scene.eventVisible) {
             root.hidden = true;
             return;
@@ -639,6 +701,7 @@
         renderShipResources();
         if (view === 'status') renderStatus();
         else renderEvent();
+        scrollOverflowChoices();
     }
 
     function connect() {
@@ -671,7 +734,7 @@
     if (previewMode) {
         document.body.dataset.preview = 'true';
         const script = document.createElement('script');
-        script.src = '/js/starship-preview.js';
+        script.src = '/js/starship-preview.js?v=' + Date.now();
         document.body.appendChild(script);
     } else {
         loadInitialState();
