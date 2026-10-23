@@ -178,7 +178,7 @@
         var isScoreOutcome = selectedOutcome.DefaultCommandEventType?.EndsWith(".Win", StringComparison.OrdinalIgnoreCase) == true ||
                              selectedOutcome.DefaultCommandEventType?.EndsWith(".Bullseye", StringComparison.OrdinalIgnoreCase) == true;
         _addPointsSubAction = isScoreOutcome;
-        _addMessageSubAction = isScoreOutcome;
+        _addMessageSubAction = isScoreOutcome || selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.UfoClawResult;
         _amountExpression = selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.PlinkoWin
             ? "1"
             : isScoreOutcome ? "%Score%" : "1";
@@ -225,6 +225,7 @@
         var outcomeName = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == eventType)?.DisplayName ?? GameTitle;
         return eventType switch
         {
+            DefaultCommandEventTypes.UfoClawResult => "The claw chose %WinningLabel% from %PrizeSetName%!",
             DefaultCommandEventTypes.ParachuteBullseye => "%User% landed on the target with %Score% pts! BULLSEYE! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
             DefaultCommandEventTypes.ParachuteWin => "%User% landed on the target with %Score% pts! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
             DefaultCommandEventTypes.ParachuteLose => "%User% missed the target (%DistanceFromCenter% from center, %DropletHits% droplet hits)",

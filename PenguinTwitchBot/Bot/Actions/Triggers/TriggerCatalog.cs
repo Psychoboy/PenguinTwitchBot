@@ -860,6 +860,14 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "ufoclaw-result", Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames", CategoryName = "Minigames",
+                DisplayName = "UFO Claw - Result", Description = "Triggers once when the claw reveals its selected prize or viewer",
+                Icon = Icons.Material.Filled.CardGiftcard, Color = Color.Success, FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "joinclaw", DefaultCommandEventType = DefaultCommandEventTypes.UfoClawResult
+            },
+            new()
+            {
                 Id = "heist-started",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "minigames",

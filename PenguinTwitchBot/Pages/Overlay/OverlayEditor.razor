@@ -871,6 +871,12 @@
                 }
             }
 
+            @if (_selected.WidgetType == "ufoclaw")
+            {
+                <MudDivider Class="mb-3" />
+                <UfoClawWidgetSettings @key="_selected" FitFullScreen="@(() => { _selected.X = 0; _selected.Y = 0; _selected.Width = _canvasWidth; _selected.Height = _canvasHeight; })" />
+            }
+
             @if (_selected.WidgetType is "parachute" or "plinko" or "balloon" or "curling" or "golf")
             {
                 <MudDivider Class="mb-3" />
@@ -1511,6 +1517,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "balloon"   => "#E11D48",
         "curling"   => "#0284C7",
         "golf"      => "#16A34A",
+        "ufoclaw"   => "#239b83",
         _           => "#455A64"
     };
     // ---- Chat settings helpers ----

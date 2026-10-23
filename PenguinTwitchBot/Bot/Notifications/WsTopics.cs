@@ -16,8 +16,9 @@ namespace PenguinTwitchBot.Bot.Notifications
         public const string Curling = "curling";
         public const string Golf = "golf";
         public const string Starship = "starship";
+        public const string UfoClaw = "ufoclaw";
 
-        public static readonly IReadOnlyList<string> All = [Chat, Alerts, Clips, Fishing, Wheel, Overlay, Events, Parachute, Plinko, Balloon, Curling, Golf, Starship];
+        public static readonly IReadOnlyList<string> All = [Chat, Alerts, Clips, Fishing, Wheel, Overlay, Events, Parachute, Plinko, Balloon, Curling, Golf, Starship, UfoClaw];
 
         private static readonly HashSet<string> Known = new(All, StringComparer.OrdinalIgnoreCase);
 

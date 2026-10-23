@@ -43,6 +43,14 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         // Add command- and event-specific variables
         switch (commandName?.ToLowerInvariant())
         {
+            case "joinclaw":
+                foreach (var variable in Commands.Games.UfoClaw.UfoClawService.ResultVariables(new()
+                {
+                    Mode = "viewers", PrizeSetId = "prizes", PrizeSetName = "Viewer draw",
+                    Entries = [new() { Id = "123", Label = "PenguinFan", Value = "25", UserId = "123", Login = "penguinfan" }]
+                }))
+                    variables.SetVariable(variable.Key, $"UFO claw result: {variable.Key}", source, category, variable.Value);
+                break;
             case "spinwheel":
             case "wheel":
                 ResolveWheelSpinVariables(variables, source, category);
@@ -136,7 +144,8 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
 
         if (string.IsNullOrEmpty(commandName))
         {
-            if (nameLower.Contains("spinwheel") || nameLower.Contains("wheel")) commandName = "spinwheel";
+            if (nameLower.Contains("ufoclaw") || nameLower.Contains("ufo claw")) commandName = "joinclaw";
+            else if (nameLower.Contains("spinwheel") || nameLower.Contains("wheel")) commandName = "spinwheel";
             else if (nameLower.Contains("gamble")) commandName = "gamble";
             else if (nameLower.Contains("defuse")) commandName = "defuse";
             else if (nameLower.Contains("roll") || nameLower.Contains("dice")) commandName = "roll";
@@ -153,7 +162,9 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
 
         if (string.IsNullOrEmpty(eventType) && !string.IsNullOrEmpty(commandName))
         {
-            if (commandName == "spinwheel" || nameLower.Contains("result"))
+            if (commandName == "joinclaw")
+                eventType = DefaultCommandEventTypes.UfoClawResult;
+            else if (commandName == "spinwheel" || nameLower.Contains("result"))
                 eventType = DefaultCommandEventTypes.WheelSpinResult;
             else if (nameLower.Contains("jackpot"))
                 eventType = DefaultCommandEventTypes.GambleJackpotWin;

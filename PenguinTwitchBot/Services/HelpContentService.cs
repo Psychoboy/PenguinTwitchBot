@@ -265,6 +265,14 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
                 ("Commands & Triggers", Icons.Material.Filled.Bolt, "wheelspin/commands-triggers.md")
             ]
         ),
+        ["ufoclaw"] = (
+            "UFO Claw Guide", Icons.Material.Filled.CardGiftcard,
+            [
+                ("Prize & Viewer Draws", Icons.Material.Filled.People, "ufoclaw/draws.md"),
+                ("Overlay", Icons.Material.Filled.Fullscreen, "ufoclaw/overlay.md"),
+                ("Triggers & Variables", Icons.Material.Filled.Bolt, "ufoclaw/automation.md")
+            ]
+        ),
         ["giveaway-settings"] = (
             "Giveaway Settings Guide",
             Icons.Material.Filled.CardGiftcard,

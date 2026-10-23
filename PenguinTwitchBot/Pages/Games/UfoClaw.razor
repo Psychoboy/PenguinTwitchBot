@@ -1,0 +1,255 @@
+@page "/games/ufoclaw"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@implements IAsyncDisposable
+@using PenguinTwitchBot.Bot.Commands.Games.UfoClaw
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Components
+@inject IUfoClawService ClawService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+
+<PageTitle>UFO Claw</PageTitle>
+<FeatureGate FeatureKey="@FeatureKeys.DropGames">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudText Typo="Typo.h4">UFO Claw</MudText>
+            <MudSpacer />
+            <MudButton Href="@($"/ufo.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank" StartIcon="@Icons.Material.Filled.OpenInNew">Open Overlay</MudButton>
+            <HelpButton Topic="ufoclaw" />
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync" Disabled="@(_settings == null)">Save Settings</MudButton>
+        </MudStack>
+        @if (_settings == null || _state == null)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Style="flex-wrap:wrap">
+                <MudSelect T="string" Label="Mode" @bind-Value="_mode" Style="min-width:140px;max-width:220px">
+                    <MudSelectItem Value="@("prizes")">Prizes</MudSelectItem>
+                    <MudSelectItem Value="@("viewers")">Viewers</MudSelectItem>
+                </MudSelect>
+                @if (_mode == "prizes")
+                {
+                    <MudSelect T="string" Label="Prize Set" @bind-Value="_setId" Style="min-width:180px;max-width:300px">
+                        @foreach (var set in _settings.PrizeSets) { <MudSelectItem Value="@set.Id">@set.Name</MudSelectItem> }
+                    </MudSelect>
+                }
+                <MudButton StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => ControlAsync("show"))">Show</MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.VisibilityOff" OnClick="@(() => ControlAsync("hide"))">Hide</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.CardGiftcard" OnClick="@(() => ControlAsync("grab"))" Disabled="@_busy">Grab</MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="ResetAsync" Disabled="@_busy">Reset Winners</MudButton>
+                <MudTooltip Text="Refresh state"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="RefreshAsync" /></MudTooltip>
+                <MudText Color="Color.Secondary">@(_busy ? "Claw is busy" : "Ready") · @UfoClawService.Eligible(_state).Count eligible</MudText>
+            </MudStack>
+            @if (_state.Grab is { Completed: true } grab)
+            {
+                <MudAlert Severity="Severity.Success" Class="mb-3">@grab.Winner.Label · @grab.PrizeSetName</MudAlert>
+            }
+            <MudTabs KeepPanelsAlive="true">
+                <MudTabPanel Text="Prize Sets">
+                    <MudStack Row="true" Class="my-3">
+                        <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddSet">Add Prize Set</MudButton>
+                        @if (SelectedSet != null)
+                        {
+                            <MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="DeleteSetAsync">Delete Set</MudButton>
+                        }
+                    </MudStack>
+                    @if (SelectedSet is { } selected)
+                    {
+                        <MudTextField Label="Set Name" @bind-Value="selected.Name" MaxLength="200" Class="mb-2" />
+                        <MudText Typo="Typo.caption">Set ID: @selected.Id</MudText>
+                        <MudTable Items="selected.Entries" Dense="true" Hover="true" Class="my-3">
+                            <HeaderContent><MudTh>Enabled</MudTh><MudTh>Prize</MudTh><MudTh>Value</MudTh><MudTh>Weight</MudTh><MudTh>Chance</MudTh><MudTh>Color</MudTh><MudTh></MudTh></HeaderContent>
+                            <RowTemplate Context="entry">
+                                <MudTd DataLabel="Enabled"><MudCheckBox T="bool" @bind-Value="entry.Enabled" aria-label="Enable prize" /></MudTd>
+                                <MudTd DataLabel="Prize"><MudTextField @bind-Value="entry.Label" MaxLength="300" aria-label="Prize label" /></MudTd>
+                                <MudTd DataLabel="Value"><MudTextField @bind-Value="entry.Value" aria-label="Prize value" /></MudTd>
+                                <MudTd DataLabel="Weight"><MudNumericField T="decimal" @bind-Value="entry.Weight" Min="0" Max="1000000" aria-label="Prize weight" /></MudTd>
+                                <MudTd DataLabel="Chance">@Chance(selected, entry)</MudTd>
+                                <MudTd DataLabel="Color"><input type="color" @bind="entry.Color" aria-label="Prize color" style="width:40px;height:32px" /></MudTd>
+                                <MudTd>
+                                    <MudTooltip Text="Move up"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Disabled="@(selected.Entries.IndexOf(entry) == 0)" OnClick="@(() => MoveEntry(selected, entry, -1))" /></MudTooltip>
+                                    <MudTooltip Text="Move down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Disabled="@(selected.Entries.IndexOf(entry) == selected.Entries.Count - 1)" OnClick="@(() => MoveEntry(selected, entry, 1))" /></MudTooltip>
+                                    <MudTooltip Text="Remove prize"><MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => selected.Entries.Remove(entry))" /></MudTooltip>
+                                </MudTd>
+                            </RowTemplate>
+                            <ChildRowContent Context="entry">
+                                <MudTr><MudTd colspan="7"><MediaUrlPicker Label="Prize Artwork" @bind-Value="entry.ImageUrl" /></MudTd></MudTr>
+                            </ChildRowContent>
+                        </MudTable>
+                        <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => selected.Entries.Add(new()))">Add Prize</MudButton>
+                    }
+                </MudTabPanel>
+                <MudTabPanel Text="Viewer Entries">
+                    <MudStack Row="true" Class="my-3">
+                        <MudButton StartIcon="@Icons.Material.Filled.People" OnClick="OpenEntriesAsync" Disabled="@_busy">Open Fresh Entries</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.Lock" OnClick="@(() => ControlAsync("close"))">Close Entries</MudButton>
+                        <MudText>@(_state.EntriesOpen ? "Entries open" : "Entries closed") · @_state.Viewers.Count viewers</MudText>
+                    </MudStack>
+                    <MudTable Items="_state.Viewers" Dense="true">
+                        <HeaderContent><MudTh>Viewer</MudTh><MudTh>Eligibility</MudTh></HeaderContent>
+                        <RowTemplate Context="viewer"><MudTd>@viewer.Label</MudTd><MudTd>@(_state.Removed.GetValueOrDefault("viewers")?.Contains(viewer.Id) == true ? "Already selected" : "Eligible")</MudTd></RowTemplate>
+                    </MudTable>
+                </MudTabPanel>
+                <MudTabPanel Text="Appearance & Sound">
+                    <MudGrid Class="my-3">
+                        <MudItem xs="12" md="6">
+                            <MudSwitch T="bool" Label="Enable UFO Claw" @bind-Value="_settings.Enabled" />
+                            <MudSwitch T="bool" Label="Remove winners until reset" @bind-Value="_settings.RemoveWinners" />
+                            <MudSwitch T="bool" Label="Suspense drop and re-catch" @bind-Value="_settings.Tease" />
+                            <MudNumericField T="int" Label="Suspense chance (%)" @bind-Value="_settings.SlipChancePercent" Min="0" Max="100" Step="5" />
+                            <MudNumericField T="int" Label="Maximum suspense drops" @bind-Value="_settings.MaxSuspenseDrops" Min="0" Max="5" />
+                            <MudSwitch T="bool" Label="Auto-hide after reveal" @bind-Value="_settings.AutoHide" />
+                            <MudSwitch T="bool" Label="Show prize pit background" @bind-Value="_settings.PitBackgroundEnabled" />
+                            <MudNumericField T="int" Label="Left Safe Gap (design px)" @bind-Value="_settings.LeftSafeGapPixels" Min="0" Max="800" Step="20" />
+                            <MudNumericField T="int" Label="Right Safe Gap (design px)" @bind-Value="_settings.RightSafeGapPixels" Min="0" Max="800" Step="20" />
+                            <MudText Typo="Typo.caption">Gaps use 1920x1080 scene coordinates and scale with the source.</MudText>
+                            <MudNumericField T="double" Label="Grab Duration (Seconds)" @bind-Value="_settings.DurationSeconds" Min="3" Max="120" />
+                            <MudNumericField T="double" Label="Reveal Hold (Seconds)" @bind-Value="_settings.RevealSeconds" Min="1" Max="60" />
+                            <MudNumericField T="double" Label="Travel Speed" @bind-Value="_settings.MovementSpeed" Min="0.25" Max="3" Step="0.25" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSwitch T="bool" Label="Sound" @bind-Value="_settings.SoundEnabled" />
+                            <MudSlider T="double" Min="0" Max="1" Step="0.05" @bind-Value="_settings.Volume">Volume</MudSlider>
+                            <MediaUrlPicker Label="UFO Artwork" @bind-Value="_settings.VesselImageUrl" />
+                            <MediaUrlPicker Label="Grab Sound" Accept=".wav,.mp3,.ogg" ShowPreview="false" @bind-Value="_settings.GrabSoundUrl" />
+                            <MediaUrlPicker Label="Reveal Sound" Accept=".wav,.mp3,.ogg" ShowPreview="false" @bind-Value="_settings.RevealSoundUrl" />
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+                <MudTabPanel Text="Automation">
+                    <GameOutcomeAutomationPanel DefaultCommandName="joinclaw" GameTitle="UFO Claw" />
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudContainer>
+</FeatureGate>
+
+@code {
+    private UfoClawSettings? _settings;
+    private UfoClawDocument? _state;
+    private string _mode = "prizes";
+    private string _setId = "";
+    private string _overlayKey = "";
+    private bool _busy;
+    private readonly CancellationTokenSource _refreshCancellation = new();
+    private Task? _refreshTask;
+    private UfoClawPrizeSet? SelectedSet => _settings?.PrizeSets.FirstOrDefault(set => set.Id == _setId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _refreshTask = RefreshLoopAsync();
+        try
+        {
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+            await RefreshAsync();
+            InitializeSettingsFromState();
+        }
+        catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Error); }
+    }
+    private void InitializeSettingsFromState()
+    {
+        if (_settings != null || _state == null) return;
+        _settings = UfoClawStore.Copy(_state.Settings);
+        _mode = _state.Mode;
+        _setId = _state.PrizeSetId;
+        if (SelectedSet == null) _setId = _settings.PrizeSets.FirstOrDefault()?.Id ?? "";
+    }
+    private async Task RefreshAsync()
+    {
+        _state = await ClawService.GetAsync();
+        if (_state.Grab is not { } grab) { _busy = false; return; }
+        if (grab.Completed)
+        {
+            _busy = DateTimeOffset.UtcNow < (grab.CompletedAtUtc ?? grab.StartedAtUtc).AddSeconds(grab.Rules.RevealSeconds);
+            return;
+        }
+        _busy = grab.OverlayAnimationAcknowledged &&
+            DateTimeOffset.UtcNow < (grab.OverlayAnimationAcknowledgedAtUtc ?? grab.StartedAtUtc).AddSeconds(grab.Rules.RevealSeconds);
+    }
+    private async Task RefreshLoopAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_refreshCancellation.Token))
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await RefreshAsync();
+                        InitializeSettingsFromState();
+                        StateHasChanged();
+                    });
+                }
+                catch (OperationCanceledException) when (_refreshCancellation.IsCancellationRequested) { throw; }
+                catch (Exception exception)
+                {
+                    await InvokeAsync(() => Snackbar.Add(exception.Message, Severity.Error));
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_refreshCancellation.IsCancellationRequested) { }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        await _refreshCancellation.CancelAsync();
+        if (_refreshTask != null) await _refreshTask;
+        _refreshCancellation.Dispose();
+    }
+    private static void MoveEntry(UfoClawPrizeSet set, UfoClawEntry entry, int direction)
+    {
+        var index = set.Entries.IndexOf(entry);
+        var destination = index + direction;
+        if (index < 0 || destination < 0 || destination >= set.Entries.Count) return;
+        set.Entries.RemoveAt(index);
+        set.Entries.Insert(destination, entry);
+    }
+    private async Task SaveAsync()
+    {
+        if (_settings == null) return;
+        try { await ClawService.SaveSettingsAsync(_settings); await RefreshAsync(); Snackbar.Add("UFO claw settings saved.", Severity.Success); }
+        catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Error); }
+    }
+    private async Task ControlAsync(string operation)
+    {
+        try { await ClawService.ControlAsync(operation, _mode, _setId); await RefreshAsync(); }
+        catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Warning); }
+    }
+    private void AddSet()
+    {
+        var set = new UfoClawPrizeSet();
+        _settings!.PrizeSets.Add(set);
+        _setId = set.Id;
+    }
+    private async Task DeleteSetAsync()
+    {
+        if (SelectedSet is not { } set) return;
+        if (await DialogService.ShowMessageBoxAsync("Delete Prize Set", $"Delete {set.Name}? Save settings to apply.", yesText: "Delete", cancelText: "Cancel") != true) return;
+        _settings!.PrizeSets.Remove(set);
+        _setId = _settings.PrizeSets.FirstOrDefault()?.Id ?? "";
+    }
+    private async Task OpenEntriesAsync()
+    {
+        if (_state?.Viewers.Count > 0 && await DialogService.ShowMessageBoxAsync("Open Fresh Entries", "Clear the current viewer roster and removed winners?", yesText: "Open Fresh", cancelText: "Cancel") != true) return;
+        try
+        {
+            await ClawService.ControlAsync("open", "viewers", _setId);
+            _mode = "viewers";
+            await RefreshAsync();
+        }
+        catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Warning); }
+    }
+    private async Task ResetAsync()
+    {
+        if (await DialogService.ShowMessageBoxAsync("Reset Winners", "Restore all removed entries in the current pool?", yesText: "Reset", cancelText: "Cancel") == true) await ControlAsync("reset");
+    }
+    private static string Chance(UfoClawPrizeSet set, UfoClawEntry entry)
+    {
+        var total = set.Entries.Where(item => item.Enabled && item.Weight > 0).Sum(item => item.Weight);
+        return (entry.Enabled && total > 0 ? Math.Max(0, entry.Weight) / total : 0).ToString("P1");
+    }
+}

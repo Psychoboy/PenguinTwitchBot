@@ -825,7 +825,7 @@
     {
         var supportedCommandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel", "drop", "plinko", "balloon", "curl", "golf"
+            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel", "drop", "plinko", "balloon", "curl", "golf", "joinclaw"
         };
 
         var supportedCommands = _defaultCommands
@@ -916,6 +916,7 @@
             {
                 DefaultCommandEventTypes.WheelSpinResult
             },
+            "joinclaw" => new List<string> { DefaultCommandEventTypes.UfoClawResult },
             "drop" or "parachute" => new List<string>
             {
                 DefaultCommandEventTypes.ParachuteStart,
@@ -989,6 +990,7 @@
             DefaultCommandEventTypes.DeathReset => "Death Reset",
             DefaultCommandEventTypes.DeathSet => "Death Set",
             DefaultCommandEventTypes.WheelSpinResult => "Spin Result",
+            DefaultCommandEventTypes.UfoClawResult => "Claw Result",
             DefaultCommandEventTypes.ParachuteStart => "Round Started (Session Active)",
             DefaultCommandEventTypes.ParachuteWin => "Win (Target Hit)",
             DefaultCommandEventTypes.ParachuteBullseye => "Bullseye Hit (Center)",

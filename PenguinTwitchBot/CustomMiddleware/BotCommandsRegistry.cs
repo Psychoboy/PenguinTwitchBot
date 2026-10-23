@@ -394,6 +394,10 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IDropGamesSettingsService, DropGamesSettingsService>();
             services.AddSingleton<IDropRegistry, DropRegistry>();
             services.AddSingleton<IStarshipExpeditionStateStore, StarshipExpeditionStateStore>();
+            services.AddSingleton<Bot.Commands.Games.UfoClaw.IUfoClawStore, Bot.Commands.Games.UfoClaw.UfoClawStore>();
+            services.AddRuntimeFeatureService<Bot.Commands.Games.UfoClaw.IUfoClawService, Bot.Commands.Games.UfoClaw.UfoClawService>(
+                FeatureKeys.DropGames, "UFO Claw", moduleName: "UfoClaw", isCore: false,
+                description: "Weighted UFO claw prize and opt-in viewer draws.");
             services.AddSingleton<IStarshipExpeditionSettingsStore, StarshipExpeditionSettingsStore>();
             services.AddRuntimeFeatureService<IStarshipExpeditionService, StarshipExpeditionService>(
                 FeatureKeys.DropGames,

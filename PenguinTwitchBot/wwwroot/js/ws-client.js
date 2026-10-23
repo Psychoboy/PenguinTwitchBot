@@ -15,7 +15,8 @@
         balloon: 'balloon',
         curling: 'curling',
         golf: 'golf',
-        starship: 'starship'
+        starship: 'starship',
+        ufoclaw: 'ufoclaw'
     };
 
     function createWsSocket(clientName, topics, options) {
