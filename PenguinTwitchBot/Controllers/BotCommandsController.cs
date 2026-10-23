@@ -1,3 +1,5 @@
+using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +11,9 @@ namespace PenguinTwitchBot.Controllers
     public class BotCommandsController(
         ILogger<BotCommandsController> logger,
         IConfiguration configuration,
-        IServiceBackbone serviceBackbone) : ControllerBase
+        IServiceBackbone serviceBackbone,
+        IActionManagementService actionManagementService,
+        IAction actionExecutor) : ControllerBase
     {
         [HttpPut("/commands")]
         public async Task<ActionResult> RunCommand([FromHeader] string webauth, [FromHeader] string user, [FromHeader] string message)
@@ -50,6 +54,58 @@ namespace PenguinTwitchBot.Controllers
                 logger.LogError(ex, "Error in Controller");
             }
             return new OkResult();
+        }
+
+        /// <summary>
+        /// Queues an action by name or id. Query string values are passed to the action as variables,
+        /// e.g. POST /actions/Shoutout?target=someuser
+        /// </summary>
+        [HttpPost("/actions/{action}")]
+        [HttpPut("/actions/{action}")]
+        public async Task<ActionResult> RunAction([FromHeader] string webauth, string action, [FromHeader] string? user = null)
+        {
+            logger.LogInformation("{ipAddress} accessed /actions.", HttpContext.Connection?.RemoteIpAddress);
+            var expectedAuth = configuration["webauth"];
+            if (string.IsNullOrEmpty(expectedAuth) || !webauth.Equals(expectedAuth))
+            {
+                return new StatusCodeResult(403);
+            }
+
+            var actionType = int.TryParse(action, out var actionId)
+                ? await actionManagementService.GetActionByIdAsync(actionId)
+                : (await actionManagementService.GetAllActionsAsync())
+                    .FirstOrDefault(a => a.Name.Equals(action, StringComparison.OrdinalIgnoreCase));
+
+            if (actionType == null)
+            {
+                return NotFound($"Action '{action}' not found.");
+            }
+            if (!actionType.Enabled)
+            {
+                return Conflict($"Action '{actionType.Name}' is disabled.");
+            }
+
+            var name = string.IsNullOrWhiteSpace(user) ? serviceBackbone.BroadcasterName : user;
+            var variables = CommandEventArgsConverter.ToDictionary(new CommandEventArgs
+            {
+                Name = name.ToLower(),
+                DisplayName = name,
+                UserId = "0",
+                IsSub = true,
+                IsVip = true,
+                IsMod = true,
+                IsBroadcaster = true,
+                SkipLock = true
+            });
+            variables["triggertype"] = "Api";
+            variables["source"] = "ApiActions";
+            foreach (var (key, value) in Request.Query)
+            {
+                variables[key] = value.ToString();
+            }
+
+            await actionExecutor.EnqueueAction(variables, actionType);
+            return Accepted(new { actionType.Id, actionType.Name, actionType.QueueName });
         }
     }
 }

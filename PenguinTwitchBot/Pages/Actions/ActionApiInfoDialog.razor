@@ -1,0 +1,104 @@
+@using MudBlazor
+@inject IConfiguration Configuration
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.body2">
+                Send a <b>POST</b> (or PUT) request to queue this action from external tools such as a StreamDeck web request plugin.
+            </MudText>
+
+            <MudTextField T="string" Label="Method" Value="@("POST")" ReadOnly="true" Variant="Variant.Outlined" />
+
+            <MudTextField T="string" Label="URL (by ID)" Value="@_urlById" ReadOnly="true" Variant="Variant.Outlined"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                          OnAdornmentClick="@(() => CopyAsync(_urlById, "URL"))" />
+
+            <MudTextField T="string" Label="URL (by name)" Value="@_urlByName" ReadOnly="true" Variant="Variant.Outlined"
+                          HelperText="Breaks if the action is renamed or another action has the same name."
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                          OnAdornmentClick="@(() => CopyAsync(_urlByName, "URL"))" />
+
+            @if (string.IsNullOrEmpty(_webAuth))
+            {
+                <MudAlert Severity="Severity.Warning">No <b>webauth</b> value is configured. Set one in settings before using the API.</MudAlert>
+            }
+            else
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudTextField T="string" Label="Header (name:value)" ReadOnly="true" Variant="Variant.Outlined"
+                                  Value="@(_showSecret ? Header : "webauth:" + new string('•', 12))"
+                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                                  OnAdornmentClick="@(() => CopyAsync(Header, "Header"))" />
+                    <MudIconButton Icon="@(_showSecret ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                   OnClick="@(() => _showSecret = !_showSecret)" />
+                </MudStack>
+                <MudAlert Severity="Severity.Warning" Dense="true">
+                    Keep this header private. Anyone with it can run any command or action as the streamer.
+                </MudAlert>
+            }
+
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Extra parameters can be added to the URL as a query string and are available in the action as variables.<br />
+                Example: <code>@_queryExample</code><br />
+                Use them in sub actions as <code>%target%</code> and <code>%amount%</code>.
+            </MudAlert>
+
+            <MudTextField T="string" Label="curl example" Value="@_curl" ReadOnly="true" Variant="Variant.Outlined" Lines="2"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                          OnAdornmentClick="@(() => CopyAsync(_curl, "curl command"))" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Close())">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public int ActionId { get; set; }
+
+    [Parameter]
+    public string ActionName { get; set; } = string.Empty;
+
+    private string _urlById = string.Empty;
+    private string _urlByName = string.Empty;
+    private string _curl = string.Empty;
+    private string _queryExample = string.Empty;
+    private string? _webAuth;
+    private bool _showSecret;
+
+    private string Header => $"webauth:{_webAuth}";
+
+    protected override void OnInitialized()
+    {
+        var baseUri = NavigationManager.BaseUri.TrimEnd('/');
+        _urlById = $"{baseUri}/actions/{ActionId}";
+        _urlByName = $"{baseUri}/actions/{Uri.EscapeDataString(ActionName)}";
+        _webAuth = Configuration["webauth"];
+        _queryExample = $"{_urlById}?target=someuser&amount=100";
+        _curl = $"curl -X POST -H \"webauth:<webauth>\" \"{_queryExample}\"";
+    }
+
+    private async Task CopyAsync(string? text, string label)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        try
+        {
+            if (await JSRuntime.InvokeAsync<bool>("window.copyToClipboard", text))
+            {
+                Snackbar.Add($"{label} copied to clipboard.", Severity.Info);
+                return;
+            }
+        }
+        catch (JSException) { }
+
+        Snackbar.Add($"Could not copy {label.ToLower()} to clipboard.", Severity.Warning);
+    }
+}

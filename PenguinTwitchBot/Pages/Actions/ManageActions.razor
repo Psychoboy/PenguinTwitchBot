@@ -195,6 +195,9 @@
                                     <MudButton Variant="Variant.Outlined" OnClick="OpenSelectedActionHistory" StartIcon="@Icons.Material.Filled.History">
                                         History
                                     </MudButton>
+                                    <MudButton Variant="Variant.Outlined" OnClick="OpenApiInfoDialog" StartIcon="@Icons.Material.Filled.Link">
+                                        API URL
+                                    </MudButton>
                                 }
                                 <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
                                     Cancel
@@ -742,6 +745,18 @@
     private void GoToGlobalVariables()
     {
         NavigationManager.NavigateTo("/actions/globalvariables");
+    }
+
+    private async Task OpenApiInfoDialog()
+    {
+        if (_selectedAction?.Id is not int actionId) return;
+        var parameters = new DialogParameters<ActionApiInfoDialog>
+        {
+            { x => x.ActionId, actionId },
+            { x => x.ActionName, _selectedAction.Name }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<ActionApiInfoDialog>($"API: {_selectedAction.Name}", parameters, options);
     }
 
     private async Task RunAction()
