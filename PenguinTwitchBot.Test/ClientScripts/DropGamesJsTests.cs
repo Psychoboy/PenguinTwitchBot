@@ -1364,10 +1364,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     sector = "Kepler Reach",
                     choice = "Take the direct route",
                     resolvedAtUtc = updatedAt.AddSeconds(1).ToString("O"),
-                    bankedAmounts = new[] { new { pointTypeId = 12, pointTypeName = "Salvage Credits", amount = 30, isPaid = true } },
+                    bankedAmounts = new[] { new { pointTypeId = 12, pointTypeName = "Salvage Credits", amount = 30, averagePerCrewMember = 15, isPaid = true } },
                     outcome = "Success",
                     rarity = "Rare",
-                    lines = new[] { "SUCCESS - Rare find.", "Earned 30 Salvage Credits for 2 crew." },
+                    lines = new[] { "SUCCESS - Rare find.", "Earned 15 Salvage Credits average per eligible crew member." },
                     story = "Pilot boards the ISV Quiet Meridian. The crew hauls out an intact cryo-vault.",
                     subject = "the ISV Quiet Meridian",
                     objectKind = "wreck",
@@ -1384,7 +1384,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal("2", engine.Evaluate("String(document.getElementById('result-lines').children.length)").AsString());
             Assert.Equal("SUCCESS - Rare find.", engine.Evaluate("document.getElementById('result-lines').children[0].textContent").AsString());
             Assert.Equal("Take the direct route", engine.Evaluate("document.getElementById('result-choice').textContent").AsString());
-            Assert.Equal("30 Salvage Credits banked", engine.Evaluate("document.getElementById('result-banked').children[0].textContent").AsString());
+            Assert.Equal("15 Salvage Credits banked average per banked crew member", engine.Evaluate("document.getElementById('result-banked').children[0].textContent").AsString());
             Assert.True(engine.Evaluate("document.getElementById('event-panel').hidden").AsBoolean());
 
             DispatchStarshipOverlayState(engine, new

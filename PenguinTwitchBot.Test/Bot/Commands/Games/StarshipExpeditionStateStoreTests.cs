@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +11,101 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 
 public class StarshipExpeditionStateStoreTests
 {
+    [Theory]
+    [InlineData("en-US", "1,234.5")]
+    [InlineData("de-DE", "1.234,5")]
+    public void RewardFeedback_FormatsAveragesUsingCurrentCulture(string cultureName, string expectedAmount)
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
+            var expeditionEvent = new StarshipExpeditionEventSnapshot
+            {
+                OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess,
+                RewardOutcomes =
+                [
+                    new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = 1234 },
+                    new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = 1235 }
+                ]
+            };
+
+            Assert.Contains(expectedAmount + " Credits", StarshipExpeditionNarrative.BuildChatEventMessage(expeditionEvent));
+            Assert.Contains(StarshipExpeditionNarrative.BuildEventLines(expeditionEvent), line => line.Contains(expectedAmount + " Credits", StringComparison.Ordinal));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RewardFeedback_ShowsPerCurrencyAveragesIncludingZeroAwardCrew(bool failure)
+    {
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            OutcomeResult = failure ? StarshipExpeditionNarrative.OutcomeFailure : StarshipExpeditionNarrative.OutcomeSuccess,
+            RewardOutcomes =
+            [
+                new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = failure ? 0 : 10, LostAmount = failure ? 10 : 0 },
+                new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = failure ? 0 : 30, LostAmount = failure ? 30 : 0 },
+                new() { UserId = "engineer", PointTypeId = 1, PointTypeName = "Credits" },
+                new() { UserId = "pilot", PointTypeId = 2, PointTypeName = "Tokens", EarnedAmount = failure ? 0 : 6, LostAmount = failure ? 6 : 0 },
+                new() { UserId = "medic", PointTypeId = 2, PointTypeName = "Tokens", EarnedAmount = failure ? 0 : 8, LostAmount = failure ? 8 : 0 }
+            ]
+        };
+
+        var overlayLines = string.Join(" ", StarshipExpeditionNarrative.BuildEventLines(expeditionEvent));
+        var chat = StarshipExpeditionNarrative.BuildChatEventMessage(expeditionEvent);
+
+        foreach (var text in new[] { overlayLines, chat })
+        {
+            Assert.Contains("13.33 Credits, 7 Tokens", text);
+            Assert.Contains("average per eligible crew member", text);
+            Assert.DoesNotContain("40 Credits", text);
+        }
+        Assert.Equal(40, expeditionEvent.RewardOutcomes.Where(outcome => outcome.PointTypeId == 1)
+            .Sum(outcome => failure ? outcome.LostAmount : outcome.EarnedAmount));
+        Assert.Equal(14, expeditionEvent.RewardOutcomes.Where(outcome => outcome.PointTypeId == 2)
+            .Sum(outcome => failure ? outcome.LostAmount : outcome.EarnedAmount));
+    }
+
+    [Fact]
+    public void VoyageFeedback_AndBankingProjectionAverageDistinctCrewWithoutSaturatingTotals()
+    {
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            RewardOutcomes =
+            [
+                new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = long.MaxValue },
+                new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = long.MaxValue }
+            ]
+        };
+        var payouts = new List<StarshipBankedPayoutSnapshot>
+        {
+            new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", Amount = 10, IsPaid = true },
+            new() { UserId = "PILOT", PointTypeId = 1, PointTypeName = "Credits", Amount = 20, IsPaid = true },
+            new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", Amount = 30, IsPaid = true }
+        };
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            Status = StarshipExpeditionStatus.Returned, CompletedEvents = [expeditionEvent], BankedPayouts = payouts
+        };
+
+        var lines = StarshipExpeditionNarrative.BuildVoyageLines(snapshot);
+        Assert.Contains($"Earned {long.MaxValue.ToString("#,##0.##", CultureInfo.CurrentCulture)} Credits average per eligible crew member.", lines);
+        Assert.Contains("Banked 30 Credits average per banked crew member.", lines);
+        var banked = Assert.Single(StarshipOverlayEventResult.From(expeditionEvent, payouts).BankedAmounts);
+        Assert.Equal(60, banked.Amount);
+        Assert.Equal(30m, banked.AveragePerCrewMember);
+
+        snapshot.CompletedEvents.Clear();
+        var terminalBanked = Assert.Single(StarshipExpeditionOverlaySnapshot.From(snapshot).LatestResult!.BankedAmounts);
+        Assert.Equal(30m, terminalBanked.AveragePerCrewMember);
+    }
+
     [Fact]
     public async Task ShipSystems_SaveReloadPreservesResourcesRulesBonusesAndAppliedOperations()
     {
