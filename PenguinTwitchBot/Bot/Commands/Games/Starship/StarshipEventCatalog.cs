@@ -7,7 +7,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 public static partial class StarshipEventCatalog
 {
     public const int MaximumChoices = 4;
-    public static IReadOnlyList<string> Routes { get; } = ["Uncharted", "Direct Route", "Survey Route"];
+    public const int CurrentRouteNameMigrationVersion = 1;
+    public const string StartRoute = "Start";
+    public const string UnchartedRoute = "Uncharted";
+    public static IReadOnlyList<string> Routes { get; } = [StartRoute, "Direct Route", "Survey Route", UnchartedRoute];
     public static IReadOnlyList<string> SubjectStyles { get; } = ["", "ship", "signal", "hazard", "custom"];
     public static IReadOnlyList<string> ObjectKinds { get; } = ["", .. StarshipAppearanceSettings.ObjectKinds];
     private static readonly HashSet<string> BuiltInIds = CreateDefaults().Select(definition => definition.EventType).ToHashSet(StringComparer.Ordinal);

@@ -233,7 +233,7 @@ public class StarshipEventCatalogTests
     [InlineData("Uncharted")]
     [InlineData("Direct Route")]
     [InlineData("Survey Route")]
-    public void DefaultCatalog_PreservesLegacySeededSelection(string route)
+    public void DefaultCatalog_UsesSeededSelectionForAvailableEvents(string route)
     {
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var legacy = route switch

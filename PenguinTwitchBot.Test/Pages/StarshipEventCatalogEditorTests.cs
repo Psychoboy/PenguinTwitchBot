@@ -119,6 +119,40 @@ public class StarshipEventCatalogEditorTests
     }
 
     [Fact]
+    public async Task RouteFilters_OnlyShowSelectableVoyageRoutes()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var salvageIndex = settings.EventCatalog.FindIndex(definition => definition.EventType == "SalvageSite");
+        settings.EventCatalog[salvageIndex] = settings.EventCatalog[salvageIndex] with { AllowedRoutes = ["Uncharted", "Survey Route"] };
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
+        editor.Find("button[aria-label='Edit SalvageSite']").Click();
+
+        var routeLabels = editor.FindComponents<MudCheckBox<bool>>()
+            .Select(component => component.Instance.Label)
+            .Where(label => label is "Start" or "Uncharted" or "Direct Route" or "Survey Route")
+            .ToArray();
+
+        Assert.Equal(4, routeLabels.Length);
+        Assert.Contains("Start", routeLabels);
+        Assert.Contains("Uncharted", routeLabels);
+        Assert.Contains("Direct Route", routeLabels);
+        Assert.Contains("Survey Route", routeLabels);
+        Assert.Contains("Uncharted", StarshipEventCatalog.Routes);
+        Assert.True(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Start").Instance.Disabled);
+        Assert.True(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Uncharted").Instance.Disabled);
+        var defaults = StarshipEventCatalog.CreateDefaults();
+        Assert.Equal(["Uncharted", "Survey Route"], defaults.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
+        Assert.Equal(["Uncharted", "Direct Route"], defaults.Single(definition => definition.EventType == "Hazard").AllowedRoutes);
+
+        await editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Survey Route")
+            .Find("input").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = false });
+        Click(editor, "Apply Event");
+
+        Assert.Equal(["Uncharted"], settings.EventCatalog.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
+    }
+
+    [Fact]
     public async Task DiscardPendingDraft_ClearsDraftAndRefreshesEditor()
     {
         await using var context = CreateContext();
