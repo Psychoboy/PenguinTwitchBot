@@ -174,34 +174,31 @@
                             <MudText Typo="Typo.h5">
                                 @(_isNewAction ? "New Action" : _selectedAction.Name)
                             </MudText>
-                            <MudStack Row="true" Spacing="1">
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Style="white-space: nowrap;">
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary" 
                                            OnClick="SaveAction" StartIcon="@Icons.Material.Filled.Save">
                                     Save
                                 </MudButton>
                                 @if (!_isNewAction)
                                 {
-                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" 
-                                               OnClick="DuplicateAction" StartIcon="@Icons.Material.Filled.ContentCopy">
-                                        Duplicate
-                                    </MudButton>
-                                    <MudButton Variant="Variant.Filled" Color="Color.Error" 
-                                               OnClick="DeleteAction" StartIcon="@Icons.Material.Filled.Delete">
-                                        Delete
-                                    </MudButton>
                                     <MudButton Variant="Variant.Outlined" OnClick="RunAction" StartIcon="@Icons.Material.Filled.PlayArrow">
                                         Test
-                                    </MudButton>
-                                    <MudButton Variant="Variant.Outlined" OnClick="OpenSelectedActionHistory" StartIcon="@Icons.Material.Filled.History">
-                                        History
-                                    </MudButton>
-                                    <MudButton Variant="Variant.Outlined" OnClick="OpenApiInfoDialog" StartIcon="@Icons.Material.Filled.Link">
-                                        API URL
                                     </MudButton>
                                 }
                                 <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
                                     Cancel
                                 </MudButton>
+                                @if (!_isNewAction)
+                                {
+                                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" AriaLabel="More actions"
+                                             AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                                        <MudMenuItem OnClick="DuplicateAction" Icon="@Icons.Material.Filled.ContentCopy">Duplicate</MudMenuItem>
+                                        <MudMenuItem OnClick="OpenSelectedActionHistory" Icon="@Icons.Material.Filled.History">History</MudMenuItem>
+                                        <MudMenuItem OnClick="OpenApiInfoDialog" Icon="@Icons.Material.Filled.Link">API URL</MudMenuItem>
+                                        <MudDivider />
+                                        <MudMenuItem OnClick="DeleteAction" Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">Delete</MudMenuItem>
+                                    </MudMenu>
+                                }
                             </MudStack>
                         </MudStack>
 
