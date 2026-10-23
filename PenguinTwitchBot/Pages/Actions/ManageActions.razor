@@ -750,7 +750,7 @@
         var parameters = new DialogParameters<ActionApiInfoDialog>
         {
             { x => x.ActionId, actionId },
-            { x => x.ActionName, _selectedAction.Name }
+            { x => x.ActionName, _actions.FirstOrDefault(a => a.Id == actionId)?.Name ?? string.Empty }
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<ActionApiInfoDialog>($"API: {_selectedAction.Name}", parameters, options);

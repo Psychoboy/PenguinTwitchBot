@@ -3,6 +3,7 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <MudDialog>
     <DialogContent>
@@ -17,12 +18,19 @@
                           Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy"
                           OnAdornmentClick="@(() => CopyAsync(_urlById, "URL"))" />
 
-            <MudTextField T="string" Label="URL (by name)" Value="@_urlByName" ReadOnly="true" Variant="Variant.Outlined"
-                          HelperText="Breaks if the action is renamed or another action has the same name."
-                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy"
-                          OnAdornmentClick="@(() => CopyAsync(_urlByName, "URL"))" />
+            @if (!string.IsNullOrEmpty(_urlByName))
+            {
+                <MudTextField T="string" Label="URL (by name)" Value="@_urlByName" ReadOnly="true" Variant="Variant.Outlined"
+                              HelperText="Breaks if the action is renamed or another action has the same name."
+                              Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                              OnAdornmentClick="@(() => CopyAsync(_urlByName, "URL"))" />
+            }
 
-            @if (string.IsNullOrEmpty(_webAuth))
+            @if (!_isStreamer)
+            {
+                <MudAlert Severity="Severity.Info">The <b>webauth</b> header value is only visible to the streamer.</MudAlert>
+            }
+            else if (string.IsNullOrEmpty(_webAuth))
             {
                 <MudAlert Severity="Severity.Warning">No <b>webauth</b> value is configured. Set one in settings before using the API.</MudAlert>
             }
@@ -72,16 +80,19 @@
     private string _curl = string.Empty;
     private string _queryExample = string.Empty;
     private string? _webAuth;
+    private bool _isStreamer;
     private bool _showSecret;
 
     private string Header => $"webauth:{_webAuth}";
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         var baseUri = NavigationManager.BaseUri.TrimEnd('/');
         _urlById = $"{baseUri}/actions/{ActionId}";
-        _urlByName = $"{baseUri}/actions/{Uri.EscapeDataString(ActionName)}";
-        _webAuth = Configuration["webauth"];
+        _urlByName = string.IsNullOrWhiteSpace(ActionName) ? string.Empty : $"{baseUri}/actions/{Uri.EscapeDataString(ActionName)}";
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _isStreamer = authState.User.IsInRole("Streamer");
+        _webAuth = _isStreamer ? Configuration["webauth"] : null;
         _queryExample = $"{_urlById}?target=someuser&amount=100";
         _curl = $"curl -X POST -H \"webauth:<webauth>\" \"{_queryExample}\"";
     }

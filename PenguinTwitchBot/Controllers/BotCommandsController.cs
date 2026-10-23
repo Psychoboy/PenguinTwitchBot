@@ -60,9 +60,9 @@ namespace PenguinTwitchBot.Controllers
         /// Queues an action by name or id. Query string values are passed to the action as variables,
         /// e.g. POST /actions/Shoutout?target=someuser
         /// </summary>
-        [HttpPost("/actions/{action}")]
-        [HttpPut("/actions/{action}")]
-        public async Task<ActionResult> RunAction([FromHeader] string webauth, string action, [FromHeader] string? user = null)
+        [HttpPost("/actions/{idOrName}")]
+        [HttpPut("/actions/{idOrName}")]
+        public async Task<ActionResult> RunAction([FromHeader] string webauth, string idOrName, [FromHeader] string? user = null)
         {
             logger.LogInformation("{ipAddress} accessed /actions.", HttpContext.Connection?.RemoteIpAddress);
             var expectedAuth = configuration["webauth"];
@@ -71,14 +71,14 @@ namespace PenguinTwitchBot.Controllers
                 return new StatusCodeResult(403);
             }
 
-            var actionType = int.TryParse(action, out var actionId)
+            var actionType = int.TryParse(idOrName, out var actionId)
                 ? await actionManagementService.GetActionByIdAsync(actionId)
                 : (await actionManagementService.GetAllActionsAsync())
-                    .FirstOrDefault(a => a.Name.Equals(action, StringComparison.OrdinalIgnoreCase));
+                    .FirstOrDefault(a => a.Name.Equals(idOrName, StringComparison.OrdinalIgnoreCase));
 
             if (actionType == null)
             {
-                return NotFound($"Action '{action}' not found.");
+                return NotFound($"Action '{idOrName}' not found.");
             }
             if (!actionType.Enabled)
             {
