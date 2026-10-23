@@ -140,17 +140,22 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _refreshTask = RefreshLoopAsync();
         try
         {
             _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
             await RefreshAsync();
-            _settings = UfoClawStore.Copy(_state!.Settings);
-            _mode = _state.Mode;
-            _setId = _state.PrizeSetId;
-            if (SelectedSet == null) _setId = _settings.PrizeSets.FirstOrDefault()?.Id ?? "";
-            _refreshTask = RefreshLoopAsync();
+            InitializeSettingsFromState();
         }
         catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Error); }
+    }
+    private void InitializeSettingsFromState()
+    {
+        if (_settings != null || _state == null) return;
+        _settings = UfoClawStore.Copy(_state.Settings);
+        _mode = _state.Mode;
+        _setId = _state.PrizeSetId;
+        if (SelectedSet == null) _setId = _settings.PrizeSets.FirstOrDefault()?.Id ?? "";
     }
     private async Task RefreshAsync()
     {
@@ -170,7 +175,22 @@
         try
         {
             while (await timer.WaitForNextTickAsync(_refreshCancellation.Token))
-                await InvokeAsync(async () => { await RefreshAsync(); StateHasChanged(); });
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await RefreshAsync();
+                        InitializeSettingsFromState();
+                        StateHasChanged();
+                    });
+                }
+                catch (OperationCanceledException) when (_refreshCancellation.IsCancellationRequested) { throw; }
+                catch (Exception exception)
+                {
+                    await InvokeAsync(() => Snackbar.Add(exception.Message, Severity.Error));
+                }
+            }
         }
         catch (OperationCanceledException) when (_refreshCancellation.IsCancellationRequested) { }
     }
@@ -215,8 +235,13 @@
     private async Task OpenEntriesAsync()
     {
         if (_state?.Viewers.Count > 0 && await DialogService.ShowMessageBoxAsync("Open Fresh Entries", "Clear the current viewer roster and removed winners?", yesText: "Open Fresh", cancelText: "Cancel") != true) return;
-        await ControlAsync("open");
-        _mode = "viewers";
+        try
+        {
+            await ClawService.ControlAsync("open", "viewers", _setId);
+            _mode = "viewers";
+            await RefreshAsync();
+        }
+        catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Warning); }
     }
     private async Task ResetAsync()
     {

@@ -874,7 +874,7 @@
             @if (_selected.WidgetType == "ufoclaw")
             {
                 <MudDivider Class="mb-3" />
-                <UfoClawWidgetSettings @key="_selected" FitFullScreen="@(() => { _selected.X = 0; _selected.Y = 0; _selected.Width = 1920; _selected.Height = 1080; })" />
+                <UfoClawWidgetSettings @key="_selected" FitFullScreen="@(() => { _selected.X = 0; _selected.Y = 0; _selected.Width = _canvasWidth; _selected.Height = _canvasHeight; })" />
             }
 
             @if (_selected.WidgetType is "parachute" or "plinko" or "balloon" or "curling" or "golf")

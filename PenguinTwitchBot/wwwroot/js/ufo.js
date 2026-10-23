@@ -144,7 +144,7 @@
         const winnerLockTime = plan?.lockTime ?? 15;
         const animationEnd = plan?.animationEnd ?? 15;
         const time = clamp(seconds, 0, animationEnd);
-        let phase = time >= animationEnd ? 'Revealing' : time >= 6.5 ? 'Ascending' : time >= 3 ? 'Descending' : 'Cruising';
+        let phase = time >= animationEnd ? 'Revealing' : time >= 6.5 ? 'Ascending' : time >= 6 ? 'Closing' : time >= 3 ? 'Descending' : 'Cruising';
         const approach = clamp(initialPrize.x - 120, left, right);
         let x = mix(center, approach, time / 3) + (time < 3 && !reducedMotion ? Math.sin(time * 4 * (speed || 1)) * 55 * Math.sin(time / 3 * Math.PI) : 0);
         let clawY = 275;
@@ -360,17 +360,33 @@
     let motorGain;
     let soundGeneration = 0;
     let completionAcknowledgedFor = '';
+    let completionAttemptFor = '';
+    let completionRetryAfter = 0;
+    let completionInFlight = false;
 
     async function acknowledgeAnimation(grabId) {
-        if (!overlayKey || !grabId || completionAcknowledgedFor === grabId) return;
-        completionAcknowledgedFor = grabId;
+        if (!overlayKey || !grabId || completionAcknowledgedFor === grabId || completionInFlight) return;
+        if (completionAttemptFor === grabId && Date.now() < completionRetryAfter) return;
+        completionAttemptFor = grabId;
+        completionInFlight = true;
         try {
-            await fetch('/api/overlay/ufoclaw-complete', {
+            const response = await fetch('/api/overlay/ufoclaw-complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ grabId, overlayKey })
             });
-        } catch (_) { }
+            if (response.ok || response.status === 401 || response.status === 409) {
+                completionAcknowledgedFor = grabId;
+                completionAttemptFor = '';
+                completionRetryAfter = 0;
+            } else {
+                completionRetryAfter = Date.now() + 1500;
+            }
+        } catch (_) {
+            completionRetryAfter = Date.now() + 1500;
+        } finally {
+            completionInFlight = false;
+        }
     }
 
     function updateLayout(now, settings) {

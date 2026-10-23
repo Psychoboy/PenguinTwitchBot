@@ -100,6 +100,7 @@ public class UfoClawOverlayTests
         var engine = CreateEngine().Execute("var prize = {x:1009,y:900}; var frame = seconds => UfoClawScene.frameAt(seconds, prize, false, false);");
         Assert.Equal(960, engine.Evaluate("frame(0).x").AsNumber());
         Assert.True(engine.Evaluate("frame(4).x !== frame(5).x && frame(4).clawY < frame(5).clawY").AsBoolean());
+        Assert.True(engine.Evaluate("frame(6).phase === 'Closing' && frame(6.49).phase === 'Closing'").AsBoolean());
         Assert.True(engine.Evaluate("frame(8).x !== frame(9).x && frame(8).clawY > frame(9).clawY").AsBoolean());
         Assert.True(engine.Evaluate("!frame(6).captured && frame(6.5).captured").AsBoolean());
         Assert.False(engine.Evaluate("frame(14.9).reveal").AsBoolean());

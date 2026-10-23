@@ -86,6 +86,32 @@ public class UfoClawTests
     }
 
     [Fact]
+    public async Task OnCommandFiltersNonJoinCommandsAndReportsViewerPoolValidationErrors()
+    {
+        var store = new MemoryStore();
+        store.Document.Settings = Settings();
+        store.Document.Mode = "viewers";
+        store.Document.EntriesOpen = true;
+        store.Document.Viewers = Enumerable.Range(0, 10000)
+            .Select(index => new UfoClawEntry { Id = $"viewer-{index}", UserId = $"viewer-{index}", Login = $"viewer{index}", Label = $"Viewer {index}" })
+            .ToList();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(item => item.SendChatMessage("Viewer", It.IsAny<string>(), true)).Returns(Task.CompletedTask);
+        var commands = new Mock<ICommandHandler>();
+        commands.Setup(item => item.GetCommandDefaultName("other")).Returns("other");
+        commands.Setup(item => item.GetCommandDefaultName("joinclaw")).Returns(UfoClawService.CommandName);
+        var service = new UfoClawService(backbone.Object, commands.Object, Mock.Of<IPenguinDispatcher>(), store,
+            Mock.Of<IWebSocketMessenger>(), Mock.Of<IDefaultCommandTriggerService>(), NullLogger<UfoClawService>.Instance,
+            new FakeTimeProvider(DateTimeOffset.UtcNow));
+
+        await service.OnCommand(null, new() { Command = "other", UserId = "new-viewer", Name = "viewer", DisplayName = "Viewer" });
+        Assert.Equal(10000, store.Document.Viewers.Count);
+        await service.OnCommand(null, new() { Command = "joinclaw", UserId = "new-viewer", Name = "viewer", DisplayName = "Viewer" });
+        backbone.Verify(item => item.SendChatMessage("Viewer", It.Is<string>(message => message.Contains("maximum 10,000")), true), Times.Once);
+        Assert.Equal(10000, store.Document.Viewers.Count);
+    }
+
+    [Fact]
     public async Task HiddenGrabSettlesOnceAfterRecoveryAndPreservesFrozenResultVariables()
     {
         var store = new MemoryStore();

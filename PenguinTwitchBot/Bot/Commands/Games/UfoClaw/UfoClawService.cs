@@ -216,12 +216,16 @@ public sealed class UfoClawService(
 
     public override async Task OnCommand(object? sender, CommandEventArgs eventArgs)
     {
+        if (!string.Equals(CommandHandler.GetCommandDefaultName(eventArgs.Command), CommandName, StringComparison.OrdinalIgnoreCase)) return;
         if (!_active || ServiceBackbone.IsKnownBot(eventArgs.Name) || string.IsNullOrWhiteSpace(eventArgs.UserId)) return;
         try
         {
             await JoinAsync(eventArgs);
         }
-        catch (InvalidOperationException exception) { await RespondWithMessage(eventArgs, exception.Message); }
+        catch (Exception exception) when (exception is InvalidOperationException or ArgumentException)
+        {
+            await RespondWithMessage(eventArgs, exception.Message);
+        }
     }
 
     public Task JoinAsync(CommandEventArgs viewer) => MutateAsync(document =>
@@ -240,12 +244,22 @@ public sealed class UfoClawService(
         try
         {
             _document ??= await store.LoadAsync();
-            var next = UfoClawStore.Copy(_document);
-            if (next.Grab is not { } grab) return;
-            if (!grab.Completed && grab.OverlayAnimationAcknowledged)
+            var current = _document;
+            if (current.Grab is not { } currentGrab) return;
+            var now = _clock.GetUtcNow();
+            var shouldResolve = !currentGrab.Completed && currentGrab.OverlayAnimationAcknowledged;
+            var currentHoldStart = currentGrab.OverlayAnimationAcknowledgedAtUtc ?? currentGrab.CompletedAtUtc ??
+                currentGrab.StartedAtUtc.AddSeconds(currentGrab.Rules.DurationSeconds);
+            var shouldAutoHide = currentGrab.Completed && currentGrab.Rules.AutoHide && current.Visible &&
+                now >= currentHoldStart.AddSeconds(currentGrab.Rules.RevealSeconds);
+            if (!shouldResolve && !shouldAutoHide) return;
+
+            var next = UfoClawStore.Copy(current);
+            var grab = next.Grab!;
+            if (shouldResolve)
             {
                 grab.Completed = true;
-                grab.CompletedAtUtc = _clock.GetUtcNow();
+                grab.CompletedAtUtc = now;
                 grab.DispatchClaimed = true;
                 if (grab.Rules.RemoveWinners)
                 {
@@ -257,9 +271,8 @@ public sealed class UfoClawService(
             }
             var revealHoldStart = grab.OverlayAnimationAcknowledgedAtUtc ?? grab.CompletedAtUtc ??
                 grab.StartedAtUtc.AddSeconds(grab.Rules.DurationSeconds);
-            if (grab.Completed && grab.Rules.AutoHide && _clock.GetUtcNow() >= revealHoldStart.AddSeconds(grab.Rules.RevealSeconds) && next.Visible)
+            if (grab.Completed && grab.Rules.AutoHide && now >= revealHoldStart.AddSeconds(grab.Rules.RevealSeconds) && next.Visible)
                 next.Visible = false;
-            if (resolved == null && next.Visible == _document.Visible) return;
             next.Revision++;
             await store.SaveAsync(next);
             _document = updated = next;
