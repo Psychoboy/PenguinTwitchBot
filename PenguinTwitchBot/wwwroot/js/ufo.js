@@ -288,7 +288,7 @@
         return { phase, x, clawY, captured, heldPrize, decoyCaptured, decoy, decoyX, decoyY, dropped, slip, grip,
             timing: plan, lockTime: slip ? winnerLockTime : 15, animationEnd, locked,
             prizeX: captured ? x + (!reducedMotion ? Math.sin(time * 5) * 12 * Math.max(0, 11 - time) / 4 : 0) : prize.x,
-            prizeY: captured ? clawY + 66 + recatch : prize.y, reveal: locked };
+            prizeY: captured ? clawY + 66 + recatch : prize.y, reveal: time >= animationEnd };
     }
 
     function wrapLabel(text, maximumWidth, maximumLines, measure) {
@@ -621,7 +621,7 @@
                 ? animationEndFor(settings.tease, reducedMotion.matches, settings.slipChancePercent, state.grab.id, feintPrizes, selected, sceneWidth, settings.leftSafeGapPixels, settings.rightSafeGapPixels)
                 : 15;
             const seconds = state.grab ? elapsed / effectiveDuration * animationEnd : 0;
-            const frame = !state.grab || !selected ? {x:sceneWidth / 2, clawY:275, grip:0, captured:false, heldPrize:null, decoyCaptured:false, dropped:[], reveal:false} :
+            const frame = !state.grab || !selected ? {x:sceneWidth / 2, clawY:275, grip:0, captured:false, heldPrize:null, decoyCaptured:false, dropped:[], locked:false, reveal:false} :
                 frameAt(seconds, selected, settings.tease, reducedMotion.matches, settings.movementSpeed, sceneWidth,
                     settings.leftSafeGapPixels, settings.rightSafeGapPixels, settings.slipChancePercent, state.grab.id, feintPrizes);
             if (settings.pitBackgroundEnabled !== false) {
@@ -643,11 +643,11 @@
             if (frame.decoyCaptured) drawPrize(frame.decoy, frame.decoyX, frame.decoyY, true);
             if (frame.captured && frame.heldPrize) drawPrize(frame.heldPrize, frame.prizeX, frame.prizeY, true);
             drawUfo(frame, seconds);
-            if (frame.locked && selected) {
+            if (frame.reveal && selected) {
                 result.textContent = selected.label;
                 result.hidden = false;
-                if (state.grab) void acknowledgeAnimation(state.grab.id);
             }
+            if (state.grab && frame.reveal) void acknowledgeAnimation(state.grab.id);
             if (state.grab && frame.phase !== lastPhase) {
                 lastPhase = frame.phase;
                 if (frame.phase === 'Descending') sweep(420, 190, 0.65, 0, 'triangle', 0.12);
@@ -657,7 +657,7 @@
                 if (frame.phase.startsWith('FeintCatch')) { tone(580, 0.08, 0, 'square'); tone(760, 0.12, 0.09, 'triangle'); }
                 if (frame.phase.startsWith('FeintLift')) playLiftCue();
                 if (frame.phase === 'Recatching') playCatchCue();
-                if (frame.locked) { stopMotor(); replacement(state.settings.revealSoundUrl, () => [523.25,659.25,783.99,1046.5].forEach((frequency,index) => tone(frequency,0.4,index*0.12)), '/media/ufo_claw_reveal.wav'); }
+                if (frame.reveal) { stopMotor(); replacement(state.settings.revealSoundUrl, () => [523.25,659.25,783.99,1046.5].forEach((frequency,index) => tone(frequency,0.4,index*0.12)), '/media/ufo_claw_reveal.wav'); }
             }
         }
         global.requestAnimationFrame(draw);

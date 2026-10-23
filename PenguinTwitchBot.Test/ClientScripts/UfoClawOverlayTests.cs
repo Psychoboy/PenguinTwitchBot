@@ -77,8 +77,8 @@ public class UfoClawOverlayTests
         Assert.Equal(engine.Evaluate("winner.id").AsString(), engine.Evaluate($"frame({lockTime}).heldPrize.id").AsString());
         Assert.Equal(engine.Evaluate("winner.x").AsNumber(), engine.Evaluate($"frame({lockTime}).x").AsNumber());
         Assert.Equal(engine.Evaluate("winner.y - 66").AsNumber(), engine.Evaluate($"frame({lockTime}).clawY").AsNumber());
-        Assert.True(engine.Evaluate($"frame({lockTime}).reveal").AsBoolean());
-        Assert.True(engine.Evaluate($"frame({animationEnd}).captured && frame({animationEnd}).heldPrize.id === winner.id && frame({animationEnd}).x === 960 && frame({animationEnd}).clawY === 284").AsBoolean());
+        Assert.True(engine.Evaluate($"frame({lockTime}).locked && !frame({lockTime}).reveal").AsBoolean());
+        Assert.True(engine.Evaluate($"frame({animationEnd}).captured && frame({animationEnd}).heldPrize.id === winner.id && frame({animationEnd}).x === 960 && frame({animationEnd}).clawY === 284 && frame({animationEnd}).reveal").AsBoolean());
         engine.Execute("var noFeint = seconds => UfoClawScene.frameAt(seconds, winner, true, false, 1, 1920, 0, 0, 0, 'grab-1', sequence);");
         Assert.True(engine.Evaluate("!noFeint(8).slip && noFeint(8).heldPrize.id === winner.id").AsBoolean());
         Assert.False(engine.Evaluate("UfoClawScene.shouldSlip('grab-1', 0)").AsBoolean());
@@ -125,7 +125,9 @@ public class UfoClawOverlayTests
         var paintCalls = 0;
         var paint = new Proxy({}, {get: (_, name) => name === 'measureText' ? text => ({width:text.length*12}) : name.includes('Gradient') ? () => ({addColorStop:()=>{}}) : name === 'clearRect' || name === 'setTransform' ? () => {} : () => {paintCalls++;}});
         var document = {getElementById: id => id === 'result' ? result : {getContext:()=>paint}, addEventListener:()=>{}};
+        var URLSearchParams = function() { this.get = name => name === 'key' ? 'test-overlay-key' : null; };
         var matchMedia = () => ({matches:false});
+        var location = {search:'?key=test-overlay-key'};
         var performance = {now:()=>0};
         var addEventListener = () => {};
         var nextFrame;
@@ -134,7 +136,8 @@ public class UfoClawOverlayTests
         var socket = {send:()=>{}};
         var createWsSocket = () => socket;
         var wsStatusShow = () => {};
-        var fetch = () => new Promise(()=>{});
+        var completionCalls = 0;
+        var fetch = url => { if (url === '/api/overlay/ufoclaw-complete') completionCalls++; return new Promise(()=>{}); };
         var snapshot = {type:'ufo_state',revision:1,serverNowUtc:'2026-10-23T00:00:00Z',visible:true,
             entries:[{id:'one',label:'Server Winner',color:'#2ec4b6'}],settings:{durationSeconds:11,revealSeconds:4,autoHide:false,tease:true,soundEnabled:false,volume:0.5},
             grab:{id:'grab-1',startedAtUtc:'2026-10-23T00:00:00Z',winningIndex:0}};
@@ -156,6 +159,18 @@ public class UfoClawOverlayTests
         var engine = CreateEngine(BrowserEnvironment);
         engine.Execute("snapshot.serverNowUtc='2026-10-23T00:00:12Z'; UfoClawOverlay.acceptSnapshot(snapshot,false); nextFrame(0);");
         Assert.True(engine.Evaluate("!result.hidden && result.textContent === 'Server Winner'").AsBoolean());
+    }
+
+    [Fact]
+    public void OverlayAcknowledgesOnlyAfterWinnerRetractsAndRevealAppears()
+    {
+        var engine = CreateEngine(BrowserEnvironment);
+        engine.Execute("UfoClawOverlay.acceptSnapshot(snapshot,true); nextFrame(10265);");
+        Assert.Equal(0, engine.Evaluate("completionCalls").AsNumber());
+        Assert.True(engine.Evaluate("result.hidden").AsBoolean());
+        engine.Execute("nextFrame(11000);");
+        Assert.False(engine.Evaluate("result.hidden").AsBoolean());
+        Assert.Equal(1, engine.Evaluate("completionCalls").AsNumber());
     }
 
     [Fact]
