@@ -144,7 +144,8 @@ public sealed class StarshipExpeditionService(
                     var legCount = ParseOptionalInteger(args, 1);
                     var minimumInterval = ParseOptionalInteger(args, 2);
                     var maximumInterval = ParseOptionalInteger(args, 3);
-                    var started = await StartExpeditionAsync(eventArgs.DisplayName, legCount, minimumInterval, maximumInterval);
+                    var started = await StartExpeditionAsync(eventArgs.DisplayName, legCount, minimumInterval, maximumInterval,
+                        startedByUserId: eventArgs.UserId);
                     await RespondWithMessage(eventArgs, $"Starship Expedition boarding is open for {started.BoardingDurationSeconds} seconds.");
                     return;
 
@@ -410,7 +411,8 @@ public sealed class StarshipExpeditionService(
         int? minimumEventIntervalMinutes = null,
         int? maximumEventIntervalMinutes = null,
         int? seed = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? startedByUserId = null)
     {
         var settings = await settingsStore.LoadAsync(cancellationToken);
         if (!settings.GameEnabled)
@@ -439,6 +441,7 @@ public sealed class StarshipExpeditionService(
                 ExpeditionId = Guid.NewGuid(),
                 Seed = expeditionSeed,
                 StartedBy = startedBy?.Trim() ?? string.Empty,
+                StartedByUserId = startedByUserId?.Trim() ?? string.Empty,
                 Ship = StarshipExpeditionStory.GenerateShip(expeditionSeed),
                 ShipSystems = StarshipShipSystems.Create(settings.ShipSystems),
                 EmergencyReturnSound = settings.EmergencyReturnSound == null ? null : new DropGameSoundConfig
@@ -493,9 +496,10 @@ public sealed class StarshipExpeditionService(
             _stateLock.Release();
         }
 
-        await AnnounceBoardingAsync(startedSnapshot);
+        var boardingMessage = await AnnounceBoardingAsync(startedSnapshot);
         await FireTriggerAsync(DefaultCommandEventTypes.StarshipBoardingOpened, startedSnapshot, new Dictionary<string, string>
         {
+            ["ChatMessage"] = boardingMessage,
             ["TriggeredBy"] = startedSnapshot.StartedBy,
             ["Duration"] = startedSnapshot.BoardingDurationSeconds.ToString(CultureInfo.InvariantCulture)
         });
@@ -736,7 +740,7 @@ public sealed class StarshipExpeditionService(
         }
     }
 
-    private async Task AnnounceBoardingAsync(StarshipExpeditionSnapshot snapshot)
+    private async Task<string> AnnounceBoardingAsync(StarshipExpeditionSnapshot snapshot)
     {
         var defaultMessage = $"Starship Expedition boarding is open for {snapshot.BoardingDurationSeconds}s. Join before takeoff with !starship join.";
         var message = snapshot.AnnounceSessionStatusInChat
@@ -746,39 +750,31 @@ public sealed class StarshipExpeditionService(
         if (!message.Contains("!starship join", StringComparison.OrdinalIgnoreCase))
             message = $"{message.Trim()} Join before takeoff with !starship join.";
         await SendChatAnnouncementAsync(message);
+        return message;
     }
 
     private async Task NotifyTransitionAsync(StarshipExpeditionSnapshot previous, StarshipExpeditionSnapshot current)
     {
         if (previous.CurrentEvent == null && current.CurrentEvent is { } openedEvent)
         {
-            await AnnounceEventOpenedAsync(current, openedEvent);
-            await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventOpened, current, new Dictionary<string, string>
-            {
-                ["EventTitle"] = openedEvent.Title,
-                ["EventType"] = openedEvent.EventType,
-                ["Subject"] = openedEvent.Subject,
-                ["Choices"] = string.Join(" | ", openedEvent.Choices.Select(choice => $"{choice.ChoiceId}: {choice.Label}")),
-                ["Duration"] = current.EventVoteDurationSeconds.ToString(CultureInfo.InvariantCulture)
-            });
+            var message = BuildEventOpenedMessage(current, openedEvent);
+            await SendChatAnnouncementAsync(message);
+            var variables = StarshipEventVariables.ForEvent(openedEvent);
+            variables["ChatMessage"] = message;
+            variables["Duration"] = current.EventVoteDurationSeconds.ToString(CultureInfo.InvariantCulture);
+            await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventOpened, current, variables);
         }
 
         else if (previous.CurrentEvent != null && current.CurrentEvent != null &&
                  previous.CurrentEvent.EventId == current.CurrentEvent.EventId &&
                  current.CurrentEvent.StepNumber > previous.CurrentEvent.StepNumber)
         {
-            await AnnounceEventStepAsync(current, current.CurrentEvent);
-            await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventStepAdvanced, current, new Dictionary<string, string>
-            {
-                ["EventTitle"] = current.CurrentEvent.Title,
-                ["EventType"] = current.CurrentEvent.EventType,
-                ["Step"] = current.CurrentEvent.StepNumber.ToString(CultureInfo.InvariantCulture),
-                ["Subject"] = current.CurrentEvent.Subject,
-                ["Path"] = StarshipExpeditionNarrative.FormatPath(current.CurrentEvent),
-                ["RevealedRarity"] = current.CurrentEvent.RevealedRarity ?? string.Empty,
-                ["StepNote"] = current.CurrentEvent.StepNote,
-                ["Choices"] = StarshipExpeditionNarrative.FormatChoices(current.CurrentEvent.Choices)
-            });
+            var message = BuildEventStepMessage(current, current.CurrentEvent);
+            await SendChatAnnouncementAsync(message);
+            var variables = StarshipEventVariables.ForEvent(current.CurrentEvent);
+            variables["ChatMessage"] = message;
+            variables["Duration"] = current.EventVoteDurationSeconds.ToString(CultureInfo.InvariantCulture);
+            await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventStepAdvanced, current, variables);
         }
 
         if (current.CompletedEvents.Count > previous.CompletedEvents.Count)
@@ -802,11 +798,12 @@ public sealed class StarshipExpeditionService(
             resolvedVariables["RewardParticipantCount"] = resolvedEvent.RewardOutcomes.Where(outcome => outcome.EarnedAmount > 0)
                 .Select(outcome => outcome.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture);
             resolvedVariables["Summary"] = StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent);
+            resolvedVariables["ChatMessage"] = chatMessage;
             await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventResolved, current, resolvedVariables);
 
             if (resolvedEvent.OutcomeResult is StarshipExpeditionNarrative.OutcomeSuccess or StarshipExpeditionNarrative.OutcomeFailure)
             {
-                var outcomeVariables = StarshipEventVariables.ForOutcome(resolvedEvent);
+                var outcomeVariables = new Dictionary<string, string>(resolvedVariables, StringComparer.OrdinalIgnoreCase);
                 outcomeVariables["AffectedCount"] = resolvedEvent.RewardOutcomes.Where(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0)
                     .Select(outcome => outcome.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture);
                 await FireTriggerAsync(
@@ -925,7 +922,10 @@ public sealed class StarshipExpeditionService(
                     {
                         ["User"] = payout.DisplayName,
                         ["PointType"] = payout.PointTypeName,
+                        ["PointTypeId"] = payout.PointTypeId.ToString(CultureInfo.InvariantCulture),
                         ["Amount"] = payout.Amount.ToString(CultureInfo.InvariantCulture),
+                        ["AmountFormatted"] = payout.Amount.ToString("N0", CultureInfo.CurrentCulture),
+                        ["OperationId"] = payout.OperationId,
                         ["EventId"] = payout.EventId.ToString("N")
                     },
                     new CommandEventArgs
@@ -944,27 +944,26 @@ public sealed class StarshipExpeditionService(
         }
     }
 
-    private Task AnnounceEventOpenedAsync(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
+    private static string BuildEventOpenedMessage(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
     {
         if (currentEvent.EventType == "StationStop" &&
             StarshipShipEventDisclosure.From(snapshot, currentEvent, null) is { } stationDisclosure)
         {
             var stationMessage = $"Station stop at {currentEvent.Sector}. Hull {stationDisclosure.Hull}/{stationDisclosure.MaximumHull}, supplies {stationDisclosure.Supplies}/100. " +
                 $"{StarshipExpeditionNarrative.FormatStationChoices(stationDisclosure.Choices)} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
-            return SendChatAnnouncementAsync(stationMessage);
+            return stationMessage;
         }
 
         var choices = StarshipExpeditionNarrative.FormatChoices(currentEvent.Choices);
         var message = $"Starship vote: {currentEvent.Title} at {currentEvent.Sector}. {currentEvent.Description} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
-        return SendChatAnnouncementAsync(message);
+        return message;
     }
 
-    private Task AnnounceEventStepAsync(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
+    private static string BuildEventStepMessage(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
     {
         var choices = StarshipExpeditionNarrative.FormatChoices(currentEvent.Choices);
         var rarity = string.IsNullOrEmpty(currentEvent.RevealedRarity) ? string.Empty : $" Known rarity: {currentEvent.RevealedRarity}.";
-        return SendChatAnnouncementAsync(
-            $"{currentEvent.Title}. {currentEvent.StepNote}{rarity} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.");
+        return $"{currentEvent.Title}. {currentEvent.StepNote}{rarity} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
     }
 
     private async Task AnnounceVoyageEndedAsync(StarshipExpeditionSnapshot snapshot)
@@ -992,6 +991,8 @@ public sealed class StarshipExpeditionService(
             ["Duration"] = Math.Max(0, (long)(_timeProvider.GetUtcNow() - snapshot.StartedAtUtc).TotalSeconds).ToString(CultureInfo.InvariantCulture),
             ["TriggeredBy"] = triggeredBy ?? snapshot.StartedBy,
             ["Summary"] = string.Join(" ", StarshipExpeditionNarrative.BuildVoyageLines(snapshot)),
+            ["ChatMessage"] = string.Join(" ", StarshipExpeditionNarrative.BuildVoyageLines(snapshot)),
+            ["TtsMessage"] = StarshipExpeditionNarrative.BuildTtsVoyageMessage(snapshot),
             ["EventsSucceeded"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess).ToString(CultureInfo.InvariantCulture),
             ["EventsFailed"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeFailure).ToString(CultureInfo.InvariantCulture)
         });
@@ -1013,16 +1014,29 @@ public sealed class StarshipExpeditionService(
             ["CrewCount"] = snapshot.Crew.Count.ToString(CultureInfo.InvariantCulture),
             ["StartedBy"] = snapshot.StartedBy
         };
+        variables["ChatMessage"] = string.Empty;
         foreach (var (key, value) in StarshipEventVariables.ForShip(snapshot))
+            variables[key] = value;
+        foreach (var (key, value) in StarshipEventVariables.ForVoyage(snapshot))
             variables[key] = value;
         foreach (var (key, value) in additionalVariables)
             variables[key] = value;
+        if (!variables.ContainsKey("TtsMessage"))
+            variables["TtsMessage"] = eventType switch
+            {
+                DefaultCommandEventTypes.StarshipBoardingOpened => $"Crew boarding is open for {snapshot.BoardingDurationSeconds} seconds. Join the expedition.",
+                DefaultCommandEventTypes.StarshipCrewJoined => $"{variables.GetValueOrDefault("User", "A viewer")} joined the expedition. {snapshot.Crew.Count} crew members are aboard.",
+                DefaultCommandEventTypes.StarshipCrewRewardBanked => $"{variables.GetValueOrDefault("User", "A crew member")} banked {variables.GetValueOrDefault("Amount")} {variables.GetValueOrDefault("PointType")}.",
+                DefaultCommandEventTypes.StarshipRiskSucceeded => $"{variables.GetValueOrDefault("User", "A crew member")}'s risky choice succeeded.",
+                DefaultCommandEventTypes.StarshipRiskFailed => $"{variables.GetValueOrDefault("User", "A crew member")}'s risky choice failed.",
+                _ => string.Empty
+            };
         eventArgs ??= new CommandEventArgs
         {
             Command = DefaultCommandName,
             Name = snapshot.StartedBy,
             DisplayName = snapshot.StartedBy,
-            UserId = snapshot.StartedBy
+            UserId = snapshot.StartedByUserId
         };
 
         try

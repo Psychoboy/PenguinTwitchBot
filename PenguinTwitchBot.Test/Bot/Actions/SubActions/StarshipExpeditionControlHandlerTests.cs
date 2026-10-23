@@ -12,14 +12,14 @@ public class StarshipExpeditionControlHandlerTests
     public async Task StartUsesConfiguredSettingsAndTriggeringUser()
     {
         var service = Substitute.For<IStarshipExpeditionService>();
-        service.StartExpeditionAsync(Arg.Any<string?>(), Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<CancellationToken>())
+        service.StartExpeditionAsync(Arg.Any<string?>(), Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<CancellationToken>(), Arg.Any<string?>())
             .Returns(new StarshipExpeditionSnapshot());
         var handler = new StarshipStartExpeditionHandler(service);
-        var variables = new ConcurrentDictionary<string, string> { ["User"] = "ChannelPointUser" };
+        var variables = new ConcurrentDictionary<string, string> { ["User"] = "ChannelPointUser", ["UserId"] = "viewer-1" };
 
         await handler.ExecuteAsync(new StarshipStartExpeditionType(), variables);
 
-        await service.Received(1).StartExpeditionAsync("ChannelPointUser", null, null, null, null, Arg.Any<CancellationToken>());
+        await service.Received(1).StartExpeditionAsync("ChannelPointUser", null, null, null, null, Arg.Any<CancellationToken>(), "viewer-1");
     }
 
     [Fact]

@@ -16,7 +16,8 @@ public interface IStarshipExpeditionService
         int? minimumEventIntervalMinutes = null,
         int? maximumEventIntervalMinutes = null,
         int? seed = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? startedByUserId = null);
     Task<StarshipExpeditionSnapshot?> StopExpeditionAsync(string? stoppedBy, CancellationToken cancellationToken = default);
     Task<StarshipExpeditionSnapshot> AdvanceEventAsync(CancellationToken cancellationToken = default);
     Task<StarshipExpeditionSnapshot> JoinCrewAsync(CommandEventArgs eventArgs, CancellationToken cancellationToken = default);

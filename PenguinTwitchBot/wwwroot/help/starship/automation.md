@@ -22,42 +22,58 @@ Starship Expedition uses the bot's normal trigger and action system. Attach acti
 | Variable | Available on | Description |
 | :--- | :--- | :--- |
 | `%Game%`, `%ExpeditionId%`, `%Leg%`, `%LegCount%`, `%Sector%`, `%CrewCount%` | All | Voyage information |
+| `%ShipName%`, `%Route%`, `%VoyageStatus%`, `%StartedBy%`, `%Seed%`, `%CompletedLegs%` | All | Ship identity, current route/status, voyage initiator, deterministic seed and completed progress |
+| `%NextEventAtUtc%`, `%BoardingClosesAtUtc%` | All | ISO UTC scheduling timestamps; empty if unavailable |
+| `%ChatMessage%` | All | Full built-in chat announcement for boarding/opened/step/resolved/succeeded/failed/ended transitions; empty when no announcement is associated with the trigger |
+| `%TtsMessage%` | All | Short spoken announcement for boarding, joining, voting, outcomes, banking and voyage end; no chat commands, detailed odds, IDs or signed resource notation |
+| `%VoyageWinnings%`, `%VoyageLosses%`, `%VoyageWinningsPerCrewMember%`, `%VoyageLossesPerCrewMember%` | All | Whole-voyage earned/lost totals and per-person averages, each currency labeled separately |
+| `%VoyagePointTypes%`, `%VoyageRewardAmountsJson%` | All | Whole-voyage currencies and structured per-currency amounts |
+| `%BankedAmounts%`, `%PendingBankedAmounts%`, `%UnbankedAmounts%` | All | Already-paid, queued/unpaid and currently unbanked crew totals, separately labeled by currency |
 | `%ShipSystemsEnabled%`, `%Hull%`, `%Supplies%` | All | Integrated-resource flag and current shared resources; resource numbers are empty for legacy/disabled voyages |
 | `%PendingSuccessBonusPercent%`, `%ActiveSuccessBonusPercent%`, `%ReturnReason%` | All | Next/current bonus in percentage points; `HullDepleted` for emergency return, otherwise empty |
 | `%HullBefore%`, `%HullAfter%`, `%HullChange%`, `%HullMaximum%`, `%SuppliesBefore%`, `%SuppliesAfter%`, `%SuppliesChange%` | Resolved, Succeeded, Failed | Whole-event changes, including all steps; opening values are after travel, so travel is excluded; empty without ship context |
 | `%EventBaseSuccessChancePercent%`, `%EventSuccessModifierPercent%` | Resolved, Succeeded, Failed | Frozen base chance and resource modifier (shortage plus Continue), before choice modifiers |
 | `%User%` | Crew Joined, Risk triggers | The viewer involved |
 | `%EventTitle%`, `%EventType%` | Event triggers | Which event it was |
+| `%EventId%`, `%EventDescription%`, `%Step%`, `%StepId%` | Opened, Step Advanced, Resolved, Succeeded, Failed | Stable event ID, original description template and current/resolved step identity |
+| `%DefaultChoiceId%`, `%EventClosesAtUtc%`, `%Duration%` | Opened, Step Advanced | Default choice, current ISO UTC deadline and voting duration in seconds |
 | `%Choices%` | Event Opened, Step Advanced | Choices available |
 | `%Step%`, `%StepNote%`, `%RevealedRarity%` | Event Step Advanced | What the last choice did |
 | `%Path%` | Step, Resolved, Succeeded, Failed | Choices made, in order |
 | `%Outcome%`, `%Rarity%` | Resolved, Succeeded, Failed | Result of the roll and the find's rarity |
 | `%PointType%`, `%RewardTotal%`, `%LostTotal%` | Resolved, Succeeded, Failed | First outcome currency and aggregate amounts across currencies |
 | `%AffectedCount%` | Succeeded, Failed | Number of distinct viewers with a nonzero earned or lost amount, across all currencies |
-| `%RewardParticipantCount%` | Resolved | Number of distinct viewers with a positive earned amount |
-| `%Summary%` | Resolved, Voyage Ended | Ready-made sentence for chat |
+| `%RewardParticipantCount%`, `%EligibleCrewCount%` | Resolved, Succeeded, Failed | Distinct positively rewarded viewers and earn-time eligible crew respectively |
+| `%Winnings%`, `%Losses%` | Resolved, Succeeded, Failed | Event totals with each currency labeled separately; empty when none |
+| `%WinningsPerCrewMember%`, `%LossesPerCrewMember%` | Resolved, Succeeded, Failed | Per-currency averages across distinct eligible crew represented by outcome rows, including zero awards |
+| `%PointTypes%`, `%RewardAmountsJson%` | Resolved, Succeeded, Failed | Currency names and a JSON array containing `pointTypeId`, `pointTypeName`, `earned`, `lost`, `crewCount` |
+| `%Choice%`, `%ChoiceId%`, `%VoteCount%` | Resolved, Succeeded, Failed | Winning/default choice, stable choice ID and number of recorded votes |
+| `%Summary%` | Resolved, Succeeded, Failed, Voyage Ended | Detailed outcome summary including path/resource context; use ChatMessage to reproduce the actual shorter announcement |
 | `%Story%` | Resolved, Succeeded, Failed | Generated story of what happened, using the names of the viewers who chose each option |
 | `%Subject%` | Event Opened, Step Advanced, Resolved, Succeeded, Failed | Generated name of the ship, signal or hazard (for example `the ISV Quiet Meridian`) |
 | `%EventsSucceeded%`, `%EventsFailed%`, `%Result%`, `%Duration%` | Voyage Ended | Voyage totals |
 | `%Amount%` | Crew Reward Banked | Amount banked |
+| `%AmountFormatted%`, `%PointTypeId%`, `%OperationId%` | Crew Reward Banked | Localized banked amount, currency ID and stable payout operation ID |
 
 ## Suggested messages
 
-- Event Resolved: `%Summary%`
-- Event Succeeded: `%EventTitle%: %Story%`
-- Event Failed: `%EventTitle%: %Story%`
-- Event Step Advanced: `%StepNote% Options: %Choices%`
-- Voyage Ended: `%Summary%`
+For a TTS sub-action, use `%TtsMessage%` as its text. For example: "Derelict Salvage succeeded. The find was Rare. Average reward per eligible crew member: 15 Credits." Vote announcements use spoken option numbers instead of chat commands. Outcome messages omit the long story/path and describe resource changes as gains or losses. Voyage summaries distinguish banked and pending rewards. This variable does not speak automatically and does not change the regular chat announcement. Resolved and its matching Succeeded/Failed trigger carry the same TTS outcome; attaching the same TTS action to both will speak twice. Reward-profile outcome actions also receive TtsMessage.
 
-The bot already announces these in chat by default; use triggers for extra alerts, sounds or scene changes.
+- Event Resolved / Succeeded / Failed: `%ChatMessage%`
+- Event Step Advanced / Event Opened / Boarding Opened: `%ChatMessage%`
+- Voyage Ended: `%ChatMessage%`
+- Reward-only announcement: `%EventTitle%: %WinningsPerCrewMember% average per crew member.`
+- Crew Reward Banked: `%User% banked %AmountFormatted% %PointType%.`
+
+The bot already announces these in chat by default; sending ChatMessage from an additional action repeats that announcement. Prefer triggers for extra alerts, sounds or scene changes unless you deliberately want another chat message. Numeric formula variables remain invariant machine-readable values; the grouped display amounts use the bot's current locale.
 
 ## Custom Event Context
 
 Custom events use these same event triggers, not a separate trigger per definition. `%EventType%` is the stable custom event ID and `%EventTitle%` is its title. A duplicated/imported event receives a new ID. Story tokens such as `{subject}` belong in event templates; action messages use `%Subject%`, `%Story%` and the other runtime variables above.
 
-Event Resolved fires once for the group, including a passed or non-rewarding event. On integrated voyages, Event Succeeded/Failed follow the success/failure outcome even without enabled point rewards. Passing does not fire either outcome trigger. Legacy voyages retain their previous behavior. Step Advanced fires after a continuing choice. `%Summary%` is available on Resolved and Voyage Ended, not Succeeded/Failed.
+Event Resolved fires once for the group, including a passed or non-rewarding event. On integrated voyages, Event Succeeded/Failed follow the success/failure outcome even without enabled point rewards. Passing does not fire either outcome trigger. Legacy voyages retain their previous behavior. Step Advanced fires after a continuing choice. Summary and ChatMessage are shared by Resolved and its matching Succeeded/Failed event.
 
-With several currencies, do not describe `%RewardTotal%` as an amount of `%PointType%`: the total is aggregate while the name is the first outcome currency. Use the Resolved `%Summary%` for grouped chat feedback, or Crew Reward Banked for the actual per-user/per-currency permanent payout. Risk triggers fire once per viewer and aggregate that viewer's earned/lost amounts across currencies; use them only for events that genuinely offer that older personal-choice path. Custom editor events do not.
+With several currencies, do not describe `%RewardTotal%` as an amount of `%PointType%`: the total is aggregate while the name is the first outcome currency. Use Winnings/Losses for labeled totals, WinningsPerCrewMember/LossesPerCrewMember for labeled averages, RewardAmountsJson for per-currency numeric values, or Crew Reward Banked for the actual per-user/per-currency permanent payout. Risk triggers fire once per viewer and aggregate that viewer's earned/lost amounts across currencies; use them only for events that genuinely offer that older personal-choice path. Custom editor events do not.
 
 ## Reward Profile Actions
 

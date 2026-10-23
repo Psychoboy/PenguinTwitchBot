@@ -104,7 +104,7 @@
                         {
                             <MudStack Spacing="0">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudText>@context.Name</MudText>
+                                    <MudText>@GetFriendlyTriggerName(context)</MudText>
                                     @if (isFeatureDisabled)
                                     {
                                         <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
@@ -587,6 +587,7 @@
     {
         return trigger.Type switch
         {
+            TriggerTypes.DefaultCommand => PenguinTwitchBot.Bot.Actions.Triggers.TriggerCatalog.GetDefaultCommandTriggerDisplayName(trigger),
             TriggerTypes.FishCatch => "Fish Caught",
             TriggerTypes.FishingTournamentCatch => "Tournament Eligible Catch",
             TriggerTypes.FishingTournamentStart => "Tournament Started",

@@ -46,9 +46,77 @@ public class StarshipExpeditionServiceTests
         Assert.Equal("Credits", variables["PointType"]);
         Assert.Equal("Scan > Recover", variables["Path"]);
         Assert.Equal(expeditionEvent.OutcomeStory, variables["Story"]);
+        Assert.Equal("10 Credits, 5 Tokens", variables["Winnings"]);
+        Assert.Equal("2 Tokens", variables["Losses"]);
+        Assert.Equal("10 Credits, 5 Tokens", variables["WinningsPerCrewMember"]);
+        Assert.Equal("2 Tokens", variables["LossesPerCrewMember"]);
+        Assert.Equal(StarshipExpeditionNarrative.BuildChatEventMessage(expeditionEvent), variables["ChatMessage"]);
+        using var amountDocument = JsonDocument.Parse(variables["RewardAmountsJson"]);
+        Assert.Equal(2, amountDocument.RootElement.GetArrayLength());
+        Assert.Equal(1, amountDocument.RootElement[0].GetProperty("crewCount").GetInt32());
         Assert.False(variables.ContainsKey("AffectedCount"));
         Assert.False(variables.ContainsKey("Summary"));
         Assert.False(variables.ContainsKey("BankedTotal"));
+    }
+
+    [Fact]
+    public void TtsOutcomeMessage_UsesShortSentencesAveragesAndSpokenResourceChanges()
+    {
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            Title = "Derelict Salvage", OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess, OutcomeRarity = "Rare",
+            OutcomeStory = "A long story that should not be read aloud.",
+            RewardOutcomes =
+            [
+                new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = 1000 },
+                new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = 1500 }
+            ],
+            ShipContext = new() { HullBefore = 80, HullAfter = 65, HullMaximum = 100, SuppliesBefore = 50, SuppliesAfter = 40 }
+        };
+
+        var message = StarshipExpeditionNarrative.BuildTtsOutcomeMessage(expeditionEvent);
+
+        Assert.Equal("Derelict Salvage succeeded. The find was Rare. Average reward per eligible crew member: 1250 Credits. The ship lost 15 hull. The ship lost 10 supplies.", message);
+        Assert.Equal(message, StarshipEventVariables.ForOutcome(expeditionEvent)["TtsMessage"]);
+        Assert.DoesNotContain(expeditionEvent.OutcomeStory, message);
+        Assert.DoesNotContain("/", message);
+    }
+
+    [Fact]
+    public void TtsVoteMessage_UsesSpokenOptionsWithoutCommandSyntaxOrEffects()
+    {
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            Title = "Signal", Choices =
+            [
+                new() { ChoiceId = "scan", Label = "Scan the signal", SuccessChanceModifierPercent = 20 },
+                new() { ChoiceId = "pass", Label = "Continue on course" }
+            ]
+        };
+
+        var message = StarshipEventVariables.ForEvent(expeditionEvent)["TtsMessage"];
+
+        Assert.Equal("Signal. Crew voting is open. Option 1: Scan the signal. Option 2: Continue on course.", message);
+        Assert.DoesNotContain("!sv", message);
+        Assert.DoesNotContain("%", message);
+    }
+
+    [Fact]
+    public void TtsVoyageMessage_DistinguishesPaidAndPendingBanking()
+    {
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            Status = StarshipExpeditionStatus.Returned,
+            Crew = [new() { UserId = "pilot" }, new() { UserId = "medic" }],
+            BankedPayouts =
+            [
+                new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", Amount = 1000, IsPaid = true },
+                new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", Amount = 9000, IsPaid = false }
+            ]
+        };
+
+        Assert.Equal("The voyage is complete. 2 crew members were aboard. Average banked reward per crew member: 1000 Credits. Some crew rewards are still being banked.",
+            StarshipExpeditionNarrative.BuildTtsVoyageMessage(snapshot));
     }
 
     [Fact]
@@ -306,6 +374,47 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public async Task StartExpedition_PersistsDisplayNameAndStarterUserIdSeparatelyAndUsesIdForFallbackTrigger()
+    {
+        var store = new InMemoryStateStore();
+        var capturedArgs = new List<CommandEventArgs>();
+        var triggers = new Mock<IDefaultCommandTriggerService>();
+        triggers.Setup(service => service.TriggerDefaultCommandEventAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Callback<string, string, CommandEventArgs, Dictionary<string, string>>((_, _, args, _) => capturedArgs.Add(args))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(store, defaultCommandTriggerService: triggers.Object);
+
+        await service.StartExpeditionAsync("Broadcaster Display", seed: 9, startedByUserId: "twitch-123");
+        var started = await service.GetSnapshotAsync();
+        var recovered = await CreateService(store).GetSnapshotAsync();
+
+        Assert.Equal("Broadcaster Display", started!.StartedBy);
+        Assert.Equal("twitch-123", started.StartedByUserId);
+        Assert.Equal("twitch-123", capturedArgs[0].UserId);
+        Assert.Equal("Broadcaster Display", capturedArgs[0].DisplayName);
+        Assert.Equal("twitch-123", recovered!.StartedByUserId);
+    }
+
+    [Fact]
+    public async Task StartExpedition_LeavesFallbackTriggerUserIdEmptyWhenStarterIdIsUnknown()
+    {
+        var capturedArgs = new List<CommandEventArgs>();
+        var triggers = new Mock<IDefaultCommandTriggerService>();
+        triggers.Setup(service => service.TriggerDefaultCommandEventAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Callback<string, string, CommandEventArgs, Dictionary<string, string>>((_, _, args, _) => capturedArgs.Add(args))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), defaultCommandTriggerService: triggers.Object);
+
+        await service.StartExpeditionAsync("Display Only Starter", seed: 10);
+
+        Assert.Equal("Display Only Starter", (await service.GetSnapshotAsync())!.StartedBy);
+        Assert.Empty((await service.GetSnapshotAsync())!.StartedByUserId);
+        Assert.Empty(capturedArgs[0].UserId);
+    }
+
+    [Fact]
     public async Task StartAndTakeoff_AnnounceJoinAndVoteInstructionsAndFireTriggers()
     {
         var chatMessages = new List<string>();
@@ -321,7 +430,7 @@ public class StarshipExpeditionServiceTests
         var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore,
             serviceBackboneMock: serviceBackbone, defaultCommandTriggerService: triggerService.Object);
 
-        await service.StartExpeditionAsync("moderator", seed: 83);
+        await service.StartExpeditionAsync("moderator", seed: 83, startedByUserId: "mod-id");
         Assert.Contains(chatMessages, message => message.Contains("30s", StringComparison.Ordinal) && message.Contains("!starship join", StringComparison.Ordinal));
         Assert.DoesNotContain(chatMessages, message => message.Contains("!starship vote", StringComparison.Ordinal));
 
@@ -334,13 +443,15 @@ public class StarshipExpeditionServiceTests
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipBoardingOpened,
-            It.IsAny<CommandEventArgs>(),
-            It.Is<Dictionary<string, string>>(variables => variables["ShipSystemsEnabled"] == "true" && variables["Hull"] == "80" && variables["Supplies"] == "55")), Times.Once);
+            It.Is<CommandEventArgs>(args => args.UserId == "mod-id" && args.DisplayName == "moderator"),
+            It.Is<Dictionary<string, string>>(variables => variables["ShipSystemsEnabled"] == "true" && variables["Hull"] == "80" && variables["Supplies"] == "55" &&
+                chatMessages.Contains(variables["ChatMessage"]) && variables["ShipName"].Length > 0 && variables.ContainsKey("Route"))), Times.Once);
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipEventOpened,
             It.IsAny<CommandEventArgs>(),
-            It.IsAny<Dictionary<string, string>>()), Times.Once);
+            It.Is<Dictionary<string, string>>(variables => chatMessages.Contains(variables["ChatMessage"]) &&
+                variables["EventId"].Length > 0 && variables["Choices"].Contains("1)") && variables.ContainsKey("VoyageRewardAmountsJson"))), Times.Once);
     }
 
     [Theory]
@@ -2214,6 +2325,28 @@ public class StarshipExpeditionServiceTests
         await service.AdvanceEventAsync();
 
         Assert.Equal(succeeds ? "1" : "0", fired.Single(item => item.EventType == DefaultCommandEventTypes.StarshipEventResolved).Variables["RewardParticipantCount"]);
+        var resolvedVariables = fired.Single(item => item.EventType == DefaultCommandEventTypes.StarshipEventResolved).Variables;
+        var outcomeVariables = fired.Single(item => item.EventType == (succeeds ? DefaultCommandEventTypes.StarshipEventSucceeded : DefaultCommandEventTypes.StarshipEventFailed)).Variables;
+        Assert.Equal(resolvedVariables["ChatMessage"], outcomeVariables["ChatMessage"]);
+        Assert.NotEmpty(outcomeVariables["ChatMessage"]);
+        Assert.Contains("Tokens", outcomeVariables["PointTypes"]);
+        Assert.Contains("Salvage Credits", outcomeVariables["PointTypes"]);
+        var resolver = new PenguinTwitchBot.Bot.Actions.Variables.Triggers.DefaultCommandTriggerVariableResolver();
+        var metadata = new Dictionary<string, PenguinTwitchBot.Bot.Actions.Variables.ActionVariableInfo>();
+        resolver.ResolveVariables(new PenguinTwitchBot.Database.Bot.Models.Actions.Triggers.TriggerType
+        {
+            Type = PenguinTwitchBot.Database.Bot.Models.Actions.Triggers.TriggerTypes.DefaultCommand,
+            Name = "starship_EventResolved",
+            Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+            {
+                DefaultCommandName = "starship", EventType = DefaultCommandEventTypes.StarshipEventResolved
+            })
+        }, metadata);
+        foreach (var key in new[] { "ChatMessage", "TtsMessage", "Winnings", "Losses", "WinningsPerCrewMember", "RewardAmountsJson", "ShipName", "Route", "EventId", "ChoiceId", "EligibleCrewCount", "VoyageWinnings", "BankedAmounts", "UnbankedAmounts" })
+        {
+            Assert.True(metadata.ContainsKey(key), key);
+            Assert.True(resolvedVariables.ContainsKey(key), key);
+        }
         Assert.Equal("1", fired.Single(item => item.EventType == (succeeds ? DefaultCommandEventTypes.StarshipEventSucceeded : DefaultCommandEventTypes.StarshipEventFailed)).Variables["AffectedCount"]);
         var risk = Assert.Single(fired, item => item.EventType == (succeeds ? DefaultCommandEventTypes.StarshipRiskSucceeded : DefaultCommandEventTypes.StarshipRiskFailed));
         Assert.Equal(succeeds ? "20" : "0", risk.Variables["EarnedAmount"]);

@@ -197,6 +197,8 @@ namespace PenguinTwitchBot.Test.Pages.Actions
                 var markup = dialogProvider.Markup;
                 Assert.Contains("Configure Gamble - Win", markup);
                 Assert.Contains("Select Default Command", markup);
+                Assert.Equal("Gamble - Win", dialogProvider.FindComponents<MudTextField<string>>()
+                    .Single(component => component.Instance.Label == "Trigger Name").Find("input").GetAttribute("value"));
             });
         }
 

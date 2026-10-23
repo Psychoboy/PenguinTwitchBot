@@ -20,7 +20,8 @@ public sealed class StarshipStartExpeditionHandler(IStarshipExpeditionService st
             throw new SubActionHandlerException(subAction, "SubAction with type StarshipStartExpedition is not of StarshipStartExpeditionType class");
 
         var startedBy = variables.TryGetValue("User", out var user) && !string.IsNullOrWhiteSpace(user) ? user : "SubAction";
-        await starshipService.StartExpeditionAsync(startedBy);
+        var startedByUserId = variables.TryGetValue("UserId", out var userId) ? userId : null;
+        await starshipService.StartExpeditionAsync(startedBy, startedByUserId: startedByUserId);
         context?.LogMessage(subActionIndex, $"Started Starship Expedition for {startedBy} using saved game settings");
     }
 }
