@@ -24,7 +24,7 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
 
         // Standard command variables always forwarded on default command executions
         variables.SetVariable("User", "The username of the chatter executing the command", source, category, "penguin_fan");
-        variables.SetVariable("UserId", "Twitch user ID of the triggering viewer", source, category, "12345678");
+        variables.SetVariable("UserId", "Twitch user ID when available from the chat event or saved voyage starter; empty for service-generated triggers without an ID", source, category, "12345678");
         variables.SetVariable("Name", "The username of the chatter", source, category, "penguin_fan");
         variables.SetVariable("DisplayName", "The display name of the chatter", source, category, "Penguin_Fan");
         variables.SetVariable("Command", "The name of the default command", source, category, "spinwheel");

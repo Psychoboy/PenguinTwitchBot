@@ -374,6 +374,47 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public async Task StartExpedition_PersistsDisplayNameAndStarterUserIdSeparatelyAndUsesIdForFallbackTrigger()
+    {
+        var store = new InMemoryStateStore();
+        var capturedArgs = new List<CommandEventArgs>();
+        var triggers = new Mock<IDefaultCommandTriggerService>();
+        triggers.Setup(service => service.TriggerDefaultCommandEventAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Callback<string, string, CommandEventArgs, Dictionary<string, string>>((_, _, args, _) => capturedArgs.Add(args))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(store, defaultCommandTriggerService: triggers.Object);
+
+        await service.StartExpeditionAsync("Broadcaster Display", seed: 9, startedByUserId: "twitch-123");
+        var started = await service.GetSnapshotAsync();
+        var recovered = await CreateService(store).GetSnapshotAsync();
+
+        Assert.Equal("Broadcaster Display", started!.StartedBy);
+        Assert.Equal("twitch-123", started.StartedByUserId);
+        Assert.Equal("twitch-123", capturedArgs[0].UserId);
+        Assert.Equal("Broadcaster Display", capturedArgs[0].DisplayName);
+        Assert.Equal("twitch-123", recovered!.StartedByUserId);
+    }
+
+    [Fact]
+    public async Task StartExpedition_LeavesFallbackTriggerUserIdEmptyWhenStarterIdIsUnknown()
+    {
+        var capturedArgs = new List<CommandEventArgs>();
+        var triggers = new Mock<IDefaultCommandTriggerService>();
+        triggers.Setup(service => service.TriggerDefaultCommandEventAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Callback<string, string, CommandEventArgs, Dictionary<string, string>>((_, _, args, _) => capturedArgs.Add(args))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), defaultCommandTriggerService: triggers.Object);
+
+        await service.StartExpeditionAsync("Display Only Starter", seed: 10);
+
+        Assert.Equal("Display Only Starter", (await service.GetSnapshotAsync())!.StartedBy);
+        Assert.Empty((await service.GetSnapshotAsync())!.StartedByUserId);
+        Assert.Empty(capturedArgs[0].UserId);
+    }
+
+    [Fact]
     public async Task StartAndTakeoff_AnnounceJoinAndVoteInstructionsAndFireTriggers()
     {
         var chatMessages = new List<string>();
@@ -389,7 +430,7 @@ public class StarshipExpeditionServiceTests
         var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore,
             serviceBackboneMock: serviceBackbone, defaultCommandTriggerService: triggerService.Object);
 
-        await service.StartExpeditionAsync("moderator", seed: 83);
+        await service.StartExpeditionAsync("moderator", seed: 83, startedByUserId: "mod-id");
         Assert.Contains(chatMessages, message => message.Contains("30s", StringComparison.Ordinal) && message.Contains("!starship join", StringComparison.Ordinal));
         Assert.DoesNotContain(chatMessages, message => message.Contains("!starship vote", StringComparison.Ordinal));
 
@@ -402,7 +443,7 @@ public class StarshipExpeditionServiceTests
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipBoardingOpened,
-            It.IsAny<CommandEventArgs>(),
+            It.Is<CommandEventArgs>(args => args.UserId == "mod-id" && args.DisplayName == "moderator"),
             It.Is<Dictionary<string, string>>(variables => variables["ShipSystemsEnabled"] == "true" && variables["Hull"] == "80" && variables["Supplies"] == "55" &&
                 chatMessages.Contains(variables["ChatMessage"]) && variables["ShipName"].Length > 0 && variables.ContainsKey("Route"))), Times.Once);
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(

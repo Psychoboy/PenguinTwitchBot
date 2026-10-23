@@ -33,6 +33,7 @@ public sealed class StarshipExpeditionSnapshot
 
     public int Seed { get; init; }
     public string StartedBy { get; init; } = string.Empty;
+    public string StartedByUserId { get; init; } = string.Empty;
     public StarshipExpeditionStatus Status { get; set; } = StarshipExpeditionStatus.Cruising;
     public DateTimeOffset StartedAtUtc { get; init; }
     public DateTimeOffset UpdatedAtUtc { get; set; }

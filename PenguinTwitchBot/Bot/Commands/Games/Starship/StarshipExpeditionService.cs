@@ -144,7 +144,8 @@ public sealed class StarshipExpeditionService(
                     var legCount = ParseOptionalInteger(args, 1);
                     var minimumInterval = ParseOptionalInteger(args, 2);
                     var maximumInterval = ParseOptionalInteger(args, 3);
-                    var started = await StartExpeditionAsync(eventArgs.DisplayName, legCount, minimumInterval, maximumInterval);
+                    var started = await StartExpeditionAsync(eventArgs.DisplayName, legCount, minimumInterval, maximumInterval,
+                        startedByUserId: eventArgs.UserId);
                     await RespondWithMessage(eventArgs, $"Starship Expedition boarding is open for {started.BoardingDurationSeconds} seconds.");
                     return;
 
@@ -410,7 +411,8 @@ public sealed class StarshipExpeditionService(
         int? minimumEventIntervalMinutes = null,
         int? maximumEventIntervalMinutes = null,
         int? seed = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? startedByUserId = null)
     {
         var settings = await settingsStore.LoadAsync(cancellationToken);
         if (!settings.GameEnabled)
@@ -439,6 +441,7 @@ public sealed class StarshipExpeditionService(
                 ExpeditionId = Guid.NewGuid(),
                 Seed = expeditionSeed,
                 StartedBy = startedBy?.Trim() ?? string.Empty,
+                StartedByUserId = startedByUserId?.Trim() ?? string.Empty,
                 Ship = StarshipExpeditionStory.GenerateShip(expeditionSeed),
                 ShipSystems = StarshipShipSystems.Create(settings.ShipSystems),
                 EmergencyReturnSound = settings.EmergencyReturnSound == null ? null : new DropGameSoundConfig
@@ -1033,7 +1036,7 @@ public sealed class StarshipExpeditionService(
             Command = DefaultCommandName,
             Name = snapshot.StartedBy,
             DisplayName = snapshot.StartedBy,
-            UserId = snapshot.StartedBy
+            UserId = snapshot.StartedByUserId
         };
 
         try
