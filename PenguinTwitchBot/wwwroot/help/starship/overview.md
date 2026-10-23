@@ -94,8 +94,10 @@ Images must be media-library files (a path starting with `/media/`) or an `http(
 
 ## Overlays
 
-- **Status widget** (`/starship-status.html`): compact progress, sector, crew and timer. It fades out while the ship is cruising between events and returns for boarding, events and the voyage end. Use the **Starship Show Status Widget** action to bring it back for a set time.
-- **Event widget** (`/starship-event.html`): numbered choices, vote counts, the path taken, any revealed rarity and the result of each event.
+- **Status widget** (`/starship-status.html`, default 520x180): ship, sector, crew, resources and a prominent next-event countdown. It fades out between events; new voyage activity brings it back for 30 seconds. Use the **Starship Show Status Widget** action to show it for a configured duration, including over an active event.
+- **Event widget** (`/starship-event.html`, default 620x360): large numbered vote commands, up to four full-width choices, live vote counts/bars, concise consequences and per-crew results. Artwork takes a larger role during boarding/results rather than narrowing the voting area. Detailed odds, limits and event history remain in the streamer interface.
+
+Normal choices stay still. Long custom choices scroll slowly only when they exceed the available voting area, with a reading pause at either end. Disabling animations or enabling the browser's reduced-motion preference stops automatic scrolling. Both widgets scale proportionally when their browser-source size changes; their default footprints have not increased.
 
 Both widgets use the same real-time connection; if it drops they reconnect and reload the latest state.
 

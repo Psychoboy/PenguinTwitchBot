@@ -276,6 +276,51 @@ namespace PenguinTwitchBot.Test.ClientScripts
             return engine;
         }
 
+        [Theory]
+        [InlineData("event", 620, 360)]
+        [InlineData("status", 520, 180)]
+        public void StarshipWidgets_RegistryDefaultSizeDoesNotShrinkText(string view, int width, int height)
+        {
+            var definition = PenguinTwitchBot.Database.Bot.Models.Overlay.WidgetRegistry.Find("starship-" + view)!;
+            Assert.Equal(width, definition.DefaultWidth);
+            Assert.Equal(height, definition.DefaultHeight);
+            var engine = CreateStarshipOverlayEngine(view, $"window.innerWidth = {width}; window.innerHeight = {height};");
+
+            Assert.Equal("1", engine.Evaluate("document.getElementById('stage').style['--ui-scale']").AsString());
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void StarshipChoices_PreserveRowsAndScrollOnlyOverflowRespectingReducedMotion(bool reducedMotion)
+        {
+            var engine = CreateStarshipOverlayEngine("event", $@"
+                window.__clock = 1000000;
+                Date.now = function() {{ return window.__clock; }};
+                window.matchMedia = function() {{ return {{ matches: {reducedMotion.ToString().ToLowerInvariant()} }}; }};");
+            engine.Execute(@"
+                window.__choiceSnapshot = { status: 'EventOpen', currentEvent: {
+                    sequence: 1, title: 'Salvage', stepNumber: 1,
+                    choices: [{ choiceId: 'scan', label: 'Scan the wreck', number: 1 }], voteCounts: { scan: 2 }
+                }};
+                window.StarshipOverlay.applyEnvelope({type:'expedition_state', snapshot:window.__choiceSnapshot});
+                window.__firstRow = document.getElementById('choices').children[0];
+                document.getElementById('choices').scrollHeight = 300;
+                document.getElementById('choices').clientHeight = 200;
+                window.__renderTick();
+            ");
+            Assert.Equal(0, engine.Evaluate("document.getElementById('choices').scrollTop").AsNumber());
+            engine.Execute("window.__clock += 6000; window.__renderTick();");
+            Assert.True(engine.Evaluate("document.getElementById('choices').children[0] === window.__firstRow").AsBoolean());
+            Assert.Equal(reducedMotion ? 0 : 5, engine.Evaluate("document.getElementById('choices').scrollTop").AsNumber());
+            engine.Execute(@"
+                window.StarshipOverlay.applyAppearance({animationsEnabled:false});
+                window.__clock += 6000;
+                window.__renderTick();
+            ");
+            Assert.Equal(reducedMotion ? 0 : 5, engine.Evaluate("document.getElementById('choices').scrollTop").AsNumber());
+        }
+
         private static void DispatchStarshipOverlayState(Engine engine, object snapshot, bool realtime = true)
         {
             var payload = JsonSerializer.Serialize(new { type = "expedition_state", snapshot });
@@ -1031,6 +1076,9 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 Assert.Equal("Unavailable", engine.Evaluate("document.getElementById('choices').children[2].children[1].textContent").AsString());
                 Assert.Contains("Requires 15 supplies", engine.Evaluate("document.getElementById('choices').children[2].children[5].textContent").AsString());
                 Assert.Contains("Supplies net +40", engine.Evaluate("document.getElementById('choices').children[0].children[5].textContent").AsString());
+                Assert.Equal("Supplies +40", engine.Evaluate("document.getElementById('choices').children[0].children[6].textContent").AsString());
+                Assert.Contains("Next event +10pp success", engine.Evaluate("document.getElementById('choices').children[1].children[6].textContent").AsString());
+                Assert.Equal("Requires 15 supplies", engine.Evaluate("document.getElementById('choices').children[2].children[6].textContent").AsString());
             }
         }
 
@@ -1383,8 +1431,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.True(engine.Evaluate("document.getElementById('result-timeline').hidden").AsBoolean());
             Assert.Equal("2", engine.Evaluate("String(document.getElementById('result-lines').children.length)").AsString());
             Assert.Equal("SUCCESS - Rare find.", engine.Evaluate("document.getElementById('result-lines').children[0].textContent").AsString());
+            Assert.True(engine.Evaluate("document.getElementById('result-lines').children[0].hidden").AsBoolean());
+            Assert.Equal("Earned 15 Salvage Credits (avg / crew).", engine.Evaluate("document.getElementById('result-lines').children[1].textContent").AsString());
             Assert.Equal("Take the direct route", engine.Evaluate("document.getElementById('result-choice').textContent").AsString());
-            Assert.Equal("15 Salvage Credits banked average per banked crew member", engine.Evaluate("document.getElementById('result-banked').children[0].textContent").AsString());
+            Assert.Equal("15 Salvage Credits banked (avg / crew)", engine.Evaluate("document.getElementById('result-banked').children[0].textContent").AsString());
             Assert.True(engine.Evaluate("document.getElementById('event-panel').hidden").AsBoolean());
 
             DispatchStarshipOverlayState(engine, new
