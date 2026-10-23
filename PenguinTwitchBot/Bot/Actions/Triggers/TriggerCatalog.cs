@@ -1,4 +1,5 @@
 using MudBlazor;
+using System.Text.Json;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
@@ -1339,6 +1340,30 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                     (t.TwitchEventName != null && t.TwitchEventName.Contains(query, StringComparison.OrdinalIgnoreCase)))
                 .OrderBy(t => t.DisplayName)
                 .ToList();
+        }
+
+        public static string GetDefaultCommandTriggerName(string commandName, string eventType) =>
+            FindItem(TriggerTypes.DefaultCommand, commandName, eventType)?.DisplayName
+            ?? $"{commandName} - {eventType.Split('.').Last()}";
+
+        public static string GetDefaultCommandTriggerDisplayName(TriggerType trigger)
+        {
+            if (trigger.Type != TriggerTypes.DefaultCommand || string.IsNullOrWhiteSpace(trigger.Configuration))
+                return trigger.Name;
+            try
+            {
+                var configuration = JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(trigger.Configuration);
+                if (string.IsNullOrEmpty(configuration?.DefaultCommandName) || string.IsNullOrEmpty(configuration.EventType))
+                    return trigger.Name;
+                var legacyName = $"{configuration.DefaultCommandName}_{configuration.EventType.Split('.').Last()}";
+                return string.Equals(trigger.Name, legacyName, StringComparison.OrdinalIgnoreCase)
+                    ? FindItem(trigger.Type, configuration.DefaultCommandName, configuration.EventType)?.DisplayName ?? trigger.Name
+                    : trigger.Name;
+            }
+            catch (JsonException)
+            {
+                return trigger.Name;
+            }
         }
 
         public static TriggerItemInfo? FindItem(TriggerTypes type, string? defaultCommandName = null, string? eventType = null, string? twitchEventName = null)

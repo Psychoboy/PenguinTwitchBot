@@ -138,6 +138,58 @@ public static class StarshipExpeditionNarrative
         return $"{expeditionEvent.Title}: {string.Join(" ", lines)}";
     }
 
+    public static string BuildTtsOutcomeMessage(StarshipExpeditionEventSnapshot expeditionEvent)
+    {
+        var lines = new List<string>
+        {
+            expeditionEvent.OutcomeResult switch
+            {
+                OutcomeSuccess => $"{expeditionEvent.Title} succeeded.",
+                OutcomeFailure => $"{expeditionEvent.Title} failed.",
+                OutcomePassed => $"The crew passed on {expeditionEvent.Title}. No reward or loss.",
+                _ => $"{expeditionEvent.Title} is complete."
+            }
+        };
+        if (expeditionEvent.OutcomeResult == OutcomeSuccess && !string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity))
+            lines.Add($"The find was {expeditionEvent.OutcomeRarity}.");
+        var earned = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.EarnedAmount);
+        var lost = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.LostAmount);
+        if (earned.Count > 0) lines.Add($"Average reward per eligible crew member: {FormatSpokenAmounts(earned)}.");
+        if (lost.Count > 0) lines.Add($"Average loss per eligible crew member: {FormatSpokenAmounts(lost)}.");
+        if (expeditionEvent.ShipContext is { } ship)
+        {
+            var hull = ship.HullAfter - ship.HullBefore;
+            var supplies = ship.SuppliesAfter - ship.SuppliesBefore;
+            if (hull != 0) lines.Add($"The ship {(hull > 0 ? "gained" : "lost")} {Math.Abs(hull)} hull.");
+            if (supplies != 0) lines.Add($"The ship {(supplies > 0 ? "gained" : "lost")} {Math.Abs(supplies)} supplies.");
+        }
+        return string.Join(" ", lines);
+    }
+
+    public static string BuildTtsVoteMessage(StarshipExpeditionEventSnapshot expeditionEvent)
+    {
+        var options = string.Join(" ", expeditionEvent.Choices.Select((choice, index) => $"Option {index + 1}: {choice.Label}."));
+        return $"{expeditionEvent.Title}. Crew voting is open. {options}".Trim();
+    }
+
+    public static string BuildTtsVoyageMessage(StarshipExpeditionSnapshot snapshot)
+    {
+        var result = snapshot.ReturnReason == "HullDepleted" ? "returned early because the hull was depleted" :
+            snapshot.Status == StarshipExpeditionStatus.Returned ? "is complete" : "was aborted";
+        var lines = new List<string> { $"The voyage {result}. {snapshot.Crew.Count} crew members were aboard." };
+        var banked = snapshot.BankedPayouts.Where(payout => payout.IsPaid).GroupBy(payout => (payout.PointTypeId, payout.PointTypeName))
+            .ToDictionary(group => group.Key, group => group.Sum(payout => (decimal)payout.Amount) /
+                group.Select(payout => payout.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        if (banked.Count > 0)
+            lines.Add($"Average banked reward per crew member: {FormatSpokenAmounts(banked)}.");
+        if (snapshot.BankedPayouts.Any(payout => !payout.IsPaid))
+            lines.Add("Some crew rewards are still being banked.");
+        return string.Join(" ", lines);
+    }
+
+    private static string FormatSpokenAmounts(IReadOnlyDictionary<(int PointTypeId, string PointTypeName), decimal> amounts) =>
+        string.Join(" and ", amounts.Select(item => $"{item.Value.ToString("0.##", CultureInfo.CurrentCulture)} {item.Key.PointTypeName}"));
+
     private static string FormatDelta(int value) => value.ToString("+#;-#;0", CultureInfo.InvariantCulture);
 
     public static string BuildCruisingStatusMessage(DateTimeOffset? nextEventAtUtc, DateTimeOffset now)

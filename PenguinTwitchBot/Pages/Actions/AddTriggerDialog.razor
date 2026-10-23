@@ -854,7 +854,7 @@
     {
         if (_selectedDefaultCommand != null && !string.IsNullOrEmpty(_selectedEventType))
         {
-            _triggerName = $"{_selectedDefaultCommand.CommandName}_{_selectedEventType.Split('.').LastOrDefault()}";
+            _triggerName = TriggerCatalog.GetDefaultCommandTriggerName(_selectedDefaultCommand.CommandName, _selectedEventType);
         }
     }
 

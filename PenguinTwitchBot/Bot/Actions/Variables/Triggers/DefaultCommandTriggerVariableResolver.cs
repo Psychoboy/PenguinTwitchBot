@@ -24,6 +24,7 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
 
         // Standard command variables always forwarded on default command executions
         variables.SetVariable("User", "The username of the chatter executing the command", source, category, "penguin_fan");
+        variables.SetVariable("UserId", "Twitch user ID of the triggering viewer", source, category, "12345678");
         variables.SetVariable("Name", "The username of the chatter", source, category, "penguin_fan");
         variables.SetVariable("DisplayName", "The display name of the chatter", source, category, "Penguin_Fan");
         variables.SetVariable("Command", "The name of the default command", source, category, "spinwheel");
@@ -606,6 +607,29 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         variables.SetVariable("LegCount", "Total configured voyage legs", source, category, "5");
         variables.SetVariable("Sector", "Current route sector", source, category, "Kepler Reach");
         variables.SetVariable("CrewCount", "Number of viewers aboard", source, category, "4");
+        variables.SetVariable("StartedBy", "Viewer who started the voyage", source, category, "Broadcaster");
+        variables.SetVariable("ShipName", "Name of the expedition ship", source, category, "Rockhopper Voyager");
+        variables.SetVariable("Route", "Current voyage route", source, category, "Survey Route");
+        variables.SetVariable("VoyageStatus", "Boarding, Cruising, EventOpen, Returned or Aborted", source, category, "Cruising");
+        variables.SetVariable("Seed", "Saved deterministic voyage seed", source, category, "12345");
+        variables.SetVariable("CompletedLegs", "Number of completed voyage legs", source, category, "2");
+        variables.SetVariable("NextEventAtUtc", "Next scheduled event time (ISO UTC; empty when unscheduled)", source, category, "2026-10-23T12:30:00Z");
+        variables.SetVariable("BoardingClosesAtUtc", "Boarding closing time (ISO UTC; may be empty)", source, category, "2026-10-23T12:00:00Z");
+        variables.SetVariable("ChatMessage", "Full built-in chat announcement for this transition; empty when no message is sent. Sending it again duplicates the built-in announcement.", source, category, "Derelict Salvage: SUCCESS. Earned 15 Credits average per eligible crew member.");
+        variables.SetVariable("TtsMessage", "Concise spoken summary for a TTS sub-action, without vote commands, detailed odds, IDs or signed resource notation. Providing the variable does not speak it automatically.", source, category, "Derelict Salvage succeeded. The find was Rare. Average reward per eligible crew member: 15 Credits.");
+        foreach (var (name, description, example) in new[]
+        {
+            ("Winnings", "Earned amounts with each currency kept separate", "60 Credits, 20 Tokens"),
+            ("Losses", "Lost amounts with each currency kept separate", "10 Credits"),
+            ("WinningsPerCrewMember", "Average earned per distinct eligible crew member for each currency, including zero awards", "15 Credits, 5 Tokens"),
+            ("LossesPerCrewMember", "Average lost per distinct eligible crew member for each currency", "2.5 Credits"),
+            ("PointTypes", "Currency names represented by outcome rows", "Credits, Tokens"),
+            ("RewardAmountsJson", "JSON array with pointTypeId, pointTypeName, earned, lost and crewCount; amounts are totals, averages are total divided by crewCount", "[{\"pointTypeId\":1,\"pointTypeName\":\"Credits\",\"earned\":60,\"lost\":0,\"crewCount\":4}]")
+        })
+            variables.SetVariable("Voyage" + name, "Whole voyage: " + description, source, category, example);
+        variables.SetVariable("BankedAmounts", "Already-paid permanent amounts per currency for this voyage", source, category, "50 Credits");
+        variables.SetVariable("PendingBankedAmounts", "Queued but unpaid banking amounts per currency", source, category, "10 Credits");
+        variables.SetVariable("UnbankedAmounts", "Current crew unbanked balances per currency", source, category, "25 Credits");
         variables.SetVariable("ShipSystemsEnabled", "Whether this voyage uses shared ship resources", source, category, "true");
         variables.SetVariable("Hull", "Current shared hull (empty on legacy/disabled voyages)", source, category, "85");
         variables.SetVariable("HullMaximum", "Maximum shared hull for this voyage", source, category, "100");
@@ -615,6 +639,18 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         variables.SetVariable("ReturnReason", "HullDepleted for an emergency return; otherwise empty", source, category, "HullDepleted");
         if (eventType is DefaultCommandEventTypes.StarshipEventResolved or DefaultCommandEventTypes.StarshipEventSucceeded or DefaultCommandEventTypes.StarshipEventFailed)
         {
+            variables.SetVariable("ChoiceId", "Winning/default choice ID", source, category, "salvage");
+            variables.SetVariable("Choice", "Winning/default choice label", source, category, "Recover salvage");
+            variables.SetVariable("VoteCount", "Crew votes recorded for the resolved event", source, category, "4");
+            variables.SetVariable("EligibleCrewCount", "Distinct earn-time eligible crew members", source, category, "4");
+            variables.SetVariable("RewardParticipantCount", "Distinct crew members earning points", source, category, "3");
+            variables.SetVariable("Summary", "Detailed outcome summary including story/path and resource changes", source, category, "Derelict Salvage resolved. SUCCESS - Rare find.");
+            variables.SetVariable("Winnings", "Event total winnings, separately labeled per currency", source, category, "60 Credits, 20 Tokens");
+            variables.SetVariable("Losses", "Event total losses, separately labeled per currency", source, category, "10 Credits");
+            variables.SetVariable("WinningsPerCrewMember", "Average earned per eligible crew member by currency, including zero awards", source, category, "15 Credits, 5 Tokens");
+            variables.SetVariable("LossesPerCrewMember", "Average lost per eligible crew member by currency", source, category, "2.5 Credits");
+            variables.SetVariable("PointTypes", "All event outcome currencies", source, category, "Credits, Tokens");
+            variables.SetVariable("RewardAmountsJson", "Per-currency JSON array: pointTypeId, pointTypeName, earned, lost, crewCount", source, category, "[{\"pointTypeId\":1,\"pointTypeName\":\"Credits\",\"earned\":60,\"lost\":0,\"crewCount\":4}]");
             variables.SetVariable("HullBefore", "Hull at event opening, after travel", source, category, "100");
             variables.SetVariable("HullMaximum", "Maximum shared hull for this voyage", source, category, "100");
             variables.SetVariable("HullAfter", "Hull after all event steps and outcome effects", source, category, "85");
@@ -624,6 +660,22 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("SuppliesChange", "Net supplies change across the whole event (excluding travel)", source, category, "-5");
             variables.SetVariable("EventBaseSuccessChancePercent", "Frozen base chance before resource and choice modifiers", source, category, "80");
             variables.SetVariable("EventSuccessModifierPercent", "Frozen shortage and Continue modifier in percentage points", source, category, "-15");
+        }
+
+        if (eventType is DefaultCommandEventTypes.StarshipEventOpened or DefaultCommandEventTypes.StarshipEventStepAdvanced or
+            DefaultCommandEventTypes.StarshipEventResolved or DefaultCommandEventTypes.StarshipEventSucceeded or DefaultCommandEventTypes.StarshipEventFailed)
+        {
+            variables.SetVariable("EventId", "Stable event ID", source, category, "event-id");
+            variables.SetVariable("EventDescription", "Original event description template", source, category, "A cache near {subject}.");
+            variables.SetVariable("Step", "Current/resolved step number", source, category, "2");
+            variables.SetVariable("StepId", "Current/resolved graph step ID", source, category, "recovery");
+        }
+        if (eventType is DefaultCommandEventTypes.StarshipEventOpened or DefaultCommandEventTypes.StarshipEventStepAdvanced)
+        {
+            variables.SetVariable("DefaultChoiceId", "Safe timeout/default choice ID", source, category, "pass");
+            variables.SetVariable("EventClosesAtUtc", "Current vote deadline in ISO UTC", source, category, "2026-10-23T12:30:00Z");
+            variables.SetVariable("VoteCount", "Votes currently recorded", source, category, "0");
+            variables.SetVariable("Duration", "Current vote window in seconds", source, category, "60");
         }
 
         if (eventType == DefaultCommandEventTypes.StarshipBoardingOpened)
@@ -697,6 +749,9 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         }
         else if (eventType == DefaultCommandEventTypes.StarshipCrewRewardBanked)
         {
+            variables.SetVariable("PointTypeId", "Banked currency's numeric ID", source, category, "1");
+            variables.SetVariable("AmountFormatted", "Banked amount with local thousands separators", source, category, "1,000");
+            variables.SetVariable("OperationId", "Stable idempotent payout operation ID", source, category, "starship:bank:operation");
             variables.SetVariable("PointType", "Point currency banked for this crew member", source, category, "Salvage Credits");
             variables.SetVariable("Amount", "Amount added to the crew member's permanent balance", source, category, "25");
             variables.SetVariable("EventId", "Station event that settled the payout", source, category, "event-id");
