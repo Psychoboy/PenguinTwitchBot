@@ -25,11 +25,12 @@
         return clamp(Number(chancePercent) || 0, 0, 100) > seededUnit(seed) * 100;
     }
 
-    function suspenseSequence(seed, entryCount, maximumDrops = 3) {
+    function suspenseSequence(seed, entryCount, maximumDrops = 3, winnerIndex = -1) {
         const maximum = Math.max(0, Math.min(5, Math.trunc(Number(maximumDrops) || 0)));
         if (entryCount < 1 || maximum === 0) return [];
-        const dropCount = Math.min(entryCount, 1 + Math.floor(seededUnit(`${seed}:drops`) * maximum));
-        const order = Array.from({ length: entryCount }, (_, index) => index);
+        const order = Array.from({ length: entryCount }, (_, index) => index).filter(index => index !== winnerIndex);
+        if (order.length === 0) return [];
+        const dropCount = Math.min(order.length, 1 + Math.floor(seededUnit(`${seed}:drops`) * maximum));
         for (let index = order.length - 1; index > 0; index--) {
             const target = Math.floor(seededUnit(`${seed}:shuffle:${index}`) * (index + 1));
             [order[index], order[target]] = [order[target], order[index]];
@@ -398,7 +399,9 @@
             layoutTarget = layout(state.entries, sceneWidth, settings.leftSafeGapPixels, settings.rightSafeGapPixels);
             layoutFromById = new Map(layoutTarget.map(prize => [prize.id,
                 previous.get(prize.id) ?? { x: prize.x, y: 1080 + prize.radius + 24 }]));
-            feintIndexes = state.grab ? suspenseSequence(state.grab.id, layoutTarget.length, settings.maxSuspenseDrops) : [];
+            feintIndexes = state.grab
+                ? suspenseSequence(state.grab.id, layoutTarget.length, settings.maxSuspenseDrops, state.grab.winningIndex)
+                : [];
             layoutTransitionStarted = now;
             layoutWidth = sceneWidth;
             layoutDirty = false;

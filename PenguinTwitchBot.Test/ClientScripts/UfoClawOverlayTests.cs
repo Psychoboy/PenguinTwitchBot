@@ -55,16 +55,19 @@ public class UfoClawOverlayTests
     [Fact]
     public void SuspenseCanDropCandidatesBeforeReturningToTheFrozenWinner()
     {
-        var engine = CreateEngine().Execute("var balls = UfoClawScene.layout(Array.from({length:12}, (_, index) => ({id:String(index),x:250+index*120,y:900}))); var seed=Array.from({length:100},(_,i)=>'regrab-'+i).find(value=>UfoClawScene.suspenseSequence(value,balls.length,4).length>1); var sequence = UfoClawScene.suspenseSequence(seed,balls.length,4).map(index => balls[index]); var winner = balls[4]; var frame = seconds => UfoClawScene.frameAt(seconds, winner, true, false, 1, 1920, 0, 0, 100, seed, sequence); var animationEnd=UfoClawScene.animationEndFor(true,false,100,seed,sequence,winner,1920,0,0);");
+        var engine = CreateEngine().Execute("var balls = UfoClawScene.layout(Array.from({length:12}, (_, index) => ({id:String(index),x:250+index*120,y:900}))); var winnerIndex=4; var seed=Array.from({length:100},(_,i)=>'regrab-'+i).find(value=>UfoClawScene.suspenseSequence(value,balls.length,4,winnerIndex).length>1); var sequence = UfoClawScene.suspenseSequence(seed,balls.length,4,winnerIndex).map(index => balls[index]); var winner = balls[winnerIndex]; var frame = seconds => UfoClawScene.frameAt(seconds, winner, true, false, 1, 1920, 0, 0, 100, seed, sequence); var animationEnd=UfoClawScene.animationEndFor(true,false,100,seed,sequence,winner,1920,0,0);");
         var lockTime = engine.Evaluate("frame(0).lockTime").AsNumber();
         var animationEnd = engine.Evaluate("frame(0).animationEnd").AsNumber();
         var firstRegrabTime = engine.Evaluate("(()=>{for(let t=9.25;t<frame(0).timing.feintEnd;t+=0.02)if(frame(t).decoyCaptured)return t;return -1})()").AsNumber();
         Assert.True(engine.Evaluate("sequence.length >= 2 && sequence.length <= 4").AsBoolean());
         Assert.Equal(0, engine.Evaluate("UfoClawScene.suspenseSequence('grab-1', 12, 0).length").AsNumber());
         Assert.True(engine.Evaluate("UfoClawScene.suspenseSequence('grab-1', 12, 5).length <= 5").AsBoolean());
-        Assert.True(engine.Evaluate("UfoClawScene.suspenseSequence('grab-1', 12, 4).length >= 1 && UfoClawScene.suspenseSequence('grab-1', 12, 4).length <= 4").AsBoolean());
+        Assert.True(engine.Evaluate("UfoClawScene.suspenseSequence('grab-1', 12, 4, 4).length >= 1 && UfoClawScene.suspenseSequence('grab-1', 12, 4, 4).length <= 4").AsBoolean());
+        Assert.Equal(1, engine.Evaluate("UfoClawScene.suspenseSequence('short-pool', 2, 4, 0).length").AsNumber());
+        Assert.Equal(0, engine.Evaluate("UfoClawScene.suspenseSequence('single-entry', 1, 4, 0).length").AsNumber());
+        Assert.False(engine.Evaluate("sequence.some(ball => ball.id === winner.id)").AsBoolean());
         Assert.True(engine.Evaluate("UfoClawScene.effectiveDurationFor(20,true,false,100,seed,sequence,winner,1920,0,0)>20").AsBoolean());
-        Assert.Equal(engine.Evaluate("sequence.map(ball => ball.id).join(',')").AsString(), engine.Evaluate("UfoClawScene.suspenseSequence(seed, 12, 4).map(index => balls[index].id).join(',')").AsString());
+        Assert.Equal(engine.Evaluate("sequence.map(ball => ball.id).join(',')").AsString(), engine.Evaluate("UfoClawScene.suspenseSequence(seed, 12, 4, winnerIndex).map(index => balls[index].id).join(',')").AsString());
         Assert.True(engine.Evaluate("frame(7.5).slip && frame(7.5).heldPrize.id === sequence[0].id").AsBoolean());
         Assert.True(engine.Evaluate("frame(7.5).captured && frame(7.5).heldPrize.id === sequence[0].id").AsBoolean());
         Assert.True(firstRegrabTime > 0 && engine.Evaluate($"frame({firstRegrabTime}).decoyCaptured").AsBoolean());
