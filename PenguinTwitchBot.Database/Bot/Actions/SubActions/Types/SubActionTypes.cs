@@ -83,6 +83,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         StarshipShowStatus,
         StarshipShowEvent,
         StarshipStartExpedition,
-        StarshipStopExpedition
+        StarshipStopExpedition,
+        UfoClawControl
     }
 }

@@ -28,6 +28,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 [SubActionTypes.StarshipShowEvent] = FeatureKeys.DropGames,
                 [SubActionTypes.StarshipStartExpedition] = FeatureKeys.DropGames,
                 [SubActionTypes.StarshipStopExpedition] = FeatureKeys.DropGames,
+                [SubActionTypes.UfoClawControl] = FeatureKeys.DropGames,
                 [SubActionTypes.StartDropGameSession] = FeatureKeys.DropGames,
                 [SubActionTypes.StopDropGameSession] = FeatureKeys.DropGames
             };

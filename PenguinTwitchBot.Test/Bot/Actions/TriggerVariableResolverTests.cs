@@ -47,6 +47,21 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         }
 
         [Fact]
+        public void DefaultCommandTriggerVariableResolver_ClawVariablesMatchRuntimeAndCatalog()
+        {
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            new DefaultCommandTriggerVariableResolver().ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand, Name = "UFO Claw - Result",
+                Configuration = "{\"DefaultCommandName\":\"joinclaw\",\"EventType\":\"UfoClaw.Result\"}"
+            }, variables);
+            var grab = new PenguinTwitchBot.Bot.Commands.Games.UfoClaw.UfoClawGrab { Entries = [new() { Label = "Prize" }] };
+            foreach (var key in PenguinTwitchBot.Bot.Commands.Games.UfoClaw.UfoClawService.ResultVariables(grab).Keys)
+                Assert.Contains(key, variables.Keys);
+            Assert.Contains(TriggerCatalog.AllTriggers, trigger => trigger.DefaultCommandName == "joinclaw" && trigger.DefaultCommandEventType == DefaultCommandEventTypes.UfoClawResult);
+        }
+
+        [Fact]
         public void DefaultCommandTriggerVariableResolver_ResolvesGambleVariables()
         {
             var resolver = new DefaultCommandTriggerVariableResolver();

@@ -1,0 +1,49 @@
+@using PenguinTwitchBot.Bot.Commands.Games.UfoClaw
+@inject IUfoClawService Service
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="2">
+    <MudText Typo="Typo.subtitle2">UFO Claw Settings</MudText>
+    <MudButton StartIcon="@Icons.Material.Filled.Fullscreen" OnClick="@(() => FitFullScreen.InvokeAsync())">Fit Full Screen</MudButton>
+    @if (_settings != null)
+    {
+        <MudSwitch T="bool" Label="Sound" @bind-Value="_settings.SoundEnabled" />
+        <MudSlider T="double" Min="0" Max="1" Step="0.05" @bind-Value="_settings.Volume">Volume</MudSlider>
+        <MudSwitch T="bool" Label="Suspense drop and re-catch" @bind-Value="_settings.Tease" />
+        <MudNumericField T="int" Label="Suspense chance (%)" @bind-Value="_settings.SlipChancePercent" Min="0" Max="100" Step="5" />
+        <MudNumericField T="int" Label="Maximum suspense drops" @bind-Value="_settings.MaxSuspenseDrops" Min="0" Max="5" />
+        <MudSwitch T="bool" Label="Auto-hide after reveal" @bind-Value="_settings.AutoHide" />
+        <MudSwitch T="bool" Label="Show prize pit background" @bind-Value="_settings.PitBackgroundEnabled" />
+        <MudNumericField T="int" Label="Left Safe Gap (design px)" @bind-Value="_settings.LeftSafeGapPixels" Min="0" Max="800" Step="20" />
+        <MudNumericField T="int" Label="Right Safe Gap (design px)" @bind-Value="_settings.RightSafeGapPixels" Min="0" Max="800" Step="20" />
+        <MudText Typo="Typo.caption">Gaps use 1920x1080 scene coordinates and scale with the source.</MudText>
+        <MudButton StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync">Save Claw Settings</MudButton>
+    }
+    <MudButton StartIcon="@Icons.Material.Filled.Tune" Href="/games/ufoclaw">Manage UFO Claw</MudButton>
+    <HelpButton Topic="ufoclaw" />
+</MudStack>
+
+@code {
+    [Parameter] public EventCallback FitFullScreen { get; set; }
+    private UfoClawSettings? _settings;
+    protected override async Task OnInitializedAsync() => _settings = (await Service.GetAsync()).Settings;
+    private async Task SaveAsync()
+    {
+        try
+        {
+            var current = (await Service.GetAsync()).Settings;
+            current.SoundEnabled = _settings!.SoundEnabled;
+            current.Volume = _settings.Volume;
+            current.Tease = _settings.Tease;
+            current.SlipChancePercent = _settings.SlipChancePercent;
+            current.MaxSuspenseDrops = _settings.MaxSuspenseDrops;
+            current.AutoHide = _settings.AutoHide;
+            current.PitBackgroundEnabled = _settings.PitBackgroundEnabled;
+            current.LeftSafeGapPixels = _settings.LeftSafeGapPixels;
+            current.RightSafeGapPixels = _settings.RightSafeGapPixels;
+            await Service.SaveSettingsAsync(current);
+            Snackbar.Add("UFO claw settings saved.", Severity.Success);
+        }
+        catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Error); }
+    }
+}

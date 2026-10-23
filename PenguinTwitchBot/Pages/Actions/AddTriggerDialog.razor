@@ -916,6 +916,7 @@
             {
                 DefaultCommandEventTypes.WheelSpinResult
             },
+            "joinclaw" => new List<string> { DefaultCommandEventTypes.UfoClawResult },
             "drop" or "parachute" => new List<string>
             {
                 DefaultCommandEventTypes.ParachuteStart,
@@ -989,6 +990,7 @@
             DefaultCommandEventTypes.DeathReset => "Death Reset",
             DefaultCommandEventTypes.DeathSet => "Death Set",
             DefaultCommandEventTypes.WheelSpinResult => "Spin Result",
+            DefaultCommandEventTypes.UfoClawResult => "Claw Result",
             DefaultCommandEventTypes.ParachuteStart => "Round Started (Session Active)",
             DefaultCommandEventTypes.ParachuteWin => "Win (Target Hit)",
             DefaultCommandEventTypes.ParachuteBullseye => "Bullseye Hit (Center)",

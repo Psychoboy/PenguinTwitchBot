@@ -125,6 +125,7 @@ public class HelpContentServiceTests
     [InlineData("known-bots", "Known Bots Guide", 2)]
     [InlineData("blacklist", "Blacklist Guide", 3)]
     [InlineData("wheelspin", "Wheel Spin Guide", 3)]
+    [InlineData("ufoclaw", "UFO Claw Guide", 3)]
     [InlineData("giveaway-settings", "Giveaway Settings Guide", 2)]
     [InlineData("giveaway-draw", "Draw Giveaway Guide", 2)]
     [InlineData("giveaway-history", "Giveaway History Guide", 2)]
