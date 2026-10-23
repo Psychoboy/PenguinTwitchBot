@@ -67,20 +67,20 @@ public static class StarshipExpeditionNarrative
         if (includeCrewPath && expeditionEvent.Path.Count > 1)
             lines.Add($"Crew path: {FormatPath(expeditionEvent)}.");
 
-        var earned = SumByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.EarnedAmount);
-        var lost = SumByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.LostAmount);
+        var earned = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.EarnedAmount);
+        var lost = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.LostAmount);
         switch (expeditionEvent.OutcomeResult)
         {
             case OutcomeSuccess:
                 lines.Add(string.IsNullOrEmpty(expeditionEvent.OutcomeRarity) ? "SUCCESS." : $"SUCCESS - {expeditionEvent.OutcomeRarity} find.");
                 lines.Add(earned.Count == 0
                     ? expeditionEvent.ShipContext is { HasRewards: false } ? "Points rewards are disabled for this event." : "No rewards were paid out (caps reached or crew inactive)."
-                    : $"Earned {FormatAmounts(earned)} for {expeditionEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0)} crew (unbanked until a station stop or voyage end).");
+                    : $"Earned {FormatAmounts(earned)} average per eligible crew member (unbanked until a station stop or voyage end).");
                 break;
             case OutcomeFailure:
                 lines.Add(string.IsNullOrEmpty(expeditionEvent.OutcomeRarity) ? "FAILED - the encounter was unsuccessful." : $"FAILED - the {expeditionEvent.OutcomeRarity} find was lost.");
                 if (lost.Count > 0)
-                    lines.Add($"The crew lost {FormatAmounts(lost)} of unbanked points ({expeditionEvent.RewardOutcomes.Count(outcome => outcome.LostAmount > 0)} crew affected).");
+                    lines.Add($"The crew lost {FormatAmounts(lost)} of unbanked points on average per eligible crew member.");
                 break;
             case OutcomePassed:
                 lines.Add("The crew passed - no risk, no reward.");
@@ -122,10 +122,10 @@ public static class StarshipExpeditionNarrative
             _ => "The event ended."
         });
 
-        var earned = SumByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.EarnedAmount);
-        var lost = SumByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.LostAmount);
-        if (earned.Count > 0) lines.Add($"Earned {FormatAmounts(earned)}.");
-        if (lost.Count > 0) lines.Add($"Lost {FormatAmounts(lost)} of unbanked points.");
+        var earned = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.EarnedAmount);
+        var lost = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.LostAmount);
+        if (earned.Count > 0) lines.Add($"Earned {FormatAmounts(earned)} average per eligible crew member.");
+        if (lost.Count > 0) lines.Add($"Lost {FormatAmounts(lost)} of unbanked points on average per eligible crew member.");
         if (expeditionEvent.ShipContext is { } ship)
         {
             var changes = new List<string>();
@@ -160,25 +160,27 @@ public static class StarshipExpeditionNarrative
         };
 
         var outcomes = snapshot.CompletedEvents.SelectMany(item => item.RewardOutcomes).ToList();
-        var earned = SumByPointType(outcomes, outcome => outcome.EarnedAmount);
-        var lost = SumByPointType(outcomes, outcome => outcome.LostAmount);
+        var earned = AverageByPointType(outcomes, outcome => outcome.EarnedAmount);
+        var lost = AverageByPointType(outcomes, outcome => outcome.LostAmount);
         var banked = snapshot.BankedPayouts
-            .GroupBy(payout => payout.PointTypeName)
-            .ToDictionary(group => group.Key, group => StarshipRewardResolver.SumSaturating(group.Select(payout => payout.Amount)));
-        if (earned.Count > 0) lines.Add($"Earned {FormatAmounts(earned)}.");
-        if (lost.Count > 0) lines.Add($"Lost {FormatAmounts(lost)} to failed risks.");
-        if (banked.Count > 0) lines.Add($"Banked {FormatAmounts(banked)} to the crew.");
+            .GroupBy(payout => (payout.PointTypeId, payout.PointTypeName))
+            .ToDictionary(group => group.Key, group => group.Sum(payout => (decimal)payout.Amount) /
+                group.Select(payout => payout.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        if (earned.Count > 0) lines.Add($"Earned {FormatAmounts(earned)} average per eligible crew member.");
+        if (lost.Count > 0) lines.Add($"Lost {FormatAmounts(lost)} on average per eligible crew member to failed risks.");
+        if (banked.Count > 0) lines.Add($"Banked {FormatAmounts(banked)} average per banked crew member.");
         return lines;
     }
 
-    private static Dictionary<string, long> SumByPointType(
+    private static Dictionary<(int PointTypeId, string PointTypeName), decimal> AverageByPointType(
         IEnumerable<StarshipRewardOutcomeSnapshot> outcomes,
         Func<StarshipRewardOutcomeSnapshot, long> selector) =>
-        outcomes.GroupBy(outcome => outcome.PointTypeName)
-            .Select(group => (group.Key, Total: StarshipRewardResolver.SumSaturating(group.Select(selector))))
-            .Where(item => item.Total > 0)
-            .ToDictionary(item => item.Key, item => item.Total);
+        outcomes.GroupBy(outcome => (outcome.PointTypeId, outcome.PointTypeName))
+            .Select(group => (group.Key, Average: group.Sum(outcome => (decimal)selector(outcome)) /
+                group.Select(outcome => outcome.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count()))
+            .Where(item => item.Average > 0)
+            .ToDictionary(item => item.Key, item => item.Average);
 
-    private static string FormatAmounts(IReadOnlyDictionary<string, long> amounts) =>
-        string.Join(", ", amounts.Select(item => $"{item.Value} {item.Key}"));
+    private static string FormatAmounts(IReadOnlyDictionary<(int PointTypeId, string PointTypeName), decimal> amounts) =>
+        string.Join(", ", amounts.Select(item => $"{item.Value.ToString("#,##0.##", CultureInfo.CurrentCulture)} {item.Key.PointTypeName}"));
 }

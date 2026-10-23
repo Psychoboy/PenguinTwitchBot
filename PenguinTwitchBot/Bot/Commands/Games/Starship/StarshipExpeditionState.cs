@@ -373,7 +373,11 @@ public sealed record StarshipExpeditionOverlaySnapshot(
                 .GroupBy(payout => new { payout.PointTypeId, payout.PointTypeName })
                 .Select(group => new StarshipOverlayBankedAmount(
                     group.Key.PointTypeId, group.Key.PointTypeName,
-                    StarshipRewardResolver.SumSaturating(group.Select(payout => payout.Amount)), group.All(payout => payout.IsPaid)))
+                    StarshipRewardResolver.SumSaturating(group.Select(payout => payout.Amount)), group.All(payout => payout.IsPaid))
+                {
+                    AveragePerCrewMember = group.Sum(payout => (decimal)payout.Amount) /
+                        group.Select(payout => payout.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count()
+                })
                 .ToList(),
             snapshot.Status.ToString(),
             string.Empty,
@@ -587,7 +591,11 @@ public sealed record StarshipOverlayEventResult(
                     group.Key.PointTypeId,
                     group.Key.PointTypeName,
                     StarshipRewardResolver.SumSaturating(group.Select(payout => payout.Amount)),
-                    group.All(payout => payout.IsPaid)))
+                    group.All(payout => payout.IsPaid))
+                {
+                    AveragePerCrewMember = group.Sum(payout => (decimal)payout.Amount) /
+                        group.Select(payout => payout.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count()
+                })
                 .ToList(),
             expeditionEvent.OutcomeResult,
             expeditionEvent.OutcomeRarity,
@@ -602,4 +610,7 @@ public sealed record StarshipOverlayEventResult(
     }
 }
 
-public sealed record StarshipOverlayBankedAmount(int PointTypeId, string PointTypeName, long Amount, bool IsPaid);
+public sealed record StarshipOverlayBankedAmount(int PointTypeId, string PointTypeName, long Amount, bool IsPaid)
+{
+    public decimal? AveragePerCrewMember { get; init; }
+}

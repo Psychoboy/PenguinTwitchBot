@@ -531,7 +531,11 @@
         container.hidden = amounts.length === 0;
         for (const payout of amounts) {
             const line = document.createElement('span');
-            line.textContent = payout.amount + ' ' + payout.pointTypeName + (payout.isPaid ? ' banked' : ' banking');
+            const amount = payout.averagePerCrewMember != null
+                ? payout.averagePerCrewMember
+                : payout.amount;
+            line.textContent = Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + payout.pointTypeName + (payout.isPaid ? ' banked' : ' banking') +
+                (payout.averagePerCrewMember != null ? ' average per banked crew member' : ' crew total');
             container.appendChild(line);
         }
     }
