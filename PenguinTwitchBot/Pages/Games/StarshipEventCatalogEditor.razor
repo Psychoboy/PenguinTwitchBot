@@ -81,7 +81,9 @@
                 <MudItem xs="12"><MudText Typo="Typo.subtitle2">Routes (none selected means all)</MudText><MudStack Row="true" Wrap="Wrap.Wrap">
                     @foreach (var route in StarshipEventCatalog.Routes)
                     {
-                        <MudCheckBox T="bool" Label="@route" Value="@(draft.AllowedRoutes.Contains(route))" ValueChanged="@(enabled => ToggleFilter(draft.AllowedRoutes, route, enabled))" />
+                        <MudTooltip Text="@(route == StarshipEventCatalog.StartRoute ? "Initial voyage state; random events start after the route vote." : route == StarshipEventCatalog.UnchartedRoute ? "Reserved for future use; no current event can enter this route." : string.Empty)">
+                            <MudCheckBox T="bool" Label="@route" Disabled="@(route is StarshipEventCatalog.StartRoute or StarshipEventCatalog.UnchartedRoute)" Value="@(draft.AllowedRoutes.Contains(route))" ValueChanged="@(enabled => ToggleFilter(draft.AllowedRoutes, route, enabled))" />
+                        </MudTooltip>
                     }
                 </MudStack></MudItem>
                 <MudItem xs="12"><MudText Typo="Typo.subtitle2">Sectors (none selected means all)</MudText><MudStack Row="true" Wrap="Wrap.Wrap">

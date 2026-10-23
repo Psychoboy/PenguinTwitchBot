@@ -54,7 +54,8 @@ public sealed class StarshipExpeditionSnapshot
     public int NextEventSequence { get; set; } = 1;
     public DateTimeOffset? NextEventAtUtc { get; set; }
     public string CurrentSector { get; set; } = string.Empty;
-    public string CurrentRoute { get; set; } = string.Empty;
+    public string CurrentRoute { get; set; } = StarshipEventCatalog.StartRoute;
+    public int RouteNameMigrationVersion { get; set; }
     public List<string> SectorPool { get; init; } = [];
     public List<StarshipCrewMemberSnapshot> Crew { get; init; } = [];
     public List<StarshipExpeditionEventSnapshot> CompletedEvents { get; init; } = [];
@@ -368,7 +369,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
             "Starship Expedition",
             snapshot.CurrentSector,
             snapshot.Status.ToString(),
-            snapshot.UpdatedAtUtc,
+            snapshot.ActivityFeed.LastOrDefault(item => item.Kind == StarshipActivityKinds.VoyageEnded)?.AtUtc ?? snapshot.UpdatedAtUtc,
             snapshot.BankedPayouts.Where(payout => payout.EventId == snapshot.ExpeditionId)
                 .GroupBy(payout => new { payout.PointTypeId, payout.PointTypeName })
                 .Select(group => new StarshipOverlayBankedAmount(

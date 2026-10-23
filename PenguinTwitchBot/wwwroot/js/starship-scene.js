@@ -18,6 +18,7 @@
         let resultUntil = 0;
         let stepKey = '';
         let stepUntil = 0;
+        let activityStatusUntil = 0;
 
         function now() {
             return Date.now() + offsetMs;
@@ -38,6 +39,7 @@
                 expeditionId = nextExpeditionId;
                 lastFeedId = 0;
                 seenFeed = false;
+                activityStatusUntil = 0;
             }
 
             const serverNow = parse(snapshot.serverNowUtc);
@@ -63,6 +65,8 @@
 
             const items = (snapshot.activity || []).slice().sort(function (a, b) { return a.id - b.id; });
             for (const item of items) {
+                const activityAt = parse(item.atUtc);
+                if (activityAt) activityStatusUntil = Math.max(activityStatusUntil, activityAt + CRUISE_HOLD_MS);
                 if (item.id <= lastFeedId) continue;
                 lastFeedId = item.id;
                 const age = now() - parse(item.atUtc);
@@ -77,12 +81,15 @@
             const status = snapshot?.status ?? 'Inactive';
             const terminal = status === 'Returned' || status === 'Aborted';
             const updatedAt = parse(snapshot?.updatedAtUtc);
+            const endActivity = (snapshot?.activity || []).filter(item => item.kind === 'VoyageEnded').slice(-1)[0];
+            const endedAt = parse(endActivity?.atUtc) || updatedAt;
             const statusForced = parse(snapshot?.statusForcedUntilUtc) > t;
             const eventForced = parse(snapshot?.eventForcedUntilUtc) > t;
             const resolvedAt = parse(snapshot?.latestResult?.resolvedAtUtc);
-            const holding = status === 'Cruising' && resolvedAt > 0 && t < resolvedAt + CRUISE_HOLD_MS;
+            const holding = status === 'Cruising' && (
+                resolvedAt > 0 && t < resolvedAt + CRUISE_HOLD_MS || t < activityStatusUntil);
             const resultVisible = !!snapshot?.latestResult && t <= resultUntil &&
-                !(terminal && t > updatedAt + EVENT_END_WINDOW_MS);
+                !(terminal && t > endedAt + EVENT_END_WINDOW_MS);
 
             let name = 'Idle';
             let eventVisible = false;
@@ -103,11 +110,11 @@
             if (mode === 'BothOnDemand' || mode === 'EventOnDemand') eventVisible = eventForced;
             const autoStatusVisible = status !== 'Inactive' && !(
                 status === 'Cruising' && !holding ||
-                terminal && t > updatedAt + STATUS_END_WINDOW_MS);
+                terminal && t > endedAt + STATUS_END_WINDOW_MS);
             let statusVisible = mode === 'StatusOnDemand' || mode === 'BothOnDemand'
                 ? statusForced
                 : statusForced || autoStatusVisible;
-            if (mode === 'AutomaticNoOverlap' && eventVisible) statusVisible = false;
+            if (mode === 'AutomaticNoOverlap' && eventVisible && !statusForced) statusVisible = false;
 
             return {
                 name: name,

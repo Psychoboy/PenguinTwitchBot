@@ -522,7 +522,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             DispatchStarshipOverlayState(engine, Snapshot(1, Join(1, "Pilot", 4)));
             Assert.False(engine.Evaluate("document.getElementById('starship-toast').hidden").AsBoolean());
             Assert.Equal("Pilot joined the crew - 4 aboard", engine.Evaluate("document.getElementById('starship-toast').textContent").AsString());
-            Assert.Equal("true", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            Assert.Equal("false", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
             Assert.Equal("true", engine.Evaluate("document.getElementById('crew-block').dataset.pulse").AsString());
 
             DispatchStarshipOverlayState(engine, Snapshot(2, Join(2, "Medic", 5), Join(3, "Engineer", 6), Join(4, "Cook", 7)));
@@ -533,6 +533,11 @@ namespace PenguinTwitchBot.Test.ClientScripts
             DispatchStarshipOverlayState(eventEngine, Snapshot(1, Join(1, "Pilot", 4)));
             Assert.False(eventEngine.Evaluate("document.getElementById('starship-toast').hidden").AsBoolean());
             Assert.True(eventEngine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+
+            DispatchStarshipOverlayState(engine, Snapshot(29));
+            Assert.Equal("false", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            DispatchStarshipOverlayState(engine, Snapshot(31));
+            Assert.Equal("true", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
         }
 
         [Fact]
@@ -558,6 +563,40 @@ namespace PenguinTwitchBot.Test.ClientScripts
             });
 
             Assert.Equal("Pilot and 3 others joined the crew - 7 aboard", engine.Evaluate("document.getElementById('starship-toast').textContent").AsString());
+        }
+
+        [Fact]
+        public void StarshipScene_ActivityRenewsStatusHoldWithoutOverridingManualModesOrReplayingOnReconnect()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            var now = DateTimeOffset.UtcNow;
+            engine.Execute($@"
+                var activityTracker = window.StarshipScene.createTracker();
+                function cruiseAt(second, activitySecond) {{
+                    return {{ expeditionId: 'voyage-one', status: 'Cruising',
+                        serverNowUtc: new Date(Date.parse('{now:O}') + second * 1000).toISOString(),
+                        activity: [{{ id: activitySecond + 1, kind: 'RewardBanked',
+                            atUtc: new Date(Date.parse('{now:O}') + activitySecond * 1000).toISOString() }}] }};
+                }}
+                activityTracker.update(cruiseAt(20, 0));
+                window.__activityVisible = activityTracker.derive(cruiseAt(20, 0)).statusVisible;
+                window.__manualHidden = activityTracker.derive(cruiseAt(20, 0), 'BothOnDemand').statusFaded;
+                window.__activityEventHidden = !activityTracker.derive(cruiseAt(20, 0)).eventVisible;
+                activityTracker.update(cruiseAt(25, 25));
+                activityTracker.update(cruiseAt(40, 25));
+                window.__renewedVisible = activityTracker.derive(cruiseAt(40, 25)).statusVisible;
+                var reconnectTracker = window.StarshipScene.createTracker();
+                reconnectTracker.update(cruiseAt(54, 25));
+                window.__reconnectedVisible = reconnectTracker.derive(cruiseAt(54, 25)).statusVisible;
+                reconnectTracker.update(cruiseAt(56, 25));
+                window.__expiredHidden = reconnectTracker.derive(cruiseAt(56, 25)).statusFaded;
+                reconnectTracker.update({{ expeditionId: 'voyage-two', status: 'Cruising', activity: [] }});
+                window.__newVoyageHidden = reconnectTracker.derive({{ status: 'Cruising' }}).statusFaded;
+            ");
+
+            foreach (var assertion in new[] { "__activityVisible", "__manualHidden", "__activityEventHidden",
+                         "__renewedVisible", "__reconnectedVisible", "__expiredHidden", "__newVoyageHidden" })
+                Assert.True(engine.Evaluate("window." + assertion).AsBoolean(), assertion);
         }
 
         private static object StarshipAppearanceSnapshot(DateTimeOffset now, int second, object ship, object? currentEvent = null) => new
@@ -791,6 +830,80 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             DispatchStarshipOverlayState(endedEngine, Snapshot("Returned", now.AddSeconds(-59), now.AddSeconds(30)));
             Assert.Equal("false", endedEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+        }
+
+        [Theory]
+        [InlineData("Boarding")]
+        [InlineData("EventOpen")]
+        [InlineData("Cruising")]
+        public void StarshipStatusWidget_ExplicitShowOverridesOverlapUntilExpiry(string status)
+        {
+            var statusEngine = CreateStarshipOverlayEngine("status");
+            var eventEngine = CreateStarshipOverlayEngine("event");
+            var now = DateTimeOffset.UtcNow;
+            object Snapshot(int second, bool forceStatus) => new
+            {
+                status,
+                updatedAtUtc = now.AddSeconds(second).ToString("O"),
+                serverNowUtc = now.AddSeconds(second).ToString("O"),
+                statusForcedUntilUtc = forceStatus ? now.AddSeconds(30).ToString("O") : null,
+                currentLeg = 1, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Direct Route", crewCount = 3,
+                boardingClosesAtUtc = now.AddMinutes(2).ToString("O"),
+                nextEventAtUtc = now.AddMinutes(5).ToString("O"),
+                currentEvent = status == "EventOpen" ? new
+                {
+                    sequence = 2, title = "Signal", sector = "Kepler Reach", description = "A signal.",
+                    openedAtUtc = now.ToString("O"), closesAtUtc = now.AddMinutes(2).ToString("O"),
+                    choices = Array.Empty<object>()
+                } : null
+            };
+
+            DispatchStarshipOverlayState(statusEngine, Snapshot(0, false));
+            Assert.Equal("true", statusEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+
+            foreach (var second in new[] { 1, 29, 31 })
+            {
+                var snapshot = Snapshot(second, true);
+                DispatchStarshipOverlayState(statusEngine, snapshot);
+                DispatchStarshipOverlayState(eventEngine, snapshot);
+
+                Assert.Equal(second < 30 ? "false" : "true",
+                    statusEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+                Assert.Equal(status != "Cruising" && second >= 30,
+                    statusEngine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+                Assert.Equal(status == "Cruising",
+                    eventEngine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+            }
+        }
+
+        [Theory]
+        [InlineData("Aborted")]
+        [InlineData("Returned")]
+        public void StarshipOverlay_ShowStatusAfterVoyageEndDoesNotReopenEventOrExtendStatusHold(string status)
+        {
+            var statusEngine = CreateStarshipOverlayEngine("status");
+            var eventEngine = CreateStarshipOverlayEngine("event");
+            var now = DateTimeOffset.UtcNow;
+            object Snapshot(int second) => new
+            {
+                status,
+                updatedAtUtc = now.AddSeconds(second).ToString("O"),
+                serverNowUtc = now.AddSeconds(second).ToString("O"),
+                statusForcedUntilUtc = now.AddSeconds(10).ToString("O"),
+                latestResult = new { sequence = 0, choice = status, resolvedAtUtc = now.ToString("O") },
+                activity = new[] { new { id = 1, kind = "VoyageEnded", atUtc = now.AddMinutes(-5).ToString("O") } }
+            };
+
+            foreach (var second in new[] { 0, 11 })
+            {
+                DispatchStarshipOverlayState(statusEngine, Snapshot(second));
+                DispatchStarshipOverlayState(eventEngine, Snapshot(second));
+
+                Assert.True(eventEngine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+                Assert.False(statusEngine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+                Assert.Equal(second < 10 ? "false" : "true",
+                    statusEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            }
         }
 
         [Fact]
