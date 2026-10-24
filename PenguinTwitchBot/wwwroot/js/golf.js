@@ -262,7 +262,7 @@
         game: 'golf',
         socket: socket,
         overlayKey: overlayKey,
-        fields: ['dropToken', 'score', 'baseScore', 'strokeNumber', 'strokePenalty', 'startAxisPosition', 'isLipOut', 'isBullseye', 'isWin', 'isHit', 'landingX'],
+        fields: ['dropToken', 'score', 'baseScore', 'strokeNumber', 'strokePenalty', 'startAxisPosition', 'isLipOut', 'isBullseye', 'isWin', 'isHit', 'landingX', 'greenRadiusRatio'],
         getActiveTokens: () => Array.isArray(activeBalls)
             ? activeBalls.filter(b => b && b.dropToken && !b.completed).map(b => b.dropToken)
             : []
@@ -459,8 +459,8 @@
         const greenRadiusRatio = m.greenRadius / m.length;
         const isOnGreen = strokeNumber > 1 && distToPinAbs <= greenRadiusRatio;
 
-        // Club determination: Driver on tee (Stroke 1), Putter on green, Wedge off green
-        const club = msg.club || (strokeNumber === 1 ? 'Driver' : (isOnGreen ? 'Putter' : 'Wedge'));
+        // Club determination: Driver on tee (Stroke 1), Putter on green, Wedge off green (overlay circle is source of truth)
+        const club = strokeNumber === 1 ? 'Driver' : (isOnGreen ? 'Putter' : 'Wedge');
 
         // Club power multipliers (default 1.0)
         const driverMult = typeof msg.driverPowerMultiplier === 'number' ? msg.driverPowerMultiplier : (boardConfig.driverPowerMultiplier || 1.0);
@@ -636,6 +636,7 @@
         ball.isHoleInOne = outcome.isHoleInOne;
         ball.isWin = outcome.isWin;
         ball.isHit = outcome.isHit;
+        ball.greenRadiusRatio = Math.round((m.greenRadius / m.length) * 10000) / 10000;
 
         updateLeader(m);
 

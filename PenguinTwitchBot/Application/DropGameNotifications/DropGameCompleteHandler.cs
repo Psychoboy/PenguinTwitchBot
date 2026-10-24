@@ -189,6 +189,10 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     {
                         record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.01, 0.99), 4);
                     }
+                    if (notification.GreenRadiusRatio.HasValue && notification.GreenRadiusRatio.Value > 0)
+                    {
+                        record.GreenRadiusRatio = Math.Round(Math.Clamp(notification.GreenRadiusRatio.Value, 0.005, 0.50), 4);
+                    }
 
                     if (golfGameService != null)
                     {

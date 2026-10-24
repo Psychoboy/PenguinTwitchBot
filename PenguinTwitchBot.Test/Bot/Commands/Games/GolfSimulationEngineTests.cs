@@ -48,7 +48,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             var record = CreateTestRecord("golf-lipout-1", strokeNumber: 2);
 
-            // Start close to the pin (0.76 -> pin at 0.84) with high power (95) on FastLinks
+            // Start on the green close to the pin (0.82 -> pin at 0.84) with high power (95) on FastLinks
             // so the putt rolls across the cup faster than MaxCaptureSpeed (0.28)
             GolfSimulationEngine.SimulateGolfShot(
                 record,
@@ -57,7 +57,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 condition: GolfGreenCondition.FastLinks,
                 targetDistancePercent: 84.0,
                 strokeNumber: 2,
-                startAxisPosOverride: 0.76,
+                startAxisPosOverride: 0.82,
                 rng: new Random(42));
 
             Assert.True(record.IsLipOut);
@@ -165,13 +165,17 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Equal("Driver", GolfSimulationEngine.ResolveClub(1, 0.79));
             Assert.Equal("Driver", GolfSimulationEngine.ResolveClub(1, 0.05));
 
-            // Stroke 2+ off green (> GreenRadius = 0.125) is Wedge (approach chip)
+            // Stroke 2+ off green (> GreenRadius = 0.035) is Wedge (approach chip)
             Assert.Equal("Wedge", GolfSimulationEngine.ResolveClub(2, 0.35));
-            Assert.Equal("Wedge", GolfSimulationEngine.ResolveClub(2, 0.13));
+            Assert.Equal("Wedge", GolfSimulationEngine.ResolveClub(2, 0.05));
 
-            // Stroke 2+ on green (<= GreenRadius = 0.125) is Putter
-            Assert.Equal("Putter", GolfSimulationEngine.ResolveClub(2, 0.10));
-            Assert.Equal("Putter", GolfSimulationEngine.ResolveClub(3, 0.02));
+            // Stroke 2+ on green (<= GreenRadius = 0.035) is Putter
+            Assert.Equal("Putter", GolfSimulationEngine.ResolveClub(2, 0.02));
+            Assert.Equal("Putter", GolfSimulationEngine.ResolveClub(3, 0.01));
+
+            // Explicit isOnGreen override from overlay completion takes priority
+            Assert.Equal("Putter", GolfSimulationEngine.ResolveClub(2, 0.05, isOnGreen: true));
+            Assert.Equal("Wedge", GolfSimulationEngine.ResolveClub(2, 0.01, isOnGreen: false));
         }
 
         [Fact]
@@ -266,7 +270,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             var record = CreateTestRecord("golf-putt-1", strokeNumber: 2);
 
-            // Ball is on green at 0.80, pin at 0.84 (dist = 0.04 <= 0.125)
+            // Ball is on green at 0.82, pin at 0.84 (dist = 0.02 <= 0.035)
             GolfSimulationEngine.SimulateGolfShot(
                 record,
                 settings,
@@ -274,7 +278,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 condition: GolfGreenCondition.StandardGreen,
                 targetDistancePercent: 84.0,
                 strokeNumber: 2,
-                startAxisPosOverride: 0.80,
+                startAxisPosOverride: 0.82,
                 rng: new Random(42));
 
             // Pure ground roll: no airborne keyframes

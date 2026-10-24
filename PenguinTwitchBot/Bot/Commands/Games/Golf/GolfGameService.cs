@@ -46,6 +46,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
         // Dynamic round state for current session
         private GolfGreenCondition _currentSessionCondition = GolfGreenCondition.StandardGreen;
         private double _currentSessionTargetDistance = 84.0;
+        private double _lastReportedGreenRadiusRatio = GolfSimulationEngine.GreenRadius;
         private int _shotCounter = 0;
 
         private MediaUploadService? GetMediaUploadService()
@@ -554,6 +555,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 pState.LastDropToken = dropToken;
                 pState.IsInFlight = true;
                 pState.LastShotUtc = DateTime.UtcNow;
+                if (strokeNumber == 1)
+                {
+                    pState.IsOnGreen = false;
+                    pState.IsSunk = false;
+                    pState.CurrentScore = 0;
+                }
             }
 
             var now = DateTime.UtcNow;
@@ -649,7 +656,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 strokePenaltyPoints = gSettings.StrokePenaltyPoints,
                 maxScore = gSettings.MaxScore,
                 startAxisPosition = record.StartAxisPosition,
-                club = GolfSimulationEngine.ResolveClub(record.StrokeNumber, Math.Abs(record.StartAxisPosition - (targetDistance / 100.0))),
+                club = GolfSimulationEngine.ResolveClub(record.StrokeNumber, Math.Abs(record.StartAxisPosition - (targetDistance / 100.0)), pState.StrokesUsed > 1 ? pState.IsOnGreen : null, pState.ReportedGreenRadiusRatio ?? _lastReportedGreenRadiusRatio),
+                greenRadiusRatio = pState.ReportedGreenRadiusRatio ?? _lastReportedGreenRadiusRatio,
                 driverPowerMultiplier = gSettings.DriverPowerMultiplier,
                 wedgePowerMultiplier = gSettings.WedgePowerMultiplier,
                 putterPowerMultiplier = gSettings.PutterPowerMultiplier,
@@ -692,6 +700,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                         roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
                         roundState.IsSunk = record.IsBullseye;
                         roundState.CurrentScore = record.Score;
+                        roundState.IsOnGreen = record.IsBullseye || record.IsWin || record.IsHit;
+                        if (record.GreenRadiusRatio.HasValue && record.GreenRadiusRatio.Value > 0)
+                        {
+                            roundState.ReportedGreenRadiusRatio = record.GreenRadiusRatio.Value;
+                            _lastReportedGreenRadiusRatio = record.GreenRadiusRatio.Value;
+                        }
                         roundState.IsInFlight = false;
                     }
                 }
@@ -734,6 +748,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                         roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
                         roundState.IsSunk = record.IsBullseye;
                         roundState.CurrentScore = record.Score;
+                        roundState.IsOnGreen = record.IsBullseye || record.IsWin || record.IsHit;
+                        if (record.GreenRadiusRatio.HasValue && record.GreenRadiusRatio.Value > 0)
+                        {
+                            roundState.ReportedGreenRadiusRatio = record.GreenRadiusRatio.Value;
+                            _lastReportedGreenRadiusRatio = record.GreenRadiusRatio.Value;
+                        }
                         roundState.IsInFlight = false;
                     }
                 }
@@ -1049,7 +1069,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             var distFromPin = Math.Round(Math.Abs(pState.CurrentAxisPos * 100.0 - targetDistance), 1);
             var distToPinNorm = Math.Abs(pState.CurrentAxisPos - (targetDistance / 100.0));
             var nextStroke = pState.StrokesUsed + 1;
-            var club = GolfSimulationEngine.ResolveClub(nextStroke, distToPinNorm);
+            var effectiveGreenRadius = pState.ReportedGreenRadiusRatio ?? _lastReportedGreenRadiusRatio;
+            var club = GolfSimulationEngine.ResolveClub(nextStroke, distToPinNorm, pState.IsOnGreen, effectiveGreenRadius);
             var isOnGreen = club == "Putter";
 
             if (pState.StrokesUsed >= maxStrokes)
