@@ -41,6 +41,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public bool AnnounceSessionStatusInChat { get; set; } = true;
     public string SessionStartChatMessageTemplate { get; set; } = "Starship Expedition boarding is OPEN for {duration}s! Type !starship join or !sj before launch!";
     public string SessionEndChatMessageTemplate { get; set; } = "Starship Expedition {result}. {count} crew members were aboard for {duration}s.";
+    public StarshipMessageSettings Messages { get; set; } = new();
     public StarshipAppearanceSettings Appearance { get; set; } = new();
     public StarshipShipSystemsSettings ShipSystems { get; set; } = new();
     public DropGameSoundConfig BoardingOpenSound { get; set; } = new()
@@ -73,6 +74,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
             throw new ArgumentOutOfRangeException(nameof(settings.BoardingDurationSeconds), "Crew boarding duration must be between 10 and 300 seconds.");
         settings.SessionStartChatMessageTemplate ??= string.Empty;
         settings.SessionEndChatMessageTemplate ??= string.Empty;
+        settings.Messages = StarshipMessageSettings.Normalize(settings.Messages);
         settings.Appearance = StarshipAppearanceSettings.NormalizeAndValidate(settings.Appearance);
         settings.ShipSystems ??= new();
         settings.EventCatalog ??= StarshipEventCatalog.CreateDefaults();

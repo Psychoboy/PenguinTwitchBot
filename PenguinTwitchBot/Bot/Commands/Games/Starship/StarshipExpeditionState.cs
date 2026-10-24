@@ -52,6 +52,7 @@ public sealed class StarshipExpeditionSnapshot
     public bool AnnounceSessionStatusInChat { get; init; } = true;
     public string SessionStartChatMessageTemplate { get; init; } = string.Empty;
     public string SessionEndChatMessageTemplate { get; init; } = string.Empty;
+    public StarshipMessageSettings Messages { get; set; } = new();
     public int NextEventSequence { get; set; } = 1;
     public DateTimeOffset? NextEventAtUtc { get; set; }
     public string CurrentSector { get; set; } = string.Empty;

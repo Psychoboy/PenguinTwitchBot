@@ -2961,6 +2961,155 @@ public class StarshipExpeditionServiceTests
         Assert.Equal("You are already aboard the Starship Expedition crew (1 aboard).", replies[1]);
     }
 
+    [Fact]
+    public void StarshipMessageSettings_NormalizeAndFormat_WorksCorrectly()
+    {
+        var normalized = StarshipMessageSettings.Normalize(new StarshipMessageSettings
+        {
+            JoinSuccess = "",
+            VotePrompt = "   ",
+            Help = null!
+        });
+
+        Assert.Equal(StarshipMessageSettings.DefaultJoinSuccess, normalized.JoinSuccess);
+        Assert.Equal(StarshipMessageSettings.DefaultVotePrompt, normalized.VotePrompt);
+        Assert.Equal(StarshipMessageSettings.DefaultHelp, normalized.Help);
+
+        var formatted = StarshipMessageSettings.Format("Welcome aboard {user}! Total: {crewCount}.", "fallback",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["USER"] = "Alice",
+                ["crewcount"] = "5"
+            });
+        Assert.Equal("Welcome aboard Alice! Total: 5.", formatted);
+
+        var fallbackFormatted = StarshipMessageSettings.Format("", "Default text: {count}",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["count"] = "10"
+            });
+        Assert.Equal("Default text: 10", fallbackFormatted);
+    }
+
+    [Fact]
+    public async Task StarshipExpeditionService_UsesCustomMessageOverrides_ForJoinAndVote()
+    {
+        var backbone = new Mock<IServiceBackbone>();
+        var replies = new List<string>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns<string, string, bool>((user, msg, src) =>
+            {
+                replies.Add(msg);
+                return Task.CompletedTask;
+            });
+
+        var customSettings = new StarshipExpeditionSettings
+        {
+            GameEnabled = true,
+            Messages = new StarshipMessageSettings
+            {
+                JoinSuccess = "CUSTOM JOIN: Welcome {user} ({crewCount} aboard).",
+                AlreadyAboard = "CUSTOM ABOARD: {user} is already on ship ({crewCount} total).",
+                VoteRecorded = "CUSTOM VOTE: Choice {choice} by {user} (tally: {tally}).",
+                VotePrompt = "CUSTOM PROMPT: Pick an option, {user}!",
+                ConfirmNotNeeded = "CUSTOM CONFIRM: No confirmation needed, {user}!",
+                ConfirmSuccess = "CUSTOM CONFIRMED: Committed {choice} for {user}."
+            }
+        };
+
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone, settingsStore: new InMemorySettingsStore(customSettings));
+
+        // Start voyage
+        await service.StartExpeditionAsync("streamer", legCount: 2, seed: 100);
+
+        // 1. Join during boarding
+        var joinArgs = CreateArgs("viewer-1", "Avery");
+        joinArgs.Args = ["join"];
+        await service.OnCommand(null, joinArgs);
+        Assert.Equal("CUSTOM JOIN: Welcome Avery (1 aboard).", replies[^1]);
+
+        // 2. Join again while aboard
+        await service.OnCommand(null, joinArgs);
+        Assert.Equal("CUSTOM ABOARD: Avery is already on ship (1 total).", replies[^1]);
+
+        // Advance to event
+        await service.AdvanceEventAsync();
+
+        // 3. Confirm notice before voting (no vote cast)
+        var confirmArgs = CreateArgs("viewer-2", "Blake");
+        confirmArgs.Args = ["confirm"];
+        await service.OnCommand(null, confirmArgs);
+        Assert.Equal("CUSTOM CONFIRM: No confirmation needed, Blake!", replies[^1]);
+
+        // 4. Vote prompt (missing choice arg)
+        var votePromptArgs = CreateArgs("viewer-1", "Avery");
+        votePromptArgs.Args = ["vote"];
+        await service.OnCommand(null, votePromptArgs);
+        Assert.Equal("CUSTOM PROMPT: Pick an option, Avery!", replies[^1]);
+
+        // 5. Vote recorded
+        var voteArgs = CreateArgs("viewer-1", "Avery");
+        voteArgs.Args = ["vote", "1"];
+        await service.OnCommand(null, voteArgs);
+        Assert.Contains("CUSTOM VOTE: Choice", replies[^1]);
+        Assert.Contains("by Avery (tally: 1).", replies[^1]);
+
+        // 6. Confirm notice after voting
+        var confirmVotedArgs = CreateArgs("viewer-1", "Avery");
+        confirmVotedArgs.Args = ["confirm"];
+        await service.OnCommand(null, confirmVotedArgs);
+        Assert.Contains("CUSTOM CONFIRMED: Committed", replies[^1]);
+        Assert.Contains("for Avery.", replies[^1]);
+    }
+
+    [Fact]
+    public async Task StarshipExpeditionService_UsesCustomMessageOverrides_ForModAndHelpCommands()
+    {
+        var backbone = new Mock<IServiceBackbone>();
+        var replies = new List<string>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns<string, string, bool>((user, msg, src) =>
+            {
+                replies.Add(msg);
+                return Task.CompletedTask;
+            });
+
+        var customSettings = new StarshipExpeditionSettings
+        {
+            GameEnabled = true,
+            Messages = new StarshipMessageSettings
+            {
+                StartNotAuthorized = "CUSTOM: You cannot start this, {user}!",
+                StopNoneActive = "CUSTOM: Nothing to stop right now, {user}.",
+                StopAborted = "CUSTOM: The ship was halted by {user}.",
+                Help = "CUSTOM HELP: Type !sj or !sv."
+            }
+        };
+
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone, settingsStore: new InMemorySettingsStore(customSettings));
+
+        // Unauthorized start
+        var unauthArgs = CreateArgs("viewer-1", "ViewerOne");
+        unauthArgs.IsMod = false;
+        unauthArgs.IsBroadcaster = false;
+        unauthArgs.Args = ["start"];
+        await service.OnCommand(null, unauthArgs);
+        Assert.Equal("CUSTOM: You cannot start this, ViewerOne!", replies[^1]);
+
+        // Stop with none active
+        var modArgs = CreateArgs("mod-1", "ModeratorOne");
+        modArgs.IsMod = true;
+        modArgs.Args = ["stop"];
+        await service.OnCommand(null, modArgs);
+        Assert.Equal("CUSTOM: Nothing to stop right now, ModeratorOne.", replies[^1]);
+
+        // Help
+        var helpArgs = CreateArgs("viewer-2", "ViewerTwo");
+        helpArgs.Args = ["help"];
+        await service.OnCommand(null, helpArgs);
+        Assert.Equal("CUSTOM HELP: Type !sj or !sv.", replies[^1]);
+    }
+
     private static CommandEventArgs CreateArgs(string userId, string displayName) => new()
     {
         Command = StarshipExpeditionService.DefaultCommandName,

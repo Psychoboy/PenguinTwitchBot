@@ -58,6 +58,7 @@ public sealed class StarshipExpeditionService(
     private readonly MediaUploadService? _mediaUploadService = mediaUploadService;
     private StarshipExpeditionSnapshot? _snapshot;
     private StarshipAppearanceSettings? _appearance;
+    private StarshipMessageSettings? _messageSettings;
     private bool _hasLoaded;
     private CancellationTokenSource? _schedulerCancellation;
     private Task? _schedulerTask;
@@ -126,12 +127,13 @@ public sealed class StarshipExpeditionService(
 
         try
         {
+            var messages = await GetMessageSettingsAsync();
             switch (subCommand)
             {
                 case "start":
                     if (!eventArgs.IsModOrHigher())
                     {
-                        await RespondWithMessage(eventArgs, "Only a moderator or broadcaster can start the Starship Expedition.");
+                        await RespondFormattedAsync(eventArgs, messages.StartNotAuthorized, StarshipMessageSettings.DefaultStartNotAuthorized);
                         return;
                     }
 
@@ -146,24 +148,34 @@ public sealed class StarshipExpeditionService(
                     var maximumInterval = ParseOptionalInteger(args, 3);
                     var started = await StartExpeditionAsync(eventArgs.DisplayName, legCount, minimumInterval, maximumInterval,
                         startedByUserId: eventArgs.UserId);
-                    await RespondWithMessage(eventArgs, $"Starship Expedition boarding is open for {started.BoardingDurationSeconds} seconds.");
+                    await RespondFormattedAsync(eventArgs, messages.StartSuccess, StarshipMessageSettings.DefaultStartSuccess, new()
+                    {
+                        ["duration"] = started.BoardingDurationSeconds.ToString(CultureInfo.InvariantCulture)
+                    });
                     return;
 
                 case "stop":
                     if (!eventArgs.IsModOrHigher())
                     {
-                        await RespondWithMessage(eventArgs, "Only a moderator or broadcaster can stop the Starship Expedition.");
+                        await RespondFormattedAsync(eventArgs, messages.StopNotAuthorized, StarshipMessageSettings.DefaultStopNotAuthorized);
                         return;
                     }
 
                     var stopped = await StopExpeditionAsync(eventArgs.DisplayName);
-                    await RespondWithMessage(eventArgs, stopped == null ? "No Starship Expedition is active." : "Starship Expedition aborted.");
+                    if (stopped == null)
+                    {
+                        await RespondFormattedAsync(eventArgs, messages.StopNoneActive, StarshipMessageSettings.DefaultStopNoneActive);
+                    }
+                    else
+                    {
+                        await RespondFormattedAsync(eventArgs, messages.StopAborted, StarshipMessageSettings.DefaultStopAborted);
+                    }
                     return;
 
                 case "advance":
                     if (!eventArgs.IsModOrHigher())
                     {
-                        await RespondWithMessage(eventArgs, "Only a moderator or broadcaster can advance the Starship Expedition.");
+                        await RespondFormattedAsync(eventArgs, messages.AdvanceNotAuthorized, StarshipMessageSettings.DefaultAdvanceNotAuthorized);
                         return;
                     }
 
@@ -178,21 +190,30 @@ public sealed class StarshipExpeditionService(
                     {
                         if (added)
                         {
-                            await RespondWithMessage(eventArgs,
-                                $"You joined the Starship Expedition crew ({joined.Crew.Count} aboard). Vote on the current event with !sv <number>! You share rewards and losses from the next event.");
+                            await RespondFormattedAsync(eventArgs, messages.JoinSuccessEventOpen, StarshipMessageSettings.DefaultJoinSuccessEventOpen, new()
+                            {
+                                ["crewCount"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture),
+                                ["count"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture)
+                            });
                         }
                         else
                         {
                             if (joined.CurrentEvent!.Votes.Any(vote =>
                                 string.Equals(vote.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase)))
                             {
-                                await RespondWithMessage(eventArgs,
-                                    "You are already aboard the Starship Expedition crew and your choice for this event has already been recorded.");
+                                await RespondFormattedAsync(eventArgs, messages.AlreadyVotedEventOpen, StarshipMessageSettings.DefaultAlreadyVotedEventOpen, new()
+                                {
+                                    ["crewCount"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture),
+                                    ["count"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture)
+                                });
                             }
                             else
                             {
-                                await RespondWithMessage(eventArgs,
-                                    "You are already aboard the Starship Expedition crew! Vote on the current event with !sv <number>.");
+                                await RespondFormattedAsync(eventArgs, messages.AlreadyAboardEventOpen, StarshipMessageSettings.DefaultAlreadyAboardEventOpen, new()
+                                {
+                                    ["crewCount"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture),
+                                    ["count"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture)
+                                });
                             }
                         }
                         return;
@@ -200,18 +221,26 @@ public sealed class StarshipExpeditionService(
 
                     if (!added)
                     {
-                        await RespondWithMessage(eventArgs,
-                            $"You are already aboard the Starship Expedition crew ({joined.Crew.Count} aboard).");
+                        await RespondFormattedAsync(eventArgs, messages.AlreadyAboard, StarshipMessageSettings.DefaultAlreadyAboard, new()
+                        {
+                            ["crewCount"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture),
+                            ["count"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture)
+                        });
                         return;
                     }
 
-                    await RespondWithMessage(eventArgs, $"You joined the Starship Expedition crew ({joined.Crew.Count} aboard).{DescribePendingShare(joined, eventArgs.UserId)}");
+                    await RespondFormattedAsync(eventArgs, messages.JoinSuccess, StarshipMessageSettings.DefaultJoinSuccess, new()
+                    {
+                        ["crewCount"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture),
+                        ["count"] = joined.Crew.Count.ToString(CultureInfo.InvariantCulture),
+                        ["shareNote"] = DescribePendingShare(joined, eventArgs.UserId)
+                    });
                     return;
 
                 case "vote":
                     if (args.Count < 2)
                     {
-                        await RespondWithMessage(eventArgs, "Choose one of the current Starship event options: !sv <number>");
+                        await RespondFormattedAsync(eventArgs, messages.VotePrompt, StarshipMessageSettings.DefaultVotePrompt);
                         return;
                     }
 
@@ -225,8 +254,13 @@ public sealed class StarshipExpeditionService(
                             string.Equals(choice.ChoiceId, vote.ChoiceId, StringComparison.OrdinalIgnoreCase)))
                         .FirstOrDefault();
                     var tally = voted.CurrentEvent?.Votes.Count ?? 0;
-                    await RespondWithMessage(eventArgs,
-                        $"Your Starship vote was recorded: {votedChoice?.Label ?? "your choice"} ({tally} vote{(tally == 1 ? string.Empty : "s")} so far).{enrollNote}");
+                    await RespondFormattedAsync(eventArgs, messages.VoteRecorded, StarshipMessageSettings.DefaultVoteRecorded, new()
+                    {
+                        ["choice"] = votedChoice?.Label ?? "your choice",
+                        ["tally"] = tally.ToString(CultureInfo.InvariantCulture),
+                        ["plural"] = tally == 1 ? string.Empty : "s",
+                        ["enrollNote"] = enrollNote
+                    });
                     return;
 
                 case "confirm":
@@ -238,11 +272,14 @@ public sealed class StarshipExpeditionService(
                         .FirstOrDefault();
                     if (confirmedChoice != null)
                     {
-                        await RespondWithMessage(eventArgs, $"Confirmed and committed: {confirmedChoice.Label}. Results are announced when the vote ends.");
+                        await RespondFormattedAsync(eventArgs, messages.ConfirmSuccess, StarshipMessageSettings.DefaultConfirmSuccess, new()
+                        {
+                            ["choice"] = confirmedChoice.Label
+                        });
                     }
                     else
                     {
-                        await RespondWithMessage(eventArgs, "No risk confirmation is needed; votes count immediately when using !sv <number>.");
+                        await RespondFormattedAsync(eventArgs, messages.ConfirmNotNeeded, StarshipMessageSettings.DefaultConfirmNotNeeded);
                     }
                     return;
 
@@ -251,7 +288,7 @@ public sealed class StarshipExpeditionService(
                     return;
 
                 default:
-                    await RespondWithMessage(eventArgs, "Use !sj to join or !sv <number> to vote (long forms: !starship join|vote). Moderators: !starship start [legs] [min minutes] [max minutes], !starship advance, or !starship stop.");
+                    await RespondFormattedAsync(eventArgs, messages.Help, StarshipMessageSettings.DefaultHelp);
                     return;
             }
         }
@@ -259,6 +296,38 @@ public sealed class StarshipExpeditionService(
         {
             await RespondWithMessage(eventArgs, ex.Message);
         }
+    }
+
+    private async Task<StarshipMessageSettings> GetMessageSettingsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_snapshot?.Messages != null) return _snapshot.Messages;
+        if (_messageSettings != null) return _messageSettings;
+        try
+        {
+            var settings = await settingsStore.LoadAsync(cancellationToken);
+            _messageSettings = StarshipMessageSettings.Normalize(settings.Messages);
+            return _messageSettings;
+        }
+        catch
+        {
+            return new StarshipMessageSettings();
+        }
+    }
+
+    private async Task RespondFormattedAsync(CommandEventArgs e, string? template, string fallback, Dictionary<string, string>? extraReplacements = null)
+    {
+        var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["user"] = e.DisplayName ?? e.Name,
+            ["name"] = e.DisplayName ?? e.Name
+        };
+        if (extraReplacements != null)
+        {
+            foreach (var (k, v) in extraReplacements)
+                replacements[k] = v;
+        }
+        var message = StarshipMessageSettings.Format(template, fallback, replacements);
+        await RespondWithMessage(e, message);
     }
 
     public async Task<StarshipExpeditionSnapshot?> GetSnapshotAsync(CancellationToken cancellationToken = default)
@@ -506,6 +575,7 @@ public sealed class StarshipExpeditionService(
                 AnnounceSessionStatusInChat = settings.AnnounceSessionStatusInChat,
                 SessionStartChatMessageTemplate = settings.SessionStartChatMessageTemplate,
                 SessionEndChatMessageTemplate = settings.SessionEndChatMessageTemplate,
+                Messages = StarshipMessageSettings.Normalize(settings.Messages),
                 SectorPool = settings.GetEffectiveSectors(),
                 CurrentSector = settings.GetEffectiveSectors()[GetDeterministicIndex(expeditionSeed, 0, "initial-sector", settings.GetEffectiveSectors().Count)],
                 CurrentRoute = StarshipEventCatalog.StartRoute
@@ -951,15 +1021,32 @@ public sealed class StarshipExpeditionService(
         }
 
         var choices = StarshipExpeditionNarrative.FormatChoices(currentEvent.Choices);
-        var message = $"Starship vote: {currentEvent.Title} at {currentEvent.Sector}. {currentEvent.Description} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
-        return message;
+        return StarshipMessageSettings.Format(snapshot.Messages?.EventOpened, StarshipMessageSettings.DefaultEventOpened, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = currentEvent.Title,
+            ["sector"] = currentEvent.Sector,
+            ["description"] = currentEvent.Description ?? string.Empty,
+            ["note"] = currentEvent.StepNote ?? string.Empty,
+            ["rarity"] = string.IsNullOrEmpty(currentEvent.RevealedRarity) ? string.Empty : $" Known rarity: {currentEvent.RevealedRarity}.",
+            ["choices"] = choices,
+            ["duration"] = snapshot.EventVoteDurationSeconds.ToString(CultureInfo.InvariantCulture)
+        });
     }
 
     private static string BuildEventStepMessage(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
     {
         var choices = StarshipExpeditionNarrative.FormatChoices(currentEvent.Choices);
         var rarity = string.IsNullOrEmpty(currentEvent.RevealedRarity) ? string.Empty : $" Known rarity: {currentEvent.RevealedRarity}.";
-        return $"{currentEvent.Title}. {currentEvent.StepNote}{rarity} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
+        return StarshipMessageSettings.Format(snapshot.Messages?.EventStepAdvanced, StarshipMessageSettings.DefaultEventStepAdvanced, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = currentEvent.Title,
+            ["sector"] = currentEvent.Sector,
+            ["narrative"] = currentEvent.StepNote ?? string.Empty,
+            ["note"] = currentEvent.StepNote ?? string.Empty,
+            ["rarity"] = rarity,
+            ["choices"] = choices,
+            ["duration"] = snapshot.EventVoteDurationSeconds.ToString(CultureInfo.InvariantCulture)
+        });
     }
 
     private async Task AnnounceVoyageEndedAsync(StarshipExpeditionSnapshot snapshot)
@@ -1902,6 +1989,12 @@ public sealed class StarshipExpeditionService(
         try
         {
             _appearance = null;
+            _messageSettings = null;
+            if (_snapshot != null)
+            {
+                var settings = await settingsStore.LoadAsync(cancellationToken);
+                _snapshot.Messages = StarshipMessageSettings.Normalize(settings.Messages);
+            }
             await BroadcastLockedAsync(cancellationToken);
         }
         finally

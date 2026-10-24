@@ -1,0 +1,179 @@
+@using PenguinTwitchBot.Bot.Commands.Games.Starship
+
+<MudPaper Class="pa-4 mb-4" Outlined="true">
+    <MudStack Spacing="3">
+        <div>
+            <MudText Typo="Typo.h6">Default Chat Responses & Overrides</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Customize any default message used by the Starship Expedition commands and announcements. Clear a field or click the restore icon to revert to its default response.
+            </MudText>
+        </div>
+
+        <MudExpansionPanels MultiExpansion="true">
+            <!-- 1. Crew Join Responses -->
+            <MudExpansionPanel Text="🧑‍🚀 Crew Join Responses (!sj / !starship join)" Expanded="true">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Joined Crew (Boarding / Cruising)" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.JoinSuccess"
+                                      HelperText="Placeholders: {user}, {crewCount}, {shareNote}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.JoinSuccess = StarshipMessageSettings.DefaultJoinSuccess)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Joined Crew (During Active Event)" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.JoinSuccessEventOpen"
+                                      HelperText="Placeholders: {user}, {crewCount}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.JoinSuccessEventOpen = StarshipMessageSettings.DefaultJoinSuccessEventOpen)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Already Aboard (Outside Events)" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.AlreadyAboard"
+                                      HelperText="Placeholders: {user}, {crewCount}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.AlreadyAboard = StarshipMessageSettings.DefaultAlreadyAboard)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Already Aboard (Active Event, Has Not Voted)" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.AlreadyAboardEventOpen"
+                                      HelperText="Placeholders: {user}, {crewCount}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.AlreadyAboardEventOpen = StarshipMessageSettings.DefaultAlreadyAboardEventOpen)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Already Aboard (Active Event, Already Voted)" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.AlreadyVotedEventOpen"
+                                      HelperText="Placeholders: {user}, {crewCount}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.AlreadyVotedEventOpen = StarshipMessageSettings.DefaultAlreadyVotedEventOpen)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+
+            <!-- 2. Voting & Confirm Responses -->
+            <MudExpansionPanel Text="🗳️ Voting & Risk Responses (!sv / !sc)" Expanded="true">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Vote Recorded" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.VoteRecorded"
+                                      HelperText="Placeholders: {user}, {choice}, {tally}, {plural}, {enrollNote}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.VoteRecorded = StarshipMessageSettings.DefaultVoteRecorded)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Invalid / Missing Choice Prompt" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.VotePrompt"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.VotePrompt = StarshipMessageSettings.DefaultVotePrompt)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="No Risk Confirmation Needed Notice (!sc)" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.ConfirmNotNeeded"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.ConfirmNotNeeded = StarshipMessageSettings.DefaultConfirmNotNeeded)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+
+            <!-- 3. Moderator & Administrative Controls -->
+            <MudExpansionPanel Text="🛠️ Moderator Controls (!starship start/stop/advance)">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Start Success" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.StartSuccess"
+                                      HelperText="Placeholders: {user}, {duration}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.StartSuccess = StarshipMessageSettings.DefaultStartSuccess)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Start Not Authorized" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.StartNotAuthorized"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.StartNotAuthorized = StarshipMessageSettings.DefaultStartNotAuthorized)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Stop / Voyage Aborted" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.StopAborted"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.StopAborted = StarshipMessageSettings.DefaultStopAborted)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Stop / No Voyage Active" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.StopNoneActive"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.StopNoneActive = StarshipMessageSettings.DefaultStopNoneActive)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Stop Not Authorized" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.StopNotAuthorized"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.StopNotAuthorized = StarshipMessageSettings.DefaultStopNotAuthorized)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Advance Not Authorized" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.AdvanceNotAuthorized"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.AdvanceNotAuthorized = StarshipMessageSettings.DefaultAdvanceNotAuthorized)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+
+            <!-- 4. General Information & Event Announcements -->
+            <MudExpansionPanel Text="📢 Announcements & General Help">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Commands Help (!starship)" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.Help"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.Help = StarshipMessageSettings.DefaultHelp)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Event Opened Chat Broadcast" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.EventOpened"
+                                      HelperText="Placeholders: {title}, {sector}, {description}, {note}, {rarity}, {choices}, {duration}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.EventOpened = StarshipMessageSettings.DefaultEventOpened)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Step Advanced Chat Broadcast" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.EventStepAdvanced"
+                                      HelperText="Placeholders: {title}, {sector}, {narrative}, {note}, {rarity}, {choices}, {duration}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.EventStepAdvanced = StarshipMessageSettings.DefaultEventStepAdvanced)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired]
+    public StarshipMessageSettings Messages { get; set; } = default!;
+}
