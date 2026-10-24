@@ -633,7 +633,7 @@ public class StarshipExpeditionServiceTests
         var crewMember = Assert.Single(snapshot.Crew);
         Assert.Equal("viewer-1", crewMember.UserId);
         Assert.Equal(StarshipCrewEnrollmentMethod.ExplicitJoin, crewMember.EnrollmentMethod);
-        Assert.Equal("detour", Assert.Single(snapshot.CurrentEvent!.Votes).ChoiceId);
+        Assert.Equal("frontier", Assert.Single(snapshot.CurrentEvent!.Votes).ChoiceId);
     }
 
     [Fact]
@@ -652,7 +652,7 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(started.ExpeditionId, restored.ExpeditionId);
         Assert.Equal(StarshipExpeditionStatus.EventOpen, restored.Status);
         Assert.Equal("viewer-1", Assert.Single(restored.CurrentEvent!.Votes).UserId);
-        Assert.Equal("detour", restored.CurrentEvent.Votes[0].ChoiceId);
+        Assert.Equal("frontier", restored.CurrentEvent.Votes[0].ChoiceId);
     }
 
     [Fact]
@@ -676,11 +676,11 @@ public class StarshipExpeditionServiceTests
         await service.VoteAsync(voter, "detour");
         var afterRetry = await service.GetSnapshotAsync();
         Assert.Equal("viewer-1", Assert.Single(afterRetry!.Crew).UserId);
-        Assert.Equal("detour", Assert.Single(afterRetry.CurrentEvent!.Votes).ChoiceId);
+        Assert.Equal("frontier", Assert.Single(afterRetry.CurrentEvent!.Votes).ChoiceId);
     }
 
     [Fact]
-    public async Task AdvanceEvent_UsesDefaultForNoVotesAndTie_ThenSchedulesNextEventInConfiguredRange()
+    public async Task AdvanceEvent_UsesDefaultForNoVotesAndPicksAmongTiedLeaders_ThenSchedulesNextEventInConfiguredRange()
     {
         var service = CreateService(new InMemoryStateStore());
         await service.StartExpeditionAsync("mod-user", legCount: 4, minimumEventIntervalMinutes: 15, maximumEventIntervalMinutes: 30, seed: 2468);
@@ -690,7 +690,7 @@ public class StarshipExpeditionServiceTests
 
         var noVoteResolution = await service.AdvanceEventAsync();
 
-        Assert.Equal("Direct Route", noVoteResolution.CurrentRoute);
+        Assert.Equal("Core Route", noVoteResolution.CurrentRoute);
         Assert.Equal(1, noVoteResolution.CurrentLeg);
         Assert.Equal(StarshipExpeditionStatus.Cruising, noVoteResolution.Status);
         Assert.InRange(
@@ -700,13 +700,16 @@ public class StarshipExpeditionServiceTests
 
         var nextEvent = await service.AdvanceEventAsync();
         Assert.NotEqual("SalvageSite", nextEvent.CurrentEvent!.EventType);
-        var choices = nextEvent.CurrentEvent!.Choices;
-        await service.VoteAsync(CreateArgs("viewer-1", "Pilot"), choices[0].ChoiceId);
-        await service.VoteAsync(CreateArgs("viewer-2", "Engineer"), choices[1].ChoiceId);
+        var nonDefaultChoices = nextEvent.CurrentEvent!.Choices
+            .Where(choice => choice.ChoiceId != nextEvent.CurrentEvent.DefaultChoiceId).ToList();
+        await service.VoteAsync(CreateArgs("viewer-1", "Pilot"), nonDefaultChoices[0].ChoiceId);
+        await service.VoteAsync(CreateArgs("viewer-2", "Engineer"), nonDefaultChoices[1].ChoiceId);
         var tieResolution = await service.AdvanceEventAsync();
 
-        Assert.Equal(nextEvent.CurrentEvent.DefaultChoiceId, tieResolution.CompletedEvents.Last().ResolvedChoiceId);
-        Assert.Equal(2, tieResolution.CurrentLeg);
+        var path = tieResolution.CurrentEvent?.Path ?? tieResolution.CompletedEvents.Last().Path;
+        Assert.Contains(path[0].ChoiceId, new[] { nonDefaultChoices[0].ChoiceId, nonDefaultChoices[1].ChoiceId });
+        Assert.NotEqual(nextEvent.CurrentEvent.DefaultChoiceId, path[0].ChoiceId);
+        Assert.Equal(1, tieResolution.CurrentLeg);
     }
 
     [Fact]
@@ -720,11 +723,11 @@ public class StarshipExpeditionServiceTests
 
         await service.VoteAsync(CreateArgs("viewer-1", "Pilot"), "detour");
         var routeResolution = await service.AdvanceEventAsync();
-        Assert.Equal("Survey Route", routeResolution.CurrentRoute);
+        Assert.Equal("Frontier Route", routeResolution.CurrentRoute);
         Assert.NotEqual(startingSector, routeResolution.CurrentSector);
 
         var surveyEvent = await service.AdvanceEventAsync();
-        Assert.Equal("Survey Route", surveyEvent.CurrentRoute);
+        Assert.Equal("Frontier Route", surveyEvent.CurrentRoute);
         Assert.NotEqual("Hazard", surveyEvent.CurrentEvent?.EventType);
     }
 
@@ -780,7 +783,7 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(StarshipExpeditionStatus.Cruising, afterTimeout.Status);
         Assert.Equal(1, afterTimeout.CurrentLeg);
         Assert.Null(afterTimeout.CurrentEvent);
-        Assert.Equal("direct", Assert.Single(afterTimeout.CompletedEvents).ResolvedChoiceId);
+        Assert.Equal("core", Assert.Single(afterTimeout.CompletedEvents).ResolvedChoiceId);
 
         await service.ProcessDueTransitionAsync();
         var afterSecondTick = await CreateService(stateStore, clock).GetSnapshotAsync();
@@ -1160,7 +1163,7 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
-    public async Task RiskyChoice_DisclosesBalanceBeforeConfirmationAndLossAppliesOnlyToParticipant()
+    public async Task RiskyChoice_AppliesRiskImmediatelyAndLossAppliesOnlyToParticipant()
     {
         var stateStore = new InMemoryStateStore();
         var pointProfile = new StarshipRewardProfile
@@ -1236,24 +1239,12 @@ public class StarshipExpeditionServiceTests
         var riskyVote = CreateArgs("pilot-id", "Pilot");
         riskyVote.Args = ["vote", "1"];
         await service.OnCommand(null, riskyVote);
-        Assert.Contains(replies, reply => reply.Contains("unbanked Salvage Credits balance is 80", StringComparison.Ordinal)
-            && reply.Contains("lose up to 20", StringComparison.Ordinal)
-            && reply.Contains("Success chance 0%", StringComparison.Ordinal)
-            && reply.Contains("Rarity: unknown", StringComparison.Ordinal)
-            && reply.Contains("!sc", StringComparison.Ordinal));
-        Assert.DoesNotContain(replies, reply => reply.Contains("Rare 30-50", StringComparison.Ordinal));
+        Assert.Contains(replies, reply => reply.Contains("Your Starship vote was recorded: Recover salvage", StringComparison.Ordinal));
         var pending = await service.GetSnapshotAsync();
         Assert.NotNull(pending);
-        var confirmation = Assert.Single(pending.CurrentEvent!.PendingRiskConfirmations);
-        Assert.Equal(80, confirmation.ExposedBalance);
-        Assert.Equal(20, confirmation.MaximumLoss);
-        Assert.Empty(pending.CurrentEvent.Votes);
+        Assert.Empty(pending.CurrentEvent!.PendingRiskConfirmations);
+        Assert.Single(pending.CurrentEvent.Votes);
 
-        var shortConfirm = CreateArgs("pilot-id", "Pilot");
-        shortConfirm.Command = StarshipExpeditionService.ShortConfirmCommandName;
-        shortConfirm.Args = [];
-        await service.OnCommand(null, shortConfirm);
-        Assert.Contains(replies, reply => reply.Contains("Confirmed and committed: Recover salvage", StringComparison.Ordinal));
         var resolved = await service.AdvanceEventAsync();
 
         var pilot = resolved.Crew.Single(member => member.UserId == "pilot-id");
@@ -1374,13 +1365,9 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(50, afterSecure.CurrentEvent.RiskMultiplierPercent);
         Assert.Equal(["salvage", "pass"], afterSecure.CurrentEvent.Choices.Select(choice => choice.ChoiceId));
 
-        var prompt = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "1");
-        var confirmation = Assert.Single(prompt.CurrentEvent!.PendingRiskConfirmations);
-        Assert.Equal(20, confirmation.MaximumLoss);
-        Assert.Equal(100, confirmation.SuccessChancePercent);
-        Assert.Equal(80, confirmation.RewardMultiplierPercent);
-        Assert.Equal("Common", confirmation.RevealedRarity);
-        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+        var voted = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "1");
+        Assert.Contains(voted.CurrentEvent!.Votes, vote => vote.ChoiceId == "salvage");
+        Assert.Empty(voted.CurrentEvent.PendingRiskConfirmations);
 
         var resolved = await service.AdvanceEventAsync();
 
@@ -1405,13 +1392,10 @@ public class StarshipExpeditionServiceTests
         await stateStore.SaveAsync(CreateSalvageFixture());
         var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
 
-        var prompt = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        var voted = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
 
-        var confirmation = Assert.Single(prompt.CurrentEvent!.PendingRiskConfirmations);
-        Assert.Equal(40, confirmation.MaximumLoss);
-        Assert.Equal(80, confirmation.SuccessChancePercent);
-        Assert.Equal(100, confirmation.RewardMultiplierPercent);
-        Assert.Null(confirmation.RevealedRarity);
+        Assert.Contains(voted.CurrentEvent!.Votes, vote => vote.ChoiceId == "salvage");
+        Assert.Empty(voted.CurrentEvent.PendingRiskConfirmations);
     }
 
     [Fact]
@@ -2776,6 +2760,337 @@ public class StarshipExpeditionServiceTests
             scopeFactory);
     }
 
+    [Fact]
+    public async Task JoinCommand_WhenEventIsOpen_AndUserHasNotJoinedYet_EnrollsUserAndPromptsToVote()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone);
+        await service.StartExpeditionAsync("moderator", seed: 10);
+        await service.JoinCrewAsync(CreateArgs("initial-pilot", "InitialPilot"));
+        await service.AdvanceEventAsync();
+        replies.Clear();
+
+        var joinArgs = CreateArgs("new-viewer", "NewViewer");
+        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
+        joinArgs.Args = [];
+        await service.OnCommand(null, joinArgs);
+
+        var reply = Assert.Single(replies);
+        Assert.Contains("You joined the Starship Expedition crew (2 aboard).", reply, StringComparison.Ordinal);
+        Assert.Contains("Vote on the current event with !sv <number>!", reply, StringComparison.Ordinal);
+        Assert.Contains("You share rewards and losses from the next event.", reply, StringComparison.Ordinal);
+        var snapshot = await service.GetSnapshotAsync();
+        var member = snapshot!.Crew.Single(m => m.UserId == "new-viewer");
+        Assert.Equal(snapshot.CurrentEvent!.Sequence + 1, member.EffectiveFromSequence);
+    }
+
+    [Fact]
+    public async Task JoinCommand_WhenEventIsOpen_AndUserAlreadyJoined_RemindsToVote()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone);
+        await service.StartExpeditionAsync("moderator", seed: 10);
+        await service.JoinCrewAsync(CreateArgs("viewer-1", "ViewerOne"));
+        await service.AdvanceEventAsync();
+        replies.Clear();
+
+        var joinArgs = CreateArgs("viewer-1", "ViewerOne");
+        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
+        joinArgs.Args = [];
+        await service.OnCommand(null, joinArgs);
+
+        var reply = Assert.Single(replies);
+        Assert.Equal("You are already aboard the Starship Expedition crew! Vote on the current event with !sv <number>.", reply);
+    }
+
+    [Fact]
+    public async Task JoinCommand_WhenEventIsOpen_AndUserAlreadyVoted_NotifiesAlreadyVoted()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone);
+        await service.StartExpeditionAsync("moderator", seed: 10);
+        await service.JoinCrewAsync(CreateArgs("viewer-1", "ViewerOne"));
+        await service.AdvanceEventAsync();
+        await service.VoteAsync(CreateArgs("viewer-1", "ViewerOne"), "1");
+        replies.Clear();
+
+        var joinArgs = CreateArgs("viewer-1", "ViewerOne");
+        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
+        joinArgs.Args = [];
+        await service.OnCommand(null, joinArgs);
+
+        var reply = Assert.Single(replies);
+        Assert.Equal("You are already aboard the Starship Expedition crew and your choice for this event has already been recorded.", reply);
+    }
+
+    [Fact]
+    public async Task ConfirmRiskActionAsync_ReturnsActiveSnapshotClone_AsBackwardsCompatibilitySkeleton()
+    {
+        var service = CreateService(new InMemoryStateStore());
+        await service.StartExpeditionAsync("moderator", seed: 10);
+        var confirmArgs = CreateArgs("viewer-1", "ViewerOne");
+        await service.JoinCrewAsync(confirmArgs);
+        await service.AdvanceEventAsync();
+
+        var snapshot = await service.ConfirmRiskActionAsync(confirmArgs);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(StarshipExpeditionStatus.EventOpen, snapshot.Status);
+    }
+
+    [Fact]
+    public async Task ResolveCurrentEvent_WhenVotesAreTied_PicksAmongTiedLeadersInsteadOfDefaultChoice()
+    {
+        var stateStore = new InMemoryStateStore();
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            Seed = 42,
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentSector = "Ternion Belt",
+            CurrentRoute = "Survey Route",
+            SectorPool = ["Ternion Belt", "Kepler Reach"],
+            Crew =
+            [
+                new() { UserId = "user-1", DisplayName = "User1" },
+                new() { UserId = "user-2", DisplayName = "User2" }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 2,
+                EventType = "CustomEvent",
+                Title = "Test Event",
+                Sector = "Ternion Belt",
+                DefaultChoiceId = "pass",
+                Choices =
+                [
+                    new() { ChoiceId = "opt-a", Label = "Option A" },
+                    new() { ChoiceId = "opt-b", Label = "Option B" },
+                    new() { ChoiceId = "pass", Label = "Pass" }
+                ]
+            }
+        };
+        await stateStore.SaveAsync(snapshot);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        await service.VoteAsync(CreateArgs("user-1", "User1"), "opt-a");
+        await service.VoteAsync(CreateArgs("user-2", "User2"), "opt-b");
+
+        var resolved = await service.AdvanceEventAsync();
+        var winningChoiceId = resolved.CompletedEvents.Single().ResolvedChoiceId;
+        Assert.True(winningChoiceId is "opt-a" or "opt-b", $"Expected tied leader 'opt-a' or 'opt-b' to win, but got '{winningChoiceId}'");
+    }
+
+    [Fact]
+    public async Task ResolveCurrentEvent_WhenNoVotesCast_FallsBackToDefaultChoice()
+    {
+        var stateStore = new InMemoryStateStore();
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            Seed = 42,
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentSector = "Ternion Belt",
+            CurrentRoute = "Survey Route",
+            SectorPool = ["Ternion Belt", "Kepler Reach"],
+            Crew =
+            [
+                new() { UserId = "user-1", DisplayName = "User1" }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 2,
+                EventType = "CustomEvent",
+                Title = "Test Event",
+                Sector = "Ternion Belt",
+                DefaultChoiceId = "pass",
+                Choices =
+                [
+                    new() { ChoiceId = "opt-a", Label = "Option A" },
+                    new() { ChoiceId = "opt-b", Label = "Option B" },
+                    new() { ChoiceId = "pass", Label = "Pass" }
+                ]
+            }
+        };
+        await stateStore.SaveAsync(snapshot);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        var resolved = await service.AdvanceEventAsync();
+        var winningChoiceId = resolved.CompletedEvents.Single().ResolvedChoiceId;
+        Assert.Equal("pass", winningChoiceId);
+    }
+
+    [Fact]
+    public async Task JoinCommand_WhenEventIsNotOpen_AndUserAlreadyJoined_NotifiesAlreadyAboard()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone);
+        await service.StartExpeditionAsync("moderator", seed: 10);
+        replies.Clear();
+
+        var joinArgs = CreateArgs("viewer-1", "ViewerOne");
+        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
+        joinArgs.Args = [];
+        await service.OnCommand(null, joinArgs);
+        await service.OnCommand(null, joinArgs);
+
+        Assert.Equal(2, replies.Count);
+        Assert.Equal("You joined the Starship Expedition crew (1 aboard).", replies[0]);
+        Assert.Equal("You are already aboard the Starship Expedition crew (1 aboard).", replies[1]);
+    }
+
+    [Fact]
+    public void StarshipMessageSettings_NormalizeAndFormat_WorksCorrectly()
+    {
+        var normalized = StarshipMessageSettings.Normalize(new StarshipMessageSettings
+        {
+            JoinSuccess = "",
+            VotePrompt = "   ",
+            Help = null!
+        });
+
+        Assert.Equal(StarshipMessageSettings.DefaultJoinSuccess, normalized.JoinSuccess);
+        Assert.Equal(StarshipMessageSettings.DefaultVotePrompt, normalized.VotePrompt);
+        Assert.Equal(StarshipMessageSettings.DefaultHelp, normalized.Help);
+
+        var formatted = StarshipMessageSettings.Format("Welcome aboard {user}! Total: {crewCount}.", "fallback",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["USER"] = "Alice",
+                ["crewcount"] = "5"
+            });
+        Assert.Equal("Welcome aboard Alice! Total: 5.", formatted);
+
+        var fallbackFormatted = StarshipMessageSettings.Format("", "Default text: {count}",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["count"] = "10"
+            });
+        Assert.Equal("Default text: 10", fallbackFormatted);
+    }
+
+    [Fact]
+    public async Task StarshipExpeditionService_UsesCustomMessageOverrides_ForJoinAndVote()
+    {
+        var backbone = new Mock<IServiceBackbone>();
+        var replies = new List<string>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns<string, string, bool>((user, msg, src) =>
+            {
+                replies.Add(msg);
+                return Task.CompletedTask;
+            });
+
+        var customSettings = new StarshipExpeditionSettings
+        {
+            GameEnabled = true,
+            Messages = new StarshipMessageSettings
+            {
+                JoinSuccess = "CUSTOM JOIN: Welcome {user} ({crewCount} aboard).",
+                AlreadyAboard = "CUSTOM ABOARD: {user} is already on ship ({crewCount} total).",
+                VoteRecorded = "CUSTOM VOTE: Choice {choice} by {user} (tally: {tally}).",
+                VotePrompt = "CUSTOM PROMPT: Pick an option, {user}!"
+            }
+        };
+
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone, settingsStore: new InMemorySettingsStore(customSettings));
+
+        // Start voyage
+        await service.StartExpeditionAsync("streamer", legCount: 2, seed: 100);
+
+        // 1. Join during boarding
+        var joinArgs = CreateArgs("viewer-1", "Avery");
+        joinArgs.Args = ["join"];
+        await service.OnCommand(null, joinArgs);
+        Assert.Equal("CUSTOM JOIN: Welcome Avery (1 aboard).", replies[^1]);
+
+        // 2. Join again while aboard
+        await service.OnCommand(null, joinArgs);
+        Assert.Equal("CUSTOM ABOARD: Avery is already on ship (1 total).", replies[^1]);
+
+        // Advance to event
+        await service.AdvanceEventAsync();
+
+        // 3. Vote prompt (missing choice arg)
+        var votePromptArgs = CreateArgs("viewer-1", "Avery");
+        votePromptArgs.Args = ["vote"];
+        await service.OnCommand(null, votePromptArgs);
+        Assert.Equal("CUSTOM PROMPT: Pick an option, Avery!", replies[^1]);
+
+        // 4. Vote recorded
+        var voteArgs = CreateArgs("viewer-1", "Avery");
+        voteArgs.Args = ["vote", "1"];
+        await service.OnCommand(null, voteArgs);
+        Assert.Contains("CUSTOM VOTE: Choice", replies[^1]);
+        Assert.Contains("by Avery (tally: 1).", replies[^1]);
+    }
+
+    [Fact]
+    public async Task StarshipExpeditionService_UsesCustomMessageOverrides_ForModAndHelpCommands()
+    {
+        var backbone = new Mock<IServiceBackbone>();
+        var replies = new List<string>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns<string, string, bool>((user, msg, src) =>
+            {
+                replies.Add(msg);
+                return Task.CompletedTask;
+            });
+
+        var customSettings = new StarshipExpeditionSettings
+        {
+            GameEnabled = true,
+            Messages = new StarshipMessageSettings
+            {
+                StartNotAuthorized = "CUSTOM: You cannot start this, {user}!",
+                StopNoneActive = "CUSTOM: Nothing to stop right now, {user}.",
+                StopAborted = "CUSTOM: The ship was halted by {user}.",
+                Help = "CUSTOM HELP: Type !sj or !sv."
+            }
+        };
+
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone, settingsStore: new InMemorySettingsStore(customSettings));
+
+        // Unauthorized start
+        var unauthArgs = CreateArgs("viewer-1", "ViewerOne");
+        unauthArgs.IsMod = false;
+        unauthArgs.IsBroadcaster = false;
+        unauthArgs.Args = ["start"];
+        await service.OnCommand(null, unauthArgs);
+        Assert.Equal("CUSTOM: You cannot start this, ViewerOne!", replies[^1]);
+
+        // Stop with none active
+        var modArgs = CreateArgs("mod-1", "ModeratorOne");
+        modArgs.IsMod = true;
+        modArgs.Args = ["stop"];
+        await service.OnCommand(null, modArgs);
+        Assert.Equal("CUSTOM: Nothing to stop right now, ModeratorOne.", replies[^1]);
+
+        // Help
+        var helpArgs = CreateArgs("viewer-2", "ViewerTwo");
+        helpArgs.Args = ["help"];
+        await service.OnCommand(null, helpArgs);
+        Assert.Equal("CUSTOM HELP: Type !sj or !sv.", replies[^1]);
+    }
+
     private static CommandEventArgs CreateArgs(string userId, string displayName) => new()
     {
         Command = StarshipExpeditionService.DefaultCommandName,
@@ -2809,6 +3124,89 @@ public class StarshipExpeditionServiceTests
             _snapshotJson = JsonSerializer.Serialize(snapshot);
             return Task.CompletedTask;
         }
+    }
+
+    [Fact]
+    public async Task Choices_AreShuffledDeterministically_AcrossDifferentSeedsAndSteps()
+    {
+        var service1 = CreateService(new InMemoryStateStore());
+        await service1.StartExpeditionAsync("mod", legCount: 4, seed: 100);
+        await service1.JoinCrewAsync(CreateArgs("viewer-1", "Viewer1"));
+        var leg1Seed100 = await service1.AdvanceEventAsync();
+        var routeChoicesSeed100 = leg1Seed100.CurrentEvent!.Choices.Select(c => c.ChoiceId).ToList();
+
+        var service2 = CreateService(new InMemoryStateStore());
+        await service2.StartExpeditionAsync("mod", legCount: 4, seed: 100);
+        await service2.JoinCrewAsync(CreateArgs("viewer-1", "Viewer1"));
+        var leg1Seed100Repeat = await service2.AdvanceEventAsync();
+        var routeChoicesSeed100Repeat = leg1Seed100Repeat.CurrentEvent!.Choices.Select(c => c.ChoiceId).ToList();
+
+        Assert.Equal(routeChoicesSeed100, routeChoicesSeed100Repeat);
+
+        var foundDifferentOrder = false;
+        for (var seed = 1; seed <= 50; seed++)
+        {
+            var service = CreateService(new InMemoryStateStore());
+            await service.StartExpeditionAsync("mod", legCount: 4, seed: seed);
+            await service.JoinCrewAsync(CreateArgs("viewer-1", "Viewer1"));
+            var eventSnapshot = await service.AdvanceEventAsync();
+            var choices = eventSnapshot.CurrentEvent!.Choices.Select(c => c.ChoiceId).ToList();
+            if (!choices.SequenceEqual(routeChoicesSeed100))
+            {
+                foundDifferentOrder = true;
+                break;
+            }
+        }
+        Assert.True(foundDifferentOrder, "Different seeds should produce varied choice orders.");
+    }
+
+    [Fact]
+    public async Task Vote_SupportsLegacyRouteAliases_DirectAndDetour()
+    {
+        var service = CreateService(new InMemoryStateStore());
+        await service.StartExpeditionAsync("mod", legCount: 4, seed: 42);
+        await service.JoinCrewAsync(CreateArgs("viewer-1", "Viewer1"));
+        await service.AdvanceEventAsync();
+
+        var votedDirect = await service.VoteAsync(CreateArgs("viewer-1", "Viewer1"), "direct");
+        Assert.Equal("core", Assert.Single(votedDirect.CurrentEvent!.Votes).ChoiceId);
+
+        var service2 = CreateService(new InMemoryStateStore());
+        await service2.StartExpeditionAsync("mod", legCount: 4, seed: 42);
+        await service2.JoinCrewAsync(CreateArgs("viewer-1", "Viewer1"));
+        await service2.AdvanceEventAsync();
+
+        var votedDetour = await service2.VoteAsync(CreateArgs("viewer-1", "Viewer1"), "detour");
+        Assert.Equal("frontier", Assert.Single(votedDetour.CurrentEvent!.Votes).ChoiceId);
+
+        var resolved = await service2.AdvanceEventAsync();
+        Assert.Equal(StarshipEventCatalog.FrontierRoute, resolved.CurrentRoute);
+    }
+
+    [Fact]
+    public async Task RouteChoice_ResolvesTargetRouteDynamically_SupportingFutureRoutes()
+    {
+        var settingsStore = new InMemorySettingsStore();
+        var routeIndex = settingsStore.Settings.EventCatalog.FindIndex(e => e.EventType == "RouteChoice");
+        var customRouteChoice = settingsStore.Settings.EventCatalog[routeIndex] with
+        {
+            Choices =
+            [
+                new() { ChoiceId = "core", Label = "Take Core Route", TargetRoute = "Core Route" },
+                new() { ChoiceId = "frontier", Label = "Take Frontier Route", TargetRoute = "Frontier Route" },
+                new() { ChoiceId = "nebula", Label = "Take Nebula Route", TargetRoute = "Nebula Route" }
+            ]
+        };
+        settingsStore.Settings.EventCatalog[routeIndex] = customRouteChoice;
+
+        var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore);
+        await service.StartExpeditionAsync("mod", legCount: 4, seed: 77);
+        await service.JoinCrewAsync(CreateArgs("viewer-1", "Viewer1"));
+        await service.AdvanceEventAsync();
+
+        await service.VoteAsync(CreateArgs("viewer-1", "Viewer1"), "nebula");
+        var resolved = await service.AdvanceEventAsync();
+        Assert.Equal("Nebula Route", resolved.CurrentRoute);
     }
 
     private sealed class InMemorySettingsStore : IStarshipExpeditionSettingsStore

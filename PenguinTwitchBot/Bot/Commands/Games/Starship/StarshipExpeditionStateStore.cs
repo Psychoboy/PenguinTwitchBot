@@ -50,6 +50,52 @@ public sealed class StarshipExpeditionStateStore(
             {
                 if (string.Equals(snapshot.CurrentRoute, StarshipEventCatalog.UnchartedRoute, StringComparison.OrdinalIgnoreCase))
                     snapshot.CurrentRoute = StarshipEventCatalog.StartRoute;
+                if (string.Equals(snapshot.CurrentRoute, StarshipEventCatalog.LegacyDirectRoute, StringComparison.OrdinalIgnoreCase))
+                    snapshot.CurrentRoute = StarshipEventCatalog.CoreRoute;
+                if (string.Equals(snapshot.CurrentRoute, StarshipEventCatalog.LegacySurveyRoute, StringComparison.OrdinalIgnoreCase))
+                    snapshot.CurrentRoute = StarshipEventCatalog.FrontierRoute;
+
+                if (snapshot.CurrentEvent != null && snapshot.CurrentEvent.EventType == "RouteChoice")
+                {
+                    for (var i = 0; i < snapshot.CurrentEvent.Choices.Count; i++)
+                    {
+                        var choice = snapshot.CurrentEvent.Choices[i];
+                        if (string.Equals(choice.ChoiceId, "direct", StringComparison.OrdinalIgnoreCase))
+                            snapshot.CurrentEvent.Choices[i] = new()
+                            {
+                                ChoiceId = "core",
+                                Label = choice.Label == "Take the direct route" ? "Take the Core Route" : choice.Label,
+                                Story = choice.Story,
+                                Hint = choice.Hint,
+                                TargetRoute = StarshipEventCatalog.CoreRoute
+                            };
+                        else if (string.Equals(choice.ChoiceId, "detour", StringComparison.OrdinalIgnoreCase))
+                            snapshot.CurrentEvent.Choices[i] = new()
+                            {
+                                ChoiceId = "frontier",
+                                Label = choice.Label == "Take the survey detour" ? "Take the Frontier Route" : choice.Label,
+                                Story = choice.Story,
+                                Hint = choice.Hint,
+                                TargetRoute = StarshipEventCatalog.FrontierRoute
+                            };
+                    }
+                    if (string.Equals(snapshot.CurrentEvent.DefaultChoiceId, "direct", StringComparison.OrdinalIgnoreCase))
+                        snapshot.CurrentEvent.DefaultChoiceId = "core";
+                    else if (string.Equals(snapshot.CurrentEvent.DefaultChoiceId, "detour", StringComparison.OrdinalIgnoreCase))
+                        snapshot.CurrentEvent.DefaultChoiceId = "frontier";
+
+                    foreach (var vote in snapshot.CurrentEvent.Votes)
+                    {
+                        if (string.Equals(vote.ChoiceId, "direct", StringComparison.OrdinalIgnoreCase))
+                            vote.ChoiceId = "core";
+                        else if (string.Equals(vote.ChoiceId, "detour", StringComparison.OrdinalIgnoreCase))
+                            vote.ChoiceId = "frontier";
+                    }
+                }
+
+                if (snapshot.EventCatalog != null)
+                    StarshipExpeditionSettings.MigrateCatalog(snapshot.EventCatalog);
+
                 snapshot.RouteNameMigrationVersion = StarshipEventCatalog.CurrentRouteNameMigrationVersion;
             }
 

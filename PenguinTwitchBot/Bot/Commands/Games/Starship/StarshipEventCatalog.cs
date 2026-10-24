@@ -7,10 +7,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 public static partial class StarshipEventCatalog
 {
     public const int MaximumChoices = 4;
-    public const int CurrentRouteNameMigrationVersion = 1;
+    public const int CurrentRouteNameMigrationVersion = 2;
     public const string StartRoute = "Start";
+    public const string CoreRoute = "Core Route";
+    public const string FrontierRoute = "Frontier Route";
     public const string UnchartedRoute = "Uncharted";
-    public static IReadOnlyList<string> Routes { get; } = [StartRoute, "Direct Route", "Survey Route", UnchartedRoute];
+    public const string LegacyDirectRoute = "Direct Route";
+    public const string LegacySurveyRoute = "Survey Route";
+    public static IReadOnlyList<string> Routes { get; } = [StartRoute, CoreRoute, FrontierRoute, UnchartedRoute];
     public static IReadOnlyList<string> SubjectStyles { get; } = ["", "ship", "signal", "hazard", "custom"];
     public static IReadOnlyList<string> ObjectKinds { get; } = ["", .. StarshipAppearanceSettings.ObjectKinds];
     private static readonly HashSet<string> BuiltInIds = CreateDefaults().Select(definition => definition.EventType).ToHashSet(StringComparer.Ordinal);
@@ -53,7 +57,7 @@ public static partial class StarshipEventCatalog
         new("SalvageSite", "Derelict Salvage", "A damaged vessel, {subject}, is drifting near the route. Scan it, secure the area, then recover the salvage - or pass.",
             [], "", "The hatch gives way and the crew hauls out {loot}.", "A reactor surge rips through {subject}. The crew drops {loot} and flees.")
         {
-            SortOrder = 1, SubjectStyle = "ship", ObjectKind = "wreck", ShipFailureEffect = GetDefaultShipFailureEffect("SalvageSite"), AllowedRoutes = ["Uncharted", "Survey Route"],
+            SortOrder = 1, SubjectStyle = "ship", ObjectKind = "wreck", ShipFailureEffect = GetDefaultShipFailureEffect("SalvageSite"), AllowedRoutes = ["Uncharted", FrontierRoute],
             StartStepId = "approach", DefaultStepSuppliesCost = 0,
             Steps =
             [
@@ -80,7 +84,7 @@ public static partial class StarshipEventCatalog
         new("Hazard", "Navigation Hazard", "{Subject} has appeared across the current flight path.",
             [], "", "The crew clears {subject} and scoops up {loot}.", "{Subject} clips the hull and cargo is lost.")
         {
-            SortOrder = 2, SubjectStyle = "hazard", ObjectKind = "debris", ShipFailureEffect = GetDefaultShipFailureEffect("Hazard"), AllowedRoutes = ["Uncharted", "Direct Route"],
+            SortOrder = 2, SubjectStyle = "hazard", ObjectKind = "debris", ShipFailureEffect = GetDefaultShipFailureEffect("Hazard"), AllowedRoutes = ["Uncharted", CoreRoute],
             StartStepId = "reaction", DefaultStepSuppliesCost = 0,
             Steps =
             [
@@ -99,8 +103,11 @@ public static partial class StarshipEventCatalog
             ],
             LootByTier = new() { ["Common"] = "scattered ore chunks", ["Uncommon"] = "a cluster of crystal shards", ["Rare"] = "a glowing rare-earth nugget" }
         },
-        new("RouteChoice", "Choose a Route", "The crew can take a direct route or detour through a survey area.",
-            [new() { ChoiceId = "direct", Label = "Take the direct route" }, new() { ChoiceId = "detour", Label = "Take the survey detour" }], "direct")
+        new("RouteChoice", "Choose a Route", "The navigators chart two paths through the sector: the Core Route or the Frontier Route.",
+            [
+                new() { ChoiceId = "core", Label = "Take the Core Route", TargetRoute = CoreRoute },
+                new() { ChoiceId = "frontier", Label = "Take the Frontier Route", TargetRoute = FrontierRoute }
+            ], "core")
         { SortOrder = 3, ObjectKind = "fork", LootByTier = new() { ["Common"] = "some useful scrap", ["Uncommon"] = "a valuable cache", ["Rare"] = "a priceless find" } },
         new("StationStop", "Space Station", "A station offers a brief resupply and banking stop.",
             [new() { ChoiceId = "resupply", Label = "Resupply" }, new() { ChoiceId = "repair", Label = "Repair the ship" }, new() { ChoiceId = "continue", Label = "Continue the voyage" }], "resupply")
@@ -170,10 +177,36 @@ public static partial class StarshipEventCatalog
         throw new InvalidOperationException("Starship event selection failed.");
     }
 
-    private static bool IsAvailable(StarshipEventDefinition definition, string route, string sector) =>
-        definition.Enabled && definition.Weight > 0 &&
-        (definition.AllowedRoutes.Count == 0 || definition.AllowedRoutes.Contains(route, StringComparer.OrdinalIgnoreCase)) &&
-        (definition.AllowedSectors.Count == 0 || definition.AllowedSectors.Contains(sector, StringComparer.OrdinalIgnoreCase));
+    public static string CanonicalizeRoute(string? route)
+    {
+        if (string.IsNullOrWhiteSpace(route)) return StartRoute;
+        var trimmed = route.Trim();
+        if (string.Equals(trimmed, LegacyDirectRoute, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, "direct", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, "core", StringComparison.OrdinalIgnoreCase))
+            return CoreRoute;
+        if (string.Equals(trimmed, LegacySurveyRoute, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, "Survey Detour", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, "detour", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, "frontier", StringComparison.OrdinalIgnoreCase))
+            return FrontierRoute;
+        if (string.Equals(trimmed, UnchartedRoute, StringComparison.OrdinalIgnoreCase))
+            return StartRoute;
+        return trimmed;
+    }
+
+    private static bool IsAvailable(StarshipEventDefinition definition, string route, string sector)
+    {
+        if (!definition.Enabled || definition.Weight <= 0) return false;
+        if (definition.AllowedSectors.Count > 0 && !definition.AllowedSectors.Contains(sector, StringComparer.OrdinalIgnoreCase))
+            return false;
+        if (definition.AllowedRoutes.Count == 0) return true;
+
+        var canonicalRoute = CanonicalizeRoute(route);
+        return definition.AllowedRoutes.Any(r =>
+            string.Equals(r, route, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(CanonicalizeRoute(r), canonicalRoute, StringComparison.OrdinalIgnoreCase));
+    }
 
     public static void Validate(IReadOnlyList<StarshipEventDefinition> catalog, StarshipExpeditionSettings settings)
     {
@@ -240,7 +273,10 @@ public static partial class StarshipEventCatalog
                 throw new ArgumentException($"{definition.Title}: the reward profile does not exist.");
             if (!IsBuiltIn(definition.EventType) && eventChoices.Any(choice => choice.RevealsRarity) && binding.Length == 0)
                 throw new ArgumentException($"{definition.Title}: revealing rarity requires a reward profile.");
-            if (definition.AllowedRoutes == null || definition.AllowedRoutes.Any(route => !Routes.Contains(route, StringComparer.Ordinal)))
+            if (definition.AllowedRoutes == null || definition.AllowedRoutes.Any(route =>
+                !Routes.Contains(route, StringComparer.Ordinal) &&
+                !string.Equals(route, LegacyDirectRoute, StringComparison.Ordinal) &&
+                !string.Equals(route, LegacySurveyRoute, StringComparison.Ordinal)))
                 throw new ArgumentException($"{definition.Title}: unknown route filter.");
             if (definition.AllowedSectors == null || definition.AllowedSectors.Any(sector => !StarshipExpeditionSettings.BuiltInSectors.Concat(settings.CustomSectors).Contains(sector, StringComparer.OrdinalIgnoreCase)))
                 throw new ArgumentException($"{definition.Title}: unknown sector filter.");

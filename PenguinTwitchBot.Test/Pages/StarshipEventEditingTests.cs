@@ -148,8 +148,8 @@ public class StarshipEventEditingTests
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var original = settings.EventCatalog.Single(definition => definition.EventType == "RouteChoice");
         Assert.Throws<ArgumentException>(() => StarshipEventEditing.ValidateDraft(settings,
-            original with { DefaultChoiceId = "detour" }, original.EventType));
-        Assert.Equal("direct", original.DefaultChoiceId);
+            original with { DefaultChoiceId = "frontier" }, original.EventType));
+        Assert.Equal("core", original.DefaultChoiceId);
     }
 
     [Fact]

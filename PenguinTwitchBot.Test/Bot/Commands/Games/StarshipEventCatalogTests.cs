@@ -231,15 +231,17 @@ public class StarshipEventCatalogTests
 
     [Theory]
     [InlineData("Uncharted")]
+    [InlineData("Core Route")]
+    [InlineData("Frontier Route")]
     [InlineData("Direct Route")]
     [InlineData("Survey Route")]
     public void DefaultCatalog_UsesSeededSelectionForAvailableEvents(string route)
     {
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
-        var legacy = route switch
+        var legacy = StarshipEventCatalog.CanonicalizeRoute(route) switch
         {
-            "Direct Route" => new[] { "SignalDetected", "Hazard" },
-            "Survey Route" => ["SignalDetected", "SalvageSite"],
+            "Core Route" => new[] { "SignalDetected", "Hazard" },
+            "Frontier Route" => ["SignalDetected", "SalvageSite"],
             _ => ["SignalDetected", "SalvageSite", "Hazard"]
         };
         for (var seed = 0; seed < 100; seed++)
@@ -325,7 +327,7 @@ public class StarshipEventCatalogTests
         Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
         settings.EventCatalog = StarshipEventCatalog.CreateDefaults();
         var routeIndex = settings.EventCatalog.FindIndex(definition => definition.EventType == "RouteChoice");
-        settings.EventCatalog[routeIndex] = settings.EventCatalog[routeIndex] with { DefaultChoiceId = "detour" };
+        settings.EventCatalog[routeIndex] = settings.EventCatalog[routeIndex] with { DefaultChoiceId = "frontier" };
         Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
         settings.EventCatalog[routeIndex] = StarshipEventCatalog.CreateDefaults()[routeIndex] with { Title = "Pick a Journey", Images = ["/media/fork.png"] };
         StarshipExpeditionSettings.NormalizeAndValidate(settings);

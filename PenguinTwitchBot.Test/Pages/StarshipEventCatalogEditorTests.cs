@@ -124,28 +124,28 @@ public class StarshipEventCatalogEditorTests
         await using var context = CreateContext();
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var salvageIndex = settings.EventCatalog.FindIndex(definition => definition.EventType == "SalvageSite");
-        settings.EventCatalog[salvageIndex] = settings.EventCatalog[salvageIndex] with { AllowedRoutes = ["Uncharted", "Survey Route"] };
+        settings.EventCatalog[salvageIndex] = settings.EventCatalog[salvageIndex] with { AllowedRoutes = ["Uncharted", "Frontier Route"] };
         var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
         editor.Find("button[aria-label='Edit SalvageSite']").Click();
 
         var routeLabels = editor.FindComponents<MudCheckBox<bool>>()
             .Select(component => component.Instance.Label)
-            .Where(label => label is "Start" or "Uncharted" or "Direct Route" or "Survey Route")
+            .Where(label => label is "Start" or "Uncharted" or "Core Route" or "Frontier Route")
             .ToArray();
 
         Assert.Equal(4, routeLabels.Length);
         Assert.Contains("Start", routeLabels);
         Assert.Contains("Uncharted", routeLabels);
-        Assert.Contains("Direct Route", routeLabels);
-        Assert.Contains("Survey Route", routeLabels);
+        Assert.Contains("Core Route", routeLabels);
+        Assert.Contains("Frontier Route", routeLabels);
         Assert.Contains("Uncharted", StarshipEventCatalog.Routes);
         Assert.True(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Start").Instance.Disabled);
         Assert.True(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Uncharted").Instance.Disabled);
         var defaults = StarshipEventCatalog.CreateDefaults();
-        Assert.Equal(["Uncharted", "Survey Route"], defaults.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
-        Assert.Equal(["Uncharted", "Direct Route"], defaults.Single(definition => definition.EventType == "Hazard").AllowedRoutes);
+        Assert.Equal(["Uncharted", "Frontier Route"], defaults.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
+        Assert.Equal(["Uncharted", "Core Route"], defaults.Single(definition => definition.EventType == "Hazard").AllowedRoutes);
 
-        await editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Survey Route")
+        await editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Frontier Route")
             .Find("input").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = false });
         Click(editor, "Apply Event");
 
@@ -251,7 +251,7 @@ public class StarshipEventCatalogEditorTests
         editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Title").Find("input").Change("Choose Our Journey");
         Click(editor, "Apply Event");
         Assert.Equal("Choose Our Journey", settings.EventCatalog.Single(definition => definition.EventType == "RouteChoice").Title);
-        Assert.Equal("direct", settings.EventCatalog.Single(definition => definition.EventType == "RouteChoice").DefaultChoiceId);
+        Assert.Equal("core", settings.EventCatalog.Single(definition => definition.EventType == "RouteChoice").DefaultChoiceId);
     }
 
     [Fact]

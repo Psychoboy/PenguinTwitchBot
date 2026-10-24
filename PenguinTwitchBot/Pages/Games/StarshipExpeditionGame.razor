@@ -666,19 +666,20 @@
                     @if (_visitedTabs.Contains(5))
                     {
                     <MudGrid Spacing="4">
-                        <MudItem xs="12" lg="8">
-                            <GameOutcomeAutomationPanel DefaultCommandName="starship" GameTitle="Starship Expedition" IsActive="@(_activeTabIndex == 5)" />
-                        </MudItem>
-                        <MudItem xs="12" lg="4">
+                        <MudItem xs="12" lg="7">
                             <GameSessionMessageSettings Settings="_settings" SessionNoun="Voyage" RequiredStartAnnouncement="true"
                                                         EndMessageHelperText="Available placeholders: {count}, {duration}, {result}." />
+                            <StarshipMessagesEditor Messages="_settings.Messages" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Automation actions save in their setup flow. This button saves session message and command response templates.</MudText>
+                            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                           Disabled="@_isSaving" OnClick="SaveSessionMessagesAsync">Save Messages</MudButton>
+                            </MudStack>
+                        </MudItem>
+                        <MudItem xs="12" lg="5">
+                            <GameOutcomeAutomationPanel DefaultCommandName="starship" GameTitle="Starship Expedition" IsActive="@(_activeTabIndex == 5)" />
                         </MudItem>
                     </MudGrid>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Automation actions save in their setup flow. This button saves only the session message templates.</MudText>
-                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
-                                   Disabled="@_isSaving" OnClick="SaveSessionMessagesAsync">Save Session Messages</MudButton>
-                    </MudStack>
                     }
                 </MudTabPanel>
 
@@ -939,6 +940,7 @@
         saved.AnnounceSessionStatusInChat = current.AnnounceSessionStatusInChat;
         saved.SessionStartChatMessageTemplate = current.SessionStartChatMessageTemplate;
         saved.SessionEndChatMessageTemplate = current.SessionEndChatMessageTemplate;
+        saved.Messages = StarshipEventEditing.Copy(current.Messages);
     });
 
     private Task SaveAudioSettingsAsync() => SaveSectionAsync("Audio settings", (saved, current) =>
@@ -1033,6 +1035,15 @@
             _bulkMinimum = _bulkMaximum = null;
             _bulkChancePercent = null;
             _bulkRewardPreview = _bulkRewardError = string.Empty;
+            try
+            {
+                await ExpeditionService.RefreshAppearanceAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Starship settings and custom catalog data were reset to defaults, but the service refresh failed: {ex.Message}", Severity.Warning);
+                return;
+            }
             Snackbar.Add("Starship settings and custom catalog data were reset to defaults.", Severity.Success);
         }
         catch (Exception ex)
