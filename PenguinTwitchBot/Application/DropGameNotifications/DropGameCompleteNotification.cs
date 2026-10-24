@@ -15,7 +15,8 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         int? baseScore = null,
         int? strokePenalty = null,
         double? startAxisPosition = null,
-        bool? isLipOut = null) : Application.Notifications.INotification
+        bool? isLipOut = null,
+        double? greenRadiusRatio = null) : Application.Notifications.INotification
     {
         public string DropToken { get; } = dropToken;
         public double? LandingX { get; set; } = landingX;
@@ -32,6 +33,7 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         public int? StrokePenalty { get; set; } = strokePenalty;
         public double? StartAxisPosition { get; set; } = startAxisPosition;
         public bool? IsLipOut { get; set; } = isLipOut;
+        public double? GreenRadiusRatio { get; set; } = greenRadiusRatio;
     }
 }
 

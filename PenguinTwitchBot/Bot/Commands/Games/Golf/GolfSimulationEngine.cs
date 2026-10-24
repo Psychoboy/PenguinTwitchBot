@@ -8,10 +8,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
         public const double Dt = 1.0 / TickRateHz;
 
         // Geometric radii normalized relative to the primary fairway axis length [0.0, 1.0]
+        // Calibrated with client overlay green circle (~44% of strip breadth / ~3.5% of course length)
         public const double CupRadius = 0.014;          // Center sunken cup
-        public const double InnerRingRadius = 0.048;    // Visual inner ring guide (~75 pts)
-        public const double MiddleRingRadius = 0.082;   // Visual middle ring guide (~50 pts)
-        public const double GreenRadius = 0.125;        // Putting green outer boundary
+        public const double InnerRingRadius = 0.018;    // Visual inner ring guide (~75 pts)
+        public const double MiddleRingRadius = 0.026;   // Visual middle ring guide (~50 pts)
+        public const double GreenRadius = 0.035;        // Putting green outer boundary (~3.5 yd)
 
         // Baseline turf deceleration on a standard green
         public const double BaseTurfDecel = SlideShotPhysics.BaseDecel;
@@ -53,10 +54,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
         /// <summary>
         /// Resolves the appropriate golf club ("Driver", "Wedge", "Putter") based on stroke number and distance to the green.
         /// </summary>
-        public static string ResolveClub(int strokeNumber, double distToPin)
+        public static string ResolveClub(int strokeNumber, double distToPin, bool? isOnGreen = null, double? greenRadius = null)
         {
             if (strokeNumber <= 1) return "Driver";
-            return distToPin <= GreenRadius ? "Putter" : "Wedge";
+            if (isOnGreen.HasValue) return isOnGreen.Value ? "Putter" : "Wedge";
+            var effectiveRadius = (greenRadius.HasValue && greenRadius.Value > 0) ? greenRadius.Value : GreenRadius;
+            return distToPin <= effectiveRadius ? "Putter" : "Wedge";
         }
 
         /// <summary>

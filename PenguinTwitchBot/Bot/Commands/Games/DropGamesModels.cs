@@ -1266,6 +1266,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         [JsonPropertyName("startAxisPosition")]
         public double? StartAxisPosition { get; set; }
 
+        [JsonPropertyName("greenRadiusRatio")]
+        public double? GreenRadiusRatio { get; set; }
+
         [JsonPropertyName("overlayKey")]
         public string? OverlayKey { get; set; }
     }
@@ -1337,6 +1340,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public double EffectivePower { get; set; }
         public double StartAxisPosition { get; set; } = 0.05;
         public bool IsLipOut { get; set; }
+        public double? GreenRadiusRatio { get; set; }
         public bool IsHit { get; set; }
         public bool IsBullseye { get; set; }
         public bool IsWin { get; set; }
