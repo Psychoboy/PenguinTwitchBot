@@ -209,16 +209,62 @@
                                         <MudItem xs="12" sm="6">
                                             <MudSelect T="GolfPinDistanceMode" Label="Pin Distance Mode" Variant="Variant.Outlined"
                                                        @bind-Value="_settings.Golf.TargetDistanceMode"
-                                                       HelperText="Fixed pin distance or randomize putting green position between 70% and 92% each round.">
+                                                       HelperText="Fixed pin distance or randomize putting green position each round.">
                                                 <MudSelectItem Value="GolfPinDistanceMode.Fixed">Fixed Pin Distance</MudSelectItem>
-                                                <MudSelectItem Value="GolfPinDistanceMode.RandomizePerRound">Randomize Per Round (70% - 92%)</MudSelectItem>
+                                                <MudSelectItem Value="GolfPinDistanceMode.RandomizePerRound">Randomize Per Round</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
                                         <MudItem xs="12" sm="6">
                                             <MudNumericField T="double" Label="Default Pin Distance (%)" Variant="Variant.Outlined"
-                                                             Min="60.0" Max="95.0" Step="1.0"
+                                                             Min="40.0" Max="95.0" Step="1.0"
                                                              @bind-Value="_settings.Golf.TargetDistancePercent"
                                                              HelperText="Putting green pin distance from tee (% of strip length, default 84%)" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    @if (_settings.Golf.TargetDistanceMode == GolfPinDistanceMode.RandomizePerRound)
+                                    {
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="double" Label="Pin Min Distance (%)" Variant="Variant.Outlined"
+                                                                 Min="40.0" Max="95.0" Step="1.0"
+                                                                 @bind-Value="_settings.Golf.PinDistanceMinPercent"
+                                                                 HelperText="Minimum distance the pin/green can spawn at (default 70%)" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="double" Label="Pin Max Distance (%)" Variant="Variant.Outlined"
+                                                                 Min="40.0" Max="95.0" Step="1.0"
+                                                                 @bind-Value="_settings.Golf.PinDistanceMaxPercent"
+                                                                 HelperText="Maximum distance the pin/green can spawn at (default 92%)" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudText Typo="Typo.h6" Class="mb-1">Golf Clubs & Power Tuning</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                                        Tune the power and distance scaling of each club. Driver is used on Stroke 1 (tee shot), Wedge is used when chipping from off the green, and Putter is used when on the green.
+                                    </MudText>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Driver Power Multiplier" Variant="Variant.Outlined"
+                                                             Min="0.4" Max="2.5" Step="0.05" Format="F2"
+                                                             @bind-Value="_settings.Golf.DriverPowerMultiplier"
+                                                             HelperText="Tee shot club (~84yd at 78 power with 1.0x)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Wedge Power Multiplier" Variant="Variant.Outlined"
+                                                             Min="0.4" Max="2.5" Step="0.05" Format="F2"
+                                                             @bind-Value="_settings.Golf.WedgePowerMultiplier"
+                                                             HelperText="Approach chip club (up to 60yd with 1.0x)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Putter Power Multiplier" Variant="Variant.Outlined"
+                                                             Min="0.4" Max="2.5" Step="0.05" Format="F2"
+                                                             @bind-Value="_settings.Golf.PutterPowerMultiplier"
+                                                             HelperText="Putting club for green rolls (up to 25yd with 1.0x)" />
                                         </MudItem>
                                     </MudGrid>
 

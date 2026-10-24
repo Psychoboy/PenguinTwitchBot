@@ -6,6 +6,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
         public double CurrentAxisPos { get; set; } = 0.05;
         public bool IsSunk { get; set; }
         public bool IsInFlight { get; set; }
+        public DateTime LastShotUtc { get; set; } = DateTime.UtcNow;
+        public bool IsInMotion => IsInFlight && (DateTime.UtcNow - LastShotUtc < TimeSpan.FromSeconds(15));
         public int CurrentScore { get; set; }
         public string LastDropToken { get; set; } = "";
 

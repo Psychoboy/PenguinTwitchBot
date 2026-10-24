@@ -636,7 +636,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public double TargetDistancePercent
         {
             get => _targetDistancePercent;
-            set => _targetDistancePercent = Math.Clamp(value, 60.0, 95.0);
+            set => _targetDistancePercent = Math.Clamp(value, 40.0, 95.0);
+        }
+
+        private double _pinDistanceMinPercent = 70.0;
+        public double PinDistanceMinPercent
+        {
+            get => _pinDistanceMinPercent;
+            set => _pinDistanceMinPercent = Math.Clamp(value, 40.0, 95.0);
+        }
+
+        private double _pinDistanceMaxPercent = 92.0;
+        public double PinDistanceMaxPercent
+        {
+            get => _pinDistanceMaxPercent;
+            set => _pinDistanceMaxPercent = Math.Clamp(value, 40.0, 95.0);
         }
 
         private double _targetAlpha = 0.45;
@@ -651,6 +665,28 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool EnableDynamicGreenConditions { get; set; } = true;
         public double PowerVariancePercent { get; set; } = 3.0;
         public double CupCaptureSpeedMultiplier { get; set; } = 1.0;
+
+        // Club Power Multipliers (Tunable Club Distances)
+        private double _driverPowerMultiplier = 1.0;
+        public double DriverPowerMultiplier
+        {
+            get => _driverPowerMultiplier;
+            set => _driverPowerMultiplier = Math.Clamp(value, 0.4, 2.5);
+        }
+
+        private double _wedgePowerMultiplier = 1.0;
+        public double WedgePowerMultiplier
+        {
+            get => _wedgePowerMultiplier;
+            set => _wedgePowerMultiplier = Math.Clamp(value, 0.4, 2.5);
+        }
+
+        private double _putterPowerMultiplier = 1.0;
+        public double PutterPowerMultiplier
+        {
+            get => _putterPowerMultiplier;
+            set => _putterPowerMultiplier = Math.Clamp(value, 0.4, 2.5);
+        }
 
         // Stroke Mode & Penalty Settings (1-Stroke Default vs. Multi-Stroke)
         private int _maxStrokesPerPlayer = 1;

@@ -130,6 +130,9 @@
         maxStrokesPerPlayer: 1,
         strokePenaltyPoints: 10,
         maxScore: 100,
+        driverPowerMultiplier: 1.0,
+        wedgePowerMultiplier: 1.0,
+        putterPowerMultiplier: 1.0,
         visibleUntil: 0
     };
 
@@ -345,6 +348,9 @@
             if (typeof msg.maxStrokesPerPlayer === 'number') boardConfig.maxStrokesPerPlayer = msg.maxStrokesPerPlayer;
             if (typeof msg.strokePenaltyPoints === 'number') boardConfig.strokePenaltyPoints = msg.strokePenaltyPoints;
             if (typeof msg.maxScore === 'number') boardConfig.maxScore = msg.maxScore;
+            if (typeof msg.driverPowerMultiplier === 'number') boardConfig.driverPowerMultiplier = msg.driverPowerMultiplier;
+            if (typeof msg.wedgePowerMultiplier === 'number') boardConfig.wedgePowerMultiplier = msg.wedgePowerMultiplier;
+            if (typeof msg.putterPowerMultiplier === 'number') boardConfig.putterPowerMultiplier = msg.putterPowerMultiplier;
 
             boardConfig.visibleUntil = nowMs() + sessionState.totalDurationSeconds * 1000 + 6000;
 
@@ -450,10 +456,18 @@
             : (isReversed ? -1.0 : 1.0);
 
         const distToPinAbs = Math.abs(distToPinSigned);
-        const isChipShot = strokeNumber === 1 || distToPinAbs > 0.22;
+        const greenRadiusRatio = m.greenRadius / m.length;
+        const isOnGreen = strokeNumber > 1 && distToPinAbs <= greenRadiusRatio;
+
+        // Club determination: Driver on tee (Stroke 1), Putter on green, Wedge off green
+        const club = msg.club || (strokeNumber === 1 ? 'Driver' : (isOnGreen ? 'Putter' : 'Wedge'));
+
+        // Club power multipliers (default 1.0)
+        const driverMult = typeof msg.driverPowerMultiplier === 'number' ? msg.driverPowerMultiplier : (boardConfig.driverPowerMultiplier || 1.0);
+        const wedgeMult = typeof msg.wedgePowerMultiplier === 'number' ? msg.wedgePowerMultiplier : (boardConfig.wedgePowerMultiplier || 1.0);
+        const putterMult = typeof msg.putterPowerMultiplier === 'number' ? msg.putterPowerMultiplier : (boardConfig.putterPowerMultiplier || 1.0);
 
         // Calibrate physics with GolfSimulationEngine.cs:
-        // StandardGreen friction = 0.22, initialVelocity = (power / 100) * 0.76, travel = v0^2 / (2 * decel)
         let dragMult = 1.0;
         if (boardConfig.condition === 'FastLinks' || boardConfig.condition === 'FastGreen') dragMult = 0.78;
         else if (boardConfig.condition === 'HeavyDew' || boardConfig.condition === 'HeavyRough' || boardConfig.condition === 'MorningDew') dragMult = 1.28;
@@ -461,31 +475,37 @@
 
         const powerFrac = Math.max(0.01, Math.min(1.0, variedPower / 100.0));
         const baseDecel = 0.22 * dragMult;
-        const v0Server = powerFrac * 0.76;
-        const rawTravel = (v0Server * v0Server) / (2.0 * baseDecel);
 
-        // On tee shot, use exact server travel distance; on short follow-up strokes, scale proportionally
-        const shortShotScale = (strokeNumber > 1 && distToPinAbs < 0.55)
-            ? Math.max(0.12, Math.min(1.0, distToPinAbs / 0.78))
-            : 1.0;
-        const desiredTravel = rawTravel * shortShotScale;
-        const targetRestU = Math.max(0.01, Math.min(0.99, startU + directionSign * desiredTravel));
-
-        // Flight arc parameters for chip/tee shots vs. pure ground roll for short putts
-        let initialSpeedU;
+        let desiredTravel = 0;
+        let initialSpeedU = 0;
         let initialVz = 0;
         let gravityZ = 2.6;
+        let maxBounces = 0;
 
-        if (isChipShot && desiredTravel > 0.14) {
-            // Parabolic carry covers ~66% of distance in the air, then bounces & rolls the remaining ~34%
-            const airTime = Math.max(0.55, Math.min(1.35, 0.65 + powerFrac * 0.55));
+        if (club === 'Driver') {
+            const v0Server = powerFrac * 0.76 * driverMult;
+            desiredTravel = (v0Server * v0Server) / (2.0 * baseDecel);
+            const airTime = Math.max(0.60, Math.min(1.35, 0.65 + powerFrac * 0.55));
             initialVz = 0.5 * gravityZ * airTime;
             initialSpeedU = directionSign * (desiredTravel * 0.66) / airTime;
+            maxBounces = 2;
+        } else if (club === 'Wedge') {
+            // Full wedge chip travels up to 0.60 (60 yards), perfectly calibrated for approach chips
+            desiredTravel = powerFrac * 0.60 * wedgeMult;
+            const airTime = Math.max(0.45, Math.min(1.10, 0.40 + powerFrac * 0.50));
+            initialVz = 0.5 * gravityZ * airTime;
+            initialSpeedU = directionSign * (desiredTravel * 0.70) / airTime;
+            maxBounces = 1;
         } else {
-            // Pure putting roll: v0 = sqrt(2 * a * d)
+            // Putter: smooth ground roll across putting green (up to 0.25 = 25 yards)
+            desiredTravel = powerFrac * 0.25 * putterMult;
             initialSpeedU = directionSign * Math.sqrt(2.0 * baseDecel * desiredTravel);
             initialVz = 0;
+            maxBounces = 0;
         }
+
+        const targetRestU = Math.max(0.01, Math.min(0.99, startU + directionSign * desiredTravel));
+        const isChipShot = club !== 'Putter';
 
         // Lateral dispersion across the putting green (no artificial magnet to v=0 unless variancePct <= 0 test shot)
         const isCrossBreeze = boardConfig.condition === 'CrossBreeze' || boardConfig.condition === 'CrossWind';
@@ -511,6 +531,7 @@
             userColor: msg.userColor || '#22C55E',
             decalUrl: msg.decalUrl || msg.avatarUrl || msg.emoteUrl || '',
             power: rawPower,
+            club: club,
             strokeNumber: strokeNumber,
             maxStrokesPerPlayer: maxStrokes,
             strokePenaltyPoints: strokePenaltyPoints,
@@ -531,7 +552,7 @@
             vz: initialVz,
             gravityZ: gravityZ,
             bounceCount: 0,
-            maxBounces: isChipShot ? 2 : 0,
+            maxBounces: maxBounces,
 
             angle: 0.0,
             radius: m.ballRadius,
@@ -1052,7 +1073,8 @@
             if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.drawInwardNametag) {
                 const maxStrokes = ball.maxStrokesPerPlayer || boardConfig.maxStrokesPerPlayer || 1;
                 const strokeTag = maxStrokes > 1 ? ` [S${ball.strokeNumber || 1}/${maxStrokes}]` : '';
-                const label = `${ball.displayName || ball.username || 'Chatter'}${strokeTag}`;
+                const clubTag = ball.completed ? '' : (ball.club ? ` • ${ball.club}` : '');
+                const label = `${ball.displayName || ball.username || 'Chatter'}${strokeTag}${clubTag}`;
                 const liftPx = (ball.heightZ || 0) * Math.max(36, (ball.radius || m.ballRadius) * 3.2);
                 DropGamesCommon.drawInwardNametag(ctx, label, coords.x, coords.y - liftPx, ball.radius || m.ballRadius, m.pos, {
                     score: ball.score,

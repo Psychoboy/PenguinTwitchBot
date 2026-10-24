@@ -51,6 +51,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             => SlideShotPhysics.CalculateTravelDistance(initialSpeed, dragMultiplier);
 
         /// <summary>
+        /// Resolves the appropriate golf club ("Driver", "Wedge", "Putter") based on stroke number and distance to the green.
+        /// </summary>
+        public static string ResolveClub(int strokeNumber, double distToPin)
+        {
+            if (strokeNumber <= 1) return "Driver";
+            return distToPin <= GreenRadius ? "Putter" : "Wedge";
+        }
+
+        /// <summary>
         /// Simulates a golf chip or putt trajectory for headless physics tests. Runtime outcomes are client-authoritative.
         /// </summary>
         public static void SimulateGolfShot(
@@ -72,9 +81,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 
             var dragMultiplier = ResolveGreenDragMultiplier(condition);
             var effectivePower = CalculateEffectivePower(rawPower, settings.PowerVariancePercent, rng);
-            var v0 = PowerToInitialSpeed(effectivePower, dragMultiplier);
             var decel = Math.Max(0.01, BaseTurfDecel * dragMultiplier);
-            var rawTravelDist = CalculateShotDistance(v0, dragMultiplier);
 
             var isHorizontal = settings.StripPosition is CurlingStripPosition.Bottom or CurlingStripPosition.Top;
             var isReversed = SlideShotPhysics.ResolveIsReversed(settings.SlideDirection, record.DropToken, isReversedOverride);
@@ -93,12 +100,27 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 ? (normalizedTarget >= startPos ? 1.0 : -1.0)
                 : (isReversed ? -1.0 : 1.0);
 
-            // For follow-up strokes (Stroke 2+) when already closer to the pin, scale putt distance so 65-80 power targets the pin naturally
-            var travelDist = rawTravelDist;
-            if (strokeNumber > 1 && startAxisPosOverride.HasValue && distToPin < 0.55)
+            // Determine club
+            var club = ResolveClub(strokeNumber, distToPin);
+
+            double travelDist;
+            double v0;
+            if (club == "Driver")
             {
-                var puttScale = Math.Clamp(distToPin / 0.78, 0.12, 1.0);
-                travelDist = rawTravelDist * puttScale;
+                v0 = PowerToInitialSpeed(effectivePower, dragMultiplier) * settings.DriverPowerMultiplier;
+                travelDist = CalculateShotDistance(v0, dragMultiplier);
+            }
+            else if (club == "Wedge")
+            {
+                // Full wedge chip travels up to 0.60 track length (60 yards) scaled by WedgePowerMultiplier
+                travelDist = (effectivePower / 100.0) * 0.60 * settings.WedgePowerMultiplier;
+                v0 = Math.Sqrt(2.0 * decel * travelDist);
+            }
+            else
+            {
+                // Smooth putt across green up to 0.25 track length (25 yards) scaled by PutterPowerMultiplier
+                travelDist = (effectivePower / 100.0) * 0.25 * settings.PutterPowerMultiplier;
+                v0 = Math.Sqrt(2.0 * decel * travelDist);
             }
 
             var uncapturedRestPos = Math.Clamp(startPos + directionSign * travelDist, 0.02, 0.98);
@@ -125,7 +147,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 var speedAtCup = Math.Sqrt(2.0 * decel * overshootDist);
 
                 // Only ground-rolling balls can be captured or lip out (chip carry must have landed before or at the cup)
-                var carryDist = strokeNumber == 1 && distToPin > GreenRadius * 1.4 ? travelDist * 0.55 : 0.0;
+                var carryDist = club != "Putter" ? travelDist * 0.60 : 0.0;
                 var distToCup = Math.Abs(normalizedTarget - startPos);
                 var isRollingAtCup = carryDist <= distToCup + CupRadius;
 
@@ -174,9 +196,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 lateralOffset = Math.Clamp(0.50 + rimDir * 0.06, 0.20, 0.80);
             }
 
-            // Build 2.5D keyframes (parabolic flight arc + bounce + ground roll for tee/chip shots; pure ground roll for short putts)
-            var isChipShot = strokeNumber == 1 || distToPin > GreenRadius * 1.5;
-            if (isChipShot && actualTravelDist > 0.12)
+            // Build 2.5D keyframes (parabolic flight arc + bounce + ground roll for Driver/Wedge shots; pure ground roll for Putter)
+            var isAirborneShot = club != "Putter";
+            if (isAirborneShot && actualTravelDist > 0.04)
             {
                 var bounce1Tick = Math.Max(12, (int)Math.Round(totalTicks * 0.46));
                 var apex1Tick = Math.Max(6, bounce1Tick / 2);
