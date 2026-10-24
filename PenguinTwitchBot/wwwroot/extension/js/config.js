@@ -6,10 +6,11 @@
         giveaway: '🎁 Giveaway',
         fishing: '🎣 Fishing System',
         leaderboards: '🏆 Leaderboards & Tournaments',
+        starship: '🚀 Starship Expedition',
         commands: '💬 Commands Lookup'
     };
 
-    var currentTabOrder = ['giveaway', 'fishing', 'leaderboards', 'commands'];
+    var currentTabOrder = ['giveaway', 'fishing', 'leaderboards', 'starship', 'commands'];
 
     function showAlert(type, message) {
         var el = document.getElementById('config-alert');
@@ -88,12 +89,13 @@
         setChecked('tab-enable-giveaway', enabled.giveaway !== false);
         setChecked('tab-enable-fishing', enabled.fishing !== false);
         setChecked('tab-enable-leaderboards', enabled.leaderboards !== false);
+        setChecked('tab-enable-starship', enabled.starship !== false);
         setChecked('tab-enable-commands', enabled.commands !== false);
 
         if (Array.isArray(config.tabOrder) && config.tabOrder.length > 0) {
             // Reconcile known tabs
             var set = new Set(config.tabOrder);
-            ['giveaway', 'fishing', 'leaderboards', 'commands'].forEach(function (k) {
+            ['giveaway', 'fishing', 'leaderboards', 'starship', 'commands'].forEach(function (k) {
                 if (!set.has(k)) config.tabOrder.push(k);
             });
             currentTabOrder = config.tabOrder.slice();
@@ -166,6 +168,7 @@
                 giveaway: getChecked('tab-enable-giveaway'),
                 fishing: getChecked('tab-enable-fishing'),
                 leaderboards: getChecked('tab-enable-leaderboards'),
+                starship: getChecked('tab-enable-starship'),
                 commands: getChecked('tab-enable-commands')
             },
             leaderboardTopCount: Math.clamp ? Math.clamp(topCount, 1, 50) : Math.max(1, Math.min(topCount, 50)),

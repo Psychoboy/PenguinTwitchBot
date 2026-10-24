@@ -510,29 +510,16 @@ body {
     color: var(--text-muted);
     text-transform: uppercase;
 }
-.btn-giveaway-details {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    padding: 6px 10px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--link-color);
+.giveaway-disclaimer {
+    margin-top: 10px;
+    padding: 8px 10px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: var(--text-muted);
     background: var(--bg-input);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
-    text-decoration: none;
-    transition: all 0.15s ease;
-}
-.btn-giveaway-details:hover {
-    background: var(--bg-card);
-    border-color: var(--primary);
-    color: var(--primary);
-}
-.btn-giveaway-details .external-icon {
-    font-size: 10px;
+    text-align: center;
 }
 
 /* Giveaway Entry Form */
@@ -731,7 +718,7 @@ body {
     font-size: 11.5px;
     color: var(--text-primary);
 }
-.item-slot {
+.item-gear-type {
     font-size: 9.5px;
     color: var(--text-muted);
     background: var(--bg-input);
@@ -946,35 +933,191 @@ body {
     font-size: 11px;
 }
 
-/* Panel Footer (Pinned at Bottom) */
-.panel-footer {
-    margin-top: auto;
-    padding-top: 6px;
-    border-top: 1px solid var(--border-color);
-    text-align: center;
-    flex-shrink: 0;
+/* Starship Expedition Tab */
+.starship-card {
+    padding: 10px;
+    margin-bottom: 10px;
 }
-.footer-portal-link {
-    display: inline-flex;
+.starship-header {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
+    margin-bottom: 8px;
+}
+.starship-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
     gap: 6px;
-    width: 100%;
-    padding: 5px 8px;
-    font-size: 11px;
-    font-weight: 600;
+}
+.starship-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.starship-resource-bar {
+    margin-bottom: 6px;
+}
+.resource-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
     color: var(--text-secondary);
-    text-decoration: none;
+    margin-bottom: 2px;
+}
+.resource-track {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-input);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.resource-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s ease;
+}
+.resource-fill.hull {
+    background: #00e699;
+}
+.resource-fill.supplies {
+    background: #f4bd68;
+}
+.starship-event-box {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 8px;
+    margin-top: 8px;
+}
+.starship-event-title {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.starship-event-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+.starship-choices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.starship-choice-item {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    transition: all 0.15s ease;
-}
-.footer-portal-link:hover {
-    color: var(--primary);
-    border-color: var(--primary);
-    background: var(--bg-card-hover);
-}
-.footer-portal-link .external-icon {
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
     font-size: 11px;
+}
+.choice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.choice-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.choice-votes {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+.choice-vote-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.choice-vote-fill {
+    height: 100%;
+    background: var(--primary-light);
+}
+.choice-action-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+.btn-vote-active {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.btn-vote-active:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+.btn-vote-active:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.voted-badge {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid var(--success);
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.btn-copy-vote {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+.btn-copy-vote:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+.btn-confirm-risk {
+    background: #ff4d4f;
+    color: #fff;
+    border: none;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.btn-confirm-risk:hover:not(:disabled) {
+    background: #d9363e;
+}
+.starship-risk-banner {
+    background: rgba(255, 77, 79, 0.12);
+    border: 1px solid rgba(255, 77, 79, 0.35);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: #ff7875;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }

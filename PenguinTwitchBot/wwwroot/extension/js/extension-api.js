@@ -27,11 +27,12 @@
     // Default configuration if broadcaster has not set one
     var DEFAULT_CONFIG = {
         botBaseUrl: '',
-        tabOrder: ['giveaway', 'fishing', 'leaderboards', 'commands'],
+        tabOrder: ['giveaway', 'fishing', 'leaderboards', 'starship', 'commands'],
         enabledTabs: {
             giveaway: true,
             fishing: true,
             leaderboards: true,
+            starship: true,
             commands: true
         },
         leaderboardTopCount: 10,
@@ -419,6 +420,23 @@
             return request('/api/twitch-extension/fishing/inventory/repair', {
                 method: 'POST',
                 body: { userBoostId: userBoostId }
+            });
+        },
+        getStarshipState: function () {
+            return request('/api/overlay/starship-state');
+        },
+        getStarshipViewer: function () {
+            return request('/api/twitch-extension/starship/viewer');
+        },
+        voteStarship: function (choiceId, confirmRisk) {
+            return request('/api/twitch-extension/starship/vote', {
+                method: 'POST',
+                body: { choiceId: choiceId, confirmRisk: Boolean(confirmRisk) }
+            });
+        },
+        joinStarship: function () {
+            return request('/api/twitch-extension/starship/join', {
+                method: 'POST'
             });
         },
         getCommands: function (category, search) {
