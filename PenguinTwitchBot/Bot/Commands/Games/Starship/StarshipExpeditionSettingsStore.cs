@@ -79,6 +79,8 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
                     .OrderBy(profile => profile.Id, StringComparer.Ordinal).ToList();
                 if (settings.EventCatalog.Count == 0 || settings.RewardProfiles.Count == 0)
                     throw new InvalidDataException("Persisted Starship catalog rows are missing; refusing to reset the catalog.");
+                if (StarshipExpeditionSettings.MigrateCatalog(settings.EventCatalog))
+                    repairedCatalogRows = true;
             }
 
             var resetShipSystems = false;

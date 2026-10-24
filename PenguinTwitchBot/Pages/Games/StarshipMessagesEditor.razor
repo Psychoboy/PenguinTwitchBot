@@ -56,8 +56,8 @@
                 </MudGrid>
             </MudExpansionPanel>
 
-            <!-- 2. Voting & Confirm Responses -->
-            <MudExpansionPanel Text="🗳️ Voting & Risk Responses (!sv / !sc)" Expanded="true">
+            <!-- 2. Voting Responses -->
+            <MudExpansionPanel Text="🗳️ Voting Responses (!sv)" Expanded="true">
                 <MudGrid Spacing="2">
                     <MudItem xs="12">
                         <MudTextField T="string" Label="Vote Recorded" Variant="Variant.Outlined"
@@ -74,14 +74,6 @@
                                       Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
                                       AdornmentAriaLabel="Reset to default"
                                       OnAdornmentClick="@(() => Messages.VotePrompt = StarshipMessageSettings.DefaultVotePrompt)" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudTextField T="string" Label="No Risk Confirmation Needed Notice (!sc)" Variant="Variant.Outlined"
-                                      @bind-Value="Messages.ConfirmNotNeeded"
-                                      HelperText="Placeholders: {user}"
-                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
-                                      AdornmentAriaLabel="Reset to default"
-                                      OnAdornmentClick="@(() => Messages.ConfirmNotNeeded = StarshipMessageSettings.DefaultConfirmNotNeeded)" />
                     </MudItem>
                 </MudGrid>
             </MudExpansionPanel>

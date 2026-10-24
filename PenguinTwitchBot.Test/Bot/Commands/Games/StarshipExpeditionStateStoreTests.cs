@@ -171,9 +171,9 @@ public class StarshipExpeditionStateStoreTests
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 
         Assert.Equal("Start", loaded!.CurrentRoute);
-        Assert.Equal(["Uncharted", "Survey Route"], loaded.EventCatalog![0].AllowedRoutes);
+        Assert.Equal(["Uncharted", "Frontier Route"], loaded.EventCatalog![0].AllowedRoutes);
         Assert.Equal("Start", persisted.CurrentRoute);
-        Assert.Equal(["Uncharted", "Survey Route"], persisted.EventCatalog![0].AllowedRoutes);
+        Assert.Equal(["Uncharted", "Frontier Route"], persisted.EventCatalog![0].AllowedRoutes);
     }
 
     [Fact]
@@ -199,6 +199,57 @@ public class StarshipExpeditionStateStoreTests
         var loaded = await CreateStore(rows).LoadAsync();
 
         Assert.Equal(StarshipEventCatalog.UnchartedRoute, loaded!.CurrentRoute);
+    }
+
+    [Fact]
+    public async Task Load_MigratesLegacyDirectAndSurveyRoutes_AndInFlightRouteChoiceVotes()
+    {
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            LegCount = 4,
+            CurrentRoute = "Direct Route",
+            RouteNameMigrationVersion = 1,
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 1,
+                EventType = "RouteChoice",
+                Title = "Choose a Route",
+                Choices =
+                [
+                    new() { ChoiceId = "direct", Label = "Take the direct route" },
+                    new() { ChoiceId = "detour", Label = "Take the survey detour" }
+                ],
+                DefaultChoiceId = "direct",
+                Votes =
+                [
+                    new() { UserId = "viewer-1", ChoiceId = "direct" },
+                    new() { UserId = "viewer-2", ChoiceId = "detour" }
+                ]
+            }
+        };
+        var rows = new List<Setting>
+        {
+            new()
+            {
+                Name = StarshipExpeditionStateStore.SettingKey,
+                DataType = Setting.DataTypeEnum.String,
+                StringSetting = JsonSerializer.Serialize(snapshot)
+            }
+        };
+
+        var loaded = await CreateStore(rows).LoadAsync();
+
+        Assert.NotNull(loaded);
+        Assert.Equal(StarshipEventCatalog.CoreRoute, loaded.CurrentRoute);
+        Assert.Equal(StarshipEventCatalog.CurrentRouteNameMigrationVersion, loaded.RouteNameMigrationVersion);
+        Assert.Equal("core", loaded.CurrentEvent!.DefaultChoiceId);
+        Assert.Equal(["core", "frontier"], loaded.CurrentEvent.Choices.Select(c => c.ChoiceId));
+        Assert.Equal("Take the Core Route", loaded.CurrentEvent.Choices[0].Label);
+        Assert.Equal("Take the Frontier Route", loaded.CurrentEvent.Choices[1].Label);
+        Assert.Equal("core", loaded.CurrentEvent.Votes[0].ChoiceId);
+        Assert.Equal("frontier", loaded.CurrentEvent.Votes[1].ChoiceId);
     }
 
     [Fact]

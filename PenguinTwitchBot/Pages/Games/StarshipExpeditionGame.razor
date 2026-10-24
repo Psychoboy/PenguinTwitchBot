@@ -1035,6 +1035,15 @@
             _bulkMinimum = _bulkMaximum = null;
             _bulkChancePercent = null;
             _bulkRewardPreview = _bulkRewardError = string.Empty;
+            try
+            {
+                await ExpeditionService.RefreshAppearanceAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Starship settings and custom catalog data were reset to defaults, but the service refresh failed: {ex.Message}", Severity.Warning);
+                return;
+            }
             Snackbar.Add("Starship settings and custom catalog data were reset to defaults.", Severity.Success);
         }
         catch (Exception ex)

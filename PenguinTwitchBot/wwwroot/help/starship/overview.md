@@ -89,7 +89,6 @@ Images must be media-library files (a path starting with `/media/`) or an `http(
 | :--- | :--- |
 | `!sj` | Join the crew (before launch, or any time while the voyage is under way) |
 | `!sv <number>` | Vote for an option (also joins you if you are not aboard yet) |
-| `!sc` | Confirm a risky choice (only for events that offer one) |
 | `!starship status` | Show voyage status and current Hull/Supplies when ship systems are enabled |
 
 ## Overlays

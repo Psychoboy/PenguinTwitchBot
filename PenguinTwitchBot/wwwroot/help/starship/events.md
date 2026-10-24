@@ -20,12 +20,12 @@ These three editable events are added automatically the first time this catalog 
 | Event | Demonstrates | Availability | Rewards |
 | :--- | :--- | :--- | :--- |
 | [Courier Relay](/help/starship/examples/courier-relay.json) | A simple branching narrative event | All routes and sectors, weight 1 | No reward profile by default |
-| [Survey Cache](/help/starship/examples/survey-cache.json) | Scan, optional stabilization, recovery or pass; named subjects and tier loot | Survey Route in Ternion Belt, weight 2 | References the SalvageSite profile |
+| [Survey Cache](/help/starship/examples/survey-cache.json) | Scan, optional stabilization, recovery or pass; named subjects and tier loot | Frontier Route in Ternion Belt, weight 2 | References the SalvageSite profile |
 | [Debris Crossing](/help/starship/examples/debris-crossing.json) | Balanced, safer or higher-reward choices with different loss exposure | All routes and sectors, weight 1 | References the Hazard profile |
 
 The examples do not choose a point currency or enable an existing reward profile for you. Configure and enable the referenced profile to activate rarity, payouts and point-loss rules. On integrated voyages, success/failure and shared ship effects still resolve without points. A scan only reveals rarity when an enabled reward profile is available. Legacy/disabled ship-system voyages keep their previous outcome behavior.
 
-Survey Cache cannot appear if Ternion Belt is disabled or the crew takes the Direct Route. Its no-vote default is to pass. Debris Crossing defaults to navigating the gaps. Courier Relay defaults to relaying the message, then forwarding the second packet.
+Survey Cache cannot appear if Ternion Belt is disabled or the crew takes the Core Route. Its no-vote default is to pass. Debris Crossing defaults to navigating the gaps. Courier Relay defaults to relaying the message, then forwarding the second packet.
 
 ## Identity and Availability
 

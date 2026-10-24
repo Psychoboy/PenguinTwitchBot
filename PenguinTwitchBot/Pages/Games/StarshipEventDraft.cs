@@ -51,6 +51,7 @@ public sealed class StarshipChoiceDraft
     public int RiskMultiplierPercent { get; set; } = 100;
     public string Hint { get; set; } = "";
     public StarshipShipEffect? ShipEffect { get; set; }
+    public string? TargetRoute { get; set; }
 }
 
 public sealed class StarshipEventStepDraft

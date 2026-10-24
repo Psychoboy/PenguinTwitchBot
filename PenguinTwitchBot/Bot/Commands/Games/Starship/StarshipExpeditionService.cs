@@ -38,7 +38,6 @@ public sealed class StarshipExpeditionService(
     public const string DefaultCommandName = "starship";
     public const string ShortVoteCommandName = "sv";
     public const string ShortJoinCommandName = "sj";
-    public const string ShortConfirmCommandName = "sc";
     public const int DefaultLegCount = 6;
     public const int DefaultMinimumEventIntervalMinutes = 15;
     public const int DefaultMaximumEventIntervalMinutes = 30;
@@ -106,8 +105,6 @@ public sealed class StarshipExpeditionService(
             description: "Shortcut for !starship vote <option number>.");
         await RegisterDefaultCommand(ShortJoinCommandName, this, ModuleName, Rank.Viewer, userCooldown: 2,
             description: "Shortcut for !starship join.");
-        await RegisterDefaultCommand(ShortConfirmCommandName, this, ModuleName, Rank.Viewer, userCooldown: 2,
-            description: "Shortcut for !starship confirm (no longer required; votes count immediately).");
     }
 
     public override async Task OnCommand(object? sender, CommandEventArgs eventArgs)
@@ -119,7 +116,6 @@ public sealed class StarshipExpeditionService(
         {
             ShortVoteCommandName => "vote",
             ShortJoinCommandName => "join",
-            ShortConfirmCommandName => "confirm",
             _ => null
         };
         if (shortSubCommand != null) args.Insert(0, shortSubCommand);
@@ -261,26 +257,6 @@ public sealed class StarshipExpeditionService(
                         ["plural"] = tally == 1 ? string.Empty : "s",
                         ["enrollNote"] = enrollNote
                     });
-                    return;
-
-                case "confirm":
-                    var confirmed = await ConfirmRiskActionAsync(eventArgs);
-                    var confirmedChoice = confirmed.CurrentEvent?.Votes
-                        .Where(vote => string.Equals(vote.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase))
-                        .Select(vote => confirmed.CurrentEvent.Choices.FirstOrDefault(choice =>
-                            string.Equals(choice.ChoiceId, vote.ChoiceId, StringComparison.OrdinalIgnoreCase)))
-                        .FirstOrDefault();
-                    if (confirmedChoice != null)
-                    {
-                        await RespondFormattedAsync(eventArgs, messages.ConfirmSuccess, StarshipMessageSettings.DefaultConfirmSuccess, new()
-                        {
-                            ["choice"] = confirmedChoice.Label
-                        });
-                    }
-                    else
-                    {
-                        await RespondFormattedAsync(eventArgs, messages.ConfirmNotNeeded, StarshipMessageSettings.DefaultConfirmNotNeeded);
-                    }
                     return;
 
                 case "status":
@@ -695,6 +671,13 @@ public sealed class StarshipExpeditionService(
             var trimmedChoice = choiceId.Trim();
             var choice = snapshot.CurrentEvent.Choices.FirstOrDefault(option =>
                 string.Equals(option.ChoiceId, trimmedChoice, StringComparison.OrdinalIgnoreCase));
+            if (choice == null && snapshot.CurrentEvent.EventType == "RouteChoice")
+            {
+                if (string.Equals(trimmedChoice, "direct", StringComparison.OrdinalIgnoreCase))
+                    choice = snapshot.CurrentEvent.Choices.FirstOrDefault(option => option.ChoiceId == "core");
+                else if (string.Equals(trimmedChoice, "detour", StringComparison.OrdinalIgnoreCase))
+                    choice = snapshot.CurrentEvent.Choices.FirstOrDefault(option => option.ChoiceId == "frontier");
+            }
             if (choice == null && int.TryParse(trimmedChoice, NumberStyles.None, CultureInfo.InvariantCulture, out var choiceNumber) &&
                 choiceNumber >= 1 && choiceNumber <= snapshot.CurrentEvent.Choices.Count)
                 choice = snapshot.CurrentEvent.Choices[choiceNumber - 1];
@@ -736,29 +719,21 @@ public sealed class StarshipExpeditionService(
         return (result, enrolled);
     }
 
+    /// <summary>
+    /// Retained as a backwards-compatible skeleton for the Twitch extension (TwitchExtensionController.cs)
+    /// until the extension update without confirm actions is reviewed and deployed.
+    /// In this version, votes count immediately upon voting, so risk confirmation is no longer required
+    /// and this method acts as a safe no-op that returns the active snapshot.
+    /// Can be removed once the Twitch extension no longer sends risk confirmation requests.
+    /// </summary>
     public async Task<StarshipExpeditionSnapshot> ConfirmRiskActionAsync(CommandEventArgs eventArgs, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(eventArgs);
-        var userId = RequireUserId(eventArgs);
         await EnsureLoadedAsync(cancellationToken);
         await _stateLock.WaitAsync(cancellationToken);
         try
         {
             var snapshot = GetActiveSnapshot();
-            if (snapshot.Status != StarshipExpeditionStatus.EventOpen || snapshot.CurrentEvent == null)
-                return snapshot;
-            var pending = snapshot.CurrentEvent.PendingRiskConfirmations.FirstOrDefault(item =>
-                string.Equals(item.UserId, userId, StringComparison.OrdinalIgnoreCase));
-            if (pending != null)
-            {
-                var previousSnapshot = Clone(snapshot);
-                if (!snapshot.CurrentEvent.Votes.Any(vote => string.Equals(vote.UserId, userId, StringComparison.OrdinalIgnoreCase)))
-                {
-                    snapshot.CurrentEvent.Votes.Add(new StarshipEventVoteSnapshot { UserId = userId, ChoiceId = pending.ChoiceId });
-                }
-                snapshot.CurrentEvent.PendingRiskConfirmations.Remove(pending);
-                await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
-            }
             return Clone(snapshot);
         }
         finally
@@ -1341,7 +1316,7 @@ public sealed class StarshipExpeditionService(
             Sector = snapshot.CurrentSector,
             OpenedAtUtc = now,
             ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds),
-            Choices = graphEvent ? [] : FilterChoices(definition.Choices, []),
+            Choices = graphEvent ? [] : ShuffleChoices(FilterChoices(definition.Choices, []), snapshot.Seed, sequence, "event"),
             ChoicePool = graphEvent ? [] : [.. definition.Choices],
             StepDefinitions = graphEvent ? [.. definition.Steps] : [],
             DefaultStepSuppliesCost = definition.DefaultStepSuppliesCost,
@@ -1356,7 +1331,7 @@ public sealed class StarshipExpeditionService(
                 StarshipShipSystems.ApplyTravel(shipSystems, $"ship-travel:{snapshot.CurrentEvent.EventId:N}");
             StarshipShipSystems.BeginEvent(shipSystems, snapshot.CurrentEvent.EventId, definition.EventType == "StationStop");
             if (!graphEvent)
-                snapshot.CurrentEvent.Choices = FilterChoices(definition.Choices, [], shipSystems, definition.EventType);
+                snapshot.CurrentEvent.Choices = ShuffleChoices(FilterChoices(definition.Choices, [], shipSystems, definition.EventType), snapshot.Seed, sequence, "event");
             var configuredProfile = StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, definition.EventType, requireEnabled: false);
             snapshot.CurrentEvent.ShipContext = StarshipShipSystems.CreateEventContext(shipSystems, snapshot.CurrentEvent, definition, configuredProfile);
         }
@@ -1426,8 +1401,9 @@ public sealed class StarshipExpeditionService(
             {
                 case StarshipEventStepType.Vote:
                     currentEvent.ChoicePool = [.. step.Choices];
-                    currentEvent.Choices = FilterChoices(step.Choices, currentEvent.Flags,
-                        snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems ? shipSystems : null, currentEvent.EventType);
+                    currentEvent.Choices = ShuffleChoices(FilterChoices(step.Choices, currentEvent.Flags,
+                        snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems ? shipSystems : null, currentEvent.EventType),
+                        snapshot.Seed, currentEvent.Sequence, step.StepId);
                     currentEvent.DefaultChoiceId = step.DefaultChoiceId;
                     currentEvent.Votes.Clear();
                     currentEvent.PendingRiskConfirmations.Clear();
@@ -1478,6 +1454,35 @@ public sealed class StarshipExpeditionService(
                              !flags.Contains(choice.GrantsFlag, StringComparer.OrdinalIgnoreCase))
             .Where(choice => shipSystems == null || CanAffordShipChoice(shipSystems, eventType, choice))
             .ToList();
+
+    private static List<StarshipEventChoiceSnapshot> ShuffleChoices(
+        List<StarshipEventChoiceSnapshot> choices,
+        int seed,
+        int sequence,
+        string stepKey)
+    {
+        if (choices.Count <= 1) return choices;
+        var list = new List<StarshipEventChoiceSnapshot>(choices);
+        for (var i = list.Count - 1; i > 0; i--)
+        {
+            var j = StarshipExpeditionStory.StableIndex(seed, sequence, $"choice-shuffle:{stepKey}:{i}", i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
+        return list;
+    }
+
+    private static string ResolveChosenRoute(StarshipEventChoiceSnapshot? choice, string? resolvedChoiceId)
+    {
+        if (!string.IsNullOrWhiteSpace(choice?.TargetRoute))
+            return StarshipEventCatalog.CanonicalizeRoute(choice.TargetRoute);
+
+        return resolvedChoiceId?.Trim().ToLowerInvariant() switch
+        {
+            "frontier" or "detour" or "survey route" => StarshipEventCatalog.FrontierRoute,
+            "core" or "direct" or "direct route" => StarshipEventCatalog.CoreRoute,
+            _ => StarshipEventCatalog.CoreRoute
+        };
+    }
 
     private static bool CanAffordShipChoice(StarshipShipSystemsSnapshot state, string eventType, StarshipEventChoiceSnapshot choice) =>
         StarshipShipSystems.CanAfford(state, eventType == "StationStop"
@@ -1546,8 +1551,9 @@ public sealed class StarshipExpeditionService(
         }
 
         currentEvent.StepNumber++;
-        currentEvent.Choices = FilterChoices(currentEvent.ChoicePool, currentEvent.Flags,
-            snapshot.ShipSystems is { IntegrationEnabled: true } state ? state : null, currentEvent.EventType);
+        currentEvent.Choices = ShuffleChoices(FilterChoices(currentEvent.ChoicePool, currentEvent.Flags,
+            snapshot.ShipSystems is { IntegrationEnabled: true } state ? state : null, currentEvent.EventType),
+            snapshot.Seed, currentEvent.Sequence, $"step:{currentEvent.StepNumber}");
         currentEvent.OpenedAtUtc = now;
         currentEvent.ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds);
         return true;
@@ -1640,7 +1646,7 @@ public sealed class StarshipExpeditionService(
         snapshot.CompletedEvents.Add(Clone(currentEvent));
 
         if (currentEvent.EventType == "RouteChoice")
-            snapshot.CurrentRoute = currentEvent.ResolvedChoiceId == "detour" ? "Survey Route" : "Direct Route";
+            snapshot.CurrentRoute = ResolveChosenRoute(winningChoice, currentEvent.ResolvedChoiceId);
 
         if (currentEvent.EventType != "StationStop")
             snapshot.CurrentSector = GetNextSector(snapshot, currentEvent.Sequence);

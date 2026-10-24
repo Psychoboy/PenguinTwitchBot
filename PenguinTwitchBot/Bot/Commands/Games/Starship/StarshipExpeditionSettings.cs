@@ -78,6 +78,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         settings.Appearance = StarshipAppearanceSettings.NormalizeAndValidate(settings.Appearance);
         settings.ShipSystems ??= new();
         settings.EventCatalog ??= StarshipEventCatalog.CreateDefaults();
+        MigrateCatalog(settings.EventCatalog);
         settings.ShipSystems.Validate();
         settings.BoardingOpenSound ??= new() { Enabled = true, AudioFile = "/media/starship_boarding_open.wav", Volume = 60 };
         StarshipEventCatalog.ValidateSoundConfig(settings.BoardingOpenSound, "Boarding open sound");
@@ -208,6 +209,105 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     private static List<StarshipRewardProfile> CreateDefaultRewardProfiles() => RewardEventTypes
         .Select(eventType => new StarshipRewardProfile { EventType = eventType })
         .ToList();
+
+    public static bool MigrateCatalog(List<StarshipEventDefinition> catalog)
+    {
+        var changed = false;
+        for (var i = 0; i < catalog.Count; i++)
+        {
+            var def = catalog[i];
+            if (def == null) continue;
+
+            if (def.AllowedRoutes.Count > 0)
+            {
+                var newRoutes = def.AllowedRoutes.Select(r =>
+                    string.Equals(r, StarshipEventCatalog.LegacyDirectRoute, StringComparison.OrdinalIgnoreCase) ? StarshipEventCatalog.CoreRoute :
+                    string.Equals(r, StarshipEventCatalog.LegacySurveyRoute, StringComparison.OrdinalIgnoreCase) ? StarshipEventCatalog.FrontierRoute :
+                    r).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+                if (!newRoutes.SequenceEqual(def.AllowedRoutes))
+                {
+                    def = def with { AllowedRoutes = newRoutes };
+                    catalog[i] = def;
+                    changed = true;
+                }
+            }
+
+            if (def.EventType == "RouteChoice")
+            {
+                var choicesChanged = false;
+                var updatedChoices = new List<StarshipEventChoiceSnapshot>(def.Choices.Count);
+                foreach (var choice in def.Choices)
+                {
+                    if (string.Equals(choice.ChoiceId, "direct", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedChoices.Add(new StarshipEventChoiceSnapshot
+                        {
+                            ChoiceId = "core",
+                            Label = choice.Label == "Take the direct route" ? "Take the Core Route" : choice.Label,
+                            Story = choice.Story,
+                            Hint = choice.Hint,
+                            TargetRoute = StarshipEventCatalog.CoreRoute
+                        });
+                        choicesChanged = true;
+                    }
+                    else if (string.Equals(choice.ChoiceId, "detour", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedChoices.Add(new StarshipEventChoiceSnapshot
+                        {
+                            ChoiceId = "frontier",
+                            Label = choice.Label == "Take the survey detour" ? "Take the Frontier Route" : choice.Label,
+                            Story = choice.Story,
+                            Hint = choice.Hint,
+                            TargetRoute = StarshipEventCatalog.FrontierRoute
+                        });
+                        choicesChanged = true;
+                    }
+                    else
+                    {
+                        if (string.IsNullOrEmpty(choice.TargetRoute))
+                        {
+                            var target = string.Equals(choice.ChoiceId, "core", StringComparison.OrdinalIgnoreCase) ? StarshipEventCatalog.CoreRoute :
+                                string.Equals(choice.ChoiceId, "frontier", StringComparison.OrdinalIgnoreCase) ? StarshipEventCatalog.FrontierRoute : null;
+                            if (target != null)
+                            {
+                                updatedChoices.Add(new StarshipEventChoiceSnapshot
+                                {
+                                    ChoiceId = choice.ChoiceId,
+                                    Label = choice.Label,
+                                    Story = choice.Story,
+                                    Hint = choice.Hint,
+                                    TargetRoute = target
+                                });
+                                choicesChanged = true;
+                                continue;
+                            }
+                        }
+                        updatedChoices.Add(choice);
+                    }
+                }
+
+                var defaultChoiceId = string.Equals(def.DefaultChoiceId, "direct", StringComparison.OrdinalIgnoreCase)
+                    ? "core"
+                    : def.DefaultChoiceId;
+                var description = def.Description == "The crew can take a direct route or detour through a survey area."
+                    ? "The navigators chart two paths through the sector: the Core Route or the Frontier Route."
+                    : def.Description;
+
+                if (choicesChanged || defaultChoiceId != def.DefaultChoiceId || description != def.Description)
+                {
+                    catalog[i] = def with
+                    {
+                        Choices = updatedChoices,
+                        DefaultChoiceId = defaultChoiceId,
+                        Description = description
+                    };
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
 
     private static void ValidateRewardRange(long minimum, long maximum, string propertyName)
     {

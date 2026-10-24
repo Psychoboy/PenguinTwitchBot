@@ -446,7 +446,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         var salvageIndex = settings.EventCatalog.FindIndex(definition => definition.EventType == "SalvageSite");
         settings.EventCatalog[salvageIndex] = settings.EventCatalog[salvageIndex] with
         {
-            AllowedRoutes = ["Uncharted", "Survey Route"]
+            AllowedRoutes = ["Uncharted", "Frontier Route"]
         };
         await CreateStore().SaveAsync(settings);
 
@@ -457,8 +457,8 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         var persisted = JsonSerializer.Deserialize<StarshipEventDefinition>(row.DocumentJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 
-        Assert.Equal(["Uncharted", "Survey Route"], loaded.EventCatalog.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
-        Assert.Equal(["Uncharted", "Survey Route"], persisted.AllowedRoutes);
+        Assert.Equal(["Uncharted", "Frontier Route"], loaded.EventCatalog.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
+        Assert.Equal(["Uncharted", "Frontier Route"], persisted.AllowedRoutes);
     }
 
     [Fact]

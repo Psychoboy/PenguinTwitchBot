@@ -52,7 +52,7 @@ public sealed class StarshipExpeditionSnapshot
     public bool AnnounceSessionStatusInChat { get; init; } = true;
     public string SessionStartChatMessageTemplate { get; init; } = string.Empty;
     public string SessionEndChatMessageTemplate { get; init; } = string.Empty;
-    public StarshipMessageSettings Messages { get; set; } = new();
+    public StarshipMessageSettings? Messages { get; set; }
     public int NextEventSequence { get; set; } = 1;
     public DateTimeOffset? NextEventAtUtc { get; set; }
     public string CurrentSector { get; set; } = string.Empty;
@@ -195,6 +195,7 @@ public sealed class StarshipEventChoiceSnapshot
     public int RiskMultiplierPercent { get; init; } = 100;
     public string Hint { get; init; } = string.Empty;
     public StarshipShipEffect? ShipEffect { get; init; }
+    public string? TargetRoute { get; init; }
 }
 
 public sealed class StarshipEventPathStepSnapshot
@@ -210,7 +211,7 @@ public sealed class StarshipEventPathStepSnapshot
 public sealed class StarshipEventVoteSnapshot
 {
     public string UserId { get; init; } = string.Empty;
-    public string ChoiceId { get; init; } = string.Empty;
+    public string ChoiceId { get; set; } = string.Empty;
 }
 
 public sealed class StarshipUnbankedBalanceSnapshot

@@ -22,6 +22,11 @@ public interface IStarshipExpeditionService
     Task<StarshipExpeditionSnapshot> AdvanceEventAsync(CancellationToken cancellationToken = default);
     Task<StarshipExpeditionSnapshot> JoinCrewAsync(CommandEventArgs eventArgs, CancellationToken cancellationToken = default);
     Task<StarshipExpeditionSnapshot> VoteAsync(CommandEventArgs eventArgs, string choiceId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Retained as a backwards-compatible skeleton for the Twitch extension (TwitchExtensionController.cs)
+    /// until the extension update without confirm actions is reviewed and deployed.
+    /// Can be removed once the Twitch extension no longer sends risk confirmation requests.
+    /// </summary>
     Task<StarshipExpeditionSnapshot> ConfirmRiskActionAsync(CommandEventArgs eventArgs, CancellationToken cancellationToken = default);
     /// <summary>Keeps the status widget visible for a period; returns null when there is no active voyage.</summary>
     Task<StarshipExpeditionSnapshot?> ShowStatusWidgetAsync(int durationSeconds, CancellationToken cancellationToken = default);

@@ -620,7 +620,7 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         variables.SetVariable("CrewCount", "Number of viewers aboard", source, category, "4");
         variables.SetVariable("StartedBy", "Viewer who started the voyage", source, category, "Broadcaster");
         variables.SetVariable("ShipName", "Name of the expedition ship", source, category, "Rockhopper Voyager");
-        variables.SetVariable("Route", "Current voyage route", source, category, "Survey Route");
+        variables.SetVariable("Route", "Current voyage route", source, category, "Frontier Route");
         variables.SetVariable("VoyageStatus", "Boarding, Cruising, EventOpen, Returned or Aborted", source, category, "Cruising");
         variables.SetVariable("Seed", "Saved deterministic voyage seed", source, category, "12345");
         variables.SetVariable("CompletedLegs", "Number of completed voyage legs", source, category, "2");

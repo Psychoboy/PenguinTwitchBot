@@ -25,7 +25,7 @@
         };
         const base = {
             status: 'Cruising', updatedAtUtc: iso(0), serverNowUtc: iso(0), currentLeg: 2, legCount: 6,
-            currentSector: 'Ternion Belt', currentRoute: 'Survey Route', crewCount: 7, boardingClosesAtUtc: null,
+            currentSector: 'Ternion Belt', currentRoute: 'Frontier Route', crewCount: 7, boardingClosesAtUtc: null,
             nextEventAtUtc: iso(600), currentEvent: null, latestResult: null, ship: ship, stationLegs: [3, 5], activity: [], timeline: [],
             shipSystems: { hull: 72, maximumHull: 100, supplies: 43, pendingSuccessBonusPercent: 0, activeSuccessBonusPercent: 0 }
         };
