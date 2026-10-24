@@ -18,9 +18,6 @@
                 <div id="user-status-chip" class="user-chip" style="display: none;">
                     <span id="user-display-name">Viewer</span>
                 </div>
-                <!-- <a id="header-portal-link" class="header-link-btn" href="#" target="_blank" rel="noopener noreferrer" title="Open Full Bot Web Interface" style="display: none;">
-                    🌐
-                </a> -->
             </div>
         </header>
 
@@ -70,7 +67,14 @@
             </div>
         </main>
 
-        <!-- 4. Commands Lookup Panel -->
+        <!-- 4. Starship Expedition Panel -->
+        <main id="panel-starship" class="tab-panel" style="display: none;">
+            <div id="starship-content">
+                <div class="loading-spinner">Loading Starship Expedition...</div>
+            </div>
+        </main>
+
+        <!-- 5. Commands Lookup Panel -->
         <main id="panel-commands" class="tab-panel" style="display: none;">
             <div class="search-bar">
                 <input type="text" id="cmd-search-input" class="search-input" placeholder="Search commands..." />
@@ -82,14 +86,6 @@
                 <div class="loading-spinner">Loading commands...</div>
             </div>
         </main>
-        
-        <!-- Panel Footer -->
-        <footer id="panel-footer" class="panel-footer" style="display: none;">
-            <a id="web-portal-link" class="footer-portal-link" href="#" target="_blank" rel="noopener noreferrer">
-                <span>Open Full Web Interface</span>
-                <span class="external-icon">↗</span>
-            </a>
-        </footer>
     </div>
 
     <!-- Scripts -->

@@ -7,6 +7,7 @@
         giveaway: { id: 'giveaway', label: 'Giveaway', icon: '', featureKey: 'giveaway' },
         fishing: { id: 'fishing', label: 'Fishing', icon: '', featureKey: 'fishing' },
         leaderboards: { id: 'leaderboards', label: 'Rankings', icon: '', featureKey: 'leaderboards' },
+        starship: { id: 'starship', label: 'Starship', icon: '', featureKey: 'starship' },
         commands: { id: 'commands', label: 'Commands', icon: '', featureKey: 'commands' }
     };
 
@@ -133,7 +134,7 @@
         if (!container) return;
         container.innerHTML = '';
 
-        var order = (state.config && state.config.tabOrder) || ['giveaway', 'fishing', 'leaderboards', 'commands'];
+        var order = (state.config && state.config.tabOrder) || ['giveaway', 'fishing', 'leaderboards', 'starship', 'commands'];
         var visibleTabs = [];
 
         order.forEach(function (tabKey) {
@@ -183,7 +184,7 @@
             }
         });
 
-        ['giveaway', 'fishing', 'leaderboards', 'commands'].forEach(function (id) {
+        ['giveaway', 'fishing', 'leaderboards', 'starship', 'commands'].forEach(function (id) {
             var panel = document.getElementById('panel-' + id);
             if (panel) {
                 var isActive = (id === state.activeTab);
@@ -211,7 +212,7 @@
         });
 
         // Hide all panel elements, show active as flex
-        ['giveaway', 'fishing', 'leaderboards', 'commands'].forEach(function (id) {
+        ['giveaway', 'fishing', 'leaderboards', 'starship', 'commands'].forEach(function (id) {
             var panel = document.getElementById('panel-' + id);
             if (panel) {
                 var isActive = (id === tabId);
@@ -236,6 +237,8 @@
                 return document.getElementById('fishing-sub-content');
             case 'leaderboards':
                 return document.getElementById('leaderboard-content');
+            case 'starship':
+                return document.getElementById('starship-content');
             case 'commands':
                 return document.getElementById('commands-list-content');
             default:
@@ -249,7 +252,7 @@
             '<div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; color: var(--text-primary);">Extension Setup Required</div>' +
             '<p style="color: var(--text-secondary); font-size: 11px; line-height: 1.5; margin: 0 auto; max-width: 240px;">Broadcaster: Please configure your Bot API Base URL (HTTPS) in the Twitch Extension Configuration settings to enable panel features.</p>' +
             '</div>';
-        ['giveaway-content', 'fishing-sub-content', 'leaderboard-content', 'commands-list-content'].forEach(function (id) {
+        ['giveaway-content', 'fishing-sub-content', 'leaderboard-content', 'starship-content', 'commands-list-content'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.innerHTML = unconfiguredHtml;
         });
@@ -284,6 +287,9 @@
                 break;
             case 'leaderboards':
                 promise = loadLeaderboards(isBackgroundRefresh);
+                break;
+            case 'starship':
+                promise = loadStarshipContent(isBackgroundRefresh);
                 break;
             case 'commands':
                 promise = loadCommands(isBackgroundRefresh);
@@ -353,15 +359,9 @@
             '<div class="stat-box"><div class="stat-val">' + formatNumber(g.entriesCount) + '</div><div class="stat-lbl">Entries</div></div>' +
             '</div>';
 
-        var cfg = TwitchExtApi.getConfig();
-        var baseUrl = cfg && cfg.botBaseUrl ? cfg.botBaseUrl.trim().replace(/\/+$/, '') : '';
-        if (baseUrl && isValidHttpsUrl(baseUrl)) {
-            html += '<div style="margin-top: 10px;">' +
-                '<a href="' + escapeHtml(baseUrl + '/giveaway') + '" target="_blank" rel="noopener noreferrer" class="btn-giveaway-details">' +
-                '<span>📜 View Full Giveaway Details & Rules</span> <span class="external-icon">↗</span>' +
-                '</a>' +
-                '</div>';
-        }
+        html += '<div class="giveaway-disclaimer">' +
+            'This is a promotion by the channel broadcaster. Twitch does not sponsor or endorse this promotion and is not responsible for it.' +
+            '</div>';
         html += '</div>';
 
         if (!g.isClosed) {
@@ -562,7 +562,7 @@
                     '<div class="item-name">' + escapeHtml(item.name) + (isEquipped ? ' <span style="color:var(--success); font-size:10px;">(Equipped)</span>' : '') + '</div>' +
                     '<div class="item-desc">' + escapeHtml(item.description) + '</div>' +
                     '</div>' +
-                    (item.equipmentSlot ? '<span class="item-slot">' + escapeHtml(item.equipmentSlot) + '</span>' : '') +
+                    (item.equipmentSlot ? '<span class="item-gear-type">' + escapeHtml(item.equipmentSlot) + '</span>' : '') +
                     '</div>';
 
                 if (item.boostSummary) {
@@ -823,7 +823,7 @@
             html += '<div class="shop-card-compact">' +
                 '<div class="shop-card-top">' +
                 '<div class="shop-card-name-group">' +
-                (item.equipmentSlot ? '<span class="item-slot">' + escapeHtml(item.equipmentSlot) + '</span>' : '') +
+                (item.equipmentSlot ? '<span class="item-gear-type">' + escapeHtml(item.equipmentSlot) + '</span>' : '') +
                 '<span class="shop-card-name" title="' + escapeHtml(item.name) + '">' + escapeHtml(item.name) + '</span>' +
                 '</div>' +
                 '<div class="shop-card-actions">' +
@@ -906,16 +906,19 @@
 
         try {
             var pts = await TwitchExtApi.getLeaderboardMeta();
-            state.lbPointTypes = pts;
+            var filteredPts = (pts || []).filter(function (pt) {
+                return !isProhibitedCategory(pt.name);
+            });
+            state.lbPointTypes = filteredPts;
             select.innerHTML = '';
-            pts.forEach(function (pt) {
+            filteredPts.forEach(function (pt) {
                 var opt = document.createElement('option');
                 opt.value = pt.id;
                 opt.textContent = pt.name;
                 select.appendChild(opt);
             });
-            if (pts.length > 0) {
-                state.selectedPointTypeId = pts[0].id;
+            if (filteredPts.length > 0) {
+                state.selectedPointTypeId = filteredPts[0].id;
             }
         } catch (err) {
             console.debug('[TwitchExt] Point types load error:', err);
@@ -979,10 +982,304 @@
             html += '</tbody></table></div>';
         });
 
+        html += '<div style="font-size:10px; color:var(--text-muted); text-align:center; margin-top:8px; padding:4px 8px;">' +
+            'Fishing tournaments are broadcast-organized community events. Twitch does not sponsor or endorse channel competitions.' +
+            '</div>';
+
         container.innerHTML = html;
     }
 
-    // --- 4. Commands View ---
+    // --- 4. Starship Expedition View ---
+    async function loadStarshipContent(isBackgroundRefresh) {
+        var container = document.getElementById('starship-content');
+        if (!container) return;
+        var savedScrollTop = isBackgroundRefresh ? container.scrollTop : 0;
+
+        if (!isBackgroundRefresh) {
+            container.innerHTML = '<div class="loading-spinner">Loading Starship Expedition...</div>';
+        }
+
+        try {
+            var statePromise = TwitchExtApi.getStarshipState();
+            var viewerPromise = TwitchExtApi.isIdentityShared()
+                ? TwitchExtApi.getStarshipViewer().catch(function () { return null; })
+                : Promise.resolve(null);
+
+            var results = await Promise.all([statePromise, viewerPromise]);
+            var res = results[0];
+            var viewer = results[1];
+            var snapshot = res ? res.snapshot : null;
+            renderStarship(container, snapshot, viewer);
+            if (isBackgroundRefresh && savedScrollTop > 0) {
+                container.scrollTop = savedScrollTop;
+            }
+        } catch (err) {
+            if (!isBackgroundRefresh) {
+                container.innerHTML = '<div class="empty-state">Unable to load Starship Expedition data.</div>';
+            }
+        }
+    }
+
+    function renderStarship(container, snapshot, viewer) {
+        if (!snapshot || snapshot.status === 'Idle' || snapshot.status === 'Completed') {
+            container.innerHTML = '<div class="card starship-card" style="text-align: center; padding: 24px 14px;">' +
+                '<div style="font-size: 28px; margin-bottom: 8px;">🚀</div>' +
+                '<div class="starship-title" style="justify-content: center; margin-bottom: 6px;">Starship Docked</div>' +
+                '<p style="color: var(--text-secondary); font-size: 11.5px; line-height: 1.4;">No starship expedition is currently in progress. Prepare your crew for the next launch!</p>' +
+                '</div>';
+            return;
+        }
+
+        var shipName = (snapshot.ship && snapshot.ship.name) ? snapshot.ship.name : 'SS Expedition';
+        var statusBadge = '';
+        var statusLower = (snapshot.status || '').toLowerCase();
+        if (statusLower === 'boarding') {
+            statusBadge = '<span class="badge-status badge-open">🧑‍🚀 Boarding Open</span>';
+        } else if (statusLower === 'stationdocked') {
+            statusBadge = '<span class="badge-status" style="background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning);">⛽ Station Docked</span>';
+        } else if (statusLower === 'emergencyreturn') {
+            statusBadge = '<span class="badge-status badge-closed">⚠️ Emergency Return</span>';
+        } else {
+            statusBadge = '<span class="badge-status badge-open">🚀 ' + escapeHtml(snapshot.status) + '</span>';
+        }
+
+        var html = '';
+
+        if (!TwitchExtApi.isIdentityShared()) {
+            html += '<div class="identity-box" style="margin-bottom: 10px;">' +
+                '<p>Link your Twitch account to board the starship and vote directly from this extension!</p>' +
+                '<button id="btn-starship-link" class="btn-identity">Link Twitch Account</button>' +
+                '</div>';
+        }
+
+        html += '<div class="card starship-card">' +
+            '<div class="starship-header">' +
+            '<div class="starship-title">🚀 ' + escapeHtml(shipName) + '</div>' +
+            statusBadge +
+            '</div>';
+
+        html += '<div class="starship-stats-grid">' +
+            '<div class="stat-box"><div class="stat-val">' + formatNumber(snapshot.crewCount || 0) + '</div><div class="stat-lbl">Crew</div></div>' +
+            '<div class="stat-box"><div class="stat-val">' + (snapshot.currentLeg || 0) + ' / ' + (snapshot.legCount || 0) + '</div><div class="stat-lbl">Progress</div></div>' +
+            '</div>';
+
+        if (snapshot.currentSector || snapshot.currentRoute) {
+            html += '<div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">' +
+                '<span>Sector: <strong style="color:var(--text-primary);">' + escapeHtml(snapshot.currentSector || 'Deep Space') + '</strong></span>' +
+                (snapshot.currentRoute ? ' | <span>Route: <strong style="color:var(--text-primary);">' + escapeHtml(snapshot.currentRoute) + '</strong></span>' : '') +
+                '</div>';
+        }
+
+        if (snapshot.shipSystems) {
+            var hull = snapshot.shipSystems.hull != null ? snapshot.shipSystems.hull : 100;
+            var maxHull = snapshot.shipSystems.maximumHull || 100;
+            var hullPct = Math.max(0, Math.min(100, Math.round((hull / maxHull) * 100)));
+            var supplies = snapshot.shipSystems.supplies != null ? snapshot.shipSystems.supplies : 0;
+
+            html += '<div class="starship-resource-bar">' +
+                '<div class="resource-label-row"><span>Hull Integrity</span><span>' + hull + ' / ' + maxHull + ' (' + hullPct + '%)</span></div>' +
+                '<div class="resource-track"><div class="resource-fill hull" style="width:' + hullPct + '%;"></div></div>' +
+                '</div>' +
+                '<div class="starship-resource-bar">' +
+                '<div class="resource-label-row"><span>Supplies Remaining</span><span>' + formatNumber(supplies) + '</span></div>' +
+                '<div class="resource-track"><div class="resource-fill supplies" style="width:' + Math.min(100, Math.max(5, supplies)) + '%;"></div></div>' +
+                '</div>';
+        }
+
+        if (statusLower === 'boarding') {
+            if (viewer && viewer.hasJoined) {
+                html += '<div style="background:rgba(0,230,153,0.1);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:8px;text-align:center;color:var(--accent);font-size:11.5px;font-weight:700;margin-top:8px;">' +
+                    '✓ You are aboard the crew!' +
+                    '</div>';
+            } else {
+                html += '<div class="identity-box" style="margin-top: 8px;">' +
+                    '<p>🧑‍🚀 Boarding is open! Join the crew to participate:</p>' +
+                    '<div style="display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 6px;">' +
+                    (TwitchExtApi.isIdentityShared() ? '<button id="btn-starship-join" class="btn-primary" style="padding: 4px 12px; font-size: 11px;">🧑‍🚀 Board Starship</button>' : '') +
+                    '<button class="btn-copy-vote" data-cmd="!sj" title="Shortcut for !starship join">Copy !sj</button>' +
+                    '</div>' +
+                    '</div>';
+            }
+        }
+
+        if (snapshot.currentEvent) {
+            var ev = snapshot.currentEvent;
+
+            if (viewer && viewer.hasPendingRisk) {
+                var maxLoss = viewer.maximumRiskLoss || 0;
+                var ptName = viewer.riskPointTypeName || 'points';
+                html += '<div class="starship-risk-banner" style="margin-top:8px;">' +
+                    '<span>⚠️ <strong>Risk Check:</strong> Choice risks up to ' + formatNumber(maxLoss) + ' ' + escapeHtml(ptName) + '.</span>' +
+                    '<button class="btn-confirm-risk" data-choice="' + escapeHtml(viewer.pendingRiskChoiceId || '') + '">Confirm &amp; Vote</button>' +
+                    '</div>';
+            }
+
+            html += '<div class="starship-event-box">' +
+                '<div class="starship-event-title">⚡ Encounter: ' + escapeHtml(ev.title || 'Unknown Event') + '</div>' +
+                (ev.sector ? '<div style="font-size:10px; color:var(--text-muted); margin-bottom:4px;">Sector: ' + escapeHtml(ev.sector) + '</div>' : '') +
+                '<div class="starship-event-desc">' + escapeHtml(ev.stepNote || ev.description || '') + '</div>';
+
+            if (Array.isArray(ev.choices) && ev.choices.length > 0) {
+                var totalVotes = 0;
+                var voteCounts = ev.voteCounts || {};
+                ev.choices.forEach(function (c) {
+                    totalVotes += (voteCounts[c.choiceId] || 0);
+                });
+
+                html += '<div class="starship-choices-list">';
+                ev.choices.forEach(function (c) {
+                    var votes = voteCounts[c.choiceId] || 0;
+                    var votePct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                    var voteCmd = '!sv ' + c.number;
+                    var isUserVote = viewer && viewer.hasVoted && viewer.votedChoiceId === c.choiceId;
+
+                    html += '<div class="starship-choice-item">' +
+                        '<div class="choice-header">' +
+                        '<span class="choice-label">' + c.number + '. ' + escapeHtml(c.label || c.choiceId) + (c.isRisky ? ' <span style="color:var(--danger);font-size:9.5px;">(Risky)</span>' : '') + '</span>' +
+                        '<div style="display:flex;align-items:center;gap:6px;">' +
+                        (isUserVote ? '<span class="voted-badge">✓ Your Vote</span>' : '') +
+                        '<span class="choice-votes">' + votes + ' vote' + (votes === 1 ? '' : 's') + ' (' + votePct + '%)</span>' +
+                        '</div>' +
+                        '</div>' +
+                        '<div class="choice-vote-bar"><div class="choice-vote-fill" style="width:' + votePct + '%;"></div></div>' +
+                        (c.hint ? '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px;">' + escapeHtml(c.hint) + '</div>' : '') +
+                        '<div class="choice-action-row">';
+
+                    if (!viewer || !viewer.hasVoted) {
+                        if (TwitchExtApi.isIdentityShared()) {
+                            html += '<button class="btn-vote-active btn-cast-vote" data-choice="' + escapeHtml(c.choiceId) + '" data-num="' + c.number + '" data-risky="' + (c.isRisky ? 1 : 0) + '">Vote #' + c.number + '</button>';
+                        }
+                    }
+
+                    html += '<button class="btn-copy-vote" data-cmd="' + escapeHtml(voteCmd) + '" title="Shortcut for !starship vote ' + c.number + '">Copy ' + escapeHtml(voteCmd) + '</button>' +
+                        '</div>' +
+                        '</div>';
+                });
+                html += '</div>';
+            }
+            html += '</div>';
+        } else if (snapshot.latestResult) {
+            html += '<div class="starship-event-box">' +
+                '<div class="starship-event-title">Recent Event: ' + escapeHtml(snapshot.latestResult.title || '') + '</div>' +
+                '<div class="starship-event-desc">' + escapeHtml(snapshot.latestResult.outcomeNarrative || snapshot.latestResult.outcomeResult || '') + '</div>' +
+                '</div>';
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+        wireStarshipListeners(container);
+    }
+
+    function wireStarshipListeners(container) {
+        var linkBtn = container.querySelector('#btn-starship-link');
+        if (linkBtn) {
+            linkBtn.addEventListener('click', function () {
+                TwitchExtApi.requestIdentityShare();
+            });
+        }
+
+        var joinBtn = container.querySelector('#btn-starship-join');
+        if (joinBtn) {
+            joinBtn.addEventListener('click', async function () {
+                joinBtn.disabled = true;
+                try {
+                    var res = await TwitchExtApi.joinStarship();
+                    showAlert('success', res.message || 'You have boarded the starship!');
+                    await loadStarshipContent(false);
+                } catch (err) {
+                    showAlert('error', err.message || 'Failed to board starship.');
+                    joinBtn.disabled = false;
+                }
+            });
+        }
+
+        container.querySelectorAll('.btn-cast-vote').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                var choiceId = btn.getAttribute('data-choice');
+                var num = btn.getAttribute('data-num');
+
+                container.querySelectorAll('.btn-cast-vote').forEach(function (b) { b.disabled = true; });
+
+                try {
+                    var res = await TwitchExtApi.voteStarship(choiceId, false);
+                    if (res && res.requiresConfirmation) {
+                        showAlert('warning', res.message || 'Risky decision: please confirm risk to cast vote!');
+                    } else {
+                        showAlert('success', res.message || 'Vote for Choice #' + num + ' recorded!');
+                    }
+                    await loadStarshipContent(false);
+                } catch (err) {
+                    showAlert('error', err.message || 'Failed to record vote.');
+                    container.querySelectorAll('.btn-cast-vote').forEach(function (b) { b.disabled = false; });
+                }
+            });
+        });
+
+        var confirmBtn = container.querySelector('.btn-confirm-risk');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', async function () {
+                var choiceId = confirmBtn.getAttribute('data-choice');
+                confirmBtn.disabled = true;
+                try {
+                    var res = await TwitchExtApi.voteStarship(choiceId, true);
+                    showAlert('success', res.message || 'Risky vote confirmed and cast!');
+                    await loadStarshipContent(false);
+                } catch (err) {
+                    showAlert('error', err.message || 'Failed to confirm risk vote.');
+                    confirmBtn.disabled = false;
+                }
+            });
+        }
+
+        container.querySelectorAll('.btn-copy-vote').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var cmd = btn.getAttribute('data-cmd');
+                copyToClipboard(cmd, btn);
+            });
+        });
+    }
+
+    // --- Content Policy Filters (Gambling & Music prohibitions) ---
+    function isProhibitedCategory(catName) {
+        if (!catName) return false;
+        var lower = String(catName).toLowerCase().trim();
+        var prohibitedWords = [
+            'music', 'musicplayer', 'song', 'songs', 'audio', 'sound', 'soundeffect', 'playlist', 'playlists', 'spotify', 'dj',
+            'roulette', 'gamble', 'gambling', 'slot', 'slots', 'bet', 'betting', 'casino', 'jackpot', 'lottery', 'wager', 'heist', 'dice', 'poker', 'blackjack'
+        ];
+        return prohibitedWords.some(function (w) { return lower === w || lower.indexOf(w) !== -1; });
+    }
+
+    function isProhibitedCommand(cmd) {
+        if (!cmd) return false;
+        var rawName = String(cmd.command || '').toLowerCase().trim();
+        var name = rawName.replace(/^[!/#]/, '');
+        var cat = String(cmd.category || '').toLowerCase().trim();
+        var desc = String(cmd.description || '').toLowerCase();
+
+        if (isProhibitedCategory(cat)) return true;
+
+        var prohibitedNames = [
+            'roulette', 'gamble', 'slots', 'slot', 'bet', 'wager', 'casino', 'jackpot', 'lottery', 'heist', 'dice', 'poker', 'blackjack',
+            'sr', 'song', 'songs', 'songrequest', 'currentsong', 'lastsong', 'nextsong',
+            'skip', 'voteskip', 'veto', 'pause', 'wrongsong', 'wrong', 'priority', 'stealsong', 'importpl', 'loadpl',
+            'playlist', 'music', 'volume'
+        ];
+        for (var i = 0; i < prohibitedNames.length; i++) {
+            if (name === prohibitedNames[i] || name.indexOf(prohibitedNames[i]) === 0) return true;
+        }
+
+        if (/\b(roulette|gamble|gambling|slots|wager|jackpot|casino|dice|poker|blackjack|place a bet|bet tickets|bet points)\b/i.test(desc)) {
+            return true;
+        }
+        if (/\b(request a song|song request|current song|play song|youtube song|music player|audio track)\b/i.test(desc)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // --- 5. Commands View ---
     async function loadCommands(isBackgroundRefresh) {
         var container = document.getElementById('commands-list-content');
         if (!container) return;
@@ -993,7 +1290,9 @@
                 var cats = await TwitchExtApi.getCommandCategories();
                 var catSelect = document.getElementById('cmd-category-select');
                 if (catSelect) {
-                    cats.forEach(function (c) {
+                    (cats || []).filter(function (c) {
+                        return !isProhibitedCategory(c);
+                    }).forEach(function (c) {
                         var opt = document.createElement('option');
                         opt.value = c;
                         opt.textContent = c;
@@ -1011,7 +1310,10 @@
         }
 
         try {
-            var commands = await TwitchExtApi.getCommands(state.cmdCategory, state.cmdSearchText);
+            var rawCommands = await TwitchExtApi.getCommands(state.cmdCategory, state.cmdSearchText);
+            var commands = (rawCommands || []).filter(function (c) {
+                return !isProhibitedCommand(c);
+            });
 
             if (!commands || commands.length === 0) {
                 container.innerHTML = '<div class="empty-state">No commands found matching criteria.</div>';
@@ -1140,40 +1442,18 @@
         var catSelect = document.getElementById('cmd-category-select');
         if (catSelect) {
             catSelect.addEventListener('change', function () {
-                state.cmdCategory = catSelect.value;
+                if (isProhibitedCategory(catSelect.value)) {
+                    state.cmdCategory = 'all';
+                    catSelect.value = 'all';
+                } else {
+                    state.cmdCategory = catSelect.value;
+                }
                 loadCommands();
             });
         }
 
         // Fetch bot features and load initial tab
         await refreshExtensionData();
-    }
-
-    function updatePortalLink(baseUrl) {
-        var headerLink = document.getElementById('header-portal-link');
-        var footerEl = document.getElementById('panel-footer');
-        var footerLink = document.getElementById('web-portal-link');
-
-        if (baseUrl && isValidHttpsUrl(baseUrl)) {
-            var url = baseUrl.trim();
-            if (headerLink) {
-                headerLink.href = url;
-                headerLink.style.display = 'inline-flex';
-            }
-            if (footerEl && footerLink) {
-                footerLink.href = url;
-                footerEl.style.display = 'block';
-            }
-        } else {
-            if (headerLink) {
-                headerLink.removeAttribute('href');
-                headerLink.style.display = 'none';
-            }
-            if (footerEl && footerLink) {
-                footerLink.removeAttribute('href');
-                footerEl.style.display = 'none';
-            }
-        }
     }
 
     var isRefreshing = false;
@@ -1189,7 +1469,6 @@
         try {
             var cfg = TwitchExtApi.getConfig();
             state.config = cfg;
-            updatePortalLink(cfg && cfg.botBaseUrl);
 
             if (!cfg || !cfg.botBaseUrl || !cfg.botBaseUrl.trim() || !isValidHttpsUrl(cfg.botBaseUrl)) {
                 console.warn('[TwitchExt] Bot API Base URL is not configured or invalid in broadcaster settings!');
@@ -1203,7 +1482,7 @@
             } catch (e) {
                 console.error('[TwitchExt] Failed to query bot features from ' + cfg.botBaseUrl + ':', e);
                 showAlert('error', '⚠️ Failed to connect to bot: ' + (e.message || 'Network error'), 8000);
-                state.botFeatures = { fishing: true, giveaway: true, points: true, leaderboards: true, commands: true };
+                state.botFeatures = { fishing: true, giveaway: true, points: true, leaderboards: true, starship: true, commands: true };
             }
 
             renderNavigationTabs();

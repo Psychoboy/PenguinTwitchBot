@@ -26,6 +26,7 @@ using Xunit;
 using Microsoft.AspNetCore.Mvc.Filters;
 using PenguinTwitchBot.Circuit;
 using System.Net;
+using PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 namespace PenguinTwitchBot.Test.Controllers;
 
@@ -56,7 +57,7 @@ public class TwitchExtensionControllerTests
         _configuration["TwitchExtension:Secret"].Returns(TestSecretBase64);
     }
 
-    private TwitchExtensionController CreateController(string? authHeader = null)
+    private TwitchExtensionController CreateController(string? authHeader = null, IStarshipExpeditionService? starshipExpeditionService = null)
     {
         var scopeFactory = Substitute.For<IServiceScopeFactory>();
         var leaderboards = new Leaderboards(scopeFactory);
@@ -76,7 +77,8 @@ public class TwitchExtensionControllerTests
             _twitchService,
             _ipLog,
             _configuration,
-            _logger);
+            _logger,
+            starshipExpeditionService);
 
         var httpContext = new DefaultHttpContext();
         if (!string.IsNullOrWhiteSpace(authHeader))
@@ -524,6 +526,200 @@ public class TwitchExtensionControllerTests
 
         Assert.NotEmpty(extensionEndpoints);
         Assert.DoesNotContain(extensionEndpoints, x => x.ActionName == nameof(TwitchExtensionController.OnActionExecutionAsync));
+    }
+
+    [Fact]
+    public async Task GetStarshipViewer_ReturnsUnauthorized_WhenNoUserId()
+    {
+        var token = GenerateTestJwt("channel123", userId: null);
+        var controller = CreateController($"Bearer {token}");
+
+        var result = await controller.GetStarshipViewer();
+
+        var unauthorized = Assert.IsType<UnauthorizedObjectResult>(result);
+        Assert.NotNull(unauthorized.Value);
+    }
+
+    [Fact]
+    public async Task GetStarshipViewer_ReturnsViewerSnapshot_WhenAuthenticated()
+    {
+        var token = GenerateTestJwt("channel123", userId: "user456");
+        var starshipService = Substitute.For<IStarshipExpeditionService>();
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            Crew = [new StarshipCrewMemberSnapshot { UserId = "user456", UserName = "tester" }],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                Votes = [new StarshipEventVoteSnapshot { UserId = "user456", ChoiceId = "choice_a" }]
+            }
+        };
+        starshipService.GetSnapshotAsync(Arg.Any<CancellationToken>()).Returns(snapshot);
+
+        var controller = CreateController($"Bearer {token}", starshipService);
+
+        var result = await controller.GetStarshipViewer();
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var viewerResp = Assert.IsType<ExtensionStarshipViewerResponse>(ok.Value);
+        Assert.True(viewerResp.HasJoined);
+        Assert.True(viewerResp.HasVoted);
+        Assert.Equal("choice_a", viewerResp.VotedChoiceId);
+        Assert.False(viewerResp.HasPendingRisk);
+    }
+
+    [Fact]
+    public async Task JoinStarshipCrew_ReturnsUnauthorized_WhenNoUserId()
+    {
+        var token = GenerateTestJwt("channel123", userId: null);
+        var controller = CreateController($"Bearer {token}");
+
+        var result = await controller.JoinStarshipCrew();
+
+        Assert.IsType<UnauthorizedObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task JoinStarshipCrew_ReturnsOk_WhenAuthenticated()
+    {
+        var token = GenerateTestJwt("channel123", userId: "user456");
+        var starshipService = Substitute.For<IStarshipExpeditionService>();
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            Crew = [new StarshipCrewMemberSnapshot { UserId = "user456", UserName = "tester" }]
+        };
+        starshipService.JoinCrewAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), Arg.Any<CancellationToken>())
+            .Returns(snapshot);
+
+        var controller = CreateController($"Bearer {token}", starshipService);
+
+        var result = await controller.JoinStarshipCrew();
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(ok.Value);
+    }
+
+    [Fact]
+    public async Task VoteStarship_ReturnsUnauthorized_WhenNoUserId()
+    {
+        var token = GenerateTestJwt("channel123", userId: null);
+        var controller = CreateController($"Bearer {token}");
+
+        var result = await controller.VoteStarship(new ExtensionStarshipVoteRequest("choice_1"));
+
+        Assert.IsType<UnauthorizedObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task VoteStarship_ReturnsBadRequest_WhenChoiceIdIsEmpty()
+    {
+        var token = GenerateTestJwt("channel123", userId: "user456");
+        var starshipService = Substitute.For<IStarshipExpeditionService>();
+        var controller = CreateController($"Bearer {token}", starshipService);
+
+        var result = await controller.VoteStarship(new ExtensionStarshipVoteRequest("   "));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task VoteStarship_ReturnsOk_WhenVoteRecorded()
+    {
+        var token = GenerateTestJwt("channel123", userId: "user456");
+        var starshipService = Substitute.For<IStarshipExpeditionService>();
+        var snapshot = new StarshipExpeditionSnapshot();
+        starshipService.VoteAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), "choice_1", Arg.Any<CancellationToken>())
+            .Returns(snapshot);
+
+        var controller = CreateController($"Bearer {token}", starshipService);
+
+        var result = await controller.VoteStarship(new ExtensionStarshipVoteRequest("choice_1"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(ok.Value);
+    }
+
+    [Fact]
+    public async Task VoteStarship_ReturnsBadRequest_WhenDuplicateVote()
+    {
+        var token = GenerateTestJwt("channel123", userId: "user456");
+        var starshipService = Substitute.For<IStarshipExpeditionService>();
+        starshipService.VoteAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), "choice_1", Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<StarshipExpeditionSnapshot>(new InvalidOperationException("Your choice for this event has already been recorded.")));
+
+        var controller = CreateController($"Bearer {token}", starshipService);
+
+        var result = await controller.VoteStarship(new ExtensionStarshipVoteRequest("choice_1"));
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.NotNull(badRequest.Value);
+    }
+
+    [Fact]
+    public async Task VoteStarship_ReturnsRequiresConfirmation_WhenRiskyActionPending()
+    {
+        var token = GenerateTestJwt("channel123", userId: "user456");
+        var starshipService = Substitute.For<IStarshipExpeditionService>();
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                PendingRiskConfirmations =
+                [
+                    new StarshipRiskConfirmationSnapshot
+                    {
+                        UserId = "user456",
+                        ChoiceId = "choice_risky",
+                        MaximumLoss = 100,
+                        PointTypeName = "credits"
+                    }
+                ]
+            }
+        };
+        starshipService.VoteAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), "choice_risky", Arg.Any<CancellationToken>())
+            .Returns(snapshot);
+
+        var controller = CreateController($"Bearer {token}", starshipService);
+
+        var result = await controller.VoteStarship(new ExtensionStarshipVoteRequest("choice_risky", ConfirmRisk: false));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        dynamic val = ok.Value!;
+        Assert.True((bool)val.requiresConfirmation);
+    }
+
+    [Fact]
+    public async Task VoteStarship_ConfirmsRisk_WhenConfirmRiskIsTrue()
+    {
+        var token = GenerateTestJwt("channel123", userId: "user456");
+        var starshipService = Substitute.For<IStarshipExpeditionService>();
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                PendingRiskConfirmations =
+                [
+                    new StarshipRiskConfirmationSnapshot
+                    {
+                        UserId = "user456",
+                        ChoiceId = "choice_risky",
+                        MaximumLoss = 100,
+                        PointTypeName = "credits"
+                    }
+                ]
+            }
+        };
+        starshipService.VoteAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), "choice_risky", Arg.Any<CancellationToken>())
+            .Returns(snapshot);
+        starshipService.ConfirmRiskActionAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), Arg.Any<CancellationToken>())
+            .Returns(snapshot);
+
+        var controller = CreateController($"Bearer {token}", starshipService);
+
+        var result = await controller.VoteStarship(new ExtensionStarshipVoteRequest("choice_risky", ConfirmRisk: true));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        dynamic val = ok.Value!;
+        Assert.True((bool)val.confirmed);
     }
 }
 
