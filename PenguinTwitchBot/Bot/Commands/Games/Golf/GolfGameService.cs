@@ -665,32 +665,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 
         public async Task ProcessCompletionAsync(PendingDropRecord record)
         {
-            var userKey = DropGameUserKey.Resolve(record.UserId, record.Username);
-
-            // No round state means the round was already finalized (e.g. session stop cleared it): drop late completions
-            if (!_playerRoundStates.TryGetValue(userKey, out var roundState))
-            {
-                return;
-            }
-
-            lock (roundState)
-            {
-                if (roundState.FinalizedDropTokens.Contains(record.DropToken))
-                {
-                    return;
-                }
-
-                if (!string.Equals(roundState.LastDropToken, record.DropToken, StringComparison.Ordinal))
-                {
-                    return;
-                }
-
-                roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
-                roundState.IsSunk = record.IsBullseye;
-                roundState.CurrentScore = record.Score;
-                roundState.IsInFlight = false;
-            }
-
             var settings = await settingsService.GetSettingsAsync();
             var maxStrokes = Math.Clamp(settings.Golf.MaxStrokesPerPlayer, 1, 5);
 
@@ -698,6 +672,30 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             // (sunk, or all strokes used). Earlier strokes are deferred until the round ends.
             if (maxStrokes > 1)
             {
+                var userKey = DropGameUserKey.Resolve(record.UserId, record.Username);
+
+                // No round state means the round was already finalized (e.g. session stop cleared it): drop late completions
+                if (!_playerRoundStates.TryGetValue(userKey, out var roundState))
+                {
+                    return;
+                }
+
+                lock (roundState)
+                {
+                    if (roundState.FinalizedDropTokens.Contains(record.DropToken))
+                    {
+                        return;
+                    }
+
+                    if (string.Equals(roundState.LastDropToken, record.DropToken, StringComparison.Ordinal))
+                    {
+                        roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
+                        roundState.IsSunk = record.IsBullseye;
+                        roundState.CurrentScore = record.Score;
+                        roundState.IsInFlight = false;
+                    }
+                }
+
                 var isFinalStroke = record.IsBullseye || record.StrokeNumber >= maxStrokes;
                 if (!isFinalStroke)
                 {
@@ -724,6 +722,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 {
                     roundState.DeferredOutcomeRecord = null;
                     roundState.FinalizedDropTokens.Add(record.DropToken);
+                }
+            }
+            else
+            {
+                var userKey = DropGameUserKey.Resolve(record.UserId, record.Username);
+                if (_playerRoundStates.TryGetValue(userKey, out var roundState))
+                {
+                    lock (roundState)
+                    {
+                        roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
+                        roundState.IsSunk = record.IsBullseye;
+                        roundState.CurrentScore = record.Score;
+                        roundState.IsInFlight = false;
+                    }
                 }
             }
 
