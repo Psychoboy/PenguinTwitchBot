@@ -548,6 +548,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     startAxisOverride = 0.05;
                 }
 
+                pState.Username = eventArgs.Name ?? "";
+                pState.DisplayName = eventArgs.DisplayName ?? eventArgs.Name ?? "";
                 pState.StrokesUsed = strokeNumber;
                 pState.LastDropToken = dropToken;
                 pState.IsInFlight = true;
@@ -663,6 +665,32 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 
         public async Task ProcessCompletionAsync(PendingDropRecord record)
         {
+            var userKey = DropGameUserKey.Resolve(record.UserId, record.Username);
+
+            // No round state means the round was already finalized (e.g. session stop cleared it): drop late completions
+            if (!_playerRoundStates.TryGetValue(userKey, out var roundState))
+            {
+                return;
+            }
+
+            lock (roundState)
+            {
+                if (roundState.FinalizedDropTokens.Contains(record.DropToken))
+                {
+                    return;
+                }
+
+                if (!string.Equals(roundState.LastDropToken, record.DropToken, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
+                roundState.IsSunk = record.IsBullseye;
+                roundState.CurrentScore = record.Score;
+                roundState.IsInFlight = false;
+            }
+
             var settings = await settingsService.GetSettingsAsync();
             var maxStrokes = Math.Clamp(settings.Golf.MaxStrokesPerPlayer, 1, 5);
 
@@ -670,30 +698,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             // (sunk, or all strokes used). Earlier strokes are deferred until the round ends.
             if (maxStrokes > 1)
             {
-                var userKey = DropGameUserKey.Resolve(record.UserId, record.Username);
-
-                // No round state means the round was already finalized (e.g. session stop cleared it): drop late completions
-                if (!_playerRoundStates.TryGetValue(userKey, out var roundState))
-                {
-                    return;
-                }
-
-                lock (roundState)
-                {
-                    if (roundState.FinalizedDropTokens.Contains(record.DropToken))
-                    {
-                        return;
-                    }
-
-                    if (string.Equals(roundState.LastDropToken, record.DropToken, StringComparison.Ordinal))
-                    {
-                        roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
-                        roundState.IsSunk = record.IsBullseye;
-                        roundState.CurrentScore = record.Score;
-                        roundState.IsInFlight = false;
-                    }
-                }
-
                 var isFinalStroke = record.IsBullseye || record.StrokeNumber >= maxStrokes;
                 if (!isFinalStroke)
                 {
@@ -720,20 +724,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 {
                     roundState.DeferredOutcomeRecord = null;
                     roundState.FinalizedDropTokens.Add(record.DropToken);
-                }
-            }
-            else
-            {
-                var userKey = DropGameUserKey.Resolve(record.UserId, record.Username);
-                if (_playerRoundStates.TryGetValue(userKey, out var roundState))
-                {
-                    lock (roundState)
-                    {
-                        roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
-                        roundState.IsSunk = record.IsBullseye;
-                        roundState.CurrentScore = record.Score;
-                        roundState.IsInFlight = false;
-                    }
                 }
             }
 
@@ -1005,36 +995,36 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             }
             else
             {
-                var match = _playerRoundStates.FirstOrDefault(kvp =>
-                    kvp.Key.Equals(targetUsername, StringComparison.OrdinalIgnoreCase) ||
-                    (kvp.Value.DeferredOutcomeRecord != null &&
-                     (kvp.Value.DeferredOutcomeRecord.Username.Equals(targetUsername, StringComparison.OrdinalIgnoreCase) ||
-                      kvp.Value.DeferredOutcomeRecord.DisplayName.Equals(targetDisplayName, StringComparison.OrdinalIgnoreCase))));
-                pState = match.Value;
-            }
-
-            var targetDistance = _sessionManager.ActiveSession != null ? _currentSessionTargetDistance : gSettings.TargetDistancePercent;
-            var condition = _sessionManager.ActiveSession != null ? _currentSessionCondition : gSettings.GreenCondition;
-            var conditionLabel = FormatConditionLabel(condition);
-            var maxStrokes = Math.Clamp(gSettings.MaxStrokesPerPlayer, 1, 5);
-
-            if (pState != null && pState.IsInMotion)
-            {
-                var subj = isTargetingOther ? $"{targetDisplayName}'s" : "Your";
-                await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: {subj} ball is currently in motion!");
-                return;
+                pState = _playerRoundStates.Values.FirstOrDefault(state =>
+                    state.Username.Equals(targetUsername, StringComparison.OrdinalIgnoreCase) ||
+                    state.DisplayName.Equals(targetDisplayName, StringComparison.OrdinalIgnoreCase));
             }
 
             if (pState == null || pState.StrokesUsed == 0)
             {
-                if (maxStrokes > 1)
+                if (isTargetingOther)
                 {
-                    await ServiceBackbone.SendChatMessage($"@{targetDisplayName} | Lie: Tee Box | Pin: {targetDistance:F0}yd (Club: Driver) | Stroke 1/{maxStrokes} ({maxStrokes} strokes left) | Green: {conditionLabel}");
+                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: {targetDisplayName} does not have a ball in play.");
                 }
                 else
                 {
-                    await ServiceBackbone.SendChatMessage($"@{targetDisplayName} | Lie: Tee Box | Pin: {targetDistance:F0}yd (Club: Driver) | Green: {conditionLabel}");
+                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: You do not have a ball in play. Type !golf to tee off!");
                 }
+                return;
+            }
+
+            var targetDistance = gSettings.SlideDirection == CurlingSlideDirection.CenterTarget
+                ? 50.0
+                : (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : gSettings.TargetDistancePercent);
+
+            var condition = _sessionManager.ActiveSession != null ? _currentSessionCondition : gSettings.GreenCondition;
+            var conditionLabel = FormatConditionLabel(condition);
+            var maxStrokes = Math.Clamp(gSettings.MaxStrokesPerPlayer, 1, 5);
+
+            if (pState.IsInMotion)
+            {
+                var subj = isTargetingOther ? $"{targetDisplayName}'s" : "Your";
+                await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: {subj} ball is currently in motion!");
                 return;
             }
 

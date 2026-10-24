@@ -107,7 +107,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             double v0;
             if (club == "Driver")
             {
-                v0 = PowerToInitialSpeed(effectivePower, dragMultiplier) * settings.DriverPowerMultiplier;
+                var baseV0 = PowerToInitialSpeed(effectivePower, dragMultiplier);
+                v0 = baseV0 * Math.Sqrt(Math.Max(0.01, settings.DriverPowerMultiplier));
                 travelDist = CalculateShotDistance(v0, dragMultiplier);
             }
             else if (club == "Wedge")

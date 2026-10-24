@@ -281,6 +281,53 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.All(record.Keyframes, k => Assert.Equal(0.0, k.Z));
         }
 
+        [Fact]
+        public void SimulateGolfShot_DriverPowerMultiplier_ScalesDistanceLinearly()
+        {
+            var settingsBase = new GolfGameSettings
+            {
+                StripPosition = CurlingStripPosition.Bottom,
+                SlideDirection = CurlingSlideDirection.LeftToRight,
+                PowerVariancePercent = 0.0,
+                DriverPowerMultiplier = 1.0
+            };
+            var settingsBoosted = new GolfGameSettings
+            {
+                StripPosition = CurlingStripPosition.Bottom,
+                SlideDirection = CurlingSlideDirection.LeftToRight,
+                PowerVariancePercent = 0.0,
+                DriverPowerMultiplier = 1.25
+            };
+
+            var recordBase = CreateTestRecord("golf-driver-base", strokeNumber: 1);
+            var recordBoosted = CreateTestRecord("golf-driver-boost", strokeNumber: 1);
+
+            GolfSimulationEngine.SimulateGolfShot(
+                recordBase,
+                settingsBase,
+                rawPower: 60.0,
+                condition: GolfGreenCondition.StandardGreen,
+                targetDistancePercent: 84.0,
+                strokeNumber: 1,
+                startAxisPosOverride: 0.05,
+                rng: new Random(42));
+
+            GolfSimulationEngine.SimulateGolfShot(
+                recordBoosted,
+                settingsBoosted,
+                rawPower: 60.0,
+                condition: GolfGreenCondition.StandardGreen,
+                targetDistancePercent: 84.0,
+                strokeNumber: 1,
+                startAxisPosOverride: 0.05,
+                rng: new Random(42));
+
+            var distBase = recordBase.LandingX - 0.05;
+            var distBoosted = recordBoosted.LandingX - 0.05;
+
+            Assert.InRange(distBoosted / distBase, 1.23, 1.27);
+        }
+
         private static PendingDropRecord CreateTestRecord(string token, int strokeNumber)
         {
             var now = DateTime.UtcNow;

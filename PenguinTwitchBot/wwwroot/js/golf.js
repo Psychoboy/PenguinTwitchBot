@@ -483,8 +483,9 @@
         let maxBounces = 0;
 
         if (club === 'Driver') {
-            const v0Server = powerFrac * 0.76 * driverMult;
-            desiredTravel = (v0Server * v0Server) / (2.0 * baseDecel);
+            const v0Server = powerFrac * 0.76;
+            const baseTravel = (v0Server * v0Server) / (2.0 * baseDecel);
+            desiredTravel = baseTravel * driverMult;
             const airTime = Math.max(0.60, Math.min(1.35, 0.65 + powerFrac * 0.55));
             initialVz = 0.5 * gravityZ * airTime;
             initialSpeedU = directionSign * (desiredTravel * 0.66) / airTime;

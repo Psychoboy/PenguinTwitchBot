@@ -2,6 +2,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 {
     public sealed class PlayerGolfRoundState
     {
+        public string Username { get; set; } = "";
+        public string DisplayName { get; set; } = "";
         public int StrokesUsed { get; set; }
         public double CurrentAxisPos { get; set; } = 0.05;
         public bool IsSunk { get; set; }
