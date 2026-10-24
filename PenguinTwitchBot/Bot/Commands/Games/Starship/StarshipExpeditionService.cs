@@ -172,7 +172,46 @@ public sealed class StarshipExpeditionService(
                     return;
 
                 case "join":
-                    var joined = await JoinCrewAsync(eventArgs);
+                    var (joined, added) = await JoinCrewCoreAsync(eventArgs, CancellationToken.None);
+                    var isEventOpen = joined.Status == StarshipExpeditionStatus.EventOpen && joined.CurrentEvent != null;
+                    if (isEventOpen)
+                    {
+                        if (added)
+                        {
+                            await RespondWithMessage(eventArgs,
+                                $"You joined the Starship Expedition crew ({joined.Crew.Count} aboard). Vote on the current event with !sv <number>! You share rewards and losses from the next event.");
+                        }
+                        else
+                        {
+                            var hasPendingRisk = joined.CurrentEvent!.PendingRiskConfirmations.Any(risk =>
+                                string.Equals(risk.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase));
+                            if (hasPendingRisk)
+                            {
+                                await RespondWithMessage(eventArgs,
+                                    "You are already aboard the Starship Expedition crew! Confirm your risk check with !sc.");
+                            }
+                            else if (joined.CurrentEvent.Votes.Any(vote =>
+                                string.Equals(vote.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                await RespondWithMessage(eventArgs,
+                                    "You are already aboard the Starship Expedition crew and your choice for this event has already been recorded.");
+                            }
+                            else
+                            {
+                                await RespondWithMessage(eventArgs,
+                                    "You are already aboard the Starship Expedition crew! Vote on the current event with !sv <number>.");
+                            }
+                        }
+                        return;
+                    }
+
+                    if (!added)
+                    {
+                        await RespondWithMessage(eventArgs,
+                            $"You are already aboard the Starship Expedition crew ({joined.Crew.Count} aboard).");
+                        return;
+                    }
+
                     await RespondWithMessage(eventArgs, $"You joined the Starship Expedition crew ({joined.Crew.Count} aboard).{DescribePendingShare(joined, eventArgs.UserId)}");
                     return;
 
@@ -540,7 +579,10 @@ public sealed class StarshipExpeditionService(
         return stoppedSnapshot == null ? null : await GetSnapshotAsync(cancellationToken) ?? stoppedSnapshot;
     }
 
-    public async Task<StarshipExpeditionSnapshot> JoinCrewAsync(CommandEventArgs eventArgs, CancellationToken cancellationToken = default)
+    public async Task<StarshipExpeditionSnapshot> JoinCrewAsync(CommandEventArgs eventArgs, CancellationToken cancellationToken = default) =>
+        (await JoinCrewCoreAsync(eventArgs, cancellationToken)).Snapshot;
+
+    private async Task<(StarshipExpeditionSnapshot Snapshot, bool Added)> JoinCrewCoreAsync(CommandEventArgs eventArgs, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(eventArgs);
         var userId = RequireUserId(eventArgs);
@@ -573,7 +615,7 @@ public sealed class StarshipExpeditionService(
                 ["CrewCount"] = joinedSnapshot.Crew.Count.ToString(CultureInfo.InvariantCulture)
             }, eventArgs);
         }
-        return joinedSnapshot;
+        return (joinedSnapshot, added);
     }
 
     public async Task<StarshipExpeditionSnapshot> VoteAsync(CommandEventArgs eventArgs, string choiceId, CancellationToken cancellationToken = default) =>

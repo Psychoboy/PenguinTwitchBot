@@ -2776,6 +2776,131 @@ public class StarshipExpeditionServiceTests
             scopeFactory);
     }
 
+    [Fact]
+    public async Task JoinCommand_WhenEventIsOpen_AndUserHasNotJoinedYet_EnrollsUserAndPromptsToVote()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone);
+        await service.StartExpeditionAsync("moderator", seed: 10);
+        await service.JoinCrewAsync(CreateArgs("initial-pilot", "InitialPilot"));
+        await service.AdvanceEventAsync();
+        replies.Clear();
+
+        var joinArgs = CreateArgs("new-viewer", "NewViewer");
+        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
+        joinArgs.Args = [];
+        await service.OnCommand(null, joinArgs);
+
+        var reply = Assert.Single(replies);
+        Assert.Contains("You joined the Starship Expedition crew (2 aboard).", reply, StringComparison.Ordinal);
+        Assert.Contains("Vote on the current event with !sv <number>!", reply, StringComparison.Ordinal);
+        Assert.Contains("You share rewards and losses from the next event.", reply, StringComparison.Ordinal);
+        var snapshot = await service.GetSnapshotAsync();
+        var member = snapshot!.Crew.Single(m => m.UserId == "new-viewer");
+        Assert.Equal(snapshot.CurrentEvent!.Sequence + 1, member.EffectiveFromSequence);
+    }
+
+    [Fact]
+    public async Task JoinCommand_WhenEventIsOpen_AndUserAlreadyJoined_RemindsToVote()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone);
+        await service.StartExpeditionAsync("moderator", seed: 10);
+        await service.JoinCrewAsync(CreateArgs("viewer-1", "ViewerOne"));
+        await service.AdvanceEventAsync();
+        replies.Clear();
+
+        var joinArgs = CreateArgs("viewer-1", "ViewerOne");
+        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
+        joinArgs.Args = [];
+        await service.OnCommand(null, joinArgs);
+
+        var reply = Assert.Single(replies);
+        Assert.Equal("You are already aboard the Starship Expedition crew! Vote on the current event with !sv <number>.", reply);
+    }
+
+    [Fact]
+    public async Task JoinCommand_WhenEventIsOpen_AndUserAlreadyVoted_NotifiesAlreadyVoted()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone);
+        await service.StartExpeditionAsync("moderator", seed: 10);
+        await service.JoinCrewAsync(CreateArgs("viewer-1", "ViewerOne"));
+        await service.AdvanceEventAsync();
+        await service.VoteAsync(CreateArgs("viewer-1", "ViewerOne"), "1");
+        replies.Clear();
+
+        var joinArgs = CreateArgs("viewer-1", "ViewerOne");
+        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
+        joinArgs.Args = [];
+        await service.OnCommand(null, joinArgs);
+
+        var reply = Assert.Single(replies);
+        Assert.Equal("You are already aboard the Starship Expedition crew and your choice for this event has already been recorded.", reply);
+    }
+
+    [Fact]
+    public async Task JoinCommand_WhenEventIsOpen_AndUserHasPendingRiskConfirmation_RemindsToConfirm()
+    {
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(CreateSalvageFixture());
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(),
+            serviceBackboneMock: backbone, pointsSystem: Mock.Of<IPointsSystem>());
+
+        var riskyVote = CreateArgs("pilot-id", "Pilot");
+        riskyVote.Args = ["vote", "3"];
+        await service.OnCommand(null, riskyVote);
+        replies.Clear();
+
+        var joinArgs = CreateArgs("pilot-id", "Pilot");
+        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
+        joinArgs.Args = [];
+        await service.OnCommand(null, joinArgs);
+
+        var reply = Assert.Single(replies);
+        Assert.Equal("You are already aboard the Starship Expedition crew! Confirm your risk check with !sc.", reply);
+    }
+
+    [Fact]
+    public async Task JoinCommand_WhenEventIsNotOpen_AndUserAlreadyJoined_NotifiesAlreadyAboard()
+    {
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone);
+        await service.StartExpeditionAsync("moderator", seed: 10);
+        replies.Clear();
+
+        var joinArgs = CreateArgs("viewer-1", "ViewerOne");
+        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
+        joinArgs.Args = [];
+        await service.OnCommand(null, joinArgs);
+        await service.OnCommand(null, joinArgs);
+
+        Assert.Equal(2, replies.Count);
+        Assert.Equal("You joined the Starship Expedition crew (1 aboard).", replies[0]);
+        Assert.Equal("You are already aboard the Starship Expedition crew (1 aboard).", replies[1]);
+    }
+
     private static CommandEventArgs CreateArgs(string userId, string displayName) => new()
     {
         Command = StarshipExpeditionService.DefaultCommandName,
