@@ -158,6 +158,176 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_12345/animated/dark/1.0", decalUrl);
         }
 
+        [Fact]
+        public void ResolveClub_CorrectlyIdentifiesDriverWedgeAndPutter()
+        {
+            // Stroke 1 is always Driver regardless of distance
+            Assert.Equal("Driver", GolfSimulationEngine.ResolveClub(1, 0.79));
+            Assert.Equal("Driver", GolfSimulationEngine.ResolveClub(1, 0.05));
+
+            // Stroke 2+ off green (> GreenRadius = 0.125) is Wedge (approach chip)
+            Assert.Equal("Wedge", GolfSimulationEngine.ResolveClub(2, 0.35));
+            Assert.Equal("Wedge", GolfSimulationEngine.ResolveClub(2, 0.13));
+
+            // Stroke 2+ on green (<= GreenRadius = 0.125) is Putter
+            Assert.Equal("Putter", GolfSimulationEngine.ResolveClub(2, 0.10));
+            Assert.Equal("Putter", GolfSimulationEngine.ResolveClub(3, 0.02));
+        }
+
+        [Fact]
+        public void SimulateGolfShot_WedgeChip_TravelsSignificantDistanceAndHasLoft()
+        {
+            var settings = new GolfGameSettings
+            {
+                StripPosition = CurlingStripPosition.Bottom,
+                SlideDirection = CurlingSlideDirection.LeftToRight,
+                PowerVariancePercent = 0.0,
+                WedgePowerMultiplier = 1.0
+            };
+
+            var record = CreateTestRecord("golf-wedge-1", strokeNumber: 2);
+
+            // Ball starts at 0.50 (fairway), pin at 0.84 (dist = 0.34)
+            GolfSimulationEngine.SimulateGolfShot(
+                record,
+                settings,
+                rawPower: 50.0,
+                condition: GolfGreenCondition.StandardGreen,
+                targetDistancePercent: 84.0,
+                strokeNumber: 2,
+                startAxisPosOverride: 0.50,
+                rng: new Random(42));
+
+            // At 50% power, wedge should travel ~0.30 (30 yards) toward the pin (lands near 0.80)
+            Assert.True(record.LandingX >= 0.75 && record.LandingX <= 0.85, $"Expected LandingX near 0.80, got {record.LandingX}");
+            // Must have airborne keyframes (parabolic chip arc)
+            Assert.Contains(record.Keyframes, k => k.Z > 0.01);
+            Assert.Equal(0.0, record.Keyframes[^1].Z);
+        }
+
+        [Fact]
+        public void SimulateGolfShot_WedgePowerMultiplier_ScalesDistanceCorrectly()
+        {
+            var settingsBase = new GolfGameSettings
+            {
+                StripPosition = CurlingStripPosition.Bottom,
+                SlideDirection = CurlingSlideDirection.LeftToRight,
+                PowerVariancePercent = 0.0,
+                WedgePowerMultiplier = 1.0
+            };
+            var settingsBoosted = new GolfGameSettings
+            {
+                StripPosition = CurlingStripPosition.Bottom,
+                SlideDirection = CurlingSlideDirection.LeftToRight,
+                PowerVariancePercent = 0.0,
+                WedgePowerMultiplier = 1.5
+            };
+
+            var recordBase = CreateTestRecord("golf-wedge-base", strokeNumber: 2);
+            var recordBoosted = CreateTestRecord("golf-wedge-boost", strokeNumber: 2);
+
+            GolfSimulationEngine.SimulateGolfShot(
+                recordBase,
+                settingsBase,
+                rawPower: 40.0,
+                condition: GolfGreenCondition.StandardGreen,
+                targetDistancePercent: 84.0,
+                strokeNumber: 2,
+                startAxisPosOverride: 0.30,
+                rng: new Random(42));
+
+            GolfSimulationEngine.SimulateGolfShot(
+                recordBoosted,
+                settingsBoosted,
+                rawPower: 40.0,
+                condition: GolfGreenCondition.StandardGreen,
+                targetDistancePercent: 84.0,
+                strokeNumber: 2,
+                startAxisPosOverride: 0.30,
+                rng: new Random(42));
+
+            var distBase = recordBase.LandingX - 0.30;
+            var distBoosted = recordBoosted.LandingX - 0.30;
+
+            Assert.True(distBoosted > distBase, $"Boosted distance {distBoosted} should be greater than base {distBase}");
+            Assert.InRange(distBoosted / distBase, 1.4, 1.6);
+        }
+
+        [Fact]
+        public void SimulateGolfShot_PutterOnGreen_IsSmoothGroundRoll()
+        {
+            var settings = new GolfGameSettings
+            {
+                StripPosition = CurlingStripPosition.Bottom,
+                SlideDirection = CurlingSlideDirection.LeftToRight,
+                PowerVariancePercent = 0.0,
+                PutterPowerMultiplier = 1.0
+            };
+
+            var record = CreateTestRecord("golf-putt-1", strokeNumber: 2);
+
+            // Ball is on green at 0.80, pin at 0.84 (dist = 0.04 <= 0.125)
+            GolfSimulationEngine.SimulateGolfShot(
+                record,
+                settings,
+                rawPower: 20.0,
+                condition: GolfGreenCondition.StandardGreen,
+                targetDistancePercent: 84.0,
+                strokeNumber: 2,
+                startAxisPosOverride: 0.80,
+                rng: new Random(42));
+
+            // Pure ground roll: no airborne keyframes
+            Assert.All(record.Keyframes, k => Assert.Equal(0.0, k.Z));
+        }
+
+        [Fact]
+        public void SimulateGolfShot_DriverPowerMultiplier_ScalesDistanceLinearly()
+        {
+            var settingsBase = new GolfGameSettings
+            {
+                StripPosition = CurlingStripPosition.Bottom,
+                SlideDirection = CurlingSlideDirection.LeftToRight,
+                PowerVariancePercent = 0.0,
+                DriverPowerMultiplier = 1.0
+            };
+            var settingsBoosted = new GolfGameSettings
+            {
+                StripPosition = CurlingStripPosition.Bottom,
+                SlideDirection = CurlingSlideDirection.LeftToRight,
+                PowerVariancePercent = 0.0,
+                DriverPowerMultiplier = 1.25
+            };
+
+            var recordBase = CreateTestRecord("golf-driver-base", strokeNumber: 1);
+            var recordBoosted = CreateTestRecord("golf-driver-boost", strokeNumber: 1);
+
+            GolfSimulationEngine.SimulateGolfShot(
+                recordBase,
+                settingsBase,
+                rawPower: 60.0,
+                condition: GolfGreenCondition.StandardGreen,
+                targetDistancePercent: 84.0,
+                strokeNumber: 1,
+                startAxisPosOverride: 0.05,
+                rng: new Random(42));
+
+            GolfSimulationEngine.SimulateGolfShot(
+                recordBoosted,
+                settingsBoosted,
+                rawPower: 60.0,
+                condition: GolfGreenCondition.StandardGreen,
+                targetDistancePercent: 84.0,
+                strokeNumber: 1,
+                startAxisPosOverride: 0.05,
+                rng: new Random(42));
+
+            var distBase = recordBase.LandingX - 0.05;
+            var distBoosted = recordBoosted.LandingX - 0.05;
+
+            Assert.InRange(distBoosted / distBase, 1.23, 1.27);
+        }
+
         private static PendingDropRecord CreateTestRecord(string token, int strokeNumber)
         {
             var now = DateTime.UtcNow;

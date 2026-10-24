@@ -14,7 +14,13 @@ Golf is off by default. Use the **Enable Golf** switch beside the page title and
 - `!golf [power]` — Chip or putt with a specific swing power from `1` to `100` (e.g., `!golf 72`).
 - `!golf [power] [emote]` — Chip or putt with a specific power and custom emote decal (e.g., `!golf 72 PenguinHype`).
 - `!golf [emote]` — Leave out the power number to swing with a random default power while still using your chosen emote (even alphanumeric emotes like `!golf sptv318`).
-- `!putt` / `!chip` — Built-in command aliases for `!golf`.
+- `!ball` or `!golf ball` — Check the current condition of your ball: lie, distance from the cup/pin, current club (Driver, Wedge, or Putter), strokes remaining, and current green condition (e.g., `!ball` or `!ball @username`).
+- `!putt` / `!chip` / `!swing` — Built-in command aliases for `!golf`.
+
+### Golf Clubs & Power Scaling
+- **Driver (Stroke 1)**: Long-range tee shot club calibrated for fairway carry onto the green (~84yd at 78 power; up to ~115yd at 100 power). Tunable via `DriverPowerMultiplier`.
+- **Wedge (Stroke 2+, Off Green)**: Approach chip club with high loft and soft check roll (up to ~60yd at 100 power; ~30yd at 50 power). Tunable via `WedgePowerMultiplier`.
+- **Putter (Stroke 2+, On Green)**: Ground putting roll for smooth precision on the putting green (up to ~25yd across the green). Tunable via `PutterPowerMultiplier`.
 
 ### Moderator Session Commands
 - `!golf start [seconds]` — Start a timed Golf round.

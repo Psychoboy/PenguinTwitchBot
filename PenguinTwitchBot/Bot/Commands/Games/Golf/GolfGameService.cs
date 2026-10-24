@@ -68,6 +68,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             await RegisterDefaultCommand("putt", this, ModuleName, Rank.Viewer, userCooldown: 5);
             await RegisterDefaultCommand("chip", this, ModuleName, Rank.Viewer, userCooldown: 5);
             await RegisterDefaultCommand("swing", this, ModuleName, Rank.Viewer, userCooldown: 5);
+            await RegisterDefaultCommand("ball", this, ModuleName, Rank.Viewer, userCooldown: 3);
         }
 
         public Task StartAsync(CancellationToken cancellationToken) => Register();
@@ -166,7 +167,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 
                 if (gSettings.TargetDistanceMode == GolfPinDistanceMode.RandomizePerRound)
                 {
-                    _currentSessionTargetDistance = Math.Round(70.0 + Random.Shared.NextDouble() * 22.0, 1);
+                    var minPin = Math.Min(gSettings.PinDistanceMinPercent, gSettings.PinDistanceMaxPercent);
+                    var maxPin = Math.Max(gSettings.PinDistanceMinPercent, gSettings.PinDistanceMaxPercent);
+                    var span = Math.Max(0.0, maxPin - minPin);
+                    _currentSessionTargetDistance = Math.Round(minPin + Random.Shared.NextDouble() * span, 1);
                 }
                 else
                 {
@@ -226,7 +230,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     cupCaptureSpeedMultiplier = gSettings.CupCaptureSpeedMultiplier,
                     maxStrokesPerPlayer = gSettings.MaxStrokesPerPlayer,
                     strokePenaltyPoints = gSettings.StrokePenaltyPoints,
-                    maxScore = gSettings.MaxScore
+                    maxScore = gSettings.MaxScore,
+                    pinDistanceMinPercent = gSettings.PinDistanceMinPercent,
+                    pinDistanceMaxPercent = gSettings.PinDistanceMaxPercent,
+                    driverPowerMultiplier = gSettings.DriverPowerMultiplier,
+                    wedgePowerMultiplier = gSettings.WedgePowerMultiplier,
+                    putterPowerMultiplier = gSettings.PutterPowerMultiplier
                 }, _jsonOptions);
 
                 await QueueWsMessageAsync(WsTopics.Golf, wsPayload, "Golf session start");
@@ -498,10 +507,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             int strokeNumber = 1;
             double? startAxisOverride = null;
 
-            if (maxStrokes > 1)
+            var pState = _playerRoundStates.GetOrAdd(userKey, _ => new PlayerGolfRoundState());
+            lock (pState)
             {
-                var pState = _playerRoundStates.GetOrAdd(userKey, _ => new PlayerGolfRoundState());
-                lock (pState)
+                if (maxStrokes > 1)
                 {
                     if (pState.IsSunk || pState.StrokesUsed >= maxStrokes)
                     {
@@ -511,6 +520,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                             pState.StrokesUsed = 0;
                             pState.IsSunk = false;
                             pState.CurrentAxisPos = 0.05;
+                            pState.CurrentScore = 0;
                         }
                         else
                         {
@@ -531,9 +541,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                             startAxisOverride = pState.CurrentAxisPos;
                         }
                     }
-                    pState.StrokesUsed = strokeNumber;
-                    pState.LastDropToken = dropToken;
                 }
+                else
+                {
+                    strokeNumber = 1;
+                    startAxisOverride = 0.05;
+                }
+
+                pState.Username = eventArgs.Name ?? "";
+                pState.DisplayName = eventArgs.DisplayName ?? eventArgs.Name ?? "";
+                pState.StrokesUsed = strokeNumber;
+                pState.LastDropToken = dropToken;
+                pState.IsInFlight = true;
+                pState.LastShotUtc = DateTime.UtcNow;
             }
 
             var now = DateTime.UtcNow;
@@ -629,6 +649,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 strokePenaltyPoints = gSettings.StrokePenaltyPoints,
                 maxScore = gSettings.MaxScore,
                 startAxisPosition = record.StartAxisPosition,
+                club = GolfSimulationEngine.ResolveClub(record.StrokeNumber, Math.Abs(record.StartAxisPosition - (targetDistance / 100.0))),
+                driverPowerMultiplier = gSettings.DriverPowerMultiplier,
+                wedgePowerMultiplier = gSettings.WedgePowerMultiplier,
+                putterPowerMultiplier = gSettings.PutterPowerMultiplier,
             }, _jsonOptions);
 
             await QueueWsMessageAsync(WsTopics.Golf, wsPayload, $"golf shot for {record.DisplayName}");
@@ -668,6 +692,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                         roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
                         roundState.IsSunk = record.IsBullseye;
                         roundState.CurrentScore = record.Score;
+                        roundState.IsInFlight = false;
                     }
                 }
 
@@ -697,6 +722,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 {
                     roundState.DeferredOutcomeRecord = null;
                     roundState.FinalizedDropTokens.Add(record.DropToken);
+                }
+            }
+            else
+            {
+                var userKey = DropGameUserKey.Resolve(record.UserId, record.Username);
+                if (_playerRoundStates.TryGetValue(userKey, out var roundState))
+                {
+                    lock (roundState)
+                    {
+                        roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
+                        roundState.IsSunk = record.IsBullseye;
+                        roundState.CurrentScore = record.Score;
+                        roundState.IsInFlight = false;
+                    }
                 }
             }
 
@@ -801,12 +840,28 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             var settings = await settingsService.GetSettingsAsync();
             var gSettings = settings.Golf;
 
+            if (cmdName.Equals("ball", StringComparison.OrdinalIgnoreCase))
+            {
+                await HandleBallStatusCommand(e, gSettings);
+                return;
+            }
+
             if (cmdName.Equals("golf", StringComparison.OrdinalIgnoreCase) ||
                 cmdName.Equals("putt", StringComparison.OrdinalIgnoreCase) ||
                 cmdName.Equals("chip", StringComparison.OrdinalIgnoreCase) ||
                 cmdName.Equals("swing", StringComparison.OrdinalIgnoreCase))
             {
                 var firstArg = e.Args.Count > 0 ? e.Args[0] : (e.Arg ?? "").Trim();
+
+                if (firstArg.Equals("ball", StringComparison.OrdinalIgnoreCase) ||
+                    firstArg.Equals("status", StringComparison.OrdinalIgnoreCase) ||
+                    firstArg.Equals("info", StringComparison.OrdinalIgnoreCase) ||
+                    firstArg.Equals("check", StringComparison.OrdinalIgnoreCase) ||
+                    firstArg.Equals("club", StringComparison.OrdinalIgnoreCase))
+                {
+                    await HandleBallStatusCommand(e, gSettings);
+                    return;
+                }
 
                 if (e.IsModOrHigher() && firstArg.Equals("start", StringComparison.OrdinalIgnoreCase))
                 {
@@ -838,6 +893,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 
                 var userKey = DropGameUserKey.Resolve(e.UserId, e.Name);
                 var maxStrokes = Math.Clamp(gSettings.MaxStrokesPerPlayer, 1, 5);
+
+                var isCurrentlyMoving = false;
+                if (_playerRoundStates.TryGetValue(userKey, out var activeState))
+                {
+                    lock (activeState)
+                    {
+                        isCurrentlyMoving = activeState.IsInMotion;
+                    }
+                }
+
+                if (isCurrentlyMoving)
+                {
+                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: Your ball is still rolling! Please wait for it to come to rest.");
+                    return;
+                }
 
                 if (gSettings.SessionModeEnabled)
                 {
@@ -878,6 +948,124 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 }
 
                 await TriggerGolfShotAsync(e, allowDirectUrlOrPath: false);
+            }
+        }
+
+        private async Task HandleBallStatusCommand(CommandEventArgs e, GolfGameSettings gSettings)
+        {
+            if (!gSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
+            {
+                await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: Golf is currently disabled.");
+                return;
+            }
+
+            if (gSettings.SessionModeEnabled && !_sessionManager.HasActiveTimedSession())
+            {
+                await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: No active Golf round right now. Type !golf to start a round!");
+                return;
+            }
+
+            // Determine if querying self or another target user
+            string targetUsername;
+            string targetDisplayName;
+            var isTargetingOther = false;
+
+            if (e.Command.Equals("ball", StringComparison.OrdinalIgnoreCase))
+            {
+                if (e.Args.Count > 0 && !string.IsNullOrWhiteSpace(e.Args[0]))
+                {
+                    targetDisplayName = e.Args[0].TrimStart('@');
+                    targetUsername = targetDisplayName.ToLowerInvariant();
+                    isTargetingOther = !targetUsername.Equals(e.Name, StringComparison.OrdinalIgnoreCase);
+                }
+                else
+                {
+                    targetDisplayName = e.DisplayName;
+                    targetUsername = e.Name;
+                }
+            }
+            else
+            {
+                if (e.Args.Count > 1 && !string.IsNullOrWhiteSpace(e.Args[1]))
+                {
+                    targetDisplayName = e.Args[1].TrimStart('@');
+                    targetUsername = targetDisplayName.ToLowerInvariant();
+                    isTargetingOther = !targetUsername.Equals(e.Name, StringComparison.OrdinalIgnoreCase);
+                }
+                else
+                {
+                    targetDisplayName = e.DisplayName;
+                    targetUsername = e.Name;
+                }
+            }
+
+            PlayerGolfRoundState? pState = null;
+            if (!isTargetingOther)
+            {
+                var userKey = DropGameUserKey.Resolve(e.UserId, e.Name);
+                _playerRoundStates.TryGetValue(userKey, out pState);
+            }
+            else
+            {
+                pState = _playerRoundStates.Values.FirstOrDefault(state =>
+                    state.Username.Equals(targetUsername, StringComparison.OrdinalIgnoreCase) ||
+                    state.DisplayName.Equals(targetDisplayName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (pState == null || pState.StrokesUsed == 0)
+            {
+                if (isTargetingOther)
+                {
+                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: {targetDisplayName} does not have a ball in play.");
+                }
+                else
+                {
+                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: You do not have a ball in play. Type !golf to tee off!");
+                }
+                return;
+            }
+
+            var targetDistance = gSettings.SlideDirection == CurlingSlideDirection.CenterTarget
+                ? 50.0
+                : (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : gSettings.TargetDistancePercent);
+
+            var condition = _sessionManager.ActiveSession != null ? _currentSessionCondition : gSettings.GreenCondition;
+            var conditionLabel = FormatConditionLabel(condition);
+            var maxStrokes = Math.Clamp(gSettings.MaxStrokesPerPlayer, 1, 5);
+
+            if (pState.IsInMotion)
+            {
+                var subj = isTargetingOther ? $"{targetDisplayName}'s" : "Your";
+                await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: {subj} ball is currently in motion!");
+                return;
+            }
+
+            if (pState.IsSunk)
+            {
+                await ServiceBackbone.SendChatMessage($"@{targetDisplayName} | Ball is sunk in the cup! ⛳ Score: {pState.CurrentScore} pts in {pState.StrokesUsed} stroke(s)!");
+                return;
+            }
+
+            var distFromPin = Math.Round(Math.Abs(pState.CurrentAxisPos * 100.0 - targetDistance), 1);
+            var distToPinNorm = Math.Abs(pState.CurrentAxisPos - (targetDistance / 100.0));
+            var nextStroke = pState.StrokesUsed + 1;
+            var club = GolfSimulationEngine.ResolveClub(nextStroke, distToPinNorm);
+            var isOnGreen = club == "Putter";
+
+            if (pState.StrokesUsed >= maxStrokes)
+            {
+                await ServiceBackbone.SendChatMessage($"@{targetDisplayName} | Round complete! Final Score: {pState.CurrentScore} pts ({pState.StrokesUsed}/{maxStrokes} strokes used). Resting distance: {distFromPin:F1}yd from cup.");
+                return;
+            }
+
+            var strokesLeft = maxStrokes - pState.StrokesUsed;
+            if (isOnGreen)
+            {
+                await ServiceBackbone.SendChatMessage($"@{targetDisplayName} | Lie: Putting Green ⛳ | Cup: {distFromPin:F1}yd (Club: Putter) | Stroke {nextStroke}/{maxStrokes} ({strokesLeft} left) | Green: {conditionLabel}");
+            }
+            else
+            {
+                await ServiceBackbone.SendChatMessage($"@{targetDisplayName} | Lie: Fairway | Pin: {distFromPin:F1}yd (Club: Wedge) | Stroke {nextStroke}/{maxStrokes} ({strokesLeft} left) | Green: {conditionLabel}");
             }
         }
     }
