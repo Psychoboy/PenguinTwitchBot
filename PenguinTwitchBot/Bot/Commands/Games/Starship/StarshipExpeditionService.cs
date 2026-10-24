@@ -100,13 +100,13 @@ public sealed class StarshipExpeditionService(
             ModuleName,
             Rank.Viewer,
                 userCooldown: 2,
-                description: "Join or vote in the shared Starship Expedition; confirm disclosed risky choices. Moderators can start, stop, and advance it.");
+                description: "Join or vote in the shared Starship Expedition. Moderators can start, stop, and advance it.");
         await RegisterDefaultCommand(ShortVoteCommandName, this, ModuleName, Rank.Viewer, userCooldown: 2,
             description: "Shortcut for !starship vote <option number>.");
         await RegisterDefaultCommand(ShortJoinCommandName, this, ModuleName, Rank.Viewer, userCooldown: 2,
             description: "Shortcut for !starship join.");
         await RegisterDefaultCommand(ShortConfirmCommandName, this, ModuleName, Rank.Viewer, userCooldown: 2,
-            description: "Shortcut for !starship confirm.");
+            description: "Shortcut for !starship confirm (no longer required; votes count immediately).");
     }
 
     public override async Task OnCommand(object? sender, CommandEventArgs eventArgs)
@@ -183,14 +183,7 @@ public sealed class StarshipExpeditionService(
                         }
                         else
                         {
-                            var hasPendingRisk = joined.CurrentEvent!.PendingRiskConfirmations.Any(risk =>
-                                string.Equals(risk.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase));
-                            if (hasPendingRisk)
-                            {
-                                await RespondWithMessage(eventArgs,
-                                    "You are already aboard the Starship Expedition crew! Confirm your risk check with !sc.");
-                            }
-                            else if (joined.CurrentEvent.Votes.Any(vote =>
+                            if (joined.CurrentEvent!.Votes.Any(vote =>
                                 string.Equals(vote.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase)))
                             {
                                 await RespondWithMessage(eventArgs,
@@ -226,28 +219,14 @@ public sealed class StarshipExpeditionService(
                     var enrollNote = enrolledByVote
                         ? $" You joined the crew ({voted.Crew.Count} aboard).{DescribePendingShare(voted, eventArgs.UserId)}"
                         : string.Empty;
-                    var riskConfirmation = voted.CurrentEvent?.PendingRiskConfirmations.FirstOrDefault(item =>
-                        string.Equals(item.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase));
-                    if (riskConfirmation != null)
-                    {
-                        var rarityText = string.IsNullOrEmpty(riskConfirmation.RevealedRarity)
-                            ? "Rarity: unknown (scan to reveal it first)."
-                            : $"Rarity: {riskConfirmation.RevealedRarity}.";
-                        await RespondWithMessage(eventArgs,
-                            $"Risk check: your unbanked {riskConfirmation.PointTypeName} balance is {riskConfirmation.ExposedBalance}; failing can lose up to {riskConfirmation.MaximumLoss}. " +
-                            $"Success chance {riskConfirmation.SuccessChancePercent}%, rewards x{StarshipExpeditionNarrative.FormatMultiplier(riskConfirmation.RewardMultiplierPercent)}. {rarityText} Confirm with !sc within 30 seconds.");
-                    }
-                    else
-                    {
-                        var votedChoice = voted.CurrentEvent?.Votes
-                            .Where(vote => string.Equals(vote.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase))
-                            .Select(vote => voted.CurrentEvent.Choices.FirstOrDefault(choice =>
-                                string.Equals(choice.ChoiceId, vote.ChoiceId, StringComparison.OrdinalIgnoreCase)))
-                            .FirstOrDefault();
-                        var tally = voted.CurrentEvent?.Votes.Count ?? 0;
-                        await RespondWithMessage(eventArgs,
-                            $"Your Starship vote was recorded: {votedChoice?.Label ?? "your choice"} ({tally} vote{(tally == 1 ? string.Empty : "s")} so far).{enrollNote}");
-                    }
+                    var votedChoice = voted.CurrentEvent?.Votes
+                        .Where(vote => string.Equals(vote.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase))
+                        .Select(vote => voted.CurrentEvent.Choices.FirstOrDefault(choice =>
+                            string.Equals(choice.ChoiceId, vote.ChoiceId, StringComparison.OrdinalIgnoreCase)))
+                        .FirstOrDefault();
+                    var tally = voted.CurrentEvent?.Votes.Count ?? 0;
+                    await RespondWithMessage(eventArgs,
+                        $"Your Starship vote was recorded: {votedChoice?.Label ?? "your choice"} ({tally} vote{(tally == 1 ? string.Empty : "s")} so far).{enrollNote}");
                     return;
 
                 case "confirm":
@@ -257,7 +236,14 @@ public sealed class StarshipExpeditionService(
                         .Select(vote => confirmed.CurrentEvent.Choices.FirstOrDefault(choice =>
                             string.Equals(choice.ChoiceId, vote.ChoiceId, StringComparison.OrdinalIgnoreCase)))
                         .FirstOrDefault();
-                    await RespondWithMessage(eventArgs, $"Confirmed and committed: {confirmedChoice?.Label ?? "your risky action"}. Results are announced when the vote ends.");
+                    if (confirmedChoice != null)
+                    {
+                        await RespondWithMessage(eventArgs, $"Confirmed and committed: {confirmedChoice.Label}. Results are announced when the vote ends.");
+                    }
+                    else
+                    {
+                        await RespondWithMessage(eventArgs, "No risk confirmation is needed; votes count immediately when using !sv <number>.");
+                    }
                     return;
 
                 case "status":
@@ -265,7 +251,7 @@ public sealed class StarshipExpeditionService(
                     return;
 
                 default:
-                        await RespondWithMessage(eventArgs, "Use !sj to join, !sv <number> to vote, or !sc to confirm a risk prompt (long forms: !starship join|vote|confirm). Moderators: !starship start [legs] [min minutes] [max minutes], !starship advance, or !starship stop.");
+                    await RespondWithMessage(eventArgs, "Use !sj to join or !sv <number> to vote (long forms: !starship join|vote). Moderators: !starship start [legs] [min minutes] [max minutes], !starship advance, or !starship stop.");
                     return;
             }
         }
@@ -655,43 +641,10 @@ public sealed class StarshipExpeditionService(
 
             var existingConfirmation = snapshot.CurrentEvent.PendingRiskConfirmations.FirstOrDefault(item =>
                 string.Equals(item.UserId, userId, StringComparison.OrdinalIgnoreCase));
-            if (existingConfirmation != null &&
-                existingConfirmation.ExpiresAtUtc > _timeProvider.GetUtcNow() &&
-                string.Equals(existingConfirmation.ChoiceId, choice.ChoiceId, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("You already have a pending risk confirmation for this event.");
             if (existingConfirmation != null)
                 snapshot.CurrentEvent.PendingRiskConfirmations.Remove(existingConfirmation);
 
-            var rewardProfile = GetRewardProfile(snapshot, snapshot.CurrentEvent.EventType);
-            if (choice.IsRisky && rewardProfile != null)
-            {
-                var primaryTypeId = rewardProfile.GetPrimaryPointTypeId();
-                var lossRule = rewardProfile.GetLossRules().FirstOrDefault(rule => rule.PointTypeId == primaryTypeId)
-                    ?? rewardProfile.GetLossRules().FirstOrDefault()
-                    ?? new StarshipLossRule { PointTypeId = primaryTypeId };
-                var balance = snapshot.Crew
-                    .First(member => string.Equals(member.UserId, userId, StringComparison.OrdinalIgnoreCase))
-                    .UnbankedBalances.FirstOrDefault(item => item.PointTypeId == lossRule.PointTypeId)?.Amount ?? 0;
-                var riskPercent = StarshipRewardResolver.CombinePercent(snapshot.CurrentEvent.RiskMultiplierPercent, choice.RiskMultiplierPercent);
-                var (proportionalLoss, maximumLoss) = StarshipRewardResolver.ScaleRiskLoss(lossRule, balance, riskPercent);
-                snapshot.CurrentEvent.PendingRiskConfirmations.Add(new StarshipRiskConfirmationSnapshot
-                {
-                    UserId = userId,
-                    ChoiceId = choice.ChoiceId,
-                    ExpiresAtUtc = _timeProvider.GetUtcNow().AddSeconds(30),
-                    PointTypeId = lossRule.PointTypeId,
-                    PointTypeName = rewardProfile.GetPointTypeName(lossRule.PointTypeId),
-                    ExposedBalance = balance,
-                    MaximumLoss = Math.Min(balance, Math.Min(proportionalLoss, maximumLoss)),
-                    SuccessChancePercent = StarshipRewardResolver.GetEffectiveSuccessChance(rewardProfile, snapshot.CurrentEvent, choice),
-                    RewardMultiplierPercent = StarshipRewardResolver.CombinePercent(snapshot.CurrentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent),
-                    RevealedRarity = snapshot.CurrentEvent.RevealedRarity
-                });
-            }
-            else
-            {
-                snapshot.CurrentEvent.Votes.Add(new StarshipEventVoteSnapshot { UserId = userId, ChoiceId = choice.ChoiceId });
-            }
+            snapshot.CurrentEvent.Votes.Add(new StarshipEventVoteSnapshot { UserId = userId, ChoiceId = choice.ChoiceId });
 
             await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
             result = Clone(snapshot);
@@ -723,18 +676,19 @@ public sealed class StarshipExpeditionService(
         {
             var snapshot = GetActiveSnapshot();
             if (snapshot.Status != StarshipExpeditionStatus.EventOpen || snapshot.CurrentEvent == null)
-                throw new InvalidOperationException("There is no open Starship event to confirm.");
+                return snapshot;
             var pending = snapshot.CurrentEvent.PendingRiskConfirmations.FirstOrDefault(item =>
                 string.Equals(item.UserId, userId, StringComparison.OrdinalIgnoreCase));
-            if (pending == null || pending.ExpiresAtUtc <= _timeProvider.GetUtcNow())
-                throw new InvalidOperationException("Your risk confirmation expired. Choose the action again to review its current exposure.");
-            if (snapshot.CurrentEvent.Votes.Any(vote => string.Equals(vote.UserId, userId, StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidOperationException("Your choice for this event has already been recorded.");
-
-            var previousSnapshot = Clone(snapshot);
-            snapshot.CurrentEvent.Votes.Add(new StarshipEventVoteSnapshot { UserId = userId, ChoiceId = pending.ChoiceId });
-            snapshot.CurrentEvent.PendingRiskConfirmations.Remove(pending);
-            await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
+            if (pending != null)
+            {
+                var previousSnapshot = Clone(snapshot);
+                if (!snapshot.CurrentEvent.Votes.Any(vote => string.Equals(vote.UserId, userId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    snapshot.CurrentEvent.Votes.Add(new StarshipEventVoteSnapshot { UserId = userId, ChoiceId = pending.ChoiceId });
+                }
+                snapshot.CurrentEvent.PendingRiskConfirmations.Remove(pending);
+                await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
+            }
             return Clone(snapshot);
         }
         finally
@@ -1529,7 +1483,12 @@ public sealed class StarshipExpeditionService(
         var maxVotes = voteCounts.Count == 0 ? 0 : voteCounts.Max(vote => vote.Count);
         var leaders = voteCounts.Where(vote => vote.Count == maxVotes).Select(vote => vote.ChoiceId).ToList();
         var winningId = resolveVote
-            ? leaders.Count == 1 ? leaders[0] : currentEvent.DefaultChoiceId
+            ? leaders.Count switch
+            {
+                0 => currentEvent.DefaultChoiceId,
+                1 => leaders[0],
+                _ => leaders[GetDeterministicIndex(snapshot.Seed, currentEvent.Sequence, $"tie-break:{currentEvent.StepNumber}", leaders.Count)]
+            }
             : currentEvent.ResolvedChoiceId ?? string.Empty;
         var winningChoice = resolveVote
             ? currentEvent.Choices.FirstOrDefault(choice =>

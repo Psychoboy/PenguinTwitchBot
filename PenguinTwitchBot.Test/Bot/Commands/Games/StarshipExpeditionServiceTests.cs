@@ -680,7 +680,7 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
-    public async Task AdvanceEvent_UsesDefaultForNoVotesAndTie_ThenSchedulesNextEventInConfiguredRange()
+    public async Task AdvanceEvent_UsesDefaultForNoVotesAndPicksAmongTiedLeaders_ThenSchedulesNextEventInConfiguredRange()
     {
         var service = CreateService(new InMemoryStateStore());
         await service.StartExpeditionAsync("mod-user", legCount: 4, minimumEventIntervalMinutes: 15, maximumEventIntervalMinutes: 30, seed: 2468);
@@ -705,8 +705,9 @@ public class StarshipExpeditionServiceTests
         await service.VoteAsync(CreateArgs("viewer-2", "Engineer"), choices[1].ChoiceId);
         var tieResolution = await service.AdvanceEventAsync();
 
-        Assert.Equal(nextEvent.CurrentEvent.DefaultChoiceId, tieResolution.CompletedEvents.Last().ResolvedChoiceId);
-        Assert.Equal(2, tieResolution.CurrentLeg);
+        Assert.Contains(tieResolution.CurrentEvent!.Path[0].ChoiceId, new[] { choices[0].ChoiceId, choices[1].ChoiceId });
+        Assert.NotEqual(nextEvent.CurrentEvent.DefaultChoiceId, tieResolution.CurrentEvent.Path[0].ChoiceId);
+        Assert.Equal(1, tieResolution.CurrentLeg);
     }
 
     [Fact]
@@ -1160,7 +1161,7 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
-    public async Task RiskyChoice_DisclosesBalanceBeforeConfirmationAndLossAppliesOnlyToParticipant()
+    public async Task RiskyChoice_AppliesRiskImmediatelyAndLossAppliesOnlyToParticipant()
     {
         var stateStore = new InMemoryStateStore();
         var pointProfile = new StarshipRewardProfile
@@ -1236,24 +1237,12 @@ public class StarshipExpeditionServiceTests
         var riskyVote = CreateArgs("pilot-id", "Pilot");
         riskyVote.Args = ["vote", "1"];
         await service.OnCommand(null, riskyVote);
-        Assert.Contains(replies, reply => reply.Contains("unbanked Salvage Credits balance is 80", StringComparison.Ordinal)
-            && reply.Contains("lose up to 20", StringComparison.Ordinal)
-            && reply.Contains("Success chance 0%", StringComparison.Ordinal)
-            && reply.Contains("Rarity: unknown", StringComparison.Ordinal)
-            && reply.Contains("!sc", StringComparison.Ordinal));
-        Assert.DoesNotContain(replies, reply => reply.Contains("Rare 30-50", StringComparison.Ordinal));
+        Assert.Contains(replies, reply => reply.Contains("Your Starship vote was recorded: Recover salvage", StringComparison.Ordinal));
         var pending = await service.GetSnapshotAsync();
         Assert.NotNull(pending);
-        var confirmation = Assert.Single(pending.CurrentEvent!.PendingRiskConfirmations);
-        Assert.Equal(80, confirmation.ExposedBalance);
-        Assert.Equal(20, confirmation.MaximumLoss);
-        Assert.Empty(pending.CurrentEvent.Votes);
+        Assert.Empty(pending.CurrentEvent!.PendingRiskConfirmations);
+        Assert.Single(pending.CurrentEvent.Votes);
 
-        var shortConfirm = CreateArgs("pilot-id", "Pilot");
-        shortConfirm.Command = StarshipExpeditionService.ShortConfirmCommandName;
-        shortConfirm.Args = [];
-        await service.OnCommand(null, shortConfirm);
-        Assert.Contains(replies, reply => reply.Contains("Confirmed and committed: Recover salvage", StringComparison.Ordinal));
         var resolved = await service.AdvanceEventAsync();
 
         var pilot = resolved.Crew.Single(member => member.UserId == "pilot-id");
@@ -1374,13 +1363,9 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(50, afterSecure.CurrentEvent.RiskMultiplierPercent);
         Assert.Equal(["salvage", "pass"], afterSecure.CurrentEvent.Choices.Select(choice => choice.ChoiceId));
 
-        var prompt = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "1");
-        var confirmation = Assert.Single(prompt.CurrentEvent!.PendingRiskConfirmations);
-        Assert.Equal(20, confirmation.MaximumLoss);
-        Assert.Equal(100, confirmation.SuccessChancePercent);
-        Assert.Equal(80, confirmation.RewardMultiplierPercent);
-        Assert.Equal("Common", confirmation.RevealedRarity);
-        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+        var voted = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "1");
+        Assert.Contains(voted.CurrentEvent!.Votes, vote => vote.ChoiceId == "salvage");
+        Assert.Empty(voted.CurrentEvent.PendingRiskConfirmations);
 
         var resolved = await service.AdvanceEventAsync();
 
@@ -1405,13 +1390,10 @@ public class StarshipExpeditionServiceTests
         await stateStore.SaveAsync(CreateSalvageFixture());
         var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
 
-        var prompt = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        var voted = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
 
-        var confirmation = Assert.Single(prompt.CurrentEvent!.PendingRiskConfirmations);
-        Assert.Equal(40, confirmation.MaximumLoss);
-        Assert.Equal(80, confirmation.SuccessChancePercent);
-        Assert.Equal(100, confirmation.RewardMultiplierPercent);
-        Assert.Null(confirmation.RevealedRarity);
+        Assert.Contains(voted.CurrentEvent!.Votes, vote => vote.ChoiceId == "salvage");
+        Assert.Empty(voted.CurrentEvent.PendingRiskConfirmations);
     }
 
     [Fact]
@@ -2852,30 +2834,108 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
-    public async Task JoinCommand_WhenEventIsOpen_AndUserHasPendingRiskConfirmation_RemindsToConfirm()
+    public async Task ConfirmCommand_WhenNoPendingConfirmation_RepliesNoConfirmationNeeded()
     {
-        var stateStore = new InMemoryStateStore();
-        await stateStore.SaveAsync(CreateSalvageFixture());
         var replies = new List<string>();
         var backbone = new Mock<IServiceBackbone>();
         backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
             .Callback<string, string, bool>((_, message, _) => replies.Add(message))
             .Returns(Task.CompletedTask);
-        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(),
-            serviceBackboneMock: backbone, pointsSystem: Mock.Of<IPointsSystem>());
-
-        var riskyVote = CreateArgs("pilot-id", "Pilot");
-        riskyVote.Args = ["vote", "3"];
-        await service.OnCommand(null, riskyVote);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone);
+        await service.StartExpeditionAsync("moderator", seed: 10);
         replies.Clear();
 
-        var joinArgs = CreateArgs("pilot-id", "Pilot");
-        joinArgs.Command = StarshipExpeditionService.ShortJoinCommandName;
-        joinArgs.Args = [];
-        await service.OnCommand(null, joinArgs);
+        var confirmArgs = CreateArgs("viewer-1", "ViewerOne");
+        confirmArgs.Command = StarshipExpeditionService.ShortConfirmCommandName;
+        confirmArgs.Args = [];
+        await service.OnCommand(null, confirmArgs);
 
         var reply = Assert.Single(replies);
-        Assert.Equal("You are already aboard the Starship Expedition crew! Confirm your risk check with !sc.", reply);
+        Assert.Equal("No risk confirmation is needed; votes count immediately when using !sv <number>.", reply);
+    }
+
+    [Fact]
+    public async Task ResolveCurrentEvent_WhenVotesAreTied_PicksAmongTiedLeadersInsteadOfDefaultChoice()
+    {
+        var stateStore = new InMemoryStateStore();
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            Seed = 42,
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentSector = "Ternion Belt",
+            CurrentRoute = "Survey Route",
+            SectorPool = ["Ternion Belt", "Kepler Reach"],
+            Crew =
+            [
+                new() { UserId = "user-1", DisplayName = "User1" },
+                new() { UserId = "user-2", DisplayName = "User2" }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 2,
+                EventType = "CustomEvent",
+                Title = "Test Event",
+                Sector = "Ternion Belt",
+                DefaultChoiceId = "pass",
+                Choices =
+                [
+                    new() { ChoiceId = "opt-a", Label = "Option A" },
+                    new() { ChoiceId = "opt-b", Label = "Option B" },
+                    new() { ChoiceId = "pass", Label = "Pass" }
+                ]
+            }
+        };
+        await stateStore.SaveAsync(snapshot);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        await service.VoteAsync(CreateArgs("user-1", "User1"), "opt-a");
+        await service.VoteAsync(CreateArgs("user-2", "User2"), "opt-b");
+
+        var resolved = await service.AdvanceEventAsync();
+        var winningChoiceId = resolved.CompletedEvents.Single().ResolvedChoiceId;
+        Assert.True(winningChoiceId is "opt-a" or "opt-b", $"Expected tied leader 'opt-a' or 'opt-b' to win, but got '{winningChoiceId}'");
+    }
+
+    [Fact]
+    public async Task ResolveCurrentEvent_WhenNoVotesCast_FallsBackToDefaultChoice()
+    {
+        var stateStore = new InMemoryStateStore();
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            Seed = 42,
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentSector = "Ternion Belt",
+            CurrentRoute = "Survey Route",
+            SectorPool = ["Ternion Belt", "Kepler Reach"],
+            Crew =
+            [
+                new() { UserId = "user-1", DisplayName = "User1" }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 2,
+                EventType = "CustomEvent",
+                Title = "Test Event",
+                Sector = "Ternion Belt",
+                DefaultChoiceId = "pass",
+                Choices =
+                [
+                    new() { ChoiceId = "opt-a", Label = "Option A" },
+                    new() { ChoiceId = "opt-b", Label = "Option B" },
+                    new() { ChoiceId = "pass", Label = "Pass" }
+                ]
+            }
+        };
+        await stateStore.SaveAsync(snapshot);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        var resolved = await service.AdvanceEventAsync();
+        var winningChoiceId = resolved.CompletedEvents.Single().ResolvedChoiceId;
+        Assert.Equal("pass", winningChoiceId);
     }
 
     [Fact]
