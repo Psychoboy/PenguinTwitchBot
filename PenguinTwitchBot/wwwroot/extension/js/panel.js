@@ -134,7 +134,19 @@
         if (!container) return;
         container.innerHTML = '';
 
-        var order = (state.config && state.config.tabOrder) || ['giveaway', 'fishing', 'leaderboards', 'starship', 'commands'];
+        var defaultOrder = ['giveaway', 'fishing', 'leaderboards', 'starship', 'commands'];
+        var savedOrder = (state.config && Array.isArray(state.config.tabOrder)) ? state.config.tabOrder : [];
+        var order = [];
+        savedOrder.forEach(function (k) {
+            if (defaultOrder.indexOf(k) !== -1 && order.indexOf(k) === -1) {
+                order.push(k);
+            }
+        });
+        defaultOrder.forEach(function (k) {
+            if (order.indexOf(k) === -1) {
+                order.push(k);
+            }
+        });
         var visibleTabs = [];
 
         order.forEach(function (tabKey) {
@@ -1247,7 +1259,10 @@
             'music', 'musicplayer', 'song', 'songs', 'audio', 'sound', 'soundeffect', 'playlist', 'playlists', 'spotify', 'dj',
             'roulette', 'gamble', 'gambling', 'slot', 'slots', 'bet', 'betting', 'casino', 'jackpot', 'lottery', 'wager', 'heist', 'dice', 'poker', 'blackjack'
         ];
-        return prohibitedWords.some(function (w) { return lower === w || lower.indexOf(w) !== -1; });
+        var tokens = lower.split(/[^a-z0-9]+/);
+        return tokens.some(function (token) {
+            return token.length > 0 && prohibitedWords.indexOf(token) !== -1;
+        });
     }
 
     function isProhibitedCommand(cmd) {
@@ -1266,7 +1281,7 @@
             'playlist', 'music', 'volume'
         ];
         for (var i = 0; i < prohibitedNames.length; i++) {
-            if (name === prohibitedNames[i] || name.indexOf(prohibitedNames[i]) === 0) return true;
+            if (name === prohibitedNames[i]) return true;
         }
 
         if (/\b(roulette|gamble|gambling|slots|wager|jackpot|casino|dice|poker|blackjack|place a bet|bet tickets|bet points)\b/i.test(desc)) {

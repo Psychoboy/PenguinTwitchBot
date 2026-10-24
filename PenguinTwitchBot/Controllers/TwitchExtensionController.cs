@@ -654,6 +654,26 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
 
         try
         {
+            if (request.ConfirmRisk)
+            {
+                var currentSnapshot = await _starshipExpeditionService.GetSnapshotAsync(HttpContext.RequestAborted);
+                var pending = currentSnapshot?.CurrentEvent?.PendingRiskConfirmations.FirstOrDefault(item =>
+                    string.Equals(item.UserId, claims.UserId, StringComparison.OrdinalIgnoreCase));
+
+                if (pending == null)
+                {
+                    return BadRequest(new { success = false, message = "No pending risk confirmation found. Please choose the action again." });
+                }
+
+                if (!string.Equals(pending.ChoiceId, request.ChoiceId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { success = false, message = "The pending risk confirmation does not match the requested choice." });
+                }
+
+                await _starshipExpeditionService.ConfirmRiskActionAsync(eventArgs, HttpContext.RequestAborted);
+                return Ok(new { success = true, confirmed = true, message = "Risky action confirmed and committed!", choiceId = request.ChoiceId });
+            }
+
             var snapshot = await _starshipExpeditionService.VoteAsync(eventArgs, request.ChoiceId, HttpContext.RequestAborted);
 
             var riskConfirmation = snapshot.CurrentEvent?.PendingRiskConfirmations.FirstOrDefault(item =>
@@ -661,12 +681,6 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
 
             if (riskConfirmation != null)
             {
-                if (request.ConfirmRisk)
-                {
-                    await _starshipExpeditionService.ConfirmRiskActionAsync(eventArgs, HttpContext.RequestAborted);
-                    return Ok(new { success = true, confirmed = true, message = "Risky action confirmed and committed!" });
-                }
-
                 return Ok(new
                 {
                     success = true,

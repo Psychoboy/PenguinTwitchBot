@@ -708,8 +708,7 @@ public class TwitchExtensionControllerTests
                 ]
             }
         };
-        starshipService.VoteAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), "choice_risky", Arg.Any<CancellationToken>())
-            .Returns(snapshot);
+        starshipService.GetSnapshotAsync(Arg.Any<CancellationToken>()).Returns(snapshot);
         starshipService.ConfirmRiskActionAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), Arg.Any<CancellationToken>())
             .Returns(snapshot);
 
@@ -720,6 +719,39 @@ public class TwitchExtensionControllerTests
         var ok = Assert.IsType<OkObjectResult>(result);
         dynamic val = ok.Value!;
         Assert.True((bool)val.confirmed);
+        await starshipService.DidNotReceive().VoteAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task VoteStarship_ConfirmRisk_Fails_WhenChoiceMismatch()
+    {
+        var token = GenerateTestJwt("channel123", userId: "user456");
+        var starshipService = Substitute.For<IStarshipExpeditionService>();
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                PendingRiskConfirmations =
+                [
+                    new StarshipRiskConfirmationSnapshot
+                    {
+                        UserId = "user456",
+                        ChoiceId = "choice_risky",
+                        MaximumLoss = 100,
+                        PointTypeName = "credits"
+                    }
+                ]
+            }
+        };
+        starshipService.GetSnapshotAsync(Arg.Any<CancellationToken>()).Returns(snapshot);
+
+        var controller = CreateController($"Bearer {token}", starshipService);
+
+        var result = await controller.VoteStarship(new ExtensionStarshipVoteRequest("choice_different", ConfirmRisk: true));
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.NotNull(badRequest.Value);
+        await starshipService.DidNotReceive().ConfirmRiskActionAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), Arg.Any<CancellationToken>());
     }
 }
 
