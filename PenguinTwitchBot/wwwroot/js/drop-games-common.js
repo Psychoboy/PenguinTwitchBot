@@ -778,10 +778,10 @@
         if (!(activeOtherGames instanceof Set) || !msg || typeof msg !== 'object') return null;
         const game = String(currentGame || '').toLowerCase();
 
-        if (msg.type === 'other_game_status' && typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
+        if ((msg.type === 'other_game_status' || msg.type === 'other_drop_active') && typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
             const otherGame = msg.otherGame.toLowerCase();
             if (msg.isOtherGameActive) activeOtherGames.add(otherGame);
-            else activeOtherGames.delete(otherGame);
+            else if (msg.type === 'other_game_status') activeOtherGames.delete(otherGame);
         }
 
         if (msg.type === 'other_game_status' && Array.isArray(msg.activeGames)) {
@@ -858,13 +858,20 @@
         let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
         if (headerConfig.autoAvoidOverlap !== false) {
             let slot = 0;
+            const hasOtherActiveGames = (options.activeOtherGames instanceof Set)
+                ? options.activeOtherGames.size > 0
+                : (Array.isArray(options.activeOtherGames) && options.activeOtherGames.length > 0);
+
             if (options.currentGame && options.activeOtherGames) {
                 slot = calculateBannerStackSlot(options.currentGame, options.activeOtherGames);
             } else if (options.isOtherGameActive) {
                 slot = 1;
             }
 
-            if (options.otherDropsActiveUntilMs && now < options.otherDropsActiveUntilMs && slot === 0) {
+            // Only bump slot 0 to 1 if no other games are tracked in the active stack
+            // (e.g. untracked free-play drop from an external source) to avoid colliding with
+            // lower-priority games that already occupy slot 1.
+            if (!hasOtherActiveGames && !options.isOtherGameActive && options.otherDropsActiveUntilMs && now < options.otherDropsActiveUntilMs && slot === 0) {
                 slot = 1;
             }
 
@@ -1991,7 +1998,7 @@
             socket.addEventListener('close', function () {
                 showStatus(false);
             });
-            if (socket.readyState === WebSocket.OPEN) {
+            if (socket.readyState === 1 || (typeof WebSocket !== 'undefined' && socket.readyState === WebSocket.OPEN)) {
                 showStatus(true);
             }
             socket.addEventListener('message', function (event) {
@@ -2014,6 +2021,31 @@
                 }
                 onMessage(msg);
             });
+
+            // Listen on OverlayBus for instant local inter-widget drop coordination
+            const bus = (typeof window !== 'undefined' && window.OverlayBus) || (typeof global !== 'undefined' && global.OverlayBus);
+            if (bus && typeof bus.on === 'function') {
+                bus.on('other_drop_active', function (payload) {
+                    if (payload && payload.game && String(payload.game).toLowerCase() !== String(game).toLowerCase()) {
+                        onMessage({
+                            type: 'other_drop_active',
+                            otherGame: payload.game,
+                            activeUntilMs: payload.activeUntilMs || (Date.now() + 10000),
+                            isOtherGameActive: true
+                        });
+                    }
+                });
+                bus.on('other_game_status', function (payload) {
+                    if (payload && payload.game && String(payload.game).toLowerCase() !== String(game).toLowerCase()) {
+                        onMessage({
+                            type: 'other_game_status',
+                            otherGame: payload.game,
+                            isOtherGameActive: !!payload.isOtherGameActive,
+                            activeGames: payload.activeGames
+                        });
+                    }
+                });
+            }
         }
 
         return { pending: pending, send: send, flush: flush, sendHeartbeat: sendHeartbeat, ensureHeartbeat: ensureHeartbeat, attach: attach };
@@ -2034,6 +2066,28 @@
             t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
             return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
         };
+    }
+
+    function broadcastDropActive(gameName, durationMs) {
+        const bus = (typeof window !== 'undefined' && window.OverlayBus) || (typeof global !== 'undefined' && global.OverlayBus);
+        if (bus && typeof bus.broadcast === 'function') {
+            bus.broadcast('other_drop_active', {
+                game: String(gameName || '').toLowerCase(),
+                activeUntilMs: Date.now() + (durationMs || 10000),
+                isOtherGameActive: true
+            });
+        }
+    }
+
+    function broadcastGameStatus(gameName, isActive, activeGames) {
+        const bus = (typeof window !== 'undefined' && window.OverlayBus) || (typeof global !== 'undefined' && global.OverlayBus);
+        if (bus && typeof bus.broadcast === 'function') {
+            bus.broadcast('other_game_status', {
+                game: String(gameName || '').toLowerCase(),
+                isOtherGameActive: !!isActive,
+                activeGames: activeGames
+            });
+        }
     }
 
     const DropGamesCommon = {
@@ -2067,7 +2121,9 @@
         drawGolfGreen: drawGolfGreen,
         drawGolfBall: drawGolfBall,
         createCompletionChannel: createCompletionChannel,
-        createSeededRandom: createSeededRandom
+        createSeededRandom: createSeededRandom,
+        broadcastDropActive: broadcastDropActive,
+        broadcastGameStatus: broadcastGameStatus
     };
 
     if (typeof module !== 'undefined' && module.exports) {

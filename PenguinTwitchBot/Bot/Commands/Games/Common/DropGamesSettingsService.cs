@@ -16,6 +16,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             PropertyNameCaseInsensitive = true
         };
         private DropGamesSettings? _cachedSettings;
+        private readonly SemaphoreSlim _lock = new(1, 1);
 
         public async Task<DropGamesSettings> GetSettingsAsync()
         {
@@ -24,8 +25,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 return _cachedSettings;
             }
 
+            await _lock.WaitAsync();
             try
             {
+                if (_cachedSettings != null)
+                {
+                    return _cachedSettings;
+                }
+
                 using var scope = scopeFactory.CreateScope();
                 var unitOfWork = scope.ServiceProvider.GetService<IUnitOfWork>();
                 if (unitOfWork != null)
@@ -57,6 +64,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             {
                 logger.LogWarning(ex, "Failed to load DropGamesSettings from database; using in-memory defaults.");
             }
+            finally
+            {
+                _lock.Release();
+            }
 
             // Database read or deserialization failure: return in-memory defaults without caching or persisting
             var fallback = new DropGamesSettings();
@@ -68,8 +79,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         {
             ArgumentNullException.ThrowIfNull(settings);
             EnsureStockThemes(settings);
-            _cachedSettings = settings;
-            await PersistSettingsToDbAsync(settings);
+
+            await _lock.WaitAsync();
+            try
+            {
+                _cachedSettings = settings;
+                DropGameMediaResolver.ClearPreparedThemeCache();
+                await PersistSettingsToDbAsync(settings);
+            }
+            finally
+            {
+                _lock.Release();
+            }
         }
 
         private async Task PersistSettingsToDbAsync(DropGamesSettings settings)
@@ -105,7 +126,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to save DropGamesSettings to database.");
+                logger.LogError(ex, "Failed to save DropGamesSettings to database.");
+                throw;
             }
         }
 

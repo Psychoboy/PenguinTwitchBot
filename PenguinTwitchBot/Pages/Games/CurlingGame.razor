@@ -507,8 +507,16 @@
     private async Task SaveSettingsAndClearQueueIfDisabledAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
-        if (!_settings.Curling.GameEnabled) await CurlingGameService.ClearSessionQueueAsync();
+        try
+        {
+            await SettingsService.SaveSettingsAsync(_settings);
+            if (!_settings.Curling.GameEnabled) await CurlingGameService.ClearSessionQueueAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save Curling settings.");
+            Snackbar.Add($"Failed to save settings: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task ResetSettingsToDefaultsAsync()

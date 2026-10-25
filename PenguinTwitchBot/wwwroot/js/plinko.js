@@ -76,6 +76,16 @@
         textColor: '#FFFFFF'
     };
 
+    function preloadThemeImages(theme) {
+        if (!theme) return;
+        if (theme.plinkoBoardBackgroundImageUrl) getLoadedImage(theme.plinkoBoardBackgroundImageUrl);
+        if (theme.plinkoPegImageUrl) getLoadedImage(theme.plinkoPegImageUrl);
+        if (theme.plinkoWinningSlotImageUrl) getLoadedImage(theme.plinkoWinningSlotImageUrl);
+        if (theme.plinkoDividerImageUrl) getLoadedImage(theme.plinkoDividerImageUrl);
+        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
+        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+    }
+
     let boardConfig = {
         rowCount: 8,
         pegRadius: null,
@@ -248,6 +258,7 @@
             if (msg.theme) {
                 currentTheme = msg.theme;
             }
+            preloadThemeImages(currentTheme);
 
             const b = msg.board;
             boardConfig.rowCount = b.rowCount || 8;
@@ -273,10 +284,9 @@
             const tokenMass = typeof b.mass === 'number' ? Math.max(0.1, Math.min(10.0, b.mass)) : 1.0;
             const durationSec = b.durationSeconds || (b.physics && b.physics.durationSeconds) || (msg.durationSeconds) || Math.max(2.5, Math.min(7.0, 4.2 / Math.pow(tokenGravity, 0.25)));
             boardConfig.visibleUntil = performance.now() + (durationSec + 4.0) * 1000;
+            DropGamesCommon.broadcastDropActive('plinko', (durationSec + 4.0) * 1000);
 
             getLoadedImage(msg.characterImageUrl);
-            if (currentTheme.plinkoBoardBackgroundImageUrl) getLoadedImage(currentTheme.plinkoBoardBackgroundImageUrl);
-            if (currentTheme.plinkoPegImageUrl) getLoadedImage(currentTheme.plinkoPegImageUrl);
 
             if (msg.sounds) {
                 SoundManager.updateBundle(msg.sounds);
@@ -376,7 +386,11 @@
             sessionState.startedAtMs = performance.now();
             sessionState.endsAtMs = performance.now() + (s.remainingSeconds || s.totalDurationSeconds || 100) * 1000;
             sessionState.totalDrops = typeof s.totalDrops === 'number' ? s.totalDrops : 0;
-            if (s.theme) currentTheme = s.theme;
+            DropGamesCommon.broadcastGameStatus('plinko', true);
+            if (s.theme) {
+                currentTheme = s.theme;
+                preloadThemeImages(currentTheme);
+            }
             if (msg.board) {
                 if (typeof msg.board.rowCount === 'number') boardConfig.rowCount = msg.board.rowCount;
                 if (typeof msg.board.pegRadius === 'number') {
@@ -399,6 +413,7 @@
             }
         } else if (msg.type === 'session_end' && msg.session) {
             sessionState.isActive = false;
+            DropGamesCommon.broadcastGameStatus('plinko', false);
             if (msg.sounds) {
                 SoundManager.updateBundle(msg.sounds);
             } else if (msg.session && msg.session.sounds) {
@@ -1664,7 +1679,7 @@
             let slot = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateBannerStackSlot)
                 ? DropGamesCommon.calculateBannerStackSlot('plinko', activeOtherGames)
                 : (isOtherGameActive ? 1 : 0);
-            if (now < otherDropsActiveUntilMs && slot === 0) slot = 1;
+            if (activeOtherGames.size === 0 && !isOtherGameActive && now < otherDropsActiveUntilMs && slot === 0) slot = 1;
             targetY += slot * 54;
         }
         currentBannerY += (targetY - currentBannerY) * 0.15;

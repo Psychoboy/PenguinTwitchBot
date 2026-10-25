@@ -18,6 +18,12 @@ public interface IEmoteService
     /// If not found in cache and channel emotes may not have loaded yet, forces a refresh.
     /// </summary>
     Task<string?> ResolveEmoteUrlAsync(string emoteName);
+
+    /// <summary>
+    /// Tracks an emote seen in Twitch chat or EventSub message fragments so it is available
+    /// immediately in memory without requiring an API fetch.
+    /// </summary>
+    void TrackEmote(string name, string url);
 }
 
 /// <summary>
@@ -33,15 +39,21 @@ public class EmoteService(
     private const string EmoteCacheKey = "chat_emotes_v1";
     private static readonly TimeSpan EmoteCacheDuration = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan EmptyEmoteCacheDuration = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan ForcedRefreshCooldown = TimeSpan.FromMinutes(2);
     private readonly SemaphoreSlim _fetchLock = new(1, 1);
+    private readonly ConcurrentDictionary<string, string> _chatTrackedEmotes = new(StringComparer.OrdinalIgnoreCase);
     private string? _cachedChannelId;
-    private DateTime _lastForcedRefreshUtc = DateTime.MinValue;
+
+    public void TrackEmote(string name, string url)
+    {
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(url)) return;
+        _chatTrackedEmotes[name.Trim()] = url.Trim();
+    }
 
     public async Task<Dictionary<string, string>> GetEmotesAsync()
     {
         if (memoryCache.TryGetValue(EmoteCacheKey, out Dictionary<string, string>? emotes) && emotes != null)
         {
+            MergeChatTrackedEmotes(emotes);
             return emotes;
         }
 
@@ -52,12 +64,14 @@ public class EmoteService(
         {
             if (memoryCache.TryGetValue(EmoteCacheKey, out emotes) && emotes != null)
             {
+                MergeChatTrackedEmotes(emotes);
                 return emotes;
             }
 
             var channelId = await twitchService.GetBroadcasterUserId();
             emotes = await FetchAllEmotesAsync(channelId);
             _cachedChannelId = channelId;
+            MergeChatTrackedEmotes(emotes);
             // Don't let a transient upstream failure or missing channel ID pin an incomplete result for 30 minutes.
             var ttl = (emotes.Count == 0 || string.IsNullOrEmpty(channelId)) ? EmptyEmoteCacheDuration : EmoteCacheDuration;
             memoryCache.Set(EmoteCacheKey, emotes, ttl);
@@ -70,35 +84,50 @@ public class EmoteService(
         }
     }
 
+    private void MergeChatTrackedEmotes(Dictionary<string, string> target)
+    {
+        foreach (var (k, v) in _chatTrackedEmotes)
+        {
+            if (!target.ContainsKey(k))
+            {
+                target[k] = v;
+            }
+        }
+    }
+
     public async Task<string?> ResolveEmoteUrlAsync(string emoteName)
     {
         if (string.IsNullOrWhiteSpace(emoteName)) return null;
         var cleanName = emoteName.Trim();
 
+        // 1. Check chat-tracked emotes first (O(1), zero latency)
+        if (_chatTrackedEmotes.TryGetValue(cleanName, out var chatUrl) && !string.IsNullOrWhiteSpace(chatUrl))
+        {
+            return chatUrl;
+        }
+
+        // 2. Check cached dictionary
         var emotes = await GetEmotesAsync();
         if (emotes.TryGetValue(cleanName, out var url) && !string.IsNullOrWhiteSpace(url))
         {
             return url;
         }
 
-        // Cache miss: Only force a refresh if the cached emotes were fetched without a channel ID
-        // and a channel ID is now available, or if cooldown has elapsed.
+        // 3. Cache miss: Only force a refresh if the cached emotes were fetched without a channel ID
+        // and a channel ID is now available. Do not wipe cache or block on arbitrary missing words.
         try
         {
             var channelId = await twitchService.GetBroadcasterUserId();
             var hadMissingChannelId = string.IsNullOrEmpty(_cachedChannelId) && !string.IsNullOrEmpty(channelId);
-            var cooldownElapsed = DateTime.UtcNow - _lastForcedRefreshUtc > ForcedRefreshCooldown;
-
             var shouldRefresh = false;
-            if (hadMissingChannelId || (cooldownElapsed && !string.IsNullOrEmpty(channelId)))
+
+            if (hadMissingChannelId)
             {
                 await _fetchLock.WaitAsync();
                 try
                 {
-                    if ((string.IsNullOrEmpty(_cachedChannelId) && !string.IsNullOrEmpty(channelId)) ||
-                        DateTime.UtcNow - _lastForcedRefreshUtc > ForcedRefreshCooldown)
+                    if (string.IsNullOrEmpty(_cachedChannelId) && !string.IsNullOrEmpty(channelId))
                     {
-                        _lastForcedRefreshUtc = DateTime.UtcNow;
                         memoryCache.Remove(EmoteCacheKey);
                         shouldRefresh = true;
                     }
@@ -128,18 +157,37 @@ public class EmoteService(
 
     private async Task<Dictionary<string, string>> FetchAllEmotesAsync(string? channelId)
     {
-        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var http = httpClientFactory.CreateClient("Emotes");
 
-        await FetchBttvGlobalAsync(http, result);
-        await FetchBttvChannelAsync(http, result, channelId);
-        await FetchFfzGlobalAsync(http, result);
-        await FetchFfzChannelAsync(http, result, channelId);
-        await FetchSevenTvGlobalAsync(http, result);
-        await FetchSevenTvChannelAsync(http, result, channelId);
+        var bttvGlobal = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var bttvChannel = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var ffzGlobal = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var ffzChannel = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var sevenTvGlobal = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var sevenTvChannel = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var twitchNative = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        // Native Twitch emotes last so they take priority over third-party emotes of the same name.
-        await FetchTwitchEmotesAsync(result);
+        var tasks = new List<Task>
+        {
+            FetchBttvGlobalAsync(http, bttvGlobal),
+            FetchBttvChannelAsync(http, bttvChannel, channelId),
+            FetchFfzGlobalAsync(http, ffzGlobal),
+            FetchFfzChannelAsync(http, ffzChannel, channelId),
+            FetchSevenTvGlobalAsync(http, sevenTvGlobal),
+            FetchSevenTvChannelAsync(http, sevenTvChannel, channelId),
+            FetchTwitchEmotesAsync(twitchNative)
+        };
+
+        await Task.WhenAll(tasks);
+
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dict in new[] { bttvGlobal, bttvChannel, ffzGlobal, ffzChannel, sevenTvGlobal, sevenTvChannel, twitchNative })
+        {
+            foreach (var kvp in dict)
+            {
+                result[kvp.Key] = kvp.Value;
+            }
+        }
 
         return result;
     }

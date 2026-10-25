@@ -558,8 +558,16 @@
     private async Task SaveSettingsAndClearQueueIfDisabledAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
-        if (!_settings.Golf.GameEnabled) await GolfGameService.ClearSessionQueueAsync();
+        try
+        {
+            await SettingsService.SaveSettingsAsync(_settings);
+            if (!_settings.Golf.GameEnabled) await GolfGameService.ClearSessionQueueAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save Golf settings.");
+            Snackbar.Add($"Failed to save settings: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task ResetSettingsToDefaultsAsync()

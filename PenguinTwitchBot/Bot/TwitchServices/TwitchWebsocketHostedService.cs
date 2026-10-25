@@ -28,7 +28,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         TimeProvider timeProvider,
         Application.Notifications.IPenguinDispatcher dispatcher,
         ITwitchEventActionHandler twitchEventActionHandler,
-        IChatColorService chatColorService) : ITwitchWebsocketHostedService
+        IChatColorService chatColorService,
+        PenguinTwitchBot.Services.IEmoteService? emoteService = null) : ITwitchWebsocketHostedService
     {
         internal readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
@@ -65,7 +66,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     return;
                 }
 
-                var fragments = (message.Fragments ?? []).Select(MapFragment).ToList();
+                var fragments = (message.Fragments ?? []).Select(f => MapFragment(f, emoteService)).ToList();
                 var firstEmote = fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
                 string? firstEmoteUrl = firstEmote?.EmoteUrl;
 
@@ -115,7 +116,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         internal ChatNotificationEventArgs CreateChatNotificationEventArgs(ChannelChatNotification e)
         {
-            var fragments = (e.Message?.Fragments ?? []).Select(MapFragment).ToList();
+            var fragments = (e.Message?.Fragments ?? []).Select(f => MapFragment(f, emoteService)).ToList();
             var firstEmote = fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
             string? firstEmoteUrl = firstEmote?.EmoteUrl;
 
@@ -252,7 +253,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             messageText = ViewerInputSanitizer.Sanitize(MessageRegex().Replace(messageText, string.Empty).Trim());
 
             var fragments = (e.Message.Fragments ?? [])
-                .Select(f => MapFragment(f))
+                .Select(f => MapFragment(f, emoteService))
                 .ToList();
 
             var badges = (e.Badges ?? [])
@@ -278,12 +279,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
-        internal static ChatOverlayFragment MapFragment(TwitchApi.EventSub.Models.Chat.ChatMessageFragment f)
+        internal static ChatOverlayFragment MapFragment(TwitchApi.EventSub.Models.Chat.ChatMessageFragment f, PenguinTwitchBot.Services.IEmoteService? emoteService = null)
         {
             if (f.Type == "emote" && f.Emote != null)
             {
                 var format = (f.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
                 var url = $"https://static-cdn.jtvnw.net/emoticons/v2/{f.Emote.Id}/{format}/dark/1.0";
+                if (!string.IsNullOrWhiteSpace(f.Text))
+                {
+                    emoteService?.TrackEmote(f.Text, url);
+                }
                 return new ChatOverlayFragment
                 {
                     Type = "emote",
@@ -324,7 +329,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var ArgumentsAsList = string.IsNullOrWhiteSpace(ArgumentsAsString) ? [] : ArgumentsAsString.Split(" ").ToList();
 
             var fragments = (e.Message.Fragments ?? [])
-                .Select(f => MapFragment(f))
+                .Select(f => MapFragment(f, emoteService))
                 .ToList();
 
             var badges = (e.Badges ?? [])

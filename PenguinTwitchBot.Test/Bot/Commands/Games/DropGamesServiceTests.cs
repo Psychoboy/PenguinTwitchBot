@@ -2271,6 +2271,102 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task DropGameMediaResolver_ResolveAndPrepareThemeAsync_ResolvesEmotesAndRegistersProxyUrls()
+        {
+            var emoteService = new Mock<IEmoteService>();
+            emoteService.Setup(e => e.GetEmotesAsync())
+                .ReturnsAsync(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sptv30k"] = "https://static-cdn.jtvnw.net/emoticons/v2/30123/default/dark/3.0",
+                    ["sptvPin"] = "https://static-cdn.jtvnw.net/emoticons/v2/30456/default/dark/3.0"
+                });
+
+            var dropRegistry = CreateDropRegistry();
+            var settings = new DropGamesSettings();
+            var customTheme = new DropGameTheme
+            {
+                Id = "custom_test",
+                Name = "Custom Test Theme",
+                PlinkoPegImageUrl = "sptv30k",
+                PlinkoWinningSlotImageUrl = "/media/custom_trophy.png",
+                PlinkoDividerImageUrl = "images/custom_divider.png",
+                PlinkoBoardBackgroundImageUrl = "https://example.com/bg.png",
+                GolfFlagPinImageUrl = "sptvPin",
+                TargetPlatformImageUrl = "sptv30k"
+            };
+            settings.Themes.Add(customTheme);
+
+            var resolved = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(
+                settings,
+                "custom_test",
+                "spring",
+                emoteService.Object,
+                dropRegistry);
+
+            Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/30123/default/dark/3.0", resolved.PlinkoPegImageUrl);
+            Assert.Equal("/media/custom_trophy.png", resolved.PlinkoWinningSlotImageUrl);
+            Assert.Equal("/images/custom_divider.png", resolved.PlinkoDividerImageUrl);
+            Assert.Equal("https://example.com/bg.png", resolved.PlinkoBoardBackgroundImageUrl);
+            Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/30456/default/dark/3.0", resolved.GolfFlagPinImageUrl);
+            Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/30123/default/dark/3.0", resolved.TargetPlatformImageUrl);
+
+            // Raw theme in settings remains unchanged
+            Assert.Equal("sptv30k", customTheme.PlinkoPegImageUrl);
+
+            // All URLs registered in DropRegistry
+            Assert.True(dropRegistry.IsProxyUrlAllowed("https://static-cdn.jtvnw.net/emoticons/v2/30123/default/dark/3.0"));
+            Assert.True(dropRegistry.IsProxyUrlAllowed("/media/custom_trophy.png"));
+            Assert.True(dropRegistry.IsProxyUrlAllowed("/images/custom_divider.png"));
+            Assert.True(dropRegistry.IsProxyUrlAllowed("https://example.com/bg.png"));
+            Assert.True(dropRegistry.IsProxyUrlAllowed("https://static-cdn.jtvnw.net/emoticons/v2/30456/default/dark/3.0"));
+        }
+
+        [Fact]
+        public async Task PlinkoDropService_TriggerPlinkoDropAsync_ResolvesThemeCustomSpritesAndRegistersProxyUrls()
+        {
+            _emoteService.Setup(e => e.GetEmotesAsync())
+                .ReturnsAsync(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sptvPeg"] = "https://static-cdn.jtvnw.net/emoticons/v2/999/default/dark/3.0"
+                });
+
+            var dropRegistry = CreateDropRegistry();
+            var settings = new DropGamesSettings();
+            settings.Plinko.GameEnabled = true;
+            settings.Plinko.ActiveThemeId = "custom_plinko";
+            var customTheme = new DropGameTheme
+            {
+                Id = "custom_plinko",
+                Name = "Custom Plinko Theme",
+                PlinkoPegImageUrl = "sptvPeg",
+                PlinkoWinningSlotImageUrl = "/media/slot.png"
+            };
+            settings.Themes.Add(customTheme);
+
+            var settingsService = new Mock<IDropGamesSettingsService>();
+            settingsService.Setup(s => s.GetSettingsAsync()).ReturnsAsync(settings);
+
+            var sentMessages = new List<string>();
+            _webSocketMessenger.Setup(w => w.AddToQueue(It.IsAny<string>(), It.IsAny<string>()))
+                .Callback<string, string>((topic, msg) => sentMessages.Add(msg))
+                .Returns(Task.CompletedTask);
+
+            var service = CreatePlinkoService(settingsService.Object, dropRegistry);
+
+            var args = new CommandEventArgs { Name = "testuser", DisplayName = "TestUser", UserId = "123" };
+            var token = await service.TriggerPlinkoDropAsync(args);
+
+            Assert.False(string.IsNullOrWhiteSpace(token));
+            var dropMsg = sentMessages.FirstOrDefault(m => m.Contains("\"type\":\"plinko_drop\""));
+            Assert.NotNull(dropMsg);
+            Assert.Contains("https://static-cdn.jtvnw.net/emoticons/v2/999/default/dark/3.0", dropMsg);
+            Assert.Contains("/media/slot.png", dropMsg);
+
+            Assert.True(dropRegistry.IsProxyUrlAllowed("https://static-cdn.jtvnw.net/emoticons/v2/999/default/dark/3.0"));
+            Assert.True(dropRegistry.IsProxyUrlAllowed("/media/slot.png"));
+        }
+
+        [Fact]
         public void TriggerCatalog_ContainsParachuteAndPlinkoStartTriggers()
         {
             var parachuteStart = TriggerCatalog.AllTriggers.FirstOrDefault(t => t.Id == "parachute-start");

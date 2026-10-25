@@ -565,8 +565,16 @@
     private async Task SaveAllSettingsAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
-        Snackbar.Add("Theme settings saved!", Severity.Success);
+        try
+        {
+            await SettingsService.SaveSettingsAsync(_settings);
+            Snackbar.Add("Theme settings saved!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save theme settings.");
+            Snackbar.Add($"Failed to save theme settings: {ex.Message}", Severity.Error);
+        }
     }
 
     private void CreateCustomTheme()

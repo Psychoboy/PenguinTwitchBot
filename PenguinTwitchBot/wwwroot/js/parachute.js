@@ -88,6 +88,14 @@
         textColor: '#FFFFFF'
     };
 
+    function preloadThemeImages(theme) {
+        if (!theme) return;
+        if (theme.parachuteCanopyImageUrl) getLoadedImage(theme.parachuteCanopyImageUrl);
+        if (theme.targetPlatformImageUrl) getLoadedImage(theme.targetPlatformImageUrl);
+        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
+        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+    }
+
     let targetState = {
         centerX: 0.5,
         targetHalfWidth: 0.09,
@@ -388,6 +396,7 @@
 
         const p = msg.trajectory || msg.physics;
         if (msg.type === 'parachute_drop' && p) {
+            DropGamesCommon.broadcastDropActive('parachute', 12000);
             if (msg.theme) {
                 currentTheme = msg.theme;
                 syncAmbientParticles();
@@ -419,8 +428,8 @@
 
             // Preload custom images if any
             getLoadedImage(msg.characterImageUrl);
-            if (currentTheme.parachuteCanopyImageUrl) getLoadedImage(currentTheme.parachuteCanopyImageUrl);
-            if (currentTheme.targetPlatformImageUrl) getLoadedImage(currentTheme.targetPlatformImageUrl);
+            if (msg.theme) currentTheme = msg.theme;
+            preloadThemeImages(currentTheme);
 
             activeDrops.push({
                 dropToken: msg.dropToken,
@@ -617,8 +626,10 @@
             sessionState.startedAtMs = performance.now();
             sessionState.endsAtMs = performance.now() + (s.remainingSeconds || s.totalDurationSeconds || 100) * 1000;
             sessionState.totalDrops = typeof s.totalDrops === 'number' ? s.totalDrops : 0;
+            DropGamesCommon.broadcastGameStatus('parachute', true);
             if (s.theme) {
                 currentTheme = s.theme;
+                preloadThemeImages(currentTheme);
                 syncAmbientParticles();
             }
             if (s.targetCenterX !== undefined && s.targetCenterX !== null) {
@@ -628,6 +639,7 @@
             }
         } else if (msg.type === 'session_end' && msg.session) {
             sessionState.isActive = false;
+            DropGamesCommon.broadcastGameStatus('parachute', false);
             if (msg.sounds) {
                 SoundManager.updateBundle(msg.sounds);
             } else if (msg.session && msg.session.sounds) {

@@ -459,8 +459,16 @@
     private async Task SaveSettingsAndClearQueueIfDisabledAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
-        if (!_settings.Plinko.GameEnabled) await PlinkoDropService.ClearSessionQueueAsync();
+        try
+        {
+            await SettingsService.SaveSettingsAsync(_settings);
+            if (!_settings.Plinko.GameEnabled) await PlinkoDropService.ClearSessionQueueAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save Plinko settings.");
+            Snackbar.Add($"Failed to save settings: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task ResetSettingsToDefaultsAsync()

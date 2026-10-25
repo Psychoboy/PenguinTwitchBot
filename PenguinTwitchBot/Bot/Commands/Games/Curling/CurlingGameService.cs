@@ -153,7 +153,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                     _currentSessionTargetDistance = cSettings.TargetDistancePercent;
                 }
 
-                var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, cSettings.ActiveThemeId);
+                var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, cSettings.ActiveThemeId, emoteService, dropRegistry);
                 var soundBundle = DropGameMediaResolver.ResolveCurlingSoundBundle(cSettings, theme, GetMediaUploadService());
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(cSettings);
 
@@ -430,7 +430,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 cSettings.DefaultPowerMin,
                 cSettings.DefaultPowerMax);
 
-            var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, cSettings.ActiveThemeId);
+            var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, cSettings.ActiveThemeId, emoteService, dropRegistry);
 
             var now = DateTime.UtcNow;
             var record = new PendingDropRecord

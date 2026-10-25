@@ -155,6 +155,19 @@
     let ambientParticles = [];
     let scorePopups = [];
     let currentTheme = null;
+
+    function preloadThemeImages(theme) {
+        if (!theme) return;
+        if (theme.balloonCanopyImageUrl) getLoadedImage(theme.balloonCanopyImageUrl);
+        if (theme.balloonCloudPlatformImageUrl) getLoadedImage(theme.balloonCloudPlatformImageUrl);
+        if (theme.balloonDebrisImageUrl) getLoadedImage(theme.balloonDebrisImageUrl);
+        if (theme.balloonDartImageUrl) getLoadedImage(theme.balloonDartImageUrl);
+        if (theme.balloonAnvilImageUrl) getLoadedImage(theme.balloonAnvilImageUrl);
+        if (theme.balloonNudgeImageUrl) getLoadedImage(theme.balloonNudgeImageUrl);
+        if (theme.balloonWindGustImageUrl) getLoadedImage(theme.balloonWindGustImageUrl);
+        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
+        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+    }
     let lastColSoundTime = 0;
     // WebSocket connection & completions queue
     const socket = window.createWsSocket('balloon', [window.WS_TOPICS.balloon]);
@@ -199,6 +212,7 @@
         if (activeGameStatus !== null) isOtherGameActive = activeGameStatus;
 
         if (msg.type === 'session_start' && msg.session) {
+            DropGamesCommon.broadcastGameStatus('balloon', true);
             const s = msg.session;
             sessionState.isActive = true;
             sessionState.endedAtMs = 0;
@@ -209,7 +223,10 @@
             sessionState.totalDrops = typeof s.totalDrops === 'number' ? s.totalDrops : 0;
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
             else if (s.headerConfig) Object.assign(headerConfig, s.headerConfig);
-            if (msg.theme) currentTheme = msg.theme;
+            if (msg.theme) {
+                currentTheme = msg.theme;
+                preloadThemeImages(currentTheme);
+            }
 
             if (msg.target) {
                 const cx = typeof msg.target.centerX === 'number' ? msg.target.centerX : 0.50;
@@ -232,12 +249,14 @@
             playSound(msg.sounds?.start || { enabled: true }, 'chime', 520);
         } else if (msg.type === 'session_end') {
             sessionState.isActive = false;
+            DropGamesCommon.broadcastGameStatus('balloon', false);
             sessionState.endedAtMs = performance.now();
             targetCloud.visibleUntil = performance.now() + 6000;
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
             else if (msg.session && msg.session.headerConfig) Object.assign(headerConfig, msg.session.headerConfig);
             playSound(msg.sounds?.end || { enabled: true }, 'chime', 380);
         } else if (msg.type === 'balloon_drop') {
+            DropGamesCommon.broadcastDropActive('balloon', 12000);
             try {
                 // Vibrant balloon color palette
                 const balloonPalette = [
@@ -331,7 +350,10 @@
 
                 sessionState.totalDrops++;
                 targetCloud.visibleUntil = Math.max(targetCloud.visibleUntil, performance.now() + (b.durationSeconds + 4.5) * 1000);
-                if (msg.theme) currentTheme = msg.theme;
+                if (msg.theme) {
+                currentTheme = msg.theme;
+                preloadThemeImages(currentTheme);
+            }
 
                 if (b.characterImageUrl) getLoadedImage(b.characterImageUrl);
                 if (b.balloonCanopyImageUrl) getLoadedImage(b.balloonCanopyImageUrl);
@@ -1631,7 +1653,7 @@
             let slot = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateBannerStackSlot)
                 ? DropGamesCommon.calculateBannerStackSlot('balloon', activeOtherGames)
                 : (isOtherGameActive ? 1 : 0);
-            if (now < otherDropsActiveUntilMs && slot === 0) slot = 1;
+            if (activeOtherGames.size === 0 && !isOtherGameActive && now < otherDropsActiveUntilMs && slot === 0) slot = 1;
             targetY += slot * 54;
         }
         currentBannerY += (targetY - currentBannerY) * 0.15;

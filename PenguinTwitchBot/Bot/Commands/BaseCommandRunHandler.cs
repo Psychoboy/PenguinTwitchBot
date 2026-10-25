@@ -47,6 +47,12 @@ namespace PenguinTwitchBot.Bot.Commands
 
             if (commandService != null && commandService.CommandProperties.Disabled == false && CommandHandler.CheckIfAllowedInSharedChat(eventArgs, commandService.CommandProperties))
             {
+                if (commandService.CommandProperties is DefaultCommand dc &&
+                    dc.ModuleName is "ParachuteDrop" or "PlinkoDrop" or "BalloonAscent" or "Curling" or "Golf")
+                {
+                    eventArgs.SkipLock = true;
+                }
+
                 var action = new ActionType
                 {
                     Name = commandService.CommandProperties.CommandName,

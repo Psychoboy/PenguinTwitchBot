@@ -144,18 +144,25 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 };
                 var WebSocket = { OPEN: 1 };
                 var URLSearchParams = function(query) {
+                    var map = {};
                     var q = query || '';
                     if (q.indexOf('?') === 0) q = q.substring(1);
+                    if (q) {
+                        var pairs = q.split('&');
+                        for (var i = 0; i < pairs.length; i++) {
+                            var parts = pairs[i].split('=');
+                            map[decodeURIComponent(parts[0])] = parts.length > 1 ? decodeURIComponent(parts[1]) : '';
+                        }
+                    }
                     return {
-                        get: function(param) {
-                            var pairs = q ? q.split('&') : [];
-                            for (var i = 0; i < pairs.length; i++) {
-                                var parts = pairs[i].split('=');
-                                if (decodeURIComponent(parts[0]) === param) {
-                                    return parts.length > 1 ? decodeURIComponent(parts[1]) : '';
-                                }
+                        get: function(param) { return map[param] !== undefined ? map[param] : null; },
+                        set: function(param, val) { map[param] = String(val); },
+                        toString: function() {
+                            var out = [];
+                            for (var k in map) {
+                                if (map.hasOwnProperty(k)) out.push(encodeURIComponent(k) + '=' + encodeURIComponent(map[k]));
                             }
-                            return null;
+                            return out.join('&');
                         }
                     };
                 };
@@ -1488,6 +1495,158 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             Assert.Equal("starship", engine.Evaluate("window.WS_TOPICS.starship").AsString());
             Assert.Contains("topics=starship", engine.Evaluate("window.__socketUri").AsString());
+        }
+
+        [Fact]
+        public void OverlayBus_BroadcastAndSend_DeliversToSubscribersLocally()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-client.js")));
+
+            engine.Execute(@"
+                window.__receivedEvents = [];
+                window.OverlayBus.on('banner_shift', function(payload, evt) {
+                    window.__receivedEvents.push({ payload: payload, evt: evt });
+                });
+                window.OverlayBus.broadcast('banner_shift', { slot: 2, game: 'plinko' });
+            ");
+
+            var count = engine.Evaluate("window.__receivedEvents.length").AsNumber();
+            Assert.Equal(1, count);
+            Assert.Equal(2, engine.Evaluate("window.__receivedEvents[0].payload.slot").AsNumber());
+            Assert.Equal("plinko", engine.Evaluate("window.__receivedEvents[0].payload.game").AsString());
+        }
+
+        [Fact]
+        public void OverlayHub_MultiplexesVirtualSockets_RoutesMessagesCorrectly()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(@"
+                var ReconnectingWebSocket = function(uri) {
+                    window.__hubUri = uri;
+                    this.readyState = 1;
+                    this.listeners = {};
+                    this.addEventListener = function(evt, fn) { this.listeners[evt] = fn; };
+                    this.sent = [];
+                    this.send = function(data) { this.sent.push(data); };
+                };
+            ");
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-client.js")));
+
+            engine.Execute(@"
+                var hub = new window.OverlayHub({ clientName: 'Overlay', topics: ['overlay'] });
+                var vsPlinko = hub.createVirtualSocket('Plinko', ['plinko']);
+                var vsChat = hub.createVirtualSocket('Chat', ['chat']);
+
+                window.__plinkoMsgs = [];
+                window.__chatMsgs = [];
+                vsPlinko.addEventListener('message', function(e) { window.__plinkoMsgs.push(e.data); });
+                vsChat.addEventListener('message', function(e) { window.__chatMsgs.push(e.data); });
+
+                // Simulate physical socket message with multiplex envelope
+                hub.physicalSocket.listeners['message']({
+                    data: JSON.stringify({ topic: 'plinko', payload: JSON.stringify({ type: 'plinko_drop', dropToken: 'abc' }) })
+                });
+
+                // Simulate virtual socket send
+                vsPlinko.send(JSON.stringify({ type: 'pong', game: 'plinko' }));
+            ");
+
+            Assert.Equal(1, engine.Evaluate("window.__plinkoMsgs.length").AsNumber());
+            Assert.Equal(0, engine.Evaluate("window.__chatMsgs.length").AsNumber());
+            Assert.Contains("plinko_drop", engine.Evaluate("window.__plinkoMsgs[0]").AsString());
+            Assert.Contains("pong", engine.Evaluate("hub.physicalSocket.sent[hub.physicalSocket.sent.length - 1]").AsString());
+        }
+
+        [Fact]
+        public void DropGamesCommon_OverlayBus_CoordinatesDropsLocally()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-client.js")));
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "drop-games-common.js")));
+
+            engine.Execute(@"
+                var socket = {
+                    readyState: 1,
+                    send: function() {},
+                    addEventListener: function() {}
+                };
+                var completionChannel = window.DropGamesCommon.createCompletionChannel({
+                    game: 'curling',
+                    socket: socket,
+                    overlayKey: 'test-key'
+                });
+                window.__curlingReceived = [];
+                completionChannel.attach(function(msg) {
+                    window.__curlingReceived.push(msg);
+                });
+
+                // Plinko drops without touching server
+                window.DropGamesCommon.broadcastDropActive('plinko', 8000);
+            ");
+
+            Assert.Equal(1, engine.Evaluate("window.__curlingReceived.length").AsNumber());
+            Assert.Equal("other_drop_active", engine.Evaluate("window.__curlingReceived[0].type").AsString());
+            Assert.Equal("plinko", engine.Evaluate("window.__curlingReceived[0].otherGame").AsString());
+        }
+
+        [Fact]
+        public void DropGamesCommon_PlinkoAndBalloonSimultaneous_DoNotOverlapBanners()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "drop-games-common.js")));
+
+            engine.Execute(@"
+                var now = 100000;
+                var ctx = {
+                    save: function() {},
+                    restore: function() {},
+                    beginPath: function() {},
+                    roundRect: function() {},
+                    fill: function() {},
+                    stroke: function() {},
+                    fillText: function() {},
+                    measureText: function() { return { width: 50 }; }
+                };
+
+                var plinkoActiveOthers = new Set(['balloon']);
+                var balloonActiveOthers = new Set(['plinko']);
+
+                var plinkoRes = window.DropGamesCommon.drawSessionBanner(ctx, {
+                    now: now,
+                    width: 1920,
+                    headerConfig: { yOffset: 18, autoAvoidOverlap: true },
+                    sessionState: { isActive: true, totalDrops: 5, totalDurationSeconds: 90, startedAtMs: now - 10000, endsAtMs: now + 80000 },
+                    currentGame: 'plinko',
+                    activeOtherGames: plinkoActiveOthers,
+                    isOtherGameActive: true,
+                    otherDropsActiveUntilMs: now + 8000, // balloon drop is active!
+                    currentBannerY: 18
+                });
+
+                var balloonRes = window.DropGamesCommon.drawSessionBanner(ctx, {
+                    now: now,
+                    width: 1920,
+                    headerConfig: { yOffset: 18, autoAvoidOverlap: true },
+                    sessionState: { isActive: true, totalDrops: 3, totalDurationSeconds: 90, startedAtMs: now - 10000, endsAtMs: now + 80000 },
+                    currentGame: 'balloon',
+                    activeOtherGames: balloonActiveOthers,
+                    isOtherGameActive: true,
+                    otherDropsActiveUntilMs: 0,
+                    currentBannerY: 72
+                });
+
+                window.__plinkoBannerY = plinkoRes.bannerY;
+                window.__balloonBannerY = balloonRes.bannerY;
+            ");
+
+            var plinkoY = engine.Evaluate("window.__plinkoBannerY").AsNumber();
+            var balloonY = engine.Evaluate("window.__balloonBannerY").AsNumber();
+
+            // Plinko should stay at top slot 0 (18px), Balloon at slot 1 (72px)
+            Assert.Equal(18, plinkoY);
+            Assert.Equal(72, balloonY);
+            Assert.NotEqual(plinkoY, balloonY);
         }
 
         [Fact]

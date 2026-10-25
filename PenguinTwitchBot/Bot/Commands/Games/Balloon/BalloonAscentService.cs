@@ -127,7 +127,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 }
 
                 var duration = Math.Clamp(durationSeconds ?? bSettings.DefaultSessionDurationSeconds, 10, 600);
-                var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, bSettings.ActiveThemeId);
+                var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, bSettings.ActiveThemeId, emoteService, dropRegistry);
 
                 var targetHalfWidth = Math.Clamp((bSettings.TargetWidthPercent / 100.0) / 2.0, 0.03, 0.40);
                 var targetCenterX = Math.Clamp(bSettings.TargetCenterX, targetHalfWidth, 1.0 - targetHalfWidth);
@@ -381,8 +381,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             var bSettings = settings.Balloon;
             if (!bSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
                 return string.Empty;
-            var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, bSettings.ActiveThemeId);
+            var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, bSettings.ActiveThemeId, emoteService, dropRegistry);
             var characterImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(emoteService, eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
+            dropRegistry.RegisterAllowedProxyUrl(characterImageUrl);
 
             var buoyancy = Math.Clamp(bSettings.Buoyancy, 0.1, 10.0);
             var durationSeconds = Math.Clamp(5.8 / Math.Pow(buoyancy, 0.25), 3.2, 8.5);
@@ -546,7 +547,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 targetDrop = activeDrops.OrderBy(_ => RandomNumberGenerator.GetInt32(0, 1000)).FirstOrDefault();
             }
 
-            var theme = DropGameMediaResolver.ResolveTheme(settings, null, bSettings.ActiveThemeId);
+            var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, null, bSettings.ActiveThemeId, emoteService, dropRegistry);
             var enabledTypes = new List<string>();
             if (bSettings.EnableDarts) enabledTypes.Add("DartPop");
             if (bSettings.EnableAnvils) enabledTypes.Add("HeavyPush");
