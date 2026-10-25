@@ -5046,6 +5046,164 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void CurlingJs_ShuffleboardKitchenPenaltyAndSoundResolution_BehavesAsExpected()
+        {
+            var jsDir = FindWwwRootPath();
+            var curlingJsPath = Path.Combine(jsDir, "curling.js");
+            Assert.True(File.Exists(curlingJsPath), $"curling.js not found at {curlingJsPath}");
+
+            var code = File.ReadAllText(curlingJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            // Default configuration assertions
+            var defaultKitchen = engine.Evaluate("window.CurlingEngine.boardConfig.enableShuffleboardKitchenPenalty").AsBoolean();
+            var defaultVariance = engine.Evaluate("window.CurlingEngine.boardConfig.powerVariancePercent").AsNumber();
+            Assert.False(defaultKitchen);
+            Assert.Equal(7.0, defaultVariance);
+
+            // Configure Shuffleboard mode with default kitchen penalty disabled
+            engine.Execute(@"
+                window.CurlingEngine.boardConfig.scoringType = 'Shuffleboard';
+                window.CurlingEngine.boardConfig.enableShuffleboardKitchenPenalty = false;
+                var mockMetrics = {
+                    isReversed: false,
+                    targetDistRatio: 0.84,
+                    stoneRadius: 20
+                };
+                var stoneOvershot = {
+                    u: 0.88,
+                    v: 0.5,
+                    isReversed: false
+                };
+                window.CurlingEngine.evaluateStoneOutcome(stoneOvershot, mockMetrics);
+            ");
+
+            var scoreWithoutPenalty = engine.Evaluate("stoneOvershot.score").AsNumber();
+            var isWinWithoutPenalty = engine.Evaluate("stoneOvershot.isWin").AsBoolean();
+            Assert.Equal(0, scoreWithoutPenalty);
+            Assert.False(isWinWithoutPenalty);
+
+            // Configure Shuffleboard mode with kitchen penalty enabled
+            engine.Execute(@"
+                window.CurlingEngine.boardConfig.enableShuffleboardKitchenPenalty = true;
+                window.CurlingEngine.evaluateStoneOutcome(stoneOvershot, mockMetrics);
+            ");
+
+            var scoreWithPenalty = engine.Evaluate("stoneOvershot.score").AsNumber();
+            Assert.Equal(-10, scoreWithPenalty);
+
+            // Verify sound bundle parsing on session_start
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new { totalDurationSeconds = 45 },
+                sounds = new
+                {
+                    curlingWin = "/audio/theme_win.mp3",
+                    curlingScore = "/audio/theme_score.mp3",
+                    curlingFoul = "/audio/theme_foul.mp3"
+                }
+            });
+
+            var foulSound = engine.Evaluate("window.CurlingEngine.sessionState.sounds.curlingFoul").AsString();
+            var winSound = engine.Evaluate("window.CurlingEngine.sessionState.sounds.curlingWin").AsString();
+            Assert.Equal("/audio/theme_foul.mp3", foulSound);
+            Assert.Equal("/audio/theme_win.mp3", winSound);
+        }
+
+        [Fact]
+        public void CurlingJs_StoneSpecificTargetDistanceAndButtonRadius_BehavesAsExpected()
+        {
+            var jsDir = FindWwwRootPath();
+            var curlingJsPath = Path.Combine(jsDir, "curling.js");
+            Assert.True(File.Exists(curlingJsPath), $"curling.js not found at {curlingJsPath}");
+
+            var code = File.ReadAllText(curlingJsPath);
+
+            // 1. Verify button disc radius in drawTargetHouse is r * 0.32 matching scoring radius
+            Assert.Contains("ctx.arc(cx, cy, r * 0.32, 0, Math.PI * 2);", code);
+            Assert.DoesNotContain("ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2);", code);
+
+            var engine = CreateMockBrowserEngine(out _);
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            // 2. Dispatch stone 1 with targetDistancePercent: 75.0
+            DispatchWsMessage(engine, new
+            {
+                type = "curling_slide",
+                dropToken = "stone-shot-1",
+                username = "player1",
+                power = 75.0,
+                targetDistancePercent = 75.0
+            });
+
+            // Dispatch stone 2 with targetDistancePercent: 88.0 (mutates boardConfig)
+            DispatchWsMessage(engine, new
+            {
+                type = "curling_slide",
+                dropToken = "stone-shot-2",
+                username = "player2",
+                power = 88.0,
+                targetDistancePercent = 88.0
+            });
+
+            // Verify each stone retained its own target distance
+            var stone1Target = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'stone-shot-1').targetDistancePercent").AsNumber();
+            var stone2Target = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'stone-shot-2').targetDistancePercent").AsNumber();
+            Assert.Equal(75.0, stone1Target);
+            Assert.Equal(88.0, stone2Target);
+
+            // 3. Evaluate stone 1 when resting at u: 0.75 (exact center of its stone-specific target 75.0%)
+            // Even though mock shared metrics has targetDistRatio: 0.88, stone 1 must score 100 bullseye!
+            engine.Execute(@"
+                window.CurlingEngine.boardConfig.scoringType = 'CurlingHouse';
+                var stone1 = window.CurlingEngine.activeStones.find(s => s.dropToken === 'stone-shot-1');
+                stone1.u = 0.75;
+                stone1.v = 0.0;
+                var sharedMetrics = {
+                    x: 0,
+                    y: 900,
+                    w: 1920,
+                    h: 180,
+                    length: 1920,
+                    breadth: 180,
+                    isHorizontal: true,
+                    targetDistRatio: 0.88,
+                    effectiveTargetRatio: 0.88,
+                    targetCenterX: 1920 * 0.88,
+                    targetCenterY: 990,
+                    stoneRadius: 25,
+                    isReversed: false
+                };
+                window.CurlingEngine.evaluateStoneOutcome(stone1, sharedMetrics);
+            ");
+
+            var stone1Score = engine.Evaluate("stone1.score").AsNumber();
+            var stone1Bullseye = engine.Evaluate("stone1.isBullseye").AsBoolean();
+            Assert.Equal(100, stone1Score);
+            Assert.True(stone1Bullseye);
+
+            // 4. Verify fallback to shared metrics when a stone lacks targetDistRatio / targetDistancePercent
+            engine.Execute(@"
+                var legacyStone = {
+                    u: 0.88,
+                    v: 0.0,
+                    isReversed: false
+                };
+                window.CurlingEngine.evaluateStoneOutcome(legacyStone, sharedMetrics);
+            ");
+
+            var legacyScore = engine.Evaluate("legacyStone.score").AsNumber();
+            var legacyBullseye = engine.Evaluate("legacyStone.isBullseye").AsBoolean();
+            Assert.Equal(100, legacyScore);
+            Assert.True(legacyBullseye);
+        }
+
+        [Fact]
         public void DropGamesCommon_CalculateBannerStackSlot_CalculatesCorrectSlots()
         {
             var engine = CreateMockBrowserEngine(out _);

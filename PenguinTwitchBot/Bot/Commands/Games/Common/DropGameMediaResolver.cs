@@ -824,7 +824,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 CurlingSweep = ResolveSound(settings.SweepSound, theme.CurlingSweepSound, mediaService),
                 CurlingHit = ResolveSound(settings.HitSound, theme.CurlingHitSound, mediaService),
                 CurlingScore = ResolveSound(settings.ScoreSound, theme.CurlingScoreSound, mediaService),
-                CurlingWin = ResolveSound(settings.WinSound, theme.CurlingWinSound, mediaService)
+                CurlingWin = ResolveSound(settings.WinSound, theme.CurlingWinSound, mediaService),
+                CurlingFoul = ResolveSound(settings.FoulSound, theme.CurlingFoulSound, mediaService)
             };
         }
 

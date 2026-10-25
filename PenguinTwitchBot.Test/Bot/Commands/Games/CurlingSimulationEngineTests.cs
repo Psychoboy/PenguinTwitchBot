@@ -100,20 +100,20 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Theory]
-        // Zone 3: center of house (delta <= 0.035)
+        // Zone 30: center of house (apex)
         [InlineData(0.84, 0.84, 30, true, true)]
-        // Zone 2: mid distance (0.035 < delta <= 0.085)
-        [InlineData(0.78, 0.84, 20, false, true)]
-        // Zone 1: outer distance (0.085 < delta <= 0.140)
-        [InlineData(0.72, 0.84, 10, false, true)]
-        // Overshot Kitchen penalty (restPos > targetPos + 0.035)
-        [InlineData(0.90, 0.84, -10, false, false)]
+        // Zone 20: mid distance (offset -0.04)
+        [InlineData(0.80, 0.84, 20, false, true)]
+        // Zone 10: outer distance (offset -0.08)
+        [InlineData(0.76, 0.84, 10, false, true)]
+        // Overshot Kitchen penalty (restPos > targetPos + half bandW)
+        [InlineData(0.88, 0.84, -10, false, false)]
         // Short miss
         [InlineData(0.40, 0.84, 0, false, false)]
         public void CalculateScore_Shuffleboard_ReturnsExpectedZones(
             double restPos, double targetPos, int expectedScore, bool expectedBullseye, bool expectedWin)
         {
-            var (score, isBullseye, isWin) = CurlingSimulationEngine.CalculateScore(restPos, targetPos, CurlingScoringType.Shuffleboard);
+            var (score, isBullseye, isWin) = CurlingSimulationEngine.CalculateScore(restPos, targetPos, CurlingScoringType.Shuffleboard, enableKitchenPenalty: true);
 
             Assert.Equal(expectedScore, score);
             Assert.Equal(expectedBullseye, isBullseye);
@@ -124,7 +124,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         public void CalculateScore_Shuffleboard_WhenKitchenPenaltyDisabled_ReturnsZero()
         {
             // Overshot position where penalty normally triggers (-10)
-            const double restPos = 0.90;
+            const double restPos = 0.88;
             const double targetPos = 0.84;
 
             var (scoreWithPenalty, _, _) = CurlingSimulationEngine.CalculateScore(
@@ -219,22 +219,73 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
         [Theory]
         // In reversed mode, target is at 0.20 (1.0 - 0.80).
-        // Apex Zone 3: closest to target (|delta| <= 0.035)
+        // Apex Zone 30: closest to target (offset 0)
         [InlineData(0.20, 0.20, 30, true, true)]
-        // Zone 2: approach side (restPos = 0.25, delta = 0.05)
-        [InlineData(0.25, 0.20, 20, false, true)]
-        // Zone 1: approach side (restPos = 0.30, delta = 0.10)
-        [InlineData(0.30, 0.20, 10, false, true)]
-        // Overshot Kitchen penalty in reverse: restPos < targetPos - 0.035 => restPos = 0.15
-        [InlineData(0.15, 0.20, -10, false, false)]
+        // Zone 20: approach side (restPos = 0.24, offset = -0.04)
+        [InlineData(0.24, 0.20, 20, false, true)]
+        // Zone 10: approach side (restPos = 0.28, offset = -0.08)
+        [InlineData(0.28, 0.20, 10, false, true)]
+        // Overshot Kitchen penalty in reverse: offset = -1.0 * (0.16 - 0.20) = +0.04
+        [InlineData(0.16, 0.20, -10, false, false)]
         public void CalculateScore_Shuffleboard_Reversed_ReturnsExpectedZonesAndKitchen(
             double restPos, double targetPos, int expectedScore, bool expectedBullseye, bool expectedWin)
         {
-            var (score, isBullseye, isWin) = CurlingSimulationEngine.CalculateScore(restPos, targetPos, CurlingScoringType.Shuffleboard, isReversed: true);
+            var (score, isBullseye, isWin) = CurlingSimulationEngine.CalculateScore(restPos, targetPos, CurlingScoringType.Shuffleboard, isReversed: true, enableKitchenPenalty: true);
 
             Assert.Equal(expectedScore, score);
             Assert.Equal(expectedBullseye, isBullseye);
             Assert.Equal(expectedWin, isWin);
+        }
+
+        [Fact]
+        public void SimulateCurlingSlide_SameRawPower_WithVariance_ProducesDifferentOutcomes()
+        {
+            var settings = new CurlingGameSettings
+            {
+                StripPosition = CurlingStripPosition.Bottom,
+                SlideDirection = CurlingSlideDirection.LeftToRight,
+                ScoringType = CurlingScoringType.CurlingHouse,
+                PowerVariancePercent = 8.0
+            };
+
+            var now = DateTime.UtcNow;
+            var record1 = new PendingDropRecord
+            {
+                DropToken = "curl-var-1",
+                GameType = DropGameType.Curling,
+                Username = "curler1",
+                DisplayName = "Curler1",
+                UserId = "user-1",
+                EventArgs = new PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs { Command = "curl", Name = "curler1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1)
+            };
+
+            var record2 = new PendingDropRecord
+            {
+                DropToken = "curl-var-2",
+                GameType = DropGameType.Curling,
+                Username = "curler2",
+                DisplayName = "Curler2",
+                UserId = "user-2",
+                EventArgs = new PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs { Command = "curl", Name = "curler2" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1)
+            };
+
+            var rng1 = new Random(1001);
+            var rng2 = new Random(2002);
+
+            CurlingSimulationEngine.SimulateCurlingSlide(record1, settings, rawPower: 78.0, condition: CurlingIceCondition.Normal, targetDistancePercent: 84.0, rng: rng1);
+            CurlingSimulationEngine.SimulateCurlingSlide(record2, settings, rawPower: 78.0, condition: CurlingIceCondition.Normal, targetDistancePercent: 84.0, rng: rng2);
+
+            // Both used rawPower 78.0, but effective power and landing positions differ due to variance!
+            Assert.NotEqual(record1.EffectivePower, record2.EffectivePower);
+            Assert.NotEqual(record1.LandingX, record2.LandingX);
         }
     }
 }

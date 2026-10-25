@@ -8,7 +8,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
         public const double Dt = 1.0 / TickRateHz;
 
         // Geometric radii normalized relative to the primary slide axis length [0.0, 1.0]
-        public const double ButtonBullseyeRadius = 0.022; // Center 100 pt button
+        public const double ButtonBullseyeRadius = 0.016; // Center 100 pt button (tight precision)
         public const double FourFootRadius = 0.048;      // 75 pt inner ring
         public const double EightFootRadius = 0.082;     // 50 pt middle ring
         public const double TwelveFootRadius = 0.125;    // 25 pt outer ring
@@ -89,6 +89,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 var driftDir = r.Next(0, 2) == 0 ? -1.0 : 1.0;
                 lateralOffset = Math.Clamp(0.50 + driftDir * 0.18 * (effectivePower / 100.0), 0.15, 0.85);
             }
+            else if (settings.PowerVariancePercent > 0)
+            {
+                var r = rng ?? Random.Shared;
+                var jitter = (r.NextDouble() * 2.0 - 1.0) * (settings.PowerVariancePercent / 100.0) * 0.15;
+                lateralOffset = Math.Clamp(0.50 + jitter, 0.15, 0.85);
+            }
 
             // Target position normalized along slide axis
             var normalizedTarget = SlideShotPhysics.ResolveNormalizedTarget(settings.SlideDirection, targetDistancePercent, isReversed);
@@ -119,7 +125,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             double targetPos,
             CurlingScoringType scoringType,
             bool isReversed = false,
-            bool enableKitchenPenalty = true)
+            bool enableKitchenPenalty = false)
         {
             var delta = Math.Abs(restPos - targetPos);
 
@@ -131,7 +137,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 //   positive = overshot target (past apex)
                 var dirSign = isReversed ? -1.0 : 1.0;
                 var offset = dirSign * (restPos - targetPos);
-                const double bandW = 0.050;
+                const double bandW = 0.038;
 
                 if (offset >= -0.5 * bandW && offset <= 0.5 * bandW)
                 {
