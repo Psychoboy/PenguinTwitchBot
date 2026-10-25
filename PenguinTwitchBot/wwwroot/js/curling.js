@@ -354,6 +354,10 @@
 
         const m = getTrackMetrics();
 
+        const stoneTargetDistRatio = (typeof msg.targetDistancePercent === 'number')
+            ? Math.max(0.50, Math.min(0.95, msg.targetDistancePercent / 100))
+            : (typeof msg.targetDistRatio === 'number' ? msg.targetDistRatio : m.targetDistRatio);
+
         // Calculate initial slide velocity along slide axis matching server physics calibration
         const rawPower = typeof msg.power === 'number' ? msg.power : 75;
         const variancePct = (typeof msg.powerVariancePercent === 'number')
@@ -412,6 +416,10 @@
             variedPower: variedPower,
             isReversed: isReversed,
             curlDirection: curlDirection,
+            targetDistRatio: stoneTargetDistRatio,
+            targetDistancePercent: typeof msg.targetDistancePercent === 'number'
+                ? msg.targetDistancePercent
+                : (boardConfig.targetDistancePercent || 84.0),
 
             // Physics state along slide axis (u: 0.0 to 1.0) and cross axis (v: -0.5 to +0.5 from center)
             u: startU,
@@ -471,9 +479,14 @@
     // Scoring calculation when stone comes to rest
     function evaluateStoneOutcome(stone, m) {
         const isReversed = (typeof stone.isReversed === 'boolean' ? stone.isReversed : m.isReversed);
+        const targetDistRatio = (typeof stone.targetDistRatio === 'number')
+            ? stone.targetDistRatio
+            : (typeof stone.targetDistancePercent === 'number'
+                ? Math.max(0.50, Math.min(0.95, stone.targetDistancePercent / 100))
+                : m.targetDistRatio);
         const effectiveTarget = isReversed
-            ? (1.0 - m.targetDistRatio)
-            : m.targetDistRatio;
+            ? (1.0 - targetDistRatio)
+            : targetDistRatio;
         const dirSign = isReversed ? -1.0 : 1.0;
         const offset = dirSign * (stone.u - effectiveTarget);
         let score = 0;
@@ -514,7 +527,9 @@
             // Curling House Rings
             // Circular pixel distance from house center matching drawn concentric radii
             const pos = getStoneCanvasCoords(stone, m);
-            const distFromHouseCenter = Math.hypot(pos.x - m.targetCenterX, pos.y - m.targetCenterY);
+            const targetCenterX = m.isHorizontal ? m.x + m.w * effectiveTarget : m.x + m.w * 0.50;
+            const targetCenterY = m.isHorizontal ? m.y + m.h * 0.50 : m.y + m.h * effectiveTarget;
+            const distFromHouseCenter = Math.hypot(pos.x - targetCenterX, pos.y - targetCenterY);
             const buttonR = m.stoneRadius * 0.32;
             const ring4ftR = m.stoneRadius * 1.15;
             const ring8ftR = m.stoneRadius * 2.1;
@@ -1312,7 +1327,7 @@
 
             // Center Button Disc
             ctx.beginPath();
-            ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2);
+            ctx.arc(cx, cy, r * 0.32, 0, Math.PI * 2);
             ctx.fillStyle = btnCol;
             ctx.fill();
             ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.95})`;
