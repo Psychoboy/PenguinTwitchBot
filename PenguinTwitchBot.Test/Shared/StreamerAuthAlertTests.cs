@@ -55,6 +55,9 @@ public class StreamerAuthAlertTests
         userThemeService.AvailableThemes.Returns(new List<PenguinTwitchBot.Models.Themes.CustomThemeModel>());
         ctx.Services.AddSingleton(userThemeService);
 
+        var quickSearchService = Substitute.For<IQuickSearchService>();
+        ctx.Services.AddSingleton(quickSearchService);
+
         var circuitHandler = new CircuitHandlerService(_circuitUserService, _circuitLogger);
         ctx.Services.AddSingleton<CircuitHandler>(circuitHandler);
 

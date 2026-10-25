@@ -2,6 +2,7 @@
 @inject IVersionCheckService VersionCheck
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@inject IQuickSearchService QuickSearchService
 @using PenguinTwitchBot.Helpers
 @using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Services
@@ -15,39 +16,58 @@
     <MudNavLink Icon="@Icons.Material.Filled.Home" Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
     <AuthorizeView Roles="Streamer, Editor">
         <Authorized>
-            @{
-                var quickLinks = GetFilteredQuickLinks().Take(8).ToList();
-            }
             <MudPaper Outlined="true" Class="mb-4 pa-2">
                 <MudStack Spacing="1">
                     <MudText Typo="Typo.overline" Class="px-2">Quick Jump</MudText>
                     <MudTextField @bind-Value="_navSearchText"
-                                  Placeholder="Search streamer and editor pages"
+                                  @bind-Value:after="OnSearchTextChanged"
+                                  Placeholder="Search menu, commands, actions..."
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense"
                                   Immediate="true"
-                                  DebounceInterval="200"
+                                  DebounceInterval="250"
                                   Clearable="true"
                                   Adornment="Adornment.Start"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
-                    @if (quickLinks.Count > 0)
+                    @if (_isSearching)
                     {
-                        <MudStack Spacing="1" Class="px-1 pb-1">
-                            @foreach (var quickLink in quickLinks)
-                            {
-                                <MudButton OnClick="() => NavigateToQuickLink(quickLink.Href)"
-                                           Variant="Variant.Text"
-                                           StartIcon="@quickLink.Icon"
-                                           FullWidth="true"
-                                           Style="justify-content:flex-start; text-transform:none;">
-                                    @quickLink.Title
-                                </MudButton>
-                            }
-                        </MudStack>
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-1" Size="Size.Small" />
                     }
-                    else if (!string.IsNullOrWhiteSpace(_navSearchText))
+                    @if (_searchResults.Count > 0)
                     {
-                        <MudText Typo="Typo.caption" Class="px-2 pb-1 mud-text-secondary">No matching pages.</MudText>
+                        <div style="max-height: 380px; overflow-y: auto;" class="px-1 pb-1">
+                            @foreach (var group in _searchResults.GroupBy(r => r.Category))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Primary" Class="px-2 pt-2 pb-1 font-weight-bold" Style="display:block; text-transform:uppercase; font-size:0.7rem; letter-spacing:0.5px;">
+                                    @group.Key
+                                </MudText>
+                                @foreach (var item in group)
+                                {
+                                    <MudButton OnClick="() => NavigateToItem(item.Href)"
+                                               Variant="Variant.Text"
+                                               FullWidth="true"
+                                               Class="py-1 px-2 my-0 text-left"
+                                               Style="justify-content:flex-start; text-transform:none; border-radius:4px;">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="width:100%; overflow:hidden;">
+                                            <MudIcon Icon="@item.Icon" Size="Size.Small" Color="Color.Default" Style="flex-shrink:0;" />
+                                            <div style="min-width:0; flex:1; text-align:left;">
+                                                <MudText Typo="Typo.body2" Class="text-truncate">@item.Title</MudText>
+                                                @if (!string.IsNullOrWhiteSpace(item.Subtitle))
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary text-truncate" Style="display:block; font-size:0.72rem; line-height:1.1;">
+                                                        @item.Subtitle
+                                                    </MudText>
+                                                }
+                                            </div>
+                                        </MudStack>
+                                    </MudButton>
+                                }
+                            }
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_navSearchText) && !_isSearching)
+                    {
+                        <MudText Typo="Typo.caption" Class="px-2 pb-1 mud-text-secondary">No matching items found.</MudText>
                     }
                 </MudStack>
             </MudPaper>
@@ -249,6 +269,72 @@
         !VersionCheck.IsUpToDate &&
         !string.IsNullOrWhiteSpace(VersionCheck.LatestVersion);
     private bool _disposed;
+    private CancellationTokenSource? _searchCts;
+    private List<QuickSearchResult> _searchResults = [];
+    private bool _isSearching;
+
+    private async Task OnSearchTextChanged()
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        if (string.IsNullOrWhiteSpace(_navSearchText))
+        {
+            _searchResults.Clear();
+            _isSearching = false;
+            StateHasChanged();
+            return;
+        }
+
+        _isSearching = true;
+        StateHasChanged();
+
+        try
+        {
+            var pageLinks = GetQuickLinks().Select(l => new QuickSearchResult(
+                Title: l.Title,
+                Href: l.Href,
+                Icon: l.Icon,
+                Category: "Pages",
+                ResultType: QuickSearchResultType.Page,
+                Subtitle: l.Group
+            ));
+
+            var results = await QuickSearchService.SearchAsync(_navSearchText, pageLinks, token);
+            if (!token.IsCancellationRequested)
+            {
+                _searchResults = results;
+                _isSearching = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by newer search query
+        }
+        catch (Exception)
+        {
+            _isSearching = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void NavigateToItem(string href)
+    {
+        _navSearchText = string.Empty;
+        _searchResults.Clear();
+        _isSearching = false;
+
+        if (string.Equals(CurrentUrl, href.TrimStart('/'), StringComparison.OrdinalIgnoreCase))
+        {
+            StateHasChanged();
+            return;
+        }
+
+        Navigation.NavigateTo(href);
+    }
 
     private bool GetGroupExpanded(string groupKey, params string[] routes)
     {
@@ -261,21 +347,6 @@
         }
 
         return _groupExpandedState.GetValueOrDefault(groupKey, false);
-    }
-
-    private IEnumerable<NavQuickLink> GetFilteredQuickLinks()
-    {
-        if (string.IsNullOrWhiteSpace(_navSearchText))
-        {
-            return Enumerable.Empty<NavQuickLink>();
-        }
-
-        string search = _navSearchText.Trim();
-        return GetQuickLinks()
-            .Where(link => link.SearchText.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(link => link.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-            .ThenBy(link => link.Group)
-            .ThenBy(link => link.Title);
     }
 
     private IEnumerable<NavQuickLink> GetQuickLinks()
@@ -378,18 +449,6 @@
         return new NavQuickLink(title, href, icon, group, searchText);
     }
 
-    private void NavigateToQuickLink(string href)
-    {
-        _navSearchText = string.Empty;
-
-        if (string.Equals(CurrentUrl, href.TrimStart('/'), StringComparison.OrdinalIgnoreCase))
-        {
-            StateHasChanged();
-            return;
-        }
-
-        Navigation.NavigateTo(href);
-    }
 
     private void Signin()
     {
@@ -431,6 +490,8 @@
     public void Dispose()
     {
         _disposed = true;
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
         VersionCheck.VersionStatusChanged -= HandleVersionStatusChanged;
         FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
         Navigation.LocationChanged -= OnLocationChanged;

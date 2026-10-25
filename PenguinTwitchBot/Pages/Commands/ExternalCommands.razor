@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@implements IDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - External Commands</PageTitle>
 
@@ -181,6 +182,9 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "commandId")]
+    public int? CommandIdFromQuery { get; set; }
+
     private List<Database.Bot.Models.Commands.ExternalCommands>? commands;
     private Database.Bot.Models.Commands.ExternalCommands externalCommand { get; set; } = new();
     private string _searchString = string.Empty;
@@ -188,7 +192,42 @@
 
     protected override async Task OnInitializedAsync()
     {
+        navigationManager.LocationChanged += OnLocationChanged;
         commands = (await CommandHandler.GetExternalCommands()).ToList();
+        CheckCommandFromQuery();
+    }
+
+    private void CheckCommandFromQuery()
+    {
+        if (CommandIdFromQuery.HasValue && commands != null)
+        {
+            var cmd = commands.FirstOrDefault(c => c.Id == CommandIdFromQuery.Value);
+            if (cmd != null)
+            {
+                Edit(cmd);
+            }
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        var uri = new Uri(e.Location);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var commandIdStr = query["commandId"];
+        if (int.TryParse(commandIdStr, out var commandId) && commands != null)
+        {
+            var cmd = commands.FirstOrDefault(c => c.Id == commandId);
+            if (cmd != null && cmd.Id != externalCommand?.Id)
+            {
+                Edit(cmd);
+                InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        navigationManager.LocationChanged -= OnLocationChanged;
     }
 
     private IEnumerable<Database.Bot.Models.Commands.ExternalCommands> FilteredCommands =>

@@ -310,6 +310,7 @@ internal class Program
         builder.Services.AddSingleton<PenguinTwitchBot.Services.MediaUploadService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.DiscordLookupService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.IIntegrationTestService, PenguinTwitchBot.Services.IntegrationTestService>();
+        builder.Services.AddScoped<PenguinTwitchBot.Services.IQuickSearchService, PenguinTwitchBot.Services.QuickSearchService>();
         builder.Services.AddSingleton<PenguinTwitchBot.Services.IHelpContentService, PenguinTwitchBot.Services.HelpContentService>();
         builder.Services.AddHttpClient("GitHubRelease", c =>
         {

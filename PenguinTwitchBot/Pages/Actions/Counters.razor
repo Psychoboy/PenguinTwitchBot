@@ -101,15 +101,51 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "counterId")]
+    public int? CounterIdFromQuery { get; set; }
+
     private List<Counter> _counters = [];
     private bool _loading = true;
     private HubConnection? _hubConnection;
     private Task? _initialLoadTask;
+    private int? _openedCounterId;
 
     protected override async Task OnInitializedAsync()
     {
+        NavigationManager.LocationChanged += OnLocationChanged;
         _initialLoadTask = LoadCountersAsync();
         await _initialLoadTask;
+        CheckCounterFromQuery();
+    }
+
+    private void CheckCounterFromQuery()
+    {
+        if (CounterIdFromQuery.HasValue && CounterIdFromQuery.Value != _openedCounterId)
+        {
+            var counter = _counters.FirstOrDefault(c => c.Id == CounterIdFromQuery.Value);
+            if (counter != null)
+            {
+                _openedCounterId = counter.Id;
+                _ = OpenEditDialogAsync(counter);
+            }
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        var uri = new Uri(e.Location);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var counterIdStr = query["counterId"];
+        if (int.TryParse(counterIdStr, out var counterId) && counterId != _openedCounterId)
+        {
+            var counter = _counters.FirstOrDefault(c => c.Id == counterId);
+            if (counter != null)
+            {
+                _openedCounterId = counter.Id;
+                _ = OpenEditDialogAsync(counter);
+                InvokeAsync(StateHasChanged);
+            }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -313,6 +349,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        NavigationManager.LocationChanged -= OnLocationChanged;
         if (_hubConnection != null)
         {
             await _hubConnection.DisposeGracefullyAsync(logger);
