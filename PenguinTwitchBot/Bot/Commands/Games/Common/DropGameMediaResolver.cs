@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Security.Cryptography;
 using PenguinTwitchBot.Bot.Events.Chat;
@@ -289,6 +290,23 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 return [NormalizeTwitchEmoteUrl(eventArgs.EmoteUrl)];
             }
 
+            // 1b. If viewer provided an explicit emote input that matches an emote fragment from chat, resolve instantly
+            if (eventArgs?.Fragments != null && eventArgs.Fragments.Count > 0 && !string.IsNullOrWhiteSpace(emoteOrImageInput))
+            {
+                var cleanInput = emoteOrImageInput.Trim();
+                var matchingFrag = eventArgs.Fragments.FirstOrDefault(f =>
+                    string.Equals(f.Type, "emote", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Text?.Trim(), cleanInput, StringComparison.OrdinalIgnoreCase));
+                if (matchingFrag != null)
+                {
+                    var fragUrl = GetFragmentEmoteUrl(matchingFrag);
+                    if (!string.IsNullOrWhiteSpace(fragUrl))
+                    {
+                        return [fragUrl];
+                    }
+                }
+            }
+
             var primaryTokens = ParseMediaTokens(emoteOrImageInput);
             if (primaryTokens.Count == 0 && fallbackToEventArgsArg)
             {
@@ -547,6 +565,150 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             return settings.Themes.FirstOrDefault(t => t.Id.Equals(targetId, StringComparison.OrdinalIgnoreCase))
                 ?? settings.Themes.FirstOrDefault()
                 ?? DropGameTheme.CreateDefaultSeasonalThemes()[0];
+        }
+
+        private static readonly ConcurrentDictionary<string, DropGameTheme> _preparedThemeCache = new();
+
+        public static void ClearPreparedThemeCache()
+        {
+            _preparedThemeCache.Clear();
+        }
+
+        public static async Task<DropGameTheme> ResolveAndPrepareThemeAsync(
+            DropGamesSettings settings,
+            string? requestedThemeId,
+            string defaultThemeId,
+            IEmoteService? emoteService,
+            IDropRegistry? dropRegistry)
+        {
+            var baseTheme = ResolveTheme(settings, requestedThemeId, defaultThemeId);
+            var cacheKey = $"{baseTheme.Id}:{baseTheme.Name}:{baseTheme.PlinkoPegImageUrl}:{baseTheme.DefaultCharacterImageUrl}:{baseTheme.ParachuteCanopyImageUrl}:{baseTheme.TargetPlatformImageUrl}:{baseTheme.BalloonCanopyImageUrl}:{baseTheme.CurlingStoneImageUrl}:{baseTheme.GolfBallImageUrl}";
+
+            if (_preparedThemeCache.TryGetValue(cacheKey, out var cachedTheme))
+            {
+                RegisterAllThemeUrlsWithRegistry(cachedTheme, dropRegistry);
+                return cachedTheme;
+            }
+
+            var resolved = baseTheme.Clone();
+            var allResolved = true;
+
+            async Task<string> ResolveAssetAsync(string? rawValue)
+            {
+                var (url, success) = await ResolveThemeAssetAsync(emoteService, rawValue, dropRegistry);
+                if (!success) allResolved = false;
+                return url;
+            }
+
+            resolved.DefaultCharacterImageUrl = await ResolveAssetAsync(baseTheme.DefaultCharacterImageUrl);
+            resolved.DefaultDropletImageUrl = await ResolveAssetAsync(baseTheme.DefaultDropletImageUrl);
+            resolved.ParachuteCanopyImageUrl = await ResolveAssetAsync(baseTheme.ParachuteCanopyImageUrl);
+            resolved.TargetPlatformImageUrl = await ResolveAssetAsync(baseTheme.TargetPlatformImageUrl);
+            resolved.PlinkoBoardBackgroundImageUrl = await ResolveAssetAsync(baseTheme.PlinkoBoardBackgroundImageUrl);
+            resolved.PlinkoPegImageUrl = await ResolveAssetAsync(baseTheme.PlinkoPegImageUrl);
+            resolved.PlinkoWinningSlotImageUrl = await ResolveAssetAsync(baseTheme.PlinkoWinningSlotImageUrl);
+            resolved.PlinkoDividerImageUrl = await ResolveAssetAsync(baseTheme.PlinkoDividerImageUrl);
+            resolved.BalloonCanopyImageUrl = await ResolveAssetAsync(baseTheme.BalloonCanopyImageUrl);
+            resolved.BalloonCloudPlatformImageUrl = await ResolveAssetAsync(baseTheme.BalloonCloudPlatformImageUrl);
+            resolved.BalloonDebrisImageUrl = await ResolveAssetAsync(baseTheme.BalloonDebrisImageUrl);
+            resolved.BalloonDartImageUrl = await ResolveAssetAsync(baseTheme.BalloonDartImageUrl);
+            resolved.BalloonAnvilImageUrl = await ResolveAssetAsync(baseTheme.BalloonAnvilImageUrl);
+            resolved.BalloonNudgeImageUrl = await ResolveAssetAsync(baseTheme.BalloonNudgeImageUrl);
+            resolved.BalloonWindGustImageUrl = await ResolveAssetAsync(baseTheme.BalloonWindGustImageUrl);
+            resolved.CurlingStoneImageUrl = await ResolveAssetAsync(baseTheme.CurlingStoneImageUrl);
+            resolved.CurlingHouseImageUrl = await ResolveAssetAsync(baseTheme.CurlingHouseImageUrl);
+            resolved.GolfBallImageUrl = await ResolveAssetAsync(baseTheme.GolfBallImageUrl);
+            resolved.GolfFlagPinImageUrl = await ResolveAssetAsync(baseTheme.GolfFlagPinImageUrl);
+            resolved.GolfGreenImageUrl = await ResolveAssetAsync(baseTheme.GolfGreenImageUrl);
+
+            if (allResolved)
+            {
+                _preparedThemeCache[cacheKey] = resolved;
+            }
+            return resolved;
+        }
+
+        private static void RegisterAllThemeUrlsWithRegistry(DropGameTheme theme, IDropRegistry? dropRegistry)
+        {
+            if (dropRegistry == null) return;
+            RegisterIfValid(dropRegistry, theme.DefaultCharacterImageUrl);
+            RegisterIfValid(dropRegistry, theme.DefaultDropletImageUrl);
+            RegisterIfValid(dropRegistry, theme.ParachuteCanopyImageUrl);
+            RegisterIfValid(dropRegistry, theme.TargetPlatformImageUrl);
+            RegisterIfValid(dropRegistry, theme.PlinkoBoardBackgroundImageUrl);
+            RegisterIfValid(dropRegistry, theme.PlinkoPegImageUrl);
+            RegisterIfValid(dropRegistry, theme.PlinkoWinningSlotImageUrl);
+            RegisterIfValid(dropRegistry, theme.PlinkoDividerImageUrl);
+            RegisterIfValid(dropRegistry, theme.BalloonCanopyImageUrl);
+            RegisterIfValid(dropRegistry, theme.BalloonCloudPlatformImageUrl);
+            RegisterIfValid(dropRegistry, theme.BalloonDebrisImageUrl);
+            RegisterIfValid(dropRegistry, theme.BalloonDartImageUrl);
+            RegisterIfValid(dropRegistry, theme.BalloonAnvilImageUrl);
+            RegisterIfValid(dropRegistry, theme.BalloonNudgeImageUrl);
+            RegisterIfValid(dropRegistry, theme.BalloonWindGustImageUrl);
+            RegisterIfValid(dropRegistry, theme.CurlingStoneImageUrl);
+            RegisterIfValid(dropRegistry, theme.CurlingHouseImageUrl);
+            RegisterIfValid(dropRegistry, theme.GolfBallImageUrl);
+            RegisterIfValid(dropRegistry, theme.GolfFlagPinImageUrl);
+            RegisterIfValid(dropRegistry, theme.GolfGreenImageUrl);
+        }
+
+        private static void RegisterIfValid(IDropRegistry registry, string? url)
+        {
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                registry.RegisterAllowedProxyUrl(url);
+            }
+        }
+
+        private static async Task<(string Url, bool Success)> ResolveThemeAssetAsync(
+            IEmoteService? emoteService,
+            string? rawValue,
+            IDropRegistry? dropRegistry)
+        {
+            if (string.IsNullOrWhiteSpace(rawValue)) return (string.Empty, true);
+            var trimmed = rawValue.Trim();
+
+            if (IsAllowedPathOrUrl(trimmed))
+            {
+                dropRegistry?.RegisterAllowedProxyUrl(trimmed);
+                return (trimmed, true);
+            }
+
+            if (trimmed.Contains('.') &&
+                (trimmed.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                 trimmed.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                 trimmed.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                 trimmed.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+                 trimmed.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
+                 trimmed.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)))
+            {
+                var direct = trimmed.StartsWith('/') ? trimmed : $"/{trimmed}";
+                dropRegistry?.RegisterAllowedProxyUrl(direct);
+                return (direct, true);
+            }
+
+            var resolved = await ResolveCharacterOrEmoteUrlAsync(emoteService, null, trimmed, fallbackUrl: null, allowDirectUrlOrPath: true, fallbackToEventArgsArg: false);
+            if (string.IsNullOrWhiteSpace(resolved))
+            {
+                return (string.Empty, false);
+            }
+
+            if (dropRegistry != null)
+            {
+                dropRegistry.RegisterAllowedProxyUrl(resolved);
+            }
+
+            return (resolved, true);
+        }
+
+        private static async Task<string> ResolveThemeAssetUrlAsync(
+            IEmoteService? emoteService,
+            string? rawValue,
+            IDropRegistry? dropRegistry)
+        {
+            var (url, _) = await ResolveThemeAssetAsync(emoteService, rawValue, dropRegistry);
+            return url;
         }
 
         public static DropGameEffectiveSoundDto? ResolveSound(

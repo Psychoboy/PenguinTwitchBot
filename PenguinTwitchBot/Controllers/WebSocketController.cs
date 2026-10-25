@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Notifications;
+using PenguinTwitchBot.Bot.Notifications;
 using Microsoft.AspNetCore.Mvc;
 
 namespace PenguinTwitchBot.Controllers
@@ -15,11 +15,17 @@ namespace PenguinTwitchBot.Controllers
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+                var multiplex = false;
+                if (HttpContext.Request.Query.TryGetValue("multiplex", out var mVal))
+                {
+                    bool.TryParse(mVal, out multiplex);
+                }
                 await WebSocketMessenger.Handle(
                     Guid.NewGuid(),
                     webSocket,
                     HttpContext.Request.Query["clientName"],
-                    HttpContext.Request.Query["topics"].Where(t => t != null).Select(t => t!).ToArray());
+                    HttpContext.Request.Query["topics"].Where(t => t != null).Select(t => t!).ToArray(),
+                    multiplex);
             }
             else
             {

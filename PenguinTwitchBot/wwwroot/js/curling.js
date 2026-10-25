@@ -152,6 +152,14 @@
     let scorePopups = [];
     let currentTheme = null;
 
+    function preloadThemeImages(theme) {
+        if (!theme) return;
+        if (theme.curlingStoneImageUrl) getLoadedImage(theme.curlingStoneImageUrl);
+        if (theme.curlingHouseImageUrl) getLoadedImage(theme.curlingHouseImageUrl);
+        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
+        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+    }
+
     function getSeasonPreset() {
         if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.getSeasonPreset) {
             return DropGamesCommon.getSeasonPreset(currentTheme);
@@ -245,6 +253,7 @@
         if (activeGameStatus !== null) isOtherGameActive = activeGameStatus;
 
         if (msg.type === 'session_start') {
+            DropGamesCommon.broadcastGameStatus('curling', true);
             const s = msg.session || {};
             sessionState.isActive = true;
             sessionState.endedAtMs = 0;
@@ -256,7 +265,10 @@
 
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
             else if (s.headerConfig) Object.assign(headerConfig, s.headerConfig);
-            if (msg.theme) currentTheme = msg.theme;
+            if (msg.theme) {
+                currentTheme = msg.theme;
+                preloadThemeImages(currentTheme);
+            }
 
             if (typeof msg.stripPosition === 'string') boardConfig.stripPosition = msg.stripPosition;
             if (typeof msg.slideDirection === 'string') boardConfig.slideDirection = msg.slideDirection;
@@ -285,6 +297,7 @@
             playSound(msg.sounds?.start || { enabled: true }, 'chime', 520);
         } else if (msg.type === 'session_end') {
             sessionState.isActive = false;
+            DropGamesCommon.broadcastGameStatus('curling', false);
             sessionState.endedAtMs = performance.now();
             boardConfig.visibleUntil = performance.now() + 6000;
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
@@ -292,6 +305,7 @@
 
             playSound(msg.sounds?.end || { enabled: true }, 'chime', 380);
         } else if (msg.type === 'curling_slide') {
+            DropGamesCommon.broadcastDropActive('curling', 12000);
             handleCurlingSlide(msg);
         }
     }
@@ -327,7 +341,10 @@
         if (typeof msg.targetAlpha === 'number') boardConfig.targetAlpha = msg.targetAlpha;
         if (typeof msg.enableShuffleboardKitchenPenalty === 'boolean') boardConfig.enableShuffleboardKitchenPenalty = msg.enableShuffleboardKitchenPenalty;
         if (typeof msg.powerVariancePercent === 'number') boardConfig.powerVariancePercent = msg.powerVariancePercent;
-        if (msg.theme) currentTheme = msg.theme;
+        if (msg.theme) {
+            currentTheme = msg.theme;
+            preloadThemeImages(currentTheme);
+        }
         if (msg.sounds) {
             sessionState.sounds = msg.sounds;
             if (soundBundleManager) soundBundleManager.updateBundle(msg.sounds);
@@ -715,7 +732,7 @@
             let slot = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateBannerStackSlot)
                 ? DropGamesCommon.calculateBannerStackSlot('curling', activeOtherGames)
                 : (isOtherGameActive ? 1 : 0);
-            if (now < otherDropsActiveUntilMs && slot === 0) slot = 1;
+            if (activeOtherGames.size === 0 && !isOtherGameActive && now < otherDropsActiveUntilMs && slot === 0) slot = 1;
             targetY += slot * 54;
         }
         currentBannerY += (targetY - currentBannerY) * 0.15;

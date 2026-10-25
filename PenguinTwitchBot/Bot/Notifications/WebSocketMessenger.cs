@@ -69,7 +69,7 @@ namespace PenguinTwitchBot.Bot.Notifications
             finally { _semaphoreSlim.Release(); }
         }
 
-        public async Task Handle(Guid id, WebSocket webSocket, string? displayName = null, IEnumerable<string>? topics = null)
+        public async Task Handle(Guid id, WebSocket webSocket, string? displayName = null, IEnumerable<string>? topics = null, bool multiplex = false)
         {
             _logger.LogInformation("Adding Websocket: {id}", id.ToString());
             var connection = new SocketConnection
@@ -77,7 +77,8 @@ namespace PenguinTwitchBot.Bot.Notifications
                 Id = id,
                 DisplayName = SanitizeDisplayName(displayName),
                 WebSocket = webSocket,
-                SenderCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token)
+                SenderCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token),
+                MultiplexEnvelope = multiplex
             };
 
             var initialTopics = WsTopics.Parse(topics);
@@ -380,7 +381,9 @@ namespace PenguinTwitchBot.Bot.Notifications
 
             var topics = WsTopics.Parse(request.Topics);
             connection.SetSubscriptions(topics);
-            _logger.LogInformation("Websocket {id} ({name}) subscribed to [{topics}]", connection.Id, connection.DisplayName, string.Join(", ", topics));
+            if (request.Multiplex.HasValue)
+                connection.MultiplexEnvelope = request.Multiplex.Value;
+            _logger.LogInformation("Websocket {id} ({name}) subscribed to [{topics}] (multiplex: {multiplex})", connection.Id, connection.DisplayName, string.Join(", ", topics), connection.MultiplexEnvelope);
         }
 
         private static async Task<string?> ReadStringAsync(WebSocket ws, CancellationToken ct = default)
@@ -459,7 +462,21 @@ namespace PenguinTwitchBot.Bot.Notifications
                 if (!websocketConnection.IsSubscribedTo(message.Topic)) continue;
 
                 websocketConnection.MessageQueued();
-                if (!websocketConnection.OutboundMessages.Writer.TryWrite(message.Payload))
+                string payloadToSend;
+                if (websocketConnection.MultiplexEnvelope && message.Topic != null)
+                {
+                    payloadToSend = JsonSerializer.Serialize(new
+                    {
+                        topic = message.Topic,
+                        payload = message.Payload
+                    });
+                }
+                else
+                {
+                    payloadToSend = message.Payload;
+                }
+
+                if (!websocketConnection.OutboundMessages.Writer.TryWrite(payloadToSend))
                 {
                     websocketConnection.MessageDropped();
                     _logger.LogWarning("Outbound websocket queue is full for {id}; dropping message.", websocketConnection.Id);
@@ -620,6 +637,7 @@ namespace PenguinTwitchBot.Bot.Notifications
     {
         public Guid Id { get; set; }
         public string DisplayName { get; set; } = "Unknown";
+        public bool MultiplexEnvelope { get; set; }
         private int _pendingMessages;
         private int _sentMessages;
         private int _droppedMessages;

@@ -1,4 +1,4 @@
-﻿using System.Net.WebSockets;
+using System.Net.WebSockets;
 using PenguinTwitchBot.Bot.WebSocketEvents;
 
 namespace PenguinTwitchBot.Bot.Notifications
@@ -29,7 +29,7 @@ namespace PenguinTwitchBot.Bot.Notifications
         /// <summary>Sends a structured event to clients subscribed to the <see cref="WsTopics.Events"/> topic.</summary>
         Task AddToQueue(WsEvent evt);
 
-        Task Handle(Guid id, WebSocket webSocket, string? displayName = null, IEnumerable<string>? topics = null);
+        Task Handle(Guid id, WebSocket webSocket, string? displayName = null, IEnumerable<string>? topics = null, bool multiplex = false);
         Task<WebSocketMessengerStatus> GetStatusAsync();
         Task ApplySettingsAsync(int maxQueueSize, int perSocketQueueCapacity);
         void ClearGlobalQueue();

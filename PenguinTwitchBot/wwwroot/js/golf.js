@@ -163,6 +163,15 @@
     let scorePopups = [];
     let currentTheme = null;
 
+    function preloadThemeImages(theme) {
+        if (!theme) return;
+        if (theme.golfBallImageUrl) getLoadedImage(theme.golfBallImageUrl);
+        if (theme.golfGreenImageUrl) getLoadedImage(theme.golfGreenImageUrl);
+        if (theme.golfFlagPinImageUrl) getLoadedImage(theme.golfFlagPinImageUrl);
+        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
+        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+    }
+
     let isOtherGameActive = false;
     const activeOtherGames = new Set();
     let otherDropsActiveUntilMs = 0;
@@ -318,6 +327,7 @@
         if (activeGameStatus !== null) isOtherGameActive = activeGameStatus;
 
         if (msg.type === 'session_start' && msg.session) {
+            DropGamesCommon.broadcastGameStatus('golf', true);
             const s = msg.session;
             sessionState.isActive = true;
             sessionState.endedAtMs = 0;
@@ -329,7 +339,10 @@
 
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
             else if (s.headerConfig) Object.assign(headerConfig, s.headerConfig);
-            if (msg.theme) currentTheme = msg.theme;
+            if (msg.theme) {
+                currentTheme = msg.theme;
+                preloadThemeImages(currentTheme);
+            }
 
             if (typeof msg.stripPosition === 'string') boardConfig.stripPosition = msg.stripPosition;
             if (typeof msg.slideDirection === 'string') boardConfig.slideDirection = msg.slideDirection;
@@ -361,6 +374,7 @@
             playSound(msg.sounds?.start || { enabled: true }, 'chime', 540);
         } else if (msg.type === 'session_end') {
             sessionState.isActive = false;
+            DropGamesCommon.broadcastGameStatus('golf', false);
             sessionState.endedAtMs = nowMs();
             boardConfig.visibleUntil = nowMs() + 6000;
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
@@ -368,6 +382,7 @@
 
             playSound(msg.sounds?.end || { enabled: true }, 'chime', 390);
         } else if (msg.type === 'golf_shot' || msg.type === 'golf_putt') {
+            DropGamesCommon.broadcastDropActive('golf', 12000);
             handleGolfShot(msg);
         }
     }
@@ -395,7 +410,10 @@
         if (typeof msg.maxStrokesPerPlayer === 'number') boardConfig.maxStrokesPerPlayer = msg.maxStrokesPerPlayer;
         if (typeof msg.strokePenaltyPoints === 'number') boardConfig.strokePenaltyPoints = msg.strokePenaltyPoints;
         if (typeof msg.maxScore === 'number') boardConfig.maxScore = msg.maxScore;
-        if (msg.theme) currentTheme = msg.theme;
+        if (msg.theme) {
+            currentTheme = msg.theme;
+            preloadThemeImages(currentTheme);
+        }
         if (msg.sounds) {
             sessionState.sounds = msg.sounds;
             if (soundBundleManager) soundBundleManager.updateBundle(msg.sounds);

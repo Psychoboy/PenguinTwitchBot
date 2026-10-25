@@ -47,6 +47,57 @@
             pointer-events: none;
         }
     </style>
+    <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="/js/ws-client.js"></script>
+    <script>
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const layoutName = (params.get('layout') || '').toLowerCase();
+            const overlayKey = params.get('key') || '';
+            const clientName = layoutName ? 'Overlay: ' + layoutName : 'Overlay';
+
+            // Initialize shared compositor hub before child widget iframes load.
+            // All widgets embedded in this overlay share a single WebSocket to /ws,
+            // lowering traffic, socket churn, and connection limits.
+            if (typeof window.OverlayHub === 'function') {
+                window.__overlayCompositorHub = new window.OverlayHub({
+                    clientName: clientName,
+                    overlayKey: overlayKey,
+                    layoutName: layoutName,
+                    topics: [window.WS_TOPICS ? window.WS_TOPICS.overlay : 'overlay']
+                });
+            }
+
+            function handleReload(msg) {
+                if (!msg) return;
+                const target = (msg.layout || '').toLowerCase();
+                if (!target || target === layoutName) {
+                    location.reload();
+                }
+            }
+
+            // Listen for reload events over the websocket
+            const ws = createWsSocket(clientName, [window.WS_TOPICS ? window.WS_TOPICS.overlay : 'overlay']);
+            ws.addEventListener('message', function (event) {
+                try {
+                    const raw = event.data;
+                    if (raw === 'ping') {
+                        try { ws.send('pong'); } catch (_) {}
+                        return;
+                    }
+                    const msg = JSON.parse(raw);
+                    if (msg.type === 'overlay_reload') {
+                        handleReload(msg);
+                    }
+                } catch (_) {}
+            });
+
+            // Listen for direct inter-widget reload requests via OverlayBus
+            if (window.OverlayBus) {
+                window.OverlayBus.on('overlay_reload', handleReload);
+            }
+        }());
+    </script>
 </head>
 <body>
     <div id="overlay-canvas"></div>
@@ -113,8 +164,10 @@
 
         function showError(msg) {
             const el = document.getElementById('overlay-error');
-            el.textContent = msg;
-            el.style.display = 'block';
+            if (el) {
+                el.textContent = msg;
+                el.style.display = 'block';
+            }
         }
 
         function withCacheBustAndKey(sourcePath, cacheBust, key) {
@@ -127,35 +180,6 @@
                 ? url.pathname + url.search + url.hash
                 : url.toString();
         }
-    </script>
-
-    <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
-    <script src="/js/ws-client.js"></script>
-    <script>
-        (function () {
-            const params = new URLSearchParams(window.location.search);
-            const layoutName = (params.get('layout') || '').toLowerCase();
-
-            const clientName = layoutName ? 'Overlay: ' + layoutName : 'Overlay';
-            const ws = createWsSocket(clientName, [WS_TOPICS.overlay]);
-
-            ws.onmessage = function (event) {
-                try {
-                    const raw = event.data;
-                    if (raw === 'ping') { ws.send('pong'); return; }
-                    const msg = JSON.parse(raw);
-                    if (msg.type === 'overlay_reload') {
-                        // Reload if the message targets this layout or broadcasts to all
-                        const target = (msg.layout || '').toLowerCase();
-                        if (!target || target === layoutName) {
-                            location.reload();
-                        }
-                    }
-                } catch (e) {
-                    // ignore parse errors from non-JSON messages
-                }
-            };
-        }());
     </script>
 </body>
 </html>

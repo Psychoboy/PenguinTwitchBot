@@ -36,6 +36,19 @@ namespace PenguinTwitchBot.Test.Bot.Notifications
             Assert.Empty(WsTopics.Parse(null));
             Assert.Empty(WsTopics.Parse([null, "", "   "]));
         }
+
+        [Fact]
+        public void SubscriptionRequest_DeserializesMultiplexFlag()
+        {
+            const string json = "{\"request\":\"subscribe\",\"topics\":[\"chat\",\"plinko\"],\"multiplex\":true}";
+            var request = System.Text.Json.JsonSerializer.Deserialize<PenguinTwitchBot.Bot.WebSocketEvents.WsSubscriptionRequest>(
+                json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            Assert.NotNull(request);
+            Assert.Equal("subscribe", request.Request);
+            Assert.True(request.Multiplex);
+            Assert.Equal(new[] { "chat", "plinko" }, request.Topics);
+        }
     }
 
     public class WebSocketMessengerSanitizationTests

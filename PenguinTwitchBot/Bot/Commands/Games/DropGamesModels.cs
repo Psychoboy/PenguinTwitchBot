@@ -119,6 +119,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string WinSoundUrl { get; set; } = "";
         public string LoseSoundUrl { get; set; } = "/media/miss_land.wav";
 
+        public DropGameTheme Clone() => (DropGameTheme)MemberwiseClone();
+
         public static List<DropGameTheme> CreateDefaultSeasonalThemes() =>
         [
             new DropGameTheme

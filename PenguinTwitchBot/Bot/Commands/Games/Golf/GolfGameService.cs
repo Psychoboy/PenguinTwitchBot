@@ -178,7 +178,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     _currentSessionTargetDistance = gSettings.TargetDistancePercent;
                 }
 
-                var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, gSettings.ActiveThemeId);
+                var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, gSettings.ActiveThemeId, emoteService, dropRegistry);
                 var soundBundle = DropGameMediaResolver.ResolveGolfSoundBundle(gSettings, theme, GetMediaUploadService());
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(gSettings);
 
@@ -489,7 +489,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 gSettings.DefaultPowerMin,
                 gSettings.DefaultPowerMax);
 
-            var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, gSettings.ActiveThemeId);
+            var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, gSettings.ActiveThemeId, emoteService, dropRegistry);
             var userKey = DropGameUserKey.Resolve(eventArgs.UserId, eventArgs.Name);
 
             // Determine direction and reverse

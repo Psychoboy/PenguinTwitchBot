@@ -148,7 +148,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     };
                 }
 
-                var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, settings.Parachute.ActiveThemeId);
+                var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, settings.Parachute.ActiveThemeId, emoteService, dropRegistry);
 
                 var targetHalfWidth = Math.Clamp(settings.Parachute.TargetWidthPercent / 200.0, 0.02, 0.35);
                 var bullseyeHalfWidth = targetHalfWidth * 0.25;
@@ -397,7 +397,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var pSettings = settings.Parachute;
             if (!pSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
                 return string.Empty;
-            var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, pSettings.ActiveThemeId);
+            var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, pSettings.ActiveThemeId, emoteService, dropRegistry);
             var characterImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(emoteService, eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
             dropRegistry.RegisterAllowedProxyUrl(characterImageUrl);
             dropRegistry.RegisterAllowedProxyUrl(theme.ParachuteCanopyImageUrl);
@@ -621,7 +621,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var settings = await settingsService.GetSettingsAsync();
             var pSettings = settings.Parachute;
             if (!pSettings.GameEnabled && !_sessionManager.HasActiveTimedSession()) return [];
-            var theme = DropGameMediaResolver.ResolveTheme(settings, null, pSettings.ActiveThemeId);
+            var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, null, pSettings.ActiveThemeId, emoteService, dropRegistry);
 
             var count = Math.Clamp(request.Count > 0 ? request.Count : pSettings.DefaultDropletCount, 1, 30);
             var sizePreset = !string.IsNullOrWhiteSpace(request.SizePreset) ? request.SizePreset : pSettings.DefaultDropletSize;

@@ -160,7 +160,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     }
                 });
 
-                var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, settings.Plinko.ActiveThemeId);
+                var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, settings.Plinko.ActiveThemeId, emoteService, dropRegistry);
                 dropRegistry.ClearDropsForGame(DropGameType.Plinko);
                 dropRegistry.SetSessionActive(DropGameType.Plinko, true);
                 var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
@@ -390,7 +390,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             var plinkoSettings = settings.Plinko;
             if (!plinkoSettings.GameEnabled && !_sessionManager.HasActiveTimedSession())
                 return string.Empty;
-            var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, plinkoSettings.ActiveThemeId);
+            var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, plinkoSettings.ActiveThemeId, emoteService, dropRegistry);
             var characterImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(
                 emoteService, eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
             dropRegistry.RegisterAllowedProxyUrl(characterImageUrl);

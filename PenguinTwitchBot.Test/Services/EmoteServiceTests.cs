@@ -77,6 +77,23 @@ public class EmoteServiceTests
         Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/sptv123/default/dark/2.0", url);
     }
 
+    [Fact]
+    public async Task TrackEmote_ResolvesImmediately_WithoutUpstreamFetch()
+    {
+        var service = CreateService();
+
+        service.TrackEmote("sptvChatEmote", "https://static-cdn.jtvnw.net/emoticons/v2/chat123/default/dark/3.0");
+
+        var url = await service.ResolveEmoteUrlAsync("sptvChatEmote");
+
+        Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/chat123/default/dark/3.0", url);
+        _twitchServiceMock.Verify(t => t.GetChatEmotesAsync(), Times.Never);
+
+        var map = await service.GetEmotesAsync();
+        Assert.True(map.ContainsKey("sptvChatEmote"));
+        Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/chat123/default/dark/3.0", map["sptvChatEmote"]);
+    }
+
     private class FakeHttpMessageHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

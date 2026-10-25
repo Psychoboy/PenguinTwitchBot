@@ -88,6 +88,14 @@
         textColor: '#FFFFFF'
     };
 
+    function preloadThemeImages(theme) {
+        if (!theme) return;
+        if (theme.parachuteCanopyImageUrl) getLoadedImage(theme.parachuteCanopyImageUrl);
+        if (theme.targetPlatformImageUrl) getLoadedImage(theme.targetPlatformImageUrl);
+        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
+        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+    }
+
     let targetState = {
         centerX: 0.5,
         targetHalfWidth: 0.09,
@@ -116,6 +124,7 @@
     };
 
     let isOtherGameActive = false;
+    let otherDropsActiveUntilMs = 0;
     const activeOtherGames = new Set();
     let currentBannerY = 18;
 
@@ -363,6 +372,12 @@
             return;
         }
 
+        if (msg.type === 'other_drop_active') {
+            const durSec = typeof msg.durationSeconds === 'number' ? msg.durationSeconds : (typeof msg.durationMs === 'number' ? msg.durationMs / 1000 : 12.0);
+            otherDropsActiveUntilMs = Math.max(otherDropsActiveUntilMs, performance.now() + durSec * 1000);
+            return;
+        }
+
         // Ignore messages belonging to other games
         if (msg.session && msg.session.gameType && msg.session.gameType !== 'parachute') {
             return;
@@ -388,6 +403,7 @@
 
         const p = msg.trajectory || msg.physics;
         if (msg.type === 'parachute_drop' && p) {
+            DropGamesCommon.broadcastDropActive('parachute', 12000);
             if (msg.theme) {
                 currentTheme = msg.theme;
                 syncAmbientParticles();
@@ -419,8 +435,8 @@
 
             // Preload custom images if any
             getLoadedImage(msg.characterImageUrl);
-            if (currentTheme.parachuteCanopyImageUrl) getLoadedImage(currentTheme.parachuteCanopyImageUrl);
-            if (currentTheme.targetPlatformImageUrl) getLoadedImage(currentTheme.targetPlatformImageUrl);
+            if (msg.theme) currentTheme = msg.theme;
+            preloadThemeImages(currentTheme);
 
             activeDrops.push({
                 dropToken: msg.dropToken,
@@ -617,8 +633,10 @@
             sessionState.startedAtMs = performance.now();
             sessionState.endsAtMs = performance.now() + (s.remainingSeconds || s.totalDurationSeconds || 100) * 1000;
             sessionState.totalDrops = typeof s.totalDrops === 'number' ? s.totalDrops : 0;
+            DropGamesCommon.broadcastGameStatus('parachute', true);
             if (s.theme) {
                 currentTheme = s.theme;
+                preloadThemeImages(currentTheme);
                 syncAmbientParticles();
             }
             if (s.targetCenterX !== undefined && s.targetCenterX !== null) {
@@ -628,6 +646,7 @@
             }
         } else if (msg.type === 'session_end' && msg.session) {
             sessionState.isActive = false;
+            DropGamesCommon.broadcastGameStatus('parachute', false);
             if (msg.sounds) {
                 SoundManager.updateBundle(msg.sounds);
             } else if (msg.session && msg.session.sounds) {
@@ -2271,6 +2290,7 @@
                 currentGame: 'parachute',
                 activeOtherGames,
                 isOtherGameActive,
+                otherDropsActiveUntilMs,
                 hasActiveDrops: hasActiveDrop,
                 itemPluralName: 'Drops',
                 primaryColor: currentTheme.primaryColor || '#FF8FA3',
@@ -2289,6 +2309,7 @@
             let slot = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateBannerStackSlot)
                 ? DropGamesCommon.calculateBannerStackSlot('parachute', activeOtherGames)
                 : (isOtherGameActive ? 1 : 0);
+            if (activeOtherGames.size === 0 && !isOtherGameActive && now < otherDropsActiveUntilMs && slot === 0) slot = 1;
             targetY += slot * 54;
         }
         currentBannerY += (targetY - currentBannerY) * 0.15;
