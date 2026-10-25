@@ -591,29 +591,40 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             }
 
             var resolved = baseTheme.Clone();
+            var allResolved = true;
 
-            resolved.DefaultCharacterImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.DefaultCharacterImageUrl, dropRegistry);
-            resolved.DefaultDropletImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.DefaultDropletImageUrl, dropRegistry);
-            resolved.ParachuteCanopyImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.ParachuteCanopyImageUrl, dropRegistry);
-            resolved.TargetPlatformImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.TargetPlatformImageUrl, dropRegistry);
-            resolved.PlinkoBoardBackgroundImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.PlinkoBoardBackgroundImageUrl, dropRegistry);
-            resolved.PlinkoPegImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.PlinkoPegImageUrl, dropRegistry);
-            resolved.PlinkoWinningSlotImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.PlinkoWinningSlotImageUrl, dropRegistry);
-            resolved.PlinkoDividerImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.PlinkoDividerImageUrl, dropRegistry);
-            resolved.BalloonCanopyImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.BalloonCanopyImageUrl, dropRegistry);
-            resolved.BalloonCloudPlatformImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.BalloonCloudPlatformImageUrl, dropRegistry);
-            resolved.BalloonDebrisImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.BalloonDebrisImageUrl, dropRegistry);
-            resolved.BalloonDartImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.BalloonDartImageUrl, dropRegistry);
-            resolved.BalloonAnvilImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.BalloonAnvilImageUrl, dropRegistry);
-            resolved.BalloonNudgeImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.BalloonNudgeImageUrl, dropRegistry);
-            resolved.BalloonWindGustImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.BalloonWindGustImageUrl, dropRegistry);
-            resolved.CurlingStoneImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.CurlingStoneImageUrl, dropRegistry);
-            resolved.CurlingHouseImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.CurlingHouseImageUrl, dropRegistry);
-            resolved.GolfBallImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.GolfBallImageUrl, dropRegistry);
-            resolved.GolfFlagPinImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.GolfFlagPinImageUrl, dropRegistry);
-            resolved.GolfGreenImageUrl = await ResolveThemeAssetUrlAsync(emoteService, baseTheme.GolfGreenImageUrl, dropRegistry);
+            async Task<string> ResolveAssetAsync(string? rawValue)
+            {
+                var (url, success) = await ResolveThemeAssetAsync(emoteService, rawValue, dropRegistry);
+                if (!success) allResolved = false;
+                return url;
+            }
 
-            _preparedThemeCache[cacheKey] = resolved;
+            resolved.DefaultCharacterImageUrl = await ResolveAssetAsync(baseTheme.DefaultCharacterImageUrl);
+            resolved.DefaultDropletImageUrl = await ResolveAssetAsync(baseTheme.DefaultDropletImageUrl);
+            resolved.ParachuteCanopyImageUrl = await ResolveAssetAsync(baseTheme.ParachuteCanopyImageUrl);
+            resolved.TargetPlatformImageUrl = await ResolveAssetAsync(baseTheme.TargetPlatformImageUrl);
+            resolved.PlinkoBoardBackgroundImageUrl = await ResolveAssetAsync(baseTheme.PlinkoBoardBackgroundImageUrl);
+            resolved.PlinkoPegImageUrl = await ResolveAssetAsync(baseTheme.PlinkoPegImageUrl);
+            resolved.PlinkoWinningSlotImageUrl = await ResolveAssetAsync(baseTheme.PlinkoWinningSlotImageUrl);
+            resolved.PlinkoDividerImageUrl = await ResolveAssetAsync(baseTheme.PlinkoDividerImageUrl);
+            resolved.BalloonCanopyImageUrl = await ResolveAssetAsync(baseTheme.BalloonCanopyImageUrl);
+            resolved.BalloonCloudPlatformImageUrl = await ResolveAssetAsync(baseTheme.BalloonCloudPlatformImageUrl);
+            resolved.BalloonDebrisImageUrl = await ResolveAssetAsync(baseTheme.BalloonDebrisImageUrl);
+            resolved.BalloonDartImageUrl = await ResolveAssetAsync(baseTheme.BalloonDartImageUrl);
+            resolved.BalloonAnvilImageUrl = await ResolveAssetAsync(baseTheme.BalloonAnvilImageUrl);
+            resolved.BalloonNudgeImageUrl = await ResolveAssetAsync(baseTheme.BalloonNudgeImageUrl);
+            resolved.BalloonWindGustImageUrl = await ResolveAssetAsync(baseTheme.BalloonWindGustImageUrl);
+            resolved.CurlingStoneImageUrl = await ResolveAssetAsync(baseTheme.CurlingStoneImageUrl);
+            resolved.CurlingHouseImageUrl = await ResolveAssetAsync(baseTheme.CurlingHouseImageUrl);
+            resolved.GolfBallImageUrl = await ResolveAssetAsync(baseTheme.GolfBallImageUrl);
+            resolved.GolfFlagPinImageUrl = await ResolveAssetAsync(baseTheme.GolfFlagPinImageUrl);
+            resolved.GolfGreenImageUrl = await ResolveAssetAsync(baseTheme.GolfGreenImageUrl);
+
+            if (allResolved)
+            {
+                _preparedThemeCache[cacheKey] = resolved;
+            }
             return resolved;
         }
 
@@ -650,18 +661,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             }
         }
 
-        private static async Task<string> ResolveThemeAssetUrlAsync(
+        private static async Task<(string Url, bool Success)> ResolveThemeAssetAsync(
             IEmoteService? emoteService,
             string? rawValue,
             IDropRegistry? dropRegistry)
         {
-            if (string.IsNullOrWhiteSpace(rawValue)) return string.Empty;
+            if (string.IsNullOrWhiteSpace(rawValue)) return (string.Empty, true);
             var trimmed = rawValue.Trim();
 
             if (IsAllowedPathOrUrl(trimmed))
             {
                 dropRegistry?.RegisterAllowedProxyUrl(trimmed);
-                return trimmed;
+                return (trimmed, true);
             }
 
             if (trimmed.Contains('.') &&
@@ -674,21 +685,30 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             {
                 var direct = trimmed.StartsWith('/') ? trimmed : $"/{trimmed}";
                 dropRegistry?.RegisterAllowedProxyUrl(direct);
-                return direct;
+                return (direct, true);
             }
 
             var resolved = await ResolveCharacterOrEmoteUrlAsync(emoteService, null, trimmed, fallbackUrl: null, allowDirectUrlOrPath: true, fallbackToEventArgsArg: false);
             if (string.IsNullOrWhiteSpace(resolved))
             {
-                resolved = trimmed;
+                return (string.Empty, false);
             }
 
-            if (!string.IsNullOrWhiteSpace(resolved) && dropRegistry != null)
+            if (dropRegistry != null)
             {
                 dropRegistry.RegisterAllowedProxyUrl(resolved);
             }
 
-            return resolved;
+            return (resolved, true);
+        }
+
+        private static async Task<string> ResolveThemeAssetUrlAsync(
+            IEmoteService? emoteService,
+            string? rawValue,
+            IDropRegistry? dropRegistry)
+        {
+            var (url, _) = await ResolveThemeAssetAsync(emoteService, rawValue, dropRegistry);
+            return url;
         }
 
         public static DropGameEffectiveSoundDto? ResolveSound(

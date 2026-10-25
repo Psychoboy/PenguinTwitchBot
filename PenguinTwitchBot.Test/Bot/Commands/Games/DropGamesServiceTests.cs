@@ -2322,6 +2322,99 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task DropGamesSettingsService_SaveSettingsAsync_DbFailure_ClearsCacheAndRethrows()
+        {
+            var repo = new Mock<ISettingsRepository>();
+            repo.Setup(x => x.GetAsync(
+                It.IsAny<Expression<Func<Setting, bool>>>(),
+                It.IsAny<Func<IQueryable<Setting>, IOrderedQueryable<Setting>>>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new List<Setting>());
+
+            var uow = new Mock<IUnitOfWork>();
+            uow.Setup(x => x.Settings).Returns(repo.Object);
+            uow.Setup(x => x.SaveChangesAsync()).ThrowsAsync(new InvalidOperationException("DB write failure"));
+
+            var provider = new Mock<IServiceProvider>();
+            provider.Setup(x => x.GetService(typeof(IUnitOfWork))).Returns(uow.Object);
+
+            var scope = new Mock<IServiceScope>();
+            scope.Setup(x => x.ServiceProvider).Returns(provider.Object);
+
+            var scopeFactory = new Mock<IServiceScopeFactory>();
+            scopeFactory.Setup(x => x.CreateScope()).Returns(scope.Object);
+
+            var service = new DropGamesSettingsService(scopeFactory.Object, NullLogger<DropGamesSettingsService>.Instance);
+            var initialSettings = new DropGamesSettings();
+            initialSettings.Parachute.DefaultSessionDurationSeconds = 42;
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveSettingsAsync(initialSettings));
+
+            // Verify cache was cleared: repo should be queried again on next GetSettingsAsync
+            repo.Setup(x => x.GetAsync(
+                It.IsAny<Expression<Func<Setting, bool>>>(),
+                It.IsAny<Func<IQueryable<Setting>, IOrderedQueryable<Setting>>>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new List<Setting>());
+
+            var fresh = await service.GetSettingsAsync();
+            Assert.NotNull(fresh);
+            // Verify it returned fresh defaults, not the mutated failed settings
+            Assert.NotEqual(42, fresh.Parachute.DefaultSessionDurationSeconds);
+        }
+
+        [Fact]
+        public async Task DropGameMediaResolver_ResolveAndPrepareThemeAsync_UnresolvedEmote_ReturnsEmptyStringAndDoesNotCacheTheme()
+        {
+            var emoteService = new Mock<IEmoteService>();
+            emoteService.Setup(e => e.GetEmotesAsync())
+                .ReturnsAsync(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+
+            var dropRegistry = CreateDropRegistry();
+            var settings = new DropGamesSettings();
+            var customTheme = new DropGameTheme
+            {
+                Id = "custom_missing_emote",
+                Name = "Missing Emote Theme",
+                PlinkoPegImageUrl = "nonexistentEmoteToken",
+                TargetPlatformImageUrl = "/images/valid_platform.png"
+            };
+            settings.Themes.Add(customTheme);
+
+            var resolved = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(
+                settings,
+                "custom_missing_emote",
+                "spring",
+                emoteService.Object,
+                dropRegistry);
+
+            // Unresolved emote token should be empty string, not raw token
+            Assert.Equal(string.Empty, resolved.PlinkoPegImageUrl);
+            Assert.Equal("/images/valid_platform.png", resolved.TargetPlatformImageUrl);
+
+            // Now provide the emote
+            emoteService.Setup(e => e.GetEmotesAsync())
+                .ReturnsAsync(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["nonexistentEmoteToken"] = "https://static-cdn.jtvnw.net/emoticons/v2/123/default/dark/3.0"
+                });
+
+            // Second call: because it was not cached when incomplete, it resolves successfully now!
+            var resolvedAgain = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(
+                settings,
+                "custom_missing_emote",
+                "spring",
+                emoteService.Object,
+                dropRegistry);
+
+            Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/123/default/dark/3.0", resolvedAgain.PlinkoPegImageUrl);
+        }
+
+        [Fact]
         public async Task PlinkoDropService_TriggerPlinkoDropAsync_ResolvesThemeCustomSpritesAndRegistersProxyUrls()
         {
             _emoteService.Setup(e => e.GetEmotesAsync())

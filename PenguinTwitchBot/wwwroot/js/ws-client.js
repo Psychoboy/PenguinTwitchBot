@@ -52,7 +52,18 @@
     // ─────────────────────────────────────────────────────────────────────────────
     const CHANNEL_NAME = 'penguin_overlay_bus';
     const localListeners = new Map();
+    const MAX_DISPATCHED_IDS = 1000;
+    const dispatchedEventIds = new Set();
     let broadcastChannel = null;
+
+    function recordDispatchedEventId(id) {
+        if (!id) return;
+        dispatchedEventIds.add(id);
+        if (dispatchedEventIds.size > MAX_DISPATCHED_IDS) {
+            const oldest = dispatchedEventIds.keys().next().value;
+            dispatchedEventIds.delete(oldest);
+        }
+    }
 
     try {
         if (typeof global.BroadcastChannel !== 'undefined') {
@@ -69,6 +80,10 @@
 
     function dispatchToLocal(eventData, forwardToFrames) {
         if (!eventData || typeof eventData !== 'object') return;
+        if (eventData.id) {
+            if (dispatchedEventIds.has(eventData.id)) return;
+            recordDispatchedEventId(eventData.id);
+        }
         const type = eventData.type;
         const target = eventData.target;
         const clientName = (global.__overlayClientName || '').toLowerCase();
@@ -312,8 +327,7 @@
         const queryString = buildQueryString({
             clientName: this.clientName,
             topics: Array.from(this.activeTopics).join(','),
-            multiplex: 'true',
-            key: this.overlayKey || null
+            multiplex: 'true'
         });
 
         const socketUri = scheme + '://' + host + '/ws' + (queryString ? '?' + queryString : '');
@@ -492,7 +506,9 @@
         // Check if running inside overlay compositor hub
         let hub = null;
         try {
-            if (global.parent && global.parent !== global && global.parent.__overlayCompositorHub) {
+            if (global.__overlayCompositorHub) {
+                hub = global.__overlayCompositorHub;
+            } else if (global.parent && global.parent !== global && global.parent.__overlayCompositorHub) {
                 hub = global.parent.__overlayCompositorHub;
             }
         } catch (_) {

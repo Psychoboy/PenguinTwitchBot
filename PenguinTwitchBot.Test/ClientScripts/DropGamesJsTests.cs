@@ -1518,6 +1518,83 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void OverlayBus_DuplicateEvents_DispatchesOnlyOnce()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-client.js")));
+
+            engine.Execute(@"
+                window.__callCount = 0;
+                window.OverlayBus.on('test_event', function() {
+                    window.__callCount++;
+                });
+
+                var testEvt = {
+                    id: 'evt_dedup_123',
+                    type: 'test_event',
+                    target: '*',
+                    payload: {}
+                };
+
+                window.OverlayBus._receive(testEvt);
+                window.OverlayBus._receive(testEvt);
+            ");
+
+            var count = engine.Evaluate("window.__callCount").AsNumber();
+            Assert.Equal(1, count);
+        }
+
+        [Fact]
+        public void CreateWsSocket_TopLevelWindow_UsesOwnOverlayCompositorHub()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(@"
+                var ReconnectingWebSocket = function(uri) {
+                    window.__socketUri = uri;
+                    this.readyState = 1;
+                    this.addEventListener = function() {};
+                    this.send = function() {};
+                };
+            ");
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-client.js")));
+
+            engine.Execute(@"
+                window.__overlayCompositorHub = new window.OverlayHub({
+                    clientName: 'MainOverlay',
+                    topics: ['overlay']
+                });
+                var clientSocket = window.createWsSocket('MainOverlay', ['overlay']);
+                window.__isVirtual = clientSocket instanceof window.OverlayHub || typeof clientSocket._dispatchMessage === 'function';
+            ");
+
+            var isVirtual = engine.Evaluate("window.__isVirtual").AsBoolean();
+            Assert.True(isVirtual);
+            var hubUri = engine.Evaluate("window.__socketUri").AsString();
+            Assert.DoesNotContain("key=", hubUri);
+            Assert.Contains("multiplex=true", hubUri);
+        }
+
+        [Fact]
+        public void DropGamesCommon_UpdateActiveGameState_IgnoresOtherDropActive()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "drop-games-common.js")));
+
+            engine.Execute(@"
+                var activeSet = new Set();
+                window.DropGamesCommon.updateActiveGameStateFromMessage(activeSet, 'parachute', {
+                    type: 'other_drop_active',
+                    otherGame: 'plinko',
+                    isOtherGameActive: true
+                });
+                window.__activeCount = activeSet.size;
+            ");
+
+            var activeCount = engine.Evaluate("window.__activeCount").AsNumber();
+            Assert.Equal(0, activeCount);
+        }
+
+        [Fact]
         public void OverlayHub_MultiplexesVirtualSockets_RoutesMessagesCorrectly()
         {
             var engine = CreateMockBrowserEngine(out _);

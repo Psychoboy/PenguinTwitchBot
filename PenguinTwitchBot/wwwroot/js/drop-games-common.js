@@ -778,10 +778,10 @@
         if (!(activeOtherGames instanceof Set) || !msg || typeof msg !== 'object') return null;
         const game = String(currentGame || '').toLowerCase();
 
-        if ((msg.type === 'other_game_status' || msg.type === 'other_drop_active') && typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
+        if (msg.type === 'other_game_status' && typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
             const otherGame = msg.otherGame.toLowerCase();
             if (msg.isOtherGameActive) activeOtherGames.add(otherGame);
-            else if (msg.type === 'other_game_status') activeOtherGames.delete(otherGame);
+            else activeOtherGames.delete(otherGame);
         }
 
         if (msg.type === 'other_game_status' && Array.isArray(msg.activeGames)) {

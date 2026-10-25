@@ -83,9 +83,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             await _lock.WaitAsync();
             try
             {
-                _cachedSettings = settings;
                 DropGameMediaResolver.ClearPreparedThemeCache();
                 await PersistSettingsToDbAsync(settings);
+                _cachedSettings = settings;
+            }
+            catch
+            {
+                _cachedSettings = null;
+                throw;
             }
             finally
             {

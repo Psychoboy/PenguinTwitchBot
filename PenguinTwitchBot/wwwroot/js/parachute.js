@@ -124,6 +124,7 @@
     };
 
     let isOtherGameActive = false;
+    let otherDropsActiveUntilMs = 0;
     const activeOtherGames = new Set();
     let currentBannerY = 18;
 
@@ -368,6 +369,12 @@
 
         if (msg.type === 'other_game_status') {
             isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'parachute', msg);
+            return;
+        }
+
+        if (msg.type === 'other_drop_active') {
+            const durSec = typeof msg.durationSeconds === 'number' ? msg.durationSeconds : (typeof msg.durationMs === 'number' ? msg.durationMs / 1000 : 12.0);
+            otherDropsActiveUntilMs = Math.max(otherDropsActiveUntilMs, performance.now() + durSec * 1000);
             return;
         }
 
@@ -2283,6 +2290,7 @@
                 currentGame: 'parachute',
                 activeOtherGames,
                 isOtherGameActive,
+                otherDropsActiveUntilMs,
                 hasActiveDrops: hasActiveDrop,
                 itemPluralName: 'Drops',
                 primaryColor: currentTheme.primaryColor || '#FF8FA3',
@@ -2301,6 +2309,7 @@
             let slot = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateBannerStackSlot)
                 ? DropGamesCommon.calculateBannerStackSlot('parachute', activeOtherGames)
                 : (isOtherGameActive ? 1 : 0);
+            if (activeOtherGames.size === 0 && !isOtherGameActive && now < otherDropsActiveUntilMs && slot === 0) slot = 1;
             targetY += slot * 54;
         }
         currentBannerY += (targetY - currentBannerY) * 0.15;

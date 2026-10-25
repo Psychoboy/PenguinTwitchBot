@@ -53,8 +53,7 @@ public class EmoteService(
     {
         if (memoryCache.TryGetValue(EmoteCacheKey, out Dictionary<string, string>? emotes) && emotes != null)
         {
-            MergeChatTrackedEmotes(emotes);
-            return emotes;
+            return MergeChatTrackedEmotes(emotes);
         }
 
         // Serialize cache-miss fetches so concurrent chat overlay / RaidRewards requests
@@ -64,14 +63,13 @@ public class EmoteService(
         {
             if (memoryCache.TryGetValue(EmoteCacheKey, out emotes) && emotes != null)
             {
-                MergeChatTrackedEmotes(emotes);
-                return emotes;
+                return MergeChatTrackedEmotes(emotes);
             }
 
             var channelId = await twitchService.GetBroadcasterUserId();
             emotes = await FetchAllEmotesAsync(channelId);
             _cachedChannelId = channelId;
-            MergeChatTrackedEmotes(emotes);
+            emotes = MergeChatTrackedEmotes(emotes);
             // Don't let a transient upstream failure or missing channel ID pin an incomplete result for 30 minutes.
             var ttl = (emotes.Count == 0 || string.IsNullOrEmpty(channelId)) ? EmptyEmoteCacheDuration : EmoteCacheDuration;
             memoryCache.Set(EmoteCacheKey, emotes, ttl);
@@ -84,15 +82,31 @@ public class EmoteService(
         }
     }
 
-    private void MergeChatTrackedEmotes(Dictionary<string, string> target)
+    private Dictionary<string, string> MergeChatTrackedEmotes(Dictionary<string, string> source)
     {
-        foreach (var (k, v) in _chatTrackedEmotes)
+        if (_chatTrackedEmotes.IsEmpty) return source;
+
+        var hasMissing = false;
+        foreach (var (k, _) in _chatTrackedEmotes)
         {
-            if (!target.ContainsKey(k))
+            if (!source.ContainsKey(k))
             {
-                target[k] = v;
+                hasMissing = true;
+                break;
             }
         }
+
+        if (!hasMissing) return source;
+
+        var copy = new Dictionary<string, string>(source, StringComparer.OrdinalIgnoreCase);
+        foreach (var (k, v) in _chatTrackedEmotes)
+        {
+            if (!copy.ContainsKey(k))
+            {
+                copy[k] = v;
+            }
+        }
+        return copy;
     }
 
     public async Task<string?> ResolveEmoteUrlAsync(string emoteName)
