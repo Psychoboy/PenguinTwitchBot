@@ -252,6 +252,13 @@
     {
         externalCommand = new();
         _isEditing = false;
+
+        var uri = new Uri(navigationManager.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        if (!string.IsNullOrEmpty(query["commandId"]))
+        {
+            navigationManager.NavigateTo("/commands/external", replace: true);
+        }
     }
 
     private async Task ReloadCommands()

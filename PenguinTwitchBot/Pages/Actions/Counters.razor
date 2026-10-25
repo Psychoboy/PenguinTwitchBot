@@ -109,6 +109,7 @@
     private HubConnection? _hubConnection;
     private Task? _initialLoadTask;
     private int? _openedCounterId;
+    private bool _disposed;
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,12 +123,7 @@
     {
         if (CounterIdFromQuery.HasValue && CounterIdFromQuery.Value != _openedCounterId)
         {
-            var counter = _counters.FirstOrDefault(c => c.Id == CounterIdFromQuery.Value);
-            if (counter != null)
-            {
-                _openedCounterId = counter.Id;
-                _ = OpenEditDialogAsync(counter);
-            }
+            _ = OpenCounterFromQueryAsync(CounterIdFromQuery.Value);
         }
     }
 
@@ -138,12 +134,30 @@
         var counterIdStr = query["counterId"];
         if (int.TryParse(counterIdStr, out var counterId) && counterId != _openedCounterId)
         {
-            var counter = _counters.FirstOrDefault(c => c.Id == counterId);
-            if (counter != null)
+            _ = OpenCounterFromQueryAsync(counterId);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task OpenCounterFromQueryAsync(int counterId)
+    {
+        var counter = _counters.FirstOrDefault(c => c.Id == counterId);
+        if (counter == null) return;
+
+        _openedCounterId = counter.Id;
+        try
+        {
+            await OpenEditDialogAsync(counter);
+        }
+        finally
+        {
+            if (_openedCounterId == counterId)
             {
-                _openedCounterId = counter.Id;
-                _ = OpenEditDialogAsync(counter);
-                InvokeAsync(StateHasChanged);
+                _openedCounterId = null;
+                if (!_disposed)
+                {
+                    NavigationManager.NavigateTo("/actions/counters", replace: true);
+                }
             }
         }
     }
@@ -349,6 +363,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         NavigationManager.LocationChanged -= OnLocationChanged;
         if (_hubConnection != null)
         {

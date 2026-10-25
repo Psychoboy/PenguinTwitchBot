@@ -323,6 +323,10 @@
 
     private void NavigateToItem(string href)
     {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = null;
+
         _navSearchText = string.Empty;
         _searchResults.Clear();
         _isSearching = false;
