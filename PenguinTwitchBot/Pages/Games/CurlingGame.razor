@@ -147,9 +147,9 @@
                                     {
                                         <MudSwitch T="bool" Color="Color.Error"
                                                    @bind-Value="_settings.Curling.EnableShuffleboardKitchenPenalty"
-                                                   Label="Enable 10-OFF Penalty Zone (The Kitchen)" />
+                                                   Label="Enable 10-OFF Penalty Zone (The Kitchen) - Off by default" />
                                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2 mb-2" Style="display:block;">
-                                            When enabled, sliding past the 30-point apex into the kitchen incurs a -10 point penalty. Turn off to disable the penalty and treat overshot pucks as 0 points.
+                                            When enabled, sliding past the 30-point apex into the kitchen incurs a -10 point penalty. When off (default), overshot pucks simply score 0 points.
                                         </MudText>
                                     }
                                 </MudStack>
@@ -204,9 +204,10 @@
                                         <MudItem xs="12" sm="6">
                                             <MudSelect T="CurlingTargetDistanceMode" Label="Target Distance Mode" Variant="Variant.Outlined"
                                                        @bind-Value="_settings.Curling.TargetDistanceMode"
-                                                       HelperText="Fixed distance or randomize house position between 70% and 92% each round.">
+                                                       HelperText="Fixed distance, randomize per round, or randomize per individual throw.">
                                                 <MudSelectItem Value="CurlingTargetDistanceMode.Fixed">Fixed Distance</MudSelectItem>
                                                 <MudSelectItem Value="CurlingTargetDistanceMode.RandomizePerRound">Randomize Per Round (70% - 92%)</MudSelectItem>
+                                                <MudSelectItem Value="CurlingTargetDistanceMode.RandomizePerShot">Randomize Per Throw (68% - 92%)</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
                                         <MudItem xs="12" sm="6">
@@ -224,6 +225,18 @@
                                     <MudSwitch T="bool" Color="Color.Secondary"
                                                @bind-Value="_settings.Curling.EnableViewerPowerControl"
                                                Label="Allow Viewers to Specify Manual Power (e.g. !curl 75 or !curl 75 emote)" />
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSlider T="double" Min="0.0" Max="25.0" Step="0.5" ValueLabel="true"
+                                                       @bind-Value="_settings.Curling.PowerVariancePercent" Color="Color.Primary">
+                                                Throw Power Variance: <b>@(_settings.Curling.PowerVariancePercent)%</b>
+                                            </MudSlider>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                Adds natural delivery variance so two viewers throwing with the same power won't stop at the exact same millimeter.
+                                            </MudText>
+                                        </MudItem>
+                                    </MudGrid>
 
                                     <MudGrid>
                                         <MudItem xs="12" sm="4">
@@ -406,6 +419,10 @@
                                     <DropGameSoundEditor Title="Bullseye / Win Fanfare"
                                                          HelperText="Plays when a stone lands directly in the button or apex"
                                                          SoundConfig="_settings.Curling.WinSound" />
+
+                                    <DropGameSoundEditor Title="Foul / Miss / Out of Play Sound"
+                                                         HelperText="Plays when a stone misses all scoring zones or slides out of bounds"
+                                                         SoundConfig="_settings.Curling.FoulSound" />
                                 </MudStack>
                             </MudPaper>
                         </MudItem>

@@ -103,6 +103,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundOverride CurlingHitSound { get; set; } = new();
         public DropGameSoundOverride CurlingScoreSound { get; set; } = new();
         public DropGameSoundOverride CurlingWinSound { get; set; } = new();
+        public DropGameSoundOverride CurlingFoulSound { get; set; } = new();
 
         // Golf Sound Overrides
         public DropGameSoundOverride GolfStartSound { get; set; } = new();
@@ -340,6 +341,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameEffectiveSoundDto? CurlingHit { get; set; }
         public DropGameEffectiveSoundDto? CurlingScore { get; set; }
         public DropGameEffectiveSoundDto? CurlingWin { get; set; }
+        public DropGameEffectiveSoundDto? CurlingFoul { get; set; }
         public DropGameEffectiveSoundDto? GolfStrike { get; set; }
         public DropGameEffectiveSoundDto? GolfBounce { get; set; }
         public DropGameEffectiveSoundDto? GolfCup { get; set; }
@@ -498,7 +500,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
     public enum CurlingTargetDistanceMode
     {
         Fixed = 0,
-        RandomizePerRound = 1
+        RandomizePerRound = 1,
+        RandomizePerShot = 2
     }
 
     public class CurlingGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
@@ -522,7 +525,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         // Target Placement & Scoring
         public CurlingScoringType ScoringType { get; set; } = CurlingScoringType.CurlingHouse;
-        public bool EnableShuffleboardKitchenPenalty { get; set; } = true;
+        public bool EnableShuffleboardKitchenPenalty { get; set; } = false;
         public CurlingTargetDistanceMode TargetDistanceMode { get; set; } = CurlingTargetDistanceMode.Fixed;
 
         private double _targetDistancePercent = 84.0;
@@ -542,7 +545,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         // Dynamic Sheet Conditions & Friction
         public CurlingIceCondition IceCondition { get; set; } = CurlingIceCondition.Normal;
         public bool EnableDynamicIceConditions { get; set; } = true;
-        public double PowerVariancePercent { get; set; } = 3.0;
+        public double PowerVariancePercent { get; set; } = 7.0;
 
         // Physics & Anti-Griefing
         public CurlingCollisionMode CollisionMode { get; set; } = CurlingCollisionMode.LockOnRest;
@@ -566,6 +569,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundConfig HitSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_hit.wav", Volume = 65 };
         public DropGameSoundConfig ScoreSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_score.wav", Volume = 65 };
         public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_win.wav", Volume = 70 };
+        public DropGameSoundConfig FoulSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_foul.wav", Volume = 60 };
 
         // Win & Outcome Actions
         // Timed Session / Round settings

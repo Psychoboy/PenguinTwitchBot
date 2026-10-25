@@ -576,6 +576,7 @@ PenguinTwitchBot/wwwroot/media/*
 !PenguinTwitchBot/wwwroot/media/curling_hit.wav
 !PenguinTwitchBot/wwwroot/media/curling_score.wav
 !PenguinTwitchBot/wwwroot/media/curling_win.wav
+!PenguinTwitchBot/wwwroot/media/curling_foul.wav
 !PenguinTwitchBot/wwwroot/media/golf_strike.wav
 !PenguinTwitchBot/wwwroot/media/golf_bounce.wav
 !PenguinTwitchBot/wwwroot/media/golf_cup.wav

@@ -148,6 +148,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 {
                     _currentSessionTargetDistance = Math.Round(70.0 + Random.Shared.NextDouble() * 22.0, 1);
                 }
+                else if (cSettings.TargetDistanceMode == CurlingTargetDistanceMode.RandomizePerShot)
+                {
+                    _currentSessionTargetDistance = Math.Round(68.0 + Random.Shared.NextDouble() * 24.0, 1);
+                }
                 else
                 {
                     _currentSessionTargetDistance = cSettings.TargetDistancePercent;
@@ -418,7 +422,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             }
 
             var condition = conditionOverride ?? (_sessionManager.ActiveSession != null ? _currentSessionCondition : cSettings.IceCondition);
-            var targetDistance = targetDistanceOverride ?? (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : cSettings.TargetDistancePercent);
+            var targetDistance = targetDistanceOverride ?? (
+                cSettings.TargetDistanceMode == CurlingTargetDistanceMode.RandomizePerShot
+                    ? Math.Round(68.0 + Random.Shared.NextDouble() * 24.0, 1)
+                    : (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : cSettings.TargetDistancePercent)
+            );
 
             // Determine raw power (1-100) and emote token using shared best-effort parser
             var (rawPower, emoteToken) = await DropGameMediaResolver.ParsePowerAndEmoteAsync(

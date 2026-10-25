@@ -5046,6 +5046,75 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void CurlingJs_ShuffleboardKitchenPenaltyAndSoundResolution_BehavesAsExpected()
+        {
+            var jsDir = FindWwwRootPath();
+            var curlingJsPath = Path.Combine(jsDir, "curling.js");
+            Assert.True(File.Exists(curlingJsPath), $"curling.js not found at {curlingJsPath}");
+
+            var code = File.ReadAllText(curlingJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            // Default configuration assertions
+            var defaultKitchen = engine.Evaluate("window.CurlingEngine.boardConfig.enableShuffleboardKitchenPenalty").AsBoolean();
+            var defaultVariance = engine.Evaluate("window.CurlingEngine.boardConfig.powerVariancePercent").AsNumber();
+            Assert.False(defaultKitchen);
+            Assert.Equal(7.0, defaultVariance);
+
+            // Configure Shuffleboard mode with default kitchen penalty disabled
+            engine.Execute(@"
+                window.CurlingEngine.boardConfig.scoringType = 'Shuffleboard';
+                window.CurlingEngine.boardConfig.enableShuffleboardKitchenPenalty = false;
+                var mockMetrics = {
+                    isReversed: false,
+                    targetDistRatio: 0.84,
+                    stoneRadius: 20
+                };
+                var stoneOvershot = {
+                    u: 0.88,
+                    v: 0.5,
+                    isReversed: false
+                };
+                window.CurlingEngine.evaluateStoneOutcome(stoneOvershot, mockMetrics);
+            ");
+
+            var scoreWithoutPenalty = engine.Evaluate("stoneOvershot.score").AsNumber();
+            var isWinWithoutPenalty = engine.Evaluate("stoneOvershot.isWin").AsBoolean();
+            Assert.Equal(0, scoreWithoutPenalty);
+            Assert.False(isWinWithoutPenalty);
+
+            // Configure Shuffleboard mode with kitchen penalty enabled
+            engine.Execute(@"
+                window.CurlingEngine.boardConfig.enableShuffleboardKitchenPenalty = true;
+                window.CurlingEngine.evaluateStoneOutcome(stoneOvershot, mockMetrics);
+            ");
+
+            var scoreWithPenalty = engine.Evaluate("stoneOvershot.score").AsNumber();
+            Assert.Equal(-10, scoreWithPenalty);
+
+            // Verify sound bundle parsing on session_start
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new { totalDurationSeconds = 45 },
+                sounds = new
+                {
+                    curlingWin = "/audio/theme_win.mp3",
+                    curlingScore = "/audio/theme_score.mp3",
+                    curlingFoul = "/audio/theme_foul.mp3"
+                }
+            });
+
+            var foulSound = engine.Evaluate("window.CurlingEngine.sessionState.sounds.curlingFoul").AsString();
+            var winSound = engine.Evaluate("window.CurlingEngine.sessionState.sounds.curlingWin").AsString();
+            Assert.Equal("/audio/theme_foul.mp3", foulSound);
+            Assert.Equal("/audio/theme_win.mp3", winSound);
+        }
+
+        [Fact]
         public void DropGamesCommon_CalculateBannerStackSlot_CalculatesCorrectSlots()
         {
             var engine = CreateMockBrowserEngine(out _);

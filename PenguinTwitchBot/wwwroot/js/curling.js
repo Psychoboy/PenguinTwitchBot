@@ -121,8 +121,8 @@
         condition: 'Normal',            // Normal, Slick, HeavyFrost, CrossDrift
         conditionLabel: 'Normal Ice',
         targetDistancePercent: 78.0,    // 70% - 92%
-        enableShuffleboardKitchenPenalty: true,
-        powerVariancePercent: 3.0,
+        enableShuffleboardKitchenPenalty: false,
+        powerVariancePercent: 7.0,
         visibleUntil: 0
     };
 
@@ -358,7 +358,7 @@
         const rawPower = typeof msg.power === 'number' ? msg.power : 75;
         const variancePct = (typeof msg.powerVariancePercent === 'number')
             ? msg.powerVariancePercent
-            : (typeof boardConfig.powerVariancePercent === 'number' ? boardConfig.powerVariancePercent : 3.0);
+            : (typeof boardConfig.powerVariancePercent === 'number' ? boardConfig.powerVariancePercent : 7.0);
 
         // Server-authoritative launch power (variance already applied server-side); no client resampling.
         const variedPower = (typeof msg.effectivePower === 'number' && isFinite(msg.effectivePower))
@@ -374,7 +374,7 @@
         else if (boardConfig.condition === 'CrossDrift') dragMult = 1.05;
 
         // Pebbled ice friction jitter: micro-textures on ice sheet slightly alter deceleration per stone
-        const pebbleFrictionJitter = variancePct > 0 ? (1.0 + (rand() * 0.04 - 0.02)) : 1.0;
+        const pebbleFrictionJitter = variancePct > 0 ? (1.0 + (rand() * 0.06 - 0.03) * (variancePct / 7.0)) : 1.0;
 
         const isReversed = (typeof msg.isReversed === 'boolean')
             ? msg.isReversed
@@ -386,13 +386,13 @@
         const maxV = Math.max(0.06, 0.46 - (m.stoneRadius / m.breadth));
         // Stagger spawn: if variancePct <= 0, center directly along 0.0. Otherwise triangular distribution clustering near center delivery line.
         const spawnOffsetV = variancePct > 0
-            ? ((rand() + rand()) - 1.0) * (maxV * 0.35)
+            ? ((rand() + rand()) - 1.0) * (maxV * 0.40 * Math.min(2.0, variancePct / 6.0))
             : 0.0;
 
         // Authentic in-turn / out-turn curl across the sheet (+ dynamic condition drift)
         // If variance is 0 (guaranteed shot), no curl or drift occurs.
         const curlDirection = variancePct > 0 ? (rand() > 0.5 ? 1 : -1) : 0;
-        const naturalCurlSpeed = variancePct > 0 ? curlDirection * (0.0020 + rand() * 0.0035) : 0.0;
+        const naturalCurlSpeed = variancePct > 0 ? curlDirection * (0.0025 + rand() * 0.0040) * (variancePct / 7.0) : 0.0;
         const driftSpeed = (variancePct > 0 && boardConfig.condition === 'CrossDrift') ? (rand() * 0.012 - 0.006) : 0.0;
 
         const startU = isReversed ? 0.95 : 0.05;
@@ -437,7 +437,8 @@
 
         activeStones.push(newStone);
         ensureHeartbeat();
-        playSound(msg.sounds?.curlingSlide || { enabled: true }, 'slide');
+        const slideSound = msg.sounds?.curlingSlide || msg.sounds?.slide || sessionState.sounds?.curlingSlide || sessionState.sounds?.slide;
+        playSound(slideSound || { enabled: true }, 'slide');
     }
 
     // Leader evaluation (with distance tie-break)
@@ -482,8 +483,8 @@
 
         if (boardConfig.scoringType === 'Shuffleboard') {
             // Shuffleboard: targetDistRatio is the 30pt center apex
-            // bandW = 0.050 (5% of runway length) matching server physics
-            const bandW = 0.050;
+            // bandW = 0.038 (3.8% of runway length) matching server physics
+            const bandW = 0.038;
 
             if (offset >= -0.5 * bandW && offset <= 0.5 * bandW) {
                 score = 30;
@@ -499,7 +500,7 @@
                 isWin = true;
                 isHit = true;
             } else if (offset > 0.5 * bandW && offset <= 1.7 * bandW) {
-                if (boardConfig.enableShuffleboardKitchenPenalty !== false) {
+                if (boardConfig.enableShuffleboardKitchenPenalty === true) {
                     score = -10; // Kitchen penalty!
                     isHit = true;
                 } else {
@@ -514,7 +515,7 @@
             // Circular pixel distance from house center matching drawn concentric radii
             const pos = getStoneCanvasCoords(stone, m);
             const distFromHouseCenter = Math.hypot(pos.x - m.targetCenterX, pos.y - m.targetCenterY);
-            const buttonR = m.stoneRadius * 0.42;
+            const buttonR = m.stoneRadius * 0.32;
             const ring4ftR = m.stoneRadius * 1.15;
             const ring8ftR = m.stoneRadius * 2.1;
             const ring12ftR = m.stoneRadius * 3.2;
@@ -550,10 +551,16 @@
         const bundle = (soundBundleManager && typeof soundBundleManager.getBundle === 'function')
             ? soundBundleManager.getBundle()
             : (sessionState.sounds || null);
+        const winSound = bundle?.curlingWin || bundle?.win || sessionState.sounds?.curlingWin || sessionState.sounds?.win;
+        const scoreSound = bundle?.curlingScore || bundle?.score || sessionState.sounds?.curlingScore || sessionState.sounds?.score;
+        const foulSound = bundle?.curlingFoul || bundle?.foul || bundle?.miss || sessionState.sounds?.curlingFoul;
+
         if (isBullseye) {
-            playSound(bundle?.win || sessionState.sounds?.win || { enabled: true }, 'win');
+            playSound(winSound || { enabled: true }, 'win');
         } else if (score > 0) {
-            playSound(bundle?.score || sessionState.sounds?.score || { enabled: true }, 'score');
+            playSound(scoreSound || { enabled: true }, 'score');
+        } else {
+            playSound(foulSound || { enabled: true }, 'chime', 200);
         }
 
         // Spawn visual score popup
@@ -691,7 +698,8 @@
                             const bundle = (soundBundleManager && typeof soundBundleManager.getBundle === 'function')
                                 ? soundBundleManager.getBundle()
                                 : (sessionState.sounds || null);
-                            playSound(bundle?.hit || { enabled: true }, 'hit');
+                            const hitSound = bundle?.curlingHit || bundle?.hit || sessionState.sounds?.curlingHit || sessionState.sounds?.hit;
+                            playSound(hitSound || { enabled: true }, 'hit');
                         }
                     }
                 }
@@ -771,6 +779,17 @@
                     stone.speedV += stone.curlDirection * 0.0006 * dt;
                 }
 
+                // Broom sweeping sound as stone glides into the target house
+                const distToTarget = Math.abs(stone.u - m.effectiveTargetRatio);
+                if (!stone.hasSwept && distToTarget < 0.18 && Math.abs(stone.speedU) > 0.02 && Math.abs(stone.speedU) < 0.28) {
+                    stone.hasSwept = true;
+                    const bundle = (soundBundleManager && typeof soundBundleManager.getBundle === 'function')
+                        ? soundBundleManager.getBundle()
+                        : (sessionState.sounds || null);
+                    const sweepSound = bundle?.curlingSweep || bundle?.sweep || sessionState.sounds?.curlingSweep || sessionState.sounds?.sweep;
+                    playSound(sweepSound || { enabled: true }, 'sweep');
+                }
+
                 // Rail bounce damping (staggered pucks bounce off rails)
                 const railLimit = Math.max(0.06, 0.48 - (stone.radius / m.breadth));
                 if (stone.v < -railLimit) {
@@ -779,7 +798,11 @@
                         stone.speedV = -stone.speedV * 0.65;
                         if (now - lastCollisionSoundMs > 150) {
                             lastCollisionSoundMs = now;
-                            playSound({ enabled: true }, 'hit');
+                            const bundle = (soundBundleManager && typeof soundBundleManager.getBundle === 'function')
+                                ? soundBundleManager.getBundle()
+                                : (sessionState.sounds || null);
+                            const hitSound = bundle?.curlingHit || bundle?.hit || sessionState.sounds?.curlingHit || sessionState.sounds?.hit;
+                            playSound(hitSound || { enabled: true }, 'hit');
                         }
                     }
                 } else if (stone.v > railLimit) {
@@ -788,7 +811,11 @@
                         stone.speedV = -stone.speedV * 0.65;
                         if (now - lastCollisionSoundMs > 150) {
                             lastCollisionSoundMs = now;
-                            playSound({ enabled: true }, 'hit');
+                            const bundle = (soundBundleManager && typeof soundBundleManager.getBundle === 'function')
+                                ? soundBundleManager.getBundle()
+                                : (sessionState.sounds || null);
+                            const hitSound = bundle?.curlingHit || bundle?.hit || sessionState.sounds?.curlingHit || sessionState.sounds?.hit;
+                            playSound(hitSound || { enabled: true }, 'hit');
                         }
                     }
                 }
@@ -1137,7 +1164,7 @@
         if (boardConfig.scoringType === 'Shuffleboard') {
             // Shuffleboard linear scoring bands with seasonal palettes
             const isHoriz = m.isHorizontal;
-            const bandW = m.length * 0.050;
+            const bandW = m.length * 0.038;
             const dirSign = m.isReversed ? -1 : 1;
 
             let z10Col, z20Col, z30Col, zKitchenCol;
@@ -1183,7 +1210,7 @@
                 { distFromCenter: -1.0 * bandW, w: bandW, label: '20', score: 20, col: z20Col },
                 { distFromCenter: 0.0, w: bandW, label: '30', score: 30, col: z30Col }
             ];
-            if (boardConfig.enableShuffleboardKitchenPenalty !== false) {
+            if (boardConfig.enableShuffleboardKitchenPenalty === true) {
                 zones.push({ distFromCenter: 1.1 * bandW, w: bandW * 1.2, label: '10 OFF', score: -10, col: zKitchenCol });
             }
 
