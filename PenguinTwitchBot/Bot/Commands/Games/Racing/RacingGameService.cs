@@ -50,6 +50,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         private RacingTournamentState? _activeTournament;
         private readonly HashSet<string> _singleRaceRemainingTokens = [];
         private readonly List<RacerFinalResult> _singleRaceResults = [];
+        private readonly Dictionary<string, PendingDropRecord> _activeRaceDropRecords = [];
         private bool _singleRaceAnnounced = false;
         private CancellationTokenSource? _heatWatchdogCts;
 
@@ -163,6 +164,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _activeTournament = null;
                     _singleRaceRemainingTokens.Clear();
                     _singleRaceResults.Clear();
+                    _activeRaceDropRecords.Clear();
                     _singleRaceAnnounced = false;
                     _heatWatchdogCts?.Cancel();
                     _heatWatchdogCts?.Dispose();
@@ -350,7 +352,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 _heatWatchdogCts = watchdogCts;
             }
 
-            var watchdogDuration = TimeSpan.FromSeconds(Math.Max(90, _currentSessionLaps * 60));
+            var speedScale = Math.Max(0.2, rSettings.BaseSpeed);
+            var calculatedSeconds = (heatLaps * 60.0) * (0.5 / speedScale);
+            var watchdogDuration = TimeSpan.FromSeconds(Math.Max(90, (int)Math.Ceiling(calculatedSeconds)));
             _ = Task.Run(async () =>
             {
                 try
@@ -495,6 +499,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _activeTournament = null;
                     _singleRaceRemainingTokens.Clear();
                     _singleRaceResults.Clear();
+                    _activeRaceDropRecords.Clear();
                     _singleRaceAnnounced = false;
                     foreach (var r in allRacers) _singleRaceRemainingTokens.Add(r.DropToken);
                 }
@@ -553,7 +558,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             await OnLobbyTimerExpiredAsync();
         }
 
-        public async Task<int> AddTestRacersAsync(int count, string? emoteOrVehicle = null, bool autoLaunch = false)
+        public async Task<int> AddTestRacersAsync(
+            int count,
+            string? emoteOrVehicle = null,
+            bool autoLaunch = false,
+            RacingGameMode? gameModeOverride = null,
+            RacingTrackType? trackTypeOverride = null)
         {
             var settings = await settingsService.GetSettingsAsync();
             var rSettings = settings.Racing;
@@ -565,7 +575,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
             if (!_sessionManager.HasActiveTimedSession() && !_isRaceRunning)
             {
-                await StartRaceLobbyAsync(triggeredBy: "TestMode");
+                await StartRaceLobbyAsync(
+                    triggeredBy: "TestMode",
+                    gameModeOverride: gameModeOverride,
+                    trackTypeOverride: trackTypeOverride);
             }
 
             var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, null, rSettings.ActiveThemeId, emoteService, dropRegistry);
@@ -665,6 +678,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _activeTournament = null;
                     _singleRaceRemainingTokens.Clear();
                     _singleRaceResults.Clear();
+                    _activeRaceDropRecords.Clear();
                     _singleRaceAnnounced = false;
                     _heatWatchdogCts?.Cancel();
                     _heatWatchdogCts?.Dispose();
@@ -1087,7 +1101,25 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             {
                 if (record.KnockoutCount > 0)
                 {
-                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("race", DefaultCommandEventTypes.RacingDerbyKnockout, record.EventArgs, actionVars);
+                    List<string> victimNames;
+                    lock (_racerLock)
+                    {
+                        victimNames = _activeRaceDropRecords.Values
+                            .Where(r => string.Equals(r.KillerDropToken, record.DropToken, StringComparison.OrdinalIgnoreCase))
+                            .Select(r => r.DisplayName)
+                            .Distinct()
+                            .ToList();
+                    }
+                    var victimStr = victimNames.Count > 0 ? string.Join(", ", victimNames) : "Opponent";
+
+                    var knockoutVars = new Dictionary<string, string>(actionVars, StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["Attacker"] = record.DisplayName,
+                        ["Victim"] = victimStr,
+                        ["PointsAwarded"] = koBonus.ToString(CultureInfo.InvariantCulture)
+                    };
+
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("race", DefaultCommandEventTypes.RacingDerbyKnockout, record.EventArgs, knockoutVars);
                 }
 
                 if (placement == 1)
@@ -1132,6 +1164,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         {
             var settings = await settingsService.GetSettingsAsync();
             var rSettings = settings.Racing;
+
+            lock (_racerLock)
+            {
+                _activeRaceDropRecords[record.DropToken] = record;
+            }
 
             var placement = record.RacePlacement ?? 1;
             var lapTime = record.LapTimeSeconds ?? 0.0;

@@ -32,7 +32,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         int GetQueuedSessionCount();
         Task ClearSessionQueueAsync();
         Task ProcessCompletionAsync(PendingDropRecord record);
-        Task<int> AddTestRacersAsync(int count, string? emoteOrVehicle = null, bool autoLaunch = false);
+        Task<int> AddTestRacersAsync(
+            int count,
+            string? emoteOrVehicle = null,
+            bool autoLaunch = false,
+            RacingGameMode? gameModeOverride = null,
+            RacingTrackType? trackTypeOverride = null);
         Task LaunchRaceNowAsync(string? triggeredBy = null);
     }
 }

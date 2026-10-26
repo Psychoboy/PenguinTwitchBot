@@ -779,14 +779,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 175),
                 Times.Once);
 
-            // Knockout trigger fired
+            // Knockout trigger fired with knockout-specific bonus points and attacker/victim variables
             _defaultCommandTriggerService.Verify(x => x.TriggerDefaultCommandEventAsync(
                 "race",
                 DefaultCommandEventTypes.RacingDerbyKnockout,
                 eventArgs,
                 It.Is<Dictionary<string, string>>(dict =>
                     dict["KnockoutCount"] == "3" &&
-                    dict["PointsAwarded"] == "175")),
+                    dict["PointsAwarded"] == "150" &&
+                    dict["Attacker"] == "DemolitionKing")),
                 Times.Once);
 
             // RaceWin trigger fired

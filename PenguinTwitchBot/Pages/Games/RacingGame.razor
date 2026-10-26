@@ -628,13 +628,12 @@
             Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
             return;
         }
-        if (_settings != null)
-        {
-            _settings.Racing.DefaultGameMode = RacingGameMode.DestructionDerby;
-            _settings.Racing.TrackType = RacingTrackType.DerbyBowl;
-        }
-        if (!await SaveAllSettingsAsync()) return;
-        var added = await RacingGameService.AddTestRacersAsync(8, _testEmoteInput, autoLaunch: true);
+        var added = await RacingGameService.AddTestRacersAsync(
+            8,
+            _testEmoteInput,
+            autoLaunch: true,
+            gameModeOverride: RacingGameMode.DestructionDerby,
+            trackTypeOverride: RacingTrackType.DerbyBowl);
         Snackbar.Add($"Quick Test: Launched 8-Car Demolition Derby! Watch your overlay.", Severity.Success);
     }
 }

@@ -99,6 +99,8 @@
     // Active race state
     let activeRacers = [];
     let finishedRacers = [];
+    let nextFrontPlacement = 1;
+    let nextBackPlacement = 1;
     let trackHazards = [];
     let particles = [];
     let detachedParts = [];
@@ -369,10 +371,10 @@
         detachedParts.push({
             x: x,
             y: y,
-            vx: Math.cos(partAngle) * speed * 0.016,
-            vy: Math.sin(partAngle) * speed * 0.016,
+            vx: Math.cos(partAngle) * speed,
+            vy: Math.sin(partAngle) * speed,
             rot: angle,
-            rotSpeed: (Math.random() * 8 - 4),
+            vRot: (Math.random() * 8 - 4),
             type: type, // 'bumper', 'spoiler', 'wheel'
             color: color || '#1e232a',
             alpha: 1.0,
@@ -450,6 +452,175 @@
         return list;
     }
 
+    // ================= THEMED STYLING UTILITIES =================
+
+    function getThemeTrackStyle() {
+        const season = (currentTheme && currentTheme.seasonPreset) ? currentTheme.seasonPreset.toLowerCase() : 'spring';
+        const pColor = (currentTheme && (currentTheme.primaryColor || currentTheme.PrimaryColor)) || '#FF5252';
+        const sColor = (currentTheme && (currentTheme.secondaryColor || currentTheme.SecondaryColor)) || '#FFFFFF';
+
+        switch (season) {
+            case 'winter':
+                return {
+                    surfaceColor: '#344754',
+                    innerGlow: 'rgba(180, 230, 255, 0.35)',
+                    curb1: '#FFFFFF',
+                    curb2: '#00D2D3',
+                    dashColor: 'rgba(230, 248, 255, 0.8)',
+                    dashPattern: [10, 10],
+                    finishColor1: '#344754',
+                    finishColor2: '#B3E5FC',
+                    season
+                };
+            case 'halloween':
+                return {
+                    surfaceColor: '#1a1424',
+                    innerGlow: 'rgba(128, 0, 128, 0.32)',
+                    curb1: '#FF7518',
+                    curb2: '#39FF14',
+                    dashColor: 'rgba(255, 117, 24, 0.75)',
+                    dashPattern: [8, 12],
+                    finishColor1: '#1a1424',
+                    finishColor2: '#FF7518',
+                    season
+                };
+            case 'christmas':
+                return {
+                    surfaceColor: '#1b2920',
+                    innerGlow: 'rgba(0, 255, 128, 0.18)',
+                    curb1: '#FF2A4B',
+                    curb2: '#FFFFFF',
+                    dashColor: 'rgba(255, 230, 150, 0.8)',
+                    dashPattern: [12, 8],
+                    finishColor1: '#FF2A4B',
+                    finishColor2: '#FFFFFF',
+                    season
+                };
+            case 'fall':
+                return {
+                    surfaceColor: '#362a20',
+                    innerGlow: 'rgba(220, 110, 30, 0.22)',
+                    curb1: '#E65100',
+                    curb2: '#FFD54F',
+                    dashColor: 'rgba(255, 200, 100, 0.7)',
+                    dashPattern: [8, 12],
+                    finishColor1: '#362a20',
+                    finishColor2: '#FFD54F',
+                    season
+                };
+            case 'summer':
+                return {
+                    surfaceColor: '#1d2730',
+                    innerGlow: 'rgba(0, 210, 255, 0.2)',
+                    curb1: '#FFD166',
+                    curb2: '#06D6A0',
+                    dashColor: 'rgba(255, 255, 255, 0.65)',
+                    dashPattern: [8, 12],
+                    finishColor1: '#1d2730',
+                    finishColor2: '#06D6A0',
+                    season
+                };
+            case 'spring':
+                return {
+                    surfaceColor: '#26202a',
+                    innerGlow: 'rgba(255, 143, 163, 0.25)',
+                    curb1: '#FF8FA3',
+                    curb2: '#FFF0F5',
+                    dashColor: 'rgba(255, 255, 255, 0.6)',
+                    dashPattern: [8, 12],
+                    finishColor1: '#26202a',
+                    finishColor2: '#FF8FA3',
+                    season
+                };
+            default:
+                return {
+                    surfaceColor: '#22272e',
+                    innerGlow: null,
+                    curb1: pColor,
+                    curb2: sColor || '#FFFFFF',
+                    dashColor: 'rgba(255, 255, 255, 0.5)',
+                    dashPattern: [8, 12],
+                    finishColor1: '#000000',
+                    finishColor2: '#FFFFFF',
+                    season
+                };
+        }
+    }
+
+    function spawnTireSpray(racer, pt, angle, season) {
+        season = (season || 'spring').toLowerCase();
+        const rx = racer.currentX || (pt.x + pt.normalX * racer.laneOffset);
+        const ry = racer.currentY || (pt.y + pt.normalY * racer.laneOffset);
+
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+
+        // Pick left or right rear tire
+        const side = (Math.random() < 0.5 ? 7 : -7);
+        const spawnX = rx - cos * 14 - sin * side;
+        const spawnY = ry - sin * 14 + cos * side;
+
+        const baseSpeed = -(14 + Math.random() * 20);
+        const spread = (Math.random() - 0.5) * 12;
+        const vx = (cos * baseSpeed - sin * spread) * 0.05;
+        const vy = (sin * baseSpeed + cos * spread) * 0.05;
+
+        let color, shape, size, fade;
+        switch (season) {
+            case 'winter':
+                color = Math.random() < 0.65 ? '#FFFFFF' : '#B3E5FC';
+                shape = 'snow';
+                size = 1.6 + Math.random() * 2.2;
+                fade = 0.035 + Math.random() * 0.02;
+                break;
+            case 'fall':
+                const autumnColors = ['#FF6F00', '#D84315', '#FBC02D', '#8D6E63'];
+                color = autumnColors[Math.floor(Math.random() * autumnColors.length)];
+                shape = 'leaf';
+                size = 2.4 + Math.random() * 2.4;
+                fade = 0.028 + Math.random() * 0.015;
+                break;
+            case 'halloween':
+                color = Math.random() < 0.5 ? '#BF55EC' : '#39FF14';
+                shape = 'spark';
+                size = 1.6 + Math.random() * 2.0;
+                fade = 0.032 + Math.random() * 0.018;
+                break;
+            case 'spring':
+                color = Math.random() < 0.7 ? '#FFB7C5' : '#FFF0F5';
+                shape = 'petal';
+                size = 2.0 + Math.random() * 2.0;
+                fade = 0.028 + Math.random() * 0.015;
+                break;
+            case 'christmas':
+                color = Math.random() < 0.4 ? '#FF2A4B' : (Math.random() < 0.5 ? '#00E676' : '#FFFFFF');
+                shape = 'snow';
+                size = 1.6 + Math.random() * 2.2;
+                fade = 0.035 + Math.random() * 0.02;
+                break;
+            default:
+                color = Math.random() < 0.5 ? '#718096' : '#A0AEC0';
+                shape = 'smoke';
+                size = 2.0 + Math.random() * 2.5;
+                fade = 0.04 + Math.random() * 0.02;
+                break;
+        }
+
+        particles.push({
+            x: spawnX,
+            y: spawnY,
+            vx,
+            vy,
+            color,
+            shape,
+            size,
+            alpha: 0.85,
+            fade,
+            rotation: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.15
+        });
+    }
+
     // ================= DRAWING UTILITIES =================
 
     function drawTrack() {
@@ -460,26 +631,40 @@
             points.push(getTrackPoint(i / samples, currentSettings.trackType, currentSettings.stripPosition));
         }
 
+        const trackStyle = getThemeTrackStyle();
+
         ctx.save();
         ctx.globalAlpha = (currentSettings.trackAlpha || 0.55) * overlayAlpha;
 
-        // 1. Asphalt Road Surface
+        // 1. Road Surface (themed or custom track texture)
         ctx.beginPath();
         points.forEach((p, idx) => {
             if (idx === 0) ctx.moveTo(p.x, p.y);
             else ctx.lineTo(p.x, p.y);
         });
         ctx.lineWidth = thickness;
-        ctx.strokeStyle = '#22272e';
+        ctx.strokeStyle = trackStyle.surfaceColor;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.stroke();
 
+        // 1b. Themed Inner Road Glow (e.g. frost sheen, neon glow, evergreen tint)
+        if (trackStyle.innerGlow) {
+            ctx.beginPath();
+            points.forEach((p, idx) => {
+                if (idx === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            });
+            ctx.lineWidth = Math.max(8, thickness - 10);
+            ctx.strokeStyle = trackStyle.innerGlow;
+            ctx.stroke();
+        }
+
         // 2. Curbs / Rumble Strips (Outer & Inner edges)
         if (currentSettings.showTrackBorders) {
             const curbThick = 4;
-            const pColor = (currentTheme && currentTheme.primaryColor) || '#FF5252';
-            const sColor = '#FFFFFF';
+            const pColor = trackStyle.curb1;
+            const sColor = trackStyle.curb2;
 
             for (let i = 0; i < samples; i++) {
                 const p1 = points[i];
@@ -512,8 +697,8 @@
             else ctx.lineTo(p.x, p.y);
         });
         ctx.lineWidth = 2;
-        ctx.setLineDash([8, 12]);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.setLineDash(trackStyle.dashPattern || [8, 12]);
+        ctx.strokeStyle = trackStyle.dashColor || 'rgba(255, 255, 255, 0.4)';
         ctx.stroke();
         ctx.setLineDash([]);
 
@@ -524,13 +709,13 @@
         ctx.rotate(finishPt.angle);
 
         // Checkered line strip
-        const checkW = 12;
+        const checkW = 14;
         const checkH = thickness;
         const sq = 4;
         for (let r = -checkH / 2; r < checkH / 2; r += sq) {
             for (let c = -checkW / 2; c < checkW / 2; c += sq) {
-                const isBlack = (Math.floor(r / sq) + Math.floor(c / sq)) % 2 === 0;
-                ctx.fillStyle = isBlack ? '#000000' : '#FFFFFF';
+                const isFirstCol = (Math.floor(r / sq) + Math.floor(c / sq)) % 2 === 0;
+                ctx.fillStyle = isFirstCol ? trackStyle.finishColor1 : trackStyle.finishColor2;
                 ctx.fillRect(c, r, sq, sq);
             }
         }
@@ -551,42 +736,171 @@
             ctx.save();
             ctx.translate(hx, hy);
 
+            const themeSeason = (currentTheme && currentTheme.seasonPreset) ? currentTheme.seasonPreset.toLowerCase() : 'spring';
+            const hazardImgUrl = currentTheme && (currentTheme.racingHazardImageUrl || currentTheme.RacingHazardImageUrl);
+            const customHazard = getImage(hazardImgUrl);
+
             if (h.type === 'oil') {
-                // Oil Slick / Ice Patch
-                ctx.fillStyle = (currentTheme && currentTheme.seasonPreset === 'winter') ? 'rgba(180, 230, 255, 0.85)' : 'rgba(20, 20, 25, 0.85)';
-                ctx.beginPath();
-                ctx.ellipse(0, 0, 15, 9, 0.3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.lineWidth = 1.5;
-                ctx.strokeStyle = (currentTheme && currentTheme.seasonPreset === 'winter') ? '#FFFFFF' : '#3d3d44';
-                ctx.stroke();
+                if (customHazard && customHazard.complete && customHazard.naturalWidth > 0) {
+                    ctx.drawImage(customHazard, -14, -14, 28, 28);
+                } else if (themeSeason === 'winter') {
+                    // Ice Slick: Transparent crystalline frost patch with crack detail
+                    ctx.fillStyle = 'rgba(180, 235, 255, 0.78)';
+                    ctx.shadowColor = '#B3E5FC';
+                    ctx.shadowBlur = 6;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 16, 10, 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.stroke();
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+                    ctx.beginPath();
+                    ctx.moveTo(-6, -2); ctx.lineTo(0, 1); ctx.lineTo(6, -3);
+                    ctx.stroke();
+                } else if (themeSeason === 'halloween') {
+                    // Toxic Slime Puddle: Bubbling neon slime
+                    ctx.fillStyle = 'rgba(57, 255, 20, 0.82)';
+                    ctx.shadowColor = '#39FF14';
+                    ctx.shadowBlur = 8;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 16, 10, -0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(-4, -2, 2.5, 0, Math.PI * 2);
+                    ctx.arc(5, 3, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (themeSeason === 'fall') {
+                    // Autumn Leaf Pile
+                    const leafCols = ['#FF6F00', '#D84315', '#FBC02D', '#BF360C'];
+                    for (let li = 0; li < 6; li++) {
+                        const ang = (li / 6) * Math.PI * 2 + 0.3;
+                        const dist = (li % 2 === 0 ? 8 : 4);
+                        ctx.fillStyle = leafCols[li % leafCols.length];
+                        ctx.beginPath();
+                        ctx.ellipse(Math.cos(ang) * dist, Math.sin(ang) * dist, 6, 3, ang, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else if (themeSeason === 'christmas') {
+                    // Dropped holiday coal / fruitcake
+                    ctx.fillStyle = '#212121';
+                    ctx.beginPath();
+                    ctx.roundRect(-10, -8, 20, 16, 4);
+                    ctx.fill();
+                    ctx.fillStyle = '#FF2A4B';
+                    ctx.fillRect(-2, -8, 4, 16);
+                } else {
+                    // Standard Oil Slick
+                    ctx.fillStyle = 'rgba(20, 20, 25, 0.88)';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 15, 9, 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = '#3d3d44';
+                    ctx.stroke();
+                }
             } else if (h.type === 'cone') {
-                // Road Cone
-                ctx.fillStyle = '#FF6B00';
-                ctx.beginPath();
-                ctx.moveTo(0, -11);
-                ctx.lineTo(8, 7);
-                ctx.lineTo(-8, 7);
-                ctx.closePath();
-                ctx.fill();
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(-5, 0, 10, 3);
+                if (customHazard && customHazard.complete && customHazard.naturalWidth > 0) {
+                    ctx.drawImage(customHazard, -12, -12, 24, 24);
+                } else if (themeSeason === 'winter') {
+                    // Mini Snowman Hazard
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(0, 4, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(0, -4, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Carrot nose
+                    ctx.fillStyle = '#FF9100';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -4); ctx.lineTo(5, -3); ctx.lineTo(0, -2);
+                    ctx.fill();
+                    // Coal eyes
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(-2, -6, 1.5, 1.5);
+                    ctx.fillRect(1, -6, 1.5, 1.5);
+                } else if (themeSeason === 'halloween') {
+                    // Mini Jack-o'-lantern Hazard
+                    ctx.fillStyle = '#FF7518';
+                    ctx.beginPath();
+                    ctx.arc(0, 1, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Green stem
+                    ctx.fillStyle = '#39FF14';
+                    ctx.fillRect(-1.5, -8, 3, 3);
+                    // Carved eyes
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.moveTo(-4, -1); ctx.lineTo(-2, -4); ctx.lineTo(0, -1);
+                    ctx.moveTo(4, -1); ctx.lineTo(2, -4); ctx.lineTo(0, -1);
+                    ctx.moveTo(-4, 3); ctx.lineTo(0, 5); ctx.lineTo(4, 3);
+                    ctx.fill();
+                } else if (themeSeason === 'christmas') {
+                    // Wrapped Present Box Hazard
+                    ctx.fillStyle = '#FF2A4B';
+                    ctx.fillRect(-7, -7, 14, 14);
+                    ctx.fillStyle = '#FFD166';
+                    ctx.fillRect(-2, -7, 4, 14);
+                    ctx.fillRect(-7, -2, 14, 4);
+                } else {
+                    // Road Cone
+                    ctx.fillStyle = '#FF6B00';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -11);
+                    ctx.lineTo(8, 7);
+                    ctx.lineTo(-8, 7);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(-5, 0, 10, 3);
+                }
             } else if (h.type === 'boost') {
                 // Turbo Boost Arrow
                 ctx.rotate(pt.angle);
-                ctx.fillStyle = '#00E676';
-                ctx.shadowColor = '#00E676';
-                ctx.shadowBlur = 8;
-                ctx.beginPath();
-                ctx.moveTo(8, 0);
-                ctx.lineTo(-4, -8);
-                ctx.lineTo(-4, -3);
-                ctx.lineTo(-10, -3);
-                ctx.lineTo(-10, 3);
-                ctx.lineTo(-4, 3);
-                ctx.lineTo(-4, 8);
-                ctx.closePath();
-                ctx.fill();
+                const boostImgUrl = currentTheme && (currentTheme.racingBoostImageUrl || currentTheme.RacingBoostImageUrl);
+                const customBoost = getImage(boostImgUrl);
+                if (customBoost && customBoost.complete && customBoost.naturalWidth > 0) {
+                    ctx.drawImage(customBoost, -14, -14, 28, 28);
+                } else {
+                    let boostCol = '#00E676';
+                    if (themeSeason === 'winter') boostCol = '#00E5FF';
+                    else if (themeSeason === 'halloween') boostCol = '#BF55EC';
+                    else if (themeSeason === 'christmas') boostCol = '#FF2A4B';
+                    else if (themeSeason === 'spring') boostCol = '#FF4081';
+
+                    ctx.fillStyle = boostCol;
+                    ctx.shadowColor = boostCol;
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.moveTo(9, 0);
+                    ctx.lineTo(-4, -9);
+                    ctx.lineTo(-4, -3.5);
+                    ctx.lineTo(-11, -3.5);
+                    ctx.lineTo(-11, 3.5);
+                    ctx.lineTo(-4, 3.5);
+                    ctx.lineTo(-4, 9);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Themed inner insignia
+                    ctx.fillStyle = '#FFFFFF';
+                    if (themeSeason === 'winter') {
+                        ctx.font = 'bold 8px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('❄', -4, 0);
+                    } else if (themeSeason === 'christmas') {
+                        ctx.fillStyle = '#00E676';
+                        ctx.fillRect(-9, -2, 4, 4);
+                    } else {
+                        ctx.fillRect(-8, -1.5, 3, 3);
+                    }
+                }
             } else if (h.type === 'wrench') {
                 // Repair Kit Wrench
                 ctx.fillStyle = '#00E676';
@@ -656,9 +970,16 @@
         }
 
         // Exhaust Particles
+        const themeSeason = (currentTheme && currentTheme.seasonPreset) ? currentTheme.seasonPreset.toLowerCase() : 'spring';
         if (racer.isBoosting) {
-            ctx.fillStyle = '#00E5FF';
-            ctx.shadowColor = '#00E5FF';
+            let flameCol = '#00E5FF';
+            if (themeSeason === 'halloween') flameCol = '#BF55EC';
+            else if (themeSeason === 'christmas') flameCol = '#FF2A4B';
+            else if (themeSeason === 'fall') flameCol = '#FF6D00';
+            else if (themeSeason === 'spring') flameCol = '#FF4081';
+
+            ctx.fillStyle = flameCol;
+            ctx.shadowColor = flameCol;
             ctx.shadowBlur = 12;
             ctx.beginPath();
             ctx.moveTo(-chassisLen / 2 - 2, -4);
@@ -672,46 +993,112 @@
             ctx.fill();
         }
 
-        // 1. Kart Chassis (charred if totaled, white flash on impact)
-        let primaryColor = racer.isTotaled ? '#26282e' : (racer.userColor || '#FFD166');
-        if (!racer.isTotaled && (racer.hitCooldown || 0) > 0.65) {
-            primaryColor = '#FFFFFF';
-        }
-        ctx.fillStyle = primaryColor;
-        ctx.shadowColor = 'rgba(0,0,0,0.4)';
-        ctx.shadowBlur = 6;
+        // Custom Vehicle Sprite or Procedural Kart Chassis
+        const vehicleImgUrl = currentTheme && (currentTheme.racingVehicleImageUrl || currentTheme.RacingVehicleImageUrl);
+        const customVehicle = getImage(vehicleImgUrl);
+        let drewCustomVehicle = false;
 
-        ctx.beginPath();
-        ctx.roundRect(-chassisLen / 2, -chassisWid / 2, chassisLen, chassisWid, [6, 10, 10, 6]);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // Front bumper (if not detached)
-        if (!racer.lostFrontBumper && !racer.isTotaled) {
-            ctx.fillStyle = '#1e232a';
-            ctx.fillRect(chassisLen / 2 - 4, -chassisWid / 2 - 2, 5, chassisWid + 4);
-        }
-
-        // Rear spoiler (if not detached)
-        if (!racer.lostSpoiler && !racer.isTotaled) {
-            ctx.fillStyle = '#1e232a';
-            ctx.fillRect(-chassisLen / 2 - 2, -chassisWid / 2 - 3, 4, chassisWid + 6);
+        if (customVehicle && customVehicle.complete && customVehicle.naturalWidth > 0) {
+            ctx.save();
+            if (racer.isTotaled) {
+                ctx.filter = 'grayscale(100%) brightness(35%)';
+            } else if ((racer.hitCooldown || 0) > 0.65) {
+                ctx.filter = 'brightness(200%)';
+            }
+            const vW = 38;
+            const vH = 22;
+            ctx.drawImage(customVehicle, -vW / 2, -vH / 2, vW, vH);
+            ctx.restore();
+            drewCustomVehicle = true;
         }
 
-        // 4 Wheels (omit wheel 3 if detached)
-        ctx.fillStyle = '#111315';
-        const wheelLen = 8;
-        const wheelWid = 4;
-        const wheelCoords = [
-            [-chassisLen / 2 + 5, -chassisWid / 2 - 2],
-            [-chassisLen / 2 + 5, chassisWid / 2 - 2],
-            [chassisLen / 2 - 10, -chassisWid / 2 - 2],
-            [chassisLen / 2 - 10, chassisWid / 2 - 2]
-        ];
-        wheelCoords.forEach(([wx, wy], widx) => {
-            if (racer.lostWheel && widx === 3) return;
-            ctx.fillRect(wx, wy, wheelLen, wheelWid);
-        });
+        if (!drewCustomVehicle) {
+            // 1. Kart Chassis (charred if totaled, white flash on impact)
+            let primaryColor = racer.isTotaled ? '#26282e' : (racer.userColor || '#FFD166');
+            if (!racer.isTotaled && (racer.hitCooldown || 0) > 0.65) {
+                primaryColor = '#FFFFFF';
+            }
+            ctx.fillStyle = primaryColor;
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.shadowBlur = 6;
+
+            ctx.beginPath();
+            ctx.roundRect(-chassisLen / 2, -chassisWid / 2, chassisLen, chassisWid, [6, 10, 10, 6]);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Front bumper (if not detached)
+            if (!racer.lostFrontBumper && !racer.isTotaled) {
+                ctx.fillStyle = '#1e232a';
+                ctx.fillRect(chassisLen / 2 - 4, -chassisWid / 2 - 2, 5, chassisWid + 4);
+            }
+
+            // Rear spoiler (if not detached)
+            if (!racer.lostSpoiler && !racer.isTotaled) {
+                ctx.fillStyle = '#1e232a';
+                ctx.fillRect(-chassisLen / 2 - 2, -chassisWid / 2 - 3, 4, chassisWid + 6);
+            }
+
+            // Seasonal Kart Roof / Spoiler Toppers
+            if (!racer.isTotaled && !racer.lostSpoiler) {
+                if (themeSeason === 'christmas') {
+                    // Mini Santa Hat on spoiler!
+                    ctx.fillStyle = '#FF2A4B';
+                    ctx.beginPath();
+                    ctx.moveTo(-chassisLen / 2 + 1, -chassisWid / 2 + 2);
+                    ctx.lineTo(-chassisLen / 2 - 6, -chassisWid / 2 - 4);
+                    ctx.lineTo(-chassisLen / 2 + 3, -chassisWid / 2 - 6);
+                    ctx.fill();
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(-chassisLen / 2 - 6, -chassisWid / 2 - 4, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (themeSeason === 'halloween') {
+                    // Mini Bat Wings on rear spoiler
+                    ctx.fillStyle = '#BF55EC';
+                    ctx.beginPath();
+                    ctx.moveTo(-chassisLen / 2, -chassisWid / 2 - 1);
+                    ctx.lineTo(-chassisLen / 2 - 5, -chassisWid / 2 - 6);
+                    ctx.lineTo(-chassisLen / 2 + 1, -chassisWid / 2 - 4);
+                    ctx.moveTo(-chassisLen / 2, chassisWid / 2 + 1);
+                    ctx.lineTo(-chassisLen / 2 - 5, chassisWid / 2 + 6);
+                    ctx.lineTo(-chassisLen / 2 + 1, chassisWid / 2 + 4);
+                    ctx.fill();
+                } else if (themeSeason === 'winter') {
+                    // Snow dusting on rear spoiler
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.fillRect(-chassisLen / 2 - 2, -chassisWid / 2 - 3, 4, 3);
+                    ctx.fillRect(-chassisLen / 2 - 2, chassisWid / 2, 4, 3);
+                } else if (themeSeason === 'spring') {
+                    // Tiny Sakura Flower on spoiler
+                    ctx.fillStyle = '#FF8FA3';
+                    ctx.beginPath();
+                    ctx.arc(-chassisLen / 2 - 1, -chassisWid / 2 - 2, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (themeSeason === 'fall') {
+                    // Tiny Autumn Leaf on spoiler
+                    ctx.fillStyle = '#FF6F00';
+                    ctx.beginPath();
+                    ctx.ellipse(-chassisLen / 2 - 1, -chassisWid / 2 - 2, 3, 1.8, 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // 4 Wheels (omit wheel 3 if detached)
+            ctx.fillStyle = '#111315';
+            const wheelLen = 8;
+            const wheelWid = 4;
+            const wheelCoords = [
+                [-chassisLen / 2 + 5, -chassisWid / 2 - 2],
+                [-chassisLen / 2 + 5, chassisWid / 2 - 2],
+                [chassisLen / 2 - 10, -chassisWid / 2 - 2],
+                [chassisLen / 2 - 10, chassisWid / 2 - 2]
+            ];
+            wheelCoords.forEach(([wx, wy], widx) => {
+                if (racer.lostWheel && widx === 3) return;
+                ctx.fillRect(wx, wy, wheelLen, wheelWid);
+            });
+        }
 
         // 2. Driver Emote / Mascot in Cockpit
         const driverR = 10;
@@ -842,7 +1229,8 @@
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        ctx.strokeStyle = (currentTheme && currentTheme.primaryColor) || '#FF5252';
+        const trackStyle = getThemeTrackStyle();
+        ctx.strokeStyle = trackStyle.curb1 || '#FF5252';
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
@@ -891,7 +1279,8 @@
         ctx.arc(cx, cy, 70, 0, Math.PI * 2);
         ctx.fill();
         ctx.lineWidth = 4;
-        ctx.strokeStyle = countdownStep === 0 ? '#00E676' : '#FF5252';
+        const countdownStyle = getThemeTrackStyle();
+        ctx.strokeStyle = countdownStep === 0 ? '#00E676' : (countdownStyle.curb1 || '#FF5252');
         ctx.stroke();
 
         ctx.font = 'bold 44px "Fredoka", "Rubik", sans-serif';
@@ -1060,6 +1449,7 @@
     // Draws Finish Podium
     function drawPodiumUI() {
         if (gameState !== 'podium' || finishedRacers.length === 0) return;
+        finishedRacers.sort((a, b) => (a.placement || 999) - (b.placement || 999));
         ctx.save();
         ctx.globalAlpha = overlayAlpha;
 
@@ -1372,9 +1762,9 @@
                         lowestRacer.finished = true;
                         lowestRacer.isEliminated = true;
                         lowestRacer.lapTime = raceElapsedTime / 1000;
+                        lowestRacer.placement = nextBackPlacement--;
                         finishedRacers.push(lowestRacer);
-                        const placement = activeRacers.length - finishedRacers.length + 1;
-                        reportRacerCompletion(lowestRacer, placement);
+                        reportRacerCompletion(lowestRacer, lowestRacer.placement);
                         playSound('screech');
                         eliminationBanner = {
                             text: `💀 ${lowestRacer.displayName || lowestRacer.username} ELIMINATED!`,
@@ -1388,8 +1778,9 @@
                             const champion = remaining[0];
                             champion.finished = true;
                             champion.lapTime = raceElapsedTime / 1000;
+                            champion.placement = nextFrontPlacement++;
                             finishedRacers.push(champion);
-                            reportRacerCompletion(champion, 1);
+                            reportRacerCompletion(champion, champion.placement);
                             playSound('win');
                             eliminationBanner = {
                                 text: `🏆 ${champion.displayName || champion.username} WINS!`,
@@ -1440,8 +1831,9 @@
                 champion.finished = true;
                 champion.isChampionReported = true;
                 champion.lapTime = raceElapsedTime / 1000;
-                finishedRacers.unshift(champion);
-                reportRacerCompletion(champion, 1);
+                champion.placement = nextFrontPlacement++;
+                finishedRacers.push(champion);
+                reportRacerCompletion(champion, champion.placement);
                 playSound('win');
                 eliminationBanner = {
                     text: `🏆 ${champion.displayName || champion.username} DEMOLITION CHAMPION!`,
@@ -1458,9 +1850,13 @@
                     });
                 }
             } else if (alive.length === 0 && finishedRacers.length > 0 && !finishedRacers.some(r => r.isChampionReported)) {
+                finishedRacers.sort((a, b) => (a.placement || 999) - (b.placement || 999));
                 const champion = finishedRacers[0];
                 champion.isChampionReported = true;
-                reportRacerCompletion(champion, 1);
+                if (!champion.placement) {
+                    champion.placement = 1;
+                }
+                reportRacerCompletion(champion, champion.placement);
                 playSound('win');
             }
         }
@@ -1524,80 +1920,6 @@
                 if (r.wreckTimer <= 0) {
                     r.isWrecked = false;
                     r.spinAngle = 0;
-                }
-            }
-
-            // Ensure cars stay strictly on track surface (clamp to curb boundaries, no forced center magnetic pull)
-            if (r.laneOffset > maxLaneOffset) {
-                r.laneOffset = maxLaneOffset;
-            } else if (r.laneOffset < -maxLaneOffset) {
-                r.laneOffset = -maxLaneOffset;
-            }
-
-            // Move racer along spline
-            r.progress += (speed * dtSec);
-
-            // Check lap completion and race finish
-            if (r.progress >= totalLaps) {
-                r.finished = true;
-                r.lapTime = raceElapsedTime / 1000;
-                finishedRacers.push(r);
-
-                if (currentSettings.gameMode === 'TimeTrial') {
-                    const lapMs = raceElapsedTime;
-                    const savedRecord = loadBestLap(currentSettings.trackType);
-                    const isNewRecord = !savedRecord || lapMs < savedRecord.timeMs;
-                    r.isNewRecord = isNewRecord;
-                    r.prevBestMs = savedRecord ? savedRecord.timeMs : null;
-                    lastRecordedLapMs = lapMs;
-                    lastRecordedLapRacer = r.displayName || r.username;
-                    if (isNewRecord) {
-                        saveBestLap(currentSettings.trackType, lapMs, r.displayName || r.username);
-                    }
-                }
-
-                if (currentSettings.gameMode === 'Elimination') {
-                    reportRacerCompletion(r, 1);
-                    playSound('win');
-                    eliminationBanner = {
-                        text: `🏆 ${r.displayName || r.username} WINS!`,
-                        timer: 4.5,
-                        color: '#00E676'
-                    };
-                    if (commonModule && commonModule.spawnSeasonalBurst) {
-                        commonModule.spawnSeasonalBurst(particles, {
-                            x: width / 2,
-                            y: height / 2,
-                            season: (currentTheme && currentTheme.seasonPreset) || 'spring',
-                            count: 45,
-                            isBullseye: true
-                        });
-                    }
-
-                    // Any other unfinished racers finish in reverse order of progress
-                    const remaining = activeRacers.filter(x => !x.finished).sort((a, b) => b.progress - a.progress);
-                    remaining.forEach((rem) => {
-                        rem.finished = true;
-                        rem.lapTime = raceElapsedTime / 1000;
-                        finishedRacers.push(rem);
-                        reportRacerCompletion(rem, finishedRacers.length);
-                    });
-                } else {
-                    // Report completion back to server (sole source of truth)
-                    reportRacerCompletion(r, finishedRacers.length);
-
-                    if (finishedRacers.length === 1) {
-                        playSound('win');
-                        if (commonModule && commonModule.spawnSeasonalBurst) {
-                            commonModule.spawnSeasonalBurst(particles, {
-                                x: width / 2,
-                                y: height / 2,
-                                season: (currentTheme && currentTheme.seasonPreset) || 'spring',
-                                count: 45,
-                                isBullseye: true
-                            });
-                        }
-                    }
                 }
             }
 
@@ -1834,9 +2156,9 @@
                                     other.killerToken = r.dropToken;
                                     r.kills = (r.kills || 0) + 1;
                                     other.lapTime = raceElapsedTime / 1000;
+                                    other.placement = nextBackPlacement--;
                                     finishedRacers.push(other);
-                                    const place = activeRacers.length - finishedRacers.filter(x => x.isTotaled).length + 1;
-                                    reportRacerCompletion(other, place);
+                                    reportRacerCompletion(other, other.placement);
                                     playSound('screech');
                                     eliminationBanner = {
                                         text: `💥 ${other.displayName || other.username} TOTALED by ${r.displayName || r.username}!`,
@@ -1855,9 +2177,9 @@
                                     r.killerToken = other.dropToken;
                                     other.kills = (other.kills || 0) + 1;
                                     r.lapTime = raceElapsedTime / 1000;
+                                    r.placement = nextBackPlacement--;
                                     finishedRacers.push(r);
-                                    const place = activeRacers.length - finishedRacers.filter(x => x.isTotaled).length + 1;
-                                    reportRacerCompletion(r, place);
+                                    reportRacerCompletion(r, r.placement);
                                     playSound('screech');
                                     eliminationBanner = {
                                         text: `💥 ${r.displayName || r.username} TOTALED by ${other.displayName || other.username}!`,
@@ -1956,6 +2278,94 @@
                     }
                 });
             }
+
+            // Ensure cars stay strictly on track surface (clamp to curb boundaries, no forced center magnetic pull)
+            if (r.laneOffset > maxLaneOffset) {
+                r.laneOffset = maxLaneOffset;
+            } else if (r.laneOffset < -maxLaneOffset) {
+                r.laneOffset = -maxLaneOffset;
+            }
+
+            // Move racer along spline and check race finish (after avoidance, drafting, bumping, and hazard hits)
+            if (!r.finished && !r.isTotaled) {
+                r.progress += (speed * dtSec);
+
+                // Themed tire spray & skid particles
+                if (!r.isEliminated) {
+                    const pt = getTrackPoint(r.progress, currentSettings.trackType, currentSettings.stripPosition);
+                    const carAngle = pt.angle + r.spinAngle + r.driftAngle + (r.steerAngle || 0);
+                    const isHighActivity = r.isBoosting || r.isDrafting || r.isWrecked || Math.abs(r.driftAngle) > 0.04;
+                    if (isHighActivity ? Math.random() < 0.5 : Math.random() < 0.1) {
+                        spawnTireSpray(r, pt, carAngle, (currentTheme && currentTheme.seasonPreset) || 'spring');
+                    }
+                }
+
+                // Check lap completion and race finish
+                if (r.progress >= totalLaps) {
+                    r.finished = true;
+                    r.lapTime = raceElapsedTime / 1000;
+                    r.placement = nextFrontPlacement++;
+                    finishedRacers.push(r);
+
+                    if (currentSettings.gameMode === 'TimeTrial') {
+                        const lapMs = raceElapsedTime;
+                        const savedRecord = loadBestLap(currentSettings.trackType);
+                        const isNewRecord = !savedRecord || lapMs < savedRecord.timeMs;
+                        r.isNewRecord = isNewRecord;
+                        r.prevBestMs = savedRecord ? savedRecord.timeMs : null;
+                        lastRecordedLapMs = lapMs;
+                        lastRecordedLapRacer = r.displayName || r.username;
+                        if (isNewRecord) {
+                            saveBestLap(currentSettings.trackType, lapMs, r.displayName || r.username);
+                        }
+                    }
+
+                    if (currentSettings.gameMode === 'Elimination') {
+                        reportRacerCompletion(r, r.placement);
+                        playSound('win');
+                        eliminationBanner = {
+                            text: `🏆 ${r.displayName || r.username} WINS!`,
+                            timer: 4.5,
+                            color: '#00E676'
+                        };
+                        if (commonModule && commonModule.spawnSeasonalBurst) {
+                            commonModule.spawnSeasonalBurst(particles, {
+                                x: width / 2,
+                                y: height / 2,
+                                season: (currentTheme && currentTheme.seasonPreset) || 'spring',
+                                count: 45,
+                                isBullseye: true
+                            });
+                        }
+
+                        // Any other unfinished racers finish in reverse order of progress
+                        const remaining = activeRacers.filter(x => !x.finished).sort((a, b) => b.progress - a.progress);
+                        remaining.forEach((rem) => {
+                            rem.finished = true;
+                            rem.lapTime = raceElapsedTime / 1000;
+                            rem.placement = nextFrontPlacement++;
+                            finishedRacers.push(rem);
+                            reportRacerCompletion(rem, rem.placement);
+                        });
+                    } else {
+                        // Report completion back to server (sole source of truth)
+                        reportRacerCompletion(r, r.placement);
+
+                        if (r.placement === 1) {
+                            playSound('win');
+                            if (commonModule && commonModule.spawnSeasonalBurst) {
+                                commonModule.spawnSeasonalBurst(particles, {
+                                    x: width / 2,
+                                    y: height / 2,
+                                    season: (currentTheme && currentTheme.seasonPreset) || 'spring',
+                                    count: 45,
+                                    isBullseye: true
+                                });
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Check if all racers finished
@@ -1971,6 +2381,7 @@
     // Reports completed racer back to WebSocket server
     function reportRacerCompletion(racer, placement) {
         if (!racer || !racer.dropToken) return;
+        racer.placement = placement;
 
         let score = 2;
         if (placement === 1) score = 25;
@@ -2026,16 +2437,40 @@
                 const p = particles[i];
                 p.x += (p.vx || 0);
                 p.y += (p.vy || 0);
-                p.alpha = (p.alpha || 1.0) - 0.02;
+                p.alpha = (p.alpha || 1.0) - (p.fade || 0.02);
                 if (p.alpha <= 0) {
                     particles.splice(i, 1);
                 } else {
                     ctx.save();
                     ctx.globalAlpha = p.alpha * overlayAlpha;
                     ctx.fillStyle = p.color || '#FFD166';
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size || 3, 0, Math.PI * 2);
-                    ctx.fill();
+                    if (p.shape === 'leaf') {
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.rotation || 0);
+                        p.rotation = (p.rotation || 0) + (p.rotSpeed || 0.05);
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, p.size || 3.5, (p.size || 3.5) * 0.5, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (p.shape === 'petal') {
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.rotation || 0);
+                        p.rotation = (p.rotation || 0) + (p.rotSpeed || 0.04);
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, p.size || 3.2, (p.size || 3.2) * 0.65, 0.4, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (p.shape === 'snow') {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size || 2.2, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (p.shape === 'spark') {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size || 1.8, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size || 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                     ctx.restore();
                 }
             }
@@ -2082,6 +2517,8 @@
             lobbyRacers = [];
             activeRacers = [];
             finishedRacers = [];
+            nextFrontPlacement = 1;
+            nextBackPlacement = 1;
             detachedParts = [];
             eliminatedLaps.clear();
             eliminationBanner = null;
@@ -2210,6 +2647,8 @@
             }
 
             finishedRacers = [];
+            nextFrontPlacement = 1;
+            nextBackPlacement = activeRacers.length;
             eliminatedLaps.clear();
             eliminationBanner = null;
             gameState = 'countdown';
@@ -2275,6 +2714,8 @@
             }
 
             finishedRacers = [];
+            nextFrontPlacement = 1;
+            nextBackPlacement = activeRacers.length;
             eliminatedLaps.clear();
             eliminationBanner = null;
             raceStartTime = performance.now();
