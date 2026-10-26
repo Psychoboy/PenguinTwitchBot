@@ -4,6 +4,7 @@
 @implements IDisposable
 @inject IStreamTimerService TimerService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Stream Timer</PageTitle>
 
@@ -18,8 +19,44 @@
         </MudStack>
 
         <MudAlert Severity="Severity.Info" Dense="true">
-            Controls the Timer overlay widget. Add a <b>Timer</b> widget to a layout in the Overlay Editor to show it on stream.
+            Controls on-stream timer overlay widgets. Add a <b>Timer</b> widget to a layout in the Overlay Editor to show it on stream.
         </MudAlert>
+
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="flex: 1; min-width: 240px;">
+                    <MudSelect T="string" Value="_selectedTimerName" ValueChanged="OnTimerSelected" Label="Active Timer"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 180px;">
+                        @foreach (var timerName in _timerNames)
+                        {
+                            <MudSelectItem Value="@timerName">@timerName</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="() => _showNewTimerDialog = !_showNewTimerDialog">New Timer</MudButton>
+                    @if (!_selectedTimerName.Equals("Default", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
+                                   OnClick="DeleteCurrentTimer">Delete</MudButton>
+                    }
+                </MudStack>
+            </MudStack>
+
+            @if (_showNewTimerDialog)
+            {
+                <MudPaper Elevation="0" Outlined="true" Class="pa-3 mt-3">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Create New Timer</MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudTextField @bind-Value="_newTimerName" Label="Timer Name" Placeholder="e.g. Subathon, Break, Speedrun"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"
+                                      @onkeydown="OnNewTimerKeyDown" Style="flex: 1;" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="CreateTimer"
+                                   Disabled="@string.IsNullOrWhiteSpace(_newTimerName)">Create</MudButton>
+                        <MudButton Variant="Variant.Text" OnClick="() => _showNewTimerDialog = false">Cancel</MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudPaper>
 
         <MudPaper Elevation="3" Class="pa-6">
             <MudStack AlignItems="AlignItems.Center" Spacing="2">
@@ -30,6 +67,9 @@
                     </MudChip>
                     <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
                         @(_state.Direction == "down" ? "Counting down" : "Counting up")
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Secondary" Variant="Variant.Outlined" Size="Size.Small">
+                        @_selectedTimerName
                     </MudChip>
                 </MudStack>
             </MudStack>
@@ -112,6 +152,11 @@
         ("10m", 600)
     ];
 
+    private List<string> _timerNames = [];
+    private string _selectedTimerName = "Default";
+    private bool _showNewTimerDialog;
+    private string _newTimerName = "";
+
     private StreamTimerState _state = null!;
     private double _currentSeconds;
     private string _direction = "up";
@@ -122,6 +167,7 @@
 
     protected override void OnInitialized()
     {
+        RefreshTimerList();
         RefreshState();
         _direction = _state.Direction;
 
@@ -132,15 +178,86 @@
         }, null, TimeSpan.FromMilliseconds(250), TimeSpan.FromMilliseconds(250));
     }
 
+    private void RefreshTimerList()
+    {
+        _timerNames = TimerService.GetTimerNames().ToList();
+        if (!_timerNames.Contains(_selectedTimerName, StringComparer.OrdinalIgnoreCase))
+        {
+            _selectedTimerName = _timerNames.FirstOrDefault() ?? "Default";
+        }
+    }
+
     private void RefreshState()
     {
-        _state = TimerService.GetState();
-        _currentSeconds = TimerService.GetCurrentSeconds();
+        _state = TimerService.GetState(_selectedTimerName);
+        _currentSeconds = TimerService.GetCurrentSeconds(_selectedTimerName);
+    }
+
+    private void OnTimerSelected(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        _selectedTimerName = name;
+        RefreshState();
+        _direction = _state.Direction;
+    }
+
+    private async Task OnNewTimerKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await CreateTimer();
+        if (e.Key == "Escape") _showNewTimerDialog = false;
+    }
+
+    private async Task CreateTimer()
+    {
+        if (string.IsNullOrWhiteSpace(_newTimerName)) return;
+
+        var trimmed = _newTimerName.Trim();
+        var created = await TimerService.CreateTimerAsync(trimmed);
+        if (!created)
+        {
+            Snackbar.Add($"A timer named '{trimmed}' already exists.", Severity.Warning);
+            return;
+        }
+
+        Snackbar.Add($"Timer '{trimmed}' created.", Severity.Success);
+        _showNewTimerDialog = false;
+        _newTimerName = "";
+        RefreshTimerList();
+        OnTimerSelected(trimmed);
+    }
+
+    private async Task DeleteCurrentTimer()
+    {
+        if (_selectedTimerName.Equals("Default", StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add("The 'Default' timer cannot be deleted.", Severity.Warning);
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Delete Timer",
+            $"Are you sure you want to delete the timer '{_selectedTimerName}'? Any overlays using this timer will no longer update.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            var targetName = _selectedTimerName;
+            var deleted = await TimerService.DeleteTimerAsync(targetName);
+            if (deleted)
+            {
+                Snackbar.Add($"Timer '{targetName}' deleted.", Severity.Success);
+                _selectedTimerName = "Default";
+                RefreshTimerList();
+                RefreshState();
+                _direction = _state.Direction;
+            }
+        }
     }
 
     private async Task Start()
     {
-        await TimerService.StartAsync(_direction);
+        await TimerService.StartTimerAsync(_selectedTimerName, _direction);
         RefreshState();
     }
 
@@ -152,50 +269,50 @@
             return;
         }
 
-        await TimerService.ConfigureAsync(_direction, seconds);
+        await TimerService.ConfigureTimerAsync(_selectedTimerName, _direction, seconds);
         RefreshState();
-        Snackbar.Add($"Timer set to {TimerDuration.Format(seconds)} counting {_direction}. Press Start when ready.", Severity.Success);
+        Snackbar.Add($"Timer '{_selectedTimerName}' set to {TimerDuration.Format(seconds)} counting {_direction}. Press Start when ready.", Severity.Success);
     }
 
     private async Task Stop()
     {
-        await TimerService.StopAsync();
+        await TimerService.StopTimerAsync(_selectedTimerName);
         RefreshState();
     }
 
     private async Task Reset()
     {
-        await TimerService.StopAsync(reset: true);
+        await TimerService.StopTimerAsync(_selectedTimerName, reset: true);
         RefreshState();
     }
 
     private async Task AddTime()
     {
         if (!TryGetAmount(out var seconds)) return;
-        await TimerService.AddTimeAsync(seconds);
+        await TimerService.AddTimeAsync(_selectedTimerName, seconds);
         RefreshState();
     }
 
     private async Task RemoveTime()
     {
         if (!TryGetAmount(out var seconds)) return;
-        await TimerService.RemoveTimeAsync(seconds);
+        await TimerService.RemoveTimeAsync(_selectedTimerName, seconds);
         RefreshState();
     }
 
     private async Task SetTime()
     {
         if (!TryGetAmount(out var seconds)) return;
-        await TimerService.SetTimeAsync(seconds);
+        await TimerService.SetTimeAsync(_selectedTimerName, seconds);
         RefreshState();
     }
 
     private async Task Adjust(double seconds)
     {
         if (seconds >= 0)
-            await TimerService.AddTimeAsync(seconds);
+            await TimerService.AddTimeAsync(_selectedTimerName, seconds);
         else
-            await TimerService.RemoveTimeAsync(-seconds);
+            await TimerService.RemoveTimeAsync(_selectedTimerName, -seconds);
 
         RefreshState();
     }

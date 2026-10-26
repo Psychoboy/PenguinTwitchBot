@@ -3753,6 +3753,10 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("TimerName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.ToTable("subactions_overlay_timer_addtime", (string)null);
                 });
 
@@ -3761,6 +3765,10 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
                     b.Property<string>("Amount")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TimerName")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -3782,6 +3790,10 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("TimerName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.ToTable("subactions_overlay_timer_start", (string)null);
                 });
 
@@ -3791,6 +3803,10 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.Property<bool>("ResetOnStop")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("TimerName")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.ToTable("subactions_overlay_timer_stop", (string)null);
                 });

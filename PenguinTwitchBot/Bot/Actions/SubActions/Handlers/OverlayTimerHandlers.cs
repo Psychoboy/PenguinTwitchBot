@@ -14,6 +14,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (subAction is not OverlayTimerStartType start)
                 throw new SubActionHandlerException(subAction, $"Expected {nameof(OverlayTimerStartType)} but got {subAction.GetType().Name}");
 
+            var timerName = VariableReplacer.ReplaceVariables(start.TimerName, variables);
+            if (string.IsNullOrWhiteSpace(timerName)) timerName = "Default";
+
             double? startSeconds = null;
             var rawStartTime = VariableReplacer.ReplaceVariables(start.StartTime, variables);
             if (!string.IsNullOrWhiteSpace(rawStartTime))
@@ -28,8 +31,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 }
             }
 
-            await timerService.StartAsync(start.Direction, startSeconds, start.ResetOnStart);
-            context?.LogMessage(subActionIndex, $"Started overlay timer counting {start.Direction}");
+            await timerService.StartTimerAsync(timerName, start.Direction, startSeconds, start.ResetOnStart);
+            context?.LogMessage(subActionIndex, $"Started overlay timer '{timerName}' counting {start.Direction}");
         }
     }
 
@@ -42,8 +45,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (subAction is not OverlayTimerStopType stop)
                 throw new SubActionHandlerException(subAction, $"Expected {nameof(OverlayTimerStopType)} but got {subAction.GetType().Name}");
 
-            await timerService.StopAsync(stop.ResetOnStop);
-            context?.LogMessage(subActionIndex, stop.ResetOnStop ? "Stopped and reset overlay timer" : "Stopped overlay timer");
+            var timerName = VariableReplacer.ReplaceVariables(stop.TimerName, variables);
+            if (string.IsNullOrWhiteSpace(timerName)) timerName = "Default";
+
+            await timerService.StopTimerAsync(timerName, stop.ResetOnStop);
+            context?.LogMessage(subActionIndex, stop.ResetOnStop ? $"Stopped and reset overlay timer '{timerName}'" : $"Stopped overlay timer '{timerName}'");
         }
     }
 
@@ -56,6 +62,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (subAction is not OverlayTimerAddTimeType addTime)
                 throw new SubActionHandlerException(subAction, $"Expected {nameof(OverlayTimerAddTimeType)} but got {subAction.GetType().Name}");
 
+            var timerName = VariableReplacer.ReplaceVariables(addTime.TimerName, variables);
+            if (string.IsNullOrWhiteSpace(timerName)) timerName = "Default";
+
             var raw = VariableReplacer.ReplaceVariables(addTime.Amount, variables);
             if (!TimerDuration.TryParse(raw, out var seconds))
             {
@@ -63,8 +72,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 return;
             }
 
-            await timerService.AddTimeAsync(seconds);
-            context?.LogMessage(subActionIndex, $"Added {seconds} seconds to the overlay timer");
+            await timerService.AddTimeAsync(timerName, seconds);
+            context?.LogMessage(subActionIndex, $"Added {seconds} seconds to overlay timer '{timerName}'");
         }
     }
 
@@ -77,6 +86,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (subAction is not OverlayTimerRemoveTimeType removeTime)
                 throw new SubActionHandlerException(subAction, $"Expected {nameof(OverlayTimerRemoveTimeType)} but got {subAction.GetType().Name}");
 
+            var timerName = VariableReplacer.ReplaceVariables(removeTime.TimerName, variables);
+            if (string.IsNullOrWhiteSpace(timerName)) timerName = "Default";
+
             var raw = VariableReplacer.ReplaceVariables(removeTime.Amount, variables);
             if (!TimerDuration.TryParse(raw, out var seconds))
             {
@@ -84,8 +96,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 return;
             }
 
-            await timerService.RemoveTimeAsync(seconds);
-            context?.LogMessage(subActionIndex, $"Removed {seconds} seconds from the overlay timer");
+            await timerService.RemoveTimeAsync(timerName, seconds);
+            context?.LogMessage(subActionIndex, $"Removed {seconds} seconds from overlay timer '{timerName}'");
         }
     }
 }

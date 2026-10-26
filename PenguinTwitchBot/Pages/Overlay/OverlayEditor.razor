@@ -14,6 +14,7 @@
 @inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
 @inject ICounterService CounterService
 @inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+@inject PenguinTwitchBot.Bot.Overlay.IStreamTimerService StreamTimerService
 @implements IAsyncDisposable
 
 <PageTitle>Overlay Editor</PageTitle>
@@ -560,6 +561,17 @@
                 <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
                     The timer never starts on its own. Use the Overlay Timer sub-actions to start, stop, add, or remove time.
                 </MudAlert>
+
+                <MudSelect T="string" Label="Timer"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                           HelperText="Select which stream timer this widget displays"
+                           Value="_timerSettings.TimerName"
+                           ValueChanged="@((string v) => { _timerSettings.TimerName = string.IsNullOrWhiteSpace(v) ? "Default" : v.Trim(); SaveTimerSettings(); })">
+                    @foreach (var tName in GetAvailableTimerNames())
+                    {
+                        <MudSelectItem Value="@tName">@tName</MudSelectItem>
+                    }
+                </MudSelect>
 
                 <MudAutocomplete T="string" Label="Font family"
                                  Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
@@ -1571,6 +1583,17 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         return Task.FromResult(matches);
     }
 
+    private List<string> GetAvailableTimerNames()
+    {
+        var names = StreamTimerService.GetTimerNames().ToList();
+        if (!string.IsNullOrWhiteSpace(_timerSettings?.TimerName) &&
+            !names.Contains(_timerSettings.TimerName, StringComparer.OrdinalIgnoreCase))
+        {
+            names.Add(_timerSettings.TimerName);
+        }
+        return names;
+    }
+
     private ChatSettings GetPreviewChatSettings(WidgetModel widget)
     {
         if (widget.WidgetType != "chat") return new ChatSettings();
@@ -1807,6 +1830,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
 
     private sealed class TimerSettings
     {
+        public string TimerName { get; set; } = "Default";
         public string FontFamily { get; set; } = "";
         public int FontSize { get; set; } = 72;
         public int FontWeight { get; set; } = 700;

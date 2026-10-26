@@ -3625,6 +3625,10 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TimerName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.ToTable("subactions_overlay_timer_addtime", (string)null);
                 });
 
@@ -3633,6 +3637,10 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
                     b.Property<string>("Amount")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TimerName")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -3654,6 +3662,10 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TimerName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.ToTable("subactions_overlay_timer_start", (string)null);
                 });
 
@@ -3663,6 +3675,10 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
                     b.Property<bool>("ResetOnStop")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("TimerName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.ToTable("subactions_overlay_timer_stop", (string)null);
                 });

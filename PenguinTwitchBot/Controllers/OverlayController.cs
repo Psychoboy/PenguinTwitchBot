@@ -224,9 +224,19 @@ namespace PenguinTwitchBot.Controllers
         /// </summary>
         [AllowAnonymous]
         [HttpGet("timer-state")]
-        public IActionResult GetTimerState()
+        public IActionResult GetTimerState([FromQuery] string? name = null)
         {
-            return Ok(_streamTimerService.GetState());
+            return Ok(_streamTimerService.GetState(name));
+        }
+
+        /// <summary>
+        /// Returns all on-stream timers and their current states.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("timers")]
+        public IActionResult GetTimers()
+        {
+            return Ok(_streamTimerService.GetAllStates());
         }
 
         /// <summary>

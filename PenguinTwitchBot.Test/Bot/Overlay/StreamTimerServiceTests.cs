@@ -114,5 +114,70 @@ namespace PenguinTwitchBot.Test.Bot.Overlay
             Assert.True(state.IsRunning);
             Assert.Equal("down", state.Direction);
         }
+
+        [Fact]
+        public void GetTimerNames_StartsWithDefault()
+        {
+            var service = CreateService();
+            var names = service.GetTimerNames();
+
+            Assert.NotEmpty(names);
+            Assert.Equal("Default", names[0]);
+        }
+
+        [Fact]
+        public async Task CreateTimer_AddsNewTimer()
+        {
+            var service = CreateService();
+            var result = await service.CreateTimerAsync("Subathon");
+
+            Assert.True(result);
+            var names = service.GetTimerNames();
+            Assert.Contains("Subathon", names);
+
+            var duplicate = await service.CreateTimerAsync("subathon");
+            Assert.False(duplicate);
+        }
+
+        [Fact]
+        public async Task DeleteTimer_DeletesCustomTimer_CannotDeleteDefault()
+        {
+            var service = CreateService();
+            await service.CreateTimerAsync("BRB");
+
+            var deleteDefault = await service.DeleteTimerAsync("Default");
+            Assert.False(deleteDefault);
+
+            var deleteCustom = await service.DeleteTimerAsync("BRB");
+            Assert.True(deleteCustom);
+            Assert.DoesNotContain("BRB", service.GetTimerNames());
+        }
+
+        [Fact]
+        public async Task MultipleTimers_RunIndependently()
+        {
+            var service = CreateService();
+            await service.CreateTimerAsync("CountDownTimer");
+
+            await service.StartAsync("up", 10);
+            await service.StartTimerAsync("CountDownTimer", "down", 500);
+
+            var defaultState = service.GetState();
+            var countDownState = service.GetState("CountDownTimer");
+
+            Assert.Equal("Default", defaultState.Name);
+            Assert.True(defaultState.IsRunning);
+            Assert.Equal("up", defaultState.Direction);
+            Assert.Equal(10, defaultState.Seconds);
+
+            Assert.Equal("CountDownTimer", countDownState.Name);
+            Assert.True(countDownState.IsRunning);
+            Assert.Equal("down", countDownState.Direction);
+            Assert.Equal(500, countDownState.Seconds);
+
+            await service.StopAsync();
+            Assert.False(service.GetState().IsRunning);
+            Assert.True(service.GetState("CountDownTimer").IsRunning);
+        }
     }
 }

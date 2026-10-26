@@ -60,6 +60,7 @@ public static class SubActionUIFieldEnhancer
             SetGlobalVariableType setGlobalVariable => EnhanceGlobalVariableNames(fields, setGlobalVariable, scope.ServiceProvider),
             GetGlobalVariableType getGlobalVariable => EnhanceGlobalVariableNames(fields, getGlobalVariable, scope.ServiceProvider),
             OpenAiType openAi => EnhanceOpenAiModels(fields, openAi, scope.ServiceProvider),
+            OverlayTimerStartType or OverlayTimerStopType or OverlayTimerAddTimeType or OverlayTimerRemoveTimeType => EnhanceOverlayTimer(fields, scope.ServiceProvider),
             _ => fields
         };
     }
@@ -1022,6 +1023,28 @@ public static class SubActionUIFieldEnhancer
             {
                 modelField.Options = textModels.ToArray();
             }
+        }
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceOverlayTimer(List<SubActionUIField> fields, IServiceProvider serviceProvider)
+    {
+        var timerService = serviceProvider.GetService<Overlay.IStreamTimerService>();
+        if (timerService == null)
+            return fields;
+
+        var timerNames = timerService.GetTimerNames();
+        var timerOptions = timerNames
+            .Select(name => new SelectOption { Name = name, Value = name })
+            .ToList();
+
+        var timerField = fields.FirstOrDefault(f => f.PropertyName == "TimerName");
+        if (timerField != null)
+        {
+            timerField.FieldType = UIFieldType.Select;
+            timerField.SelectOptions = timerOptions;
+            timerField.AllowCustomValue = true;
         }
 
         return fields;

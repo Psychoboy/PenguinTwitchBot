@@ -116,5 +116,41 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             Assert.Equal(subActionType, handler.SupportedType);
         }
+
+        [Fact]
+        public async Task Handlers_TargetSpecifiedTimerName()
+        {
+            var timerService = CreateTimerService();
+            await timerService.CreateTimerAsync("Subathon");
+
+            var addHandler = new OverlayTimerAddTimeHandler(timerService);
+            await addHandler.ExecuteAsync(new OverlayTimerAddTimeType { TimerName = "Subathon", Amount = "120" }, NoVariables());
+
+            Assert.Equal(0, timerService.GetState("Default").Seconds);
+            Assert.Equal(120, timerService.GetState("Subathon").Seconds);
+
+            var startHandler = new OverlayTimerStartHandler(timerService);
+            await startHandler.ExecuteAsync(new OverlayTimerStartType { TimerName = "Subathon", Direction = "down" }, NoVariables());
+
+            Assert.False(timerService.GetState("Default").IsRunning);
+            Assert.True(timerService.GetState("Subathon").IsRunning);
+
+            var stopHandler = new OverlayTimerStopHandler(timerService);
+            await stopHandler.ExecuteAsync(new OverlayTimerStopType { TimerName = "Subathon" }, NoVariables());
+
+            Assert.False(timerService.GetState("Subathon").IsRunning);
+        }
+
+        [Fact]
+        public async Task Handlers_ResolveVariablesInTimerName()
+        {
+            var timerService = CreateTimerService();
+            var variables = new ConcurrentDictionary<string, string> { ["TargetTimer"] = "BossFight" };
+
+            var addHandler = new OverlayTimerAddTimeHandler(timerService);
+            await addHandler.ExecuteAsync(new OverlayTimerAddTimeType { TimerName = "%TargetTimer%", Amount = "75" }, variables);
+
+            Assert.Equal(75, timerService.GetState("BossFight").Seconds);
+        }
     }
 }
