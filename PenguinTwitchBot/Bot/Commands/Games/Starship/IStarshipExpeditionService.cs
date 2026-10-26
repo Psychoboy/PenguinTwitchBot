@@ -36,4 +36,8 @@ public interface IStarshipExpeditionService
     Task<StarshipAppearanceSettings> GetAppearanceAsync(CancellationToken cancellationToken = default);
     /// <summary>Reloads the saved look and pushes it to connected overlays immediately.</summary>
     Task RefreshAppearanceAsync(CancellationToken cancellationToken = default);
+    /// <summary>Returns persisted past expeditions ordered by start time descending.</summary>
+    Task<List<PenguinTwitchBot.Database.Bot.Models.Games.StarshipExpeditionHistoryRow>> GetExpeditionHistoryAsync(int limit = 50, CancellationToken cancellationToken = default);
+    /// <summary>Loads the complete snapshot of a past expedition by ID.</summary>
+    Task<StarshipExpeditionSnapshot?> GetExpeditionHistorySnapshotAsync(Guid expeditionId, CancellationToken cancellationToken = default);
 }

@@ -93,7 +93,7 @@ internal static class StarshipEventVariables
         variables["PendingBankedAmounts"] = DescribePayouts(snapshot.BankedPayouts.Where(payout => !payout.IsPaid));
         variables["UnbankedAmounts"] = string.Join(", ", snapshot.Crew.SelectMany(member => member.UnbankedBalances)
             .GroupBy(balance => (balance.PointTypeId, balance.PointTypeName))
-            .Select(group => $"{group.Sum(balance => (decimal)balance.Amount).ToString("#,##0.##", CultureInfo.CurrentCulture)} {group.Key.PointTypeName}"));
+            .Select(group => $"{Math.Round(group.Sum(balance => (decimal)balance.Amount), MidpointRounding.AwayFromZero).ToString("#,##0", CultureInfo.CurrentCulture)} {group.Key.PointTypeName}"));
         return variables;
     }
 
@@ -121,7 +121,7 @@ internal static class StarshipEventVariables
         .Select(group => FormatAmount(group.Sum(payout => (decimal)payout.Amount), group.Key.PointTypeName)));
 
     private static string FormatAmount(decimal amount, string pointTypeName) =>
-        $"{amount.ToString("#,##0.##", CultureInfo.CurrentCulture)} {pointTypeName}";
+        $"{Math.Round(amount, MidpointRounding.AwayFromZero).ToString("#,##0", CultureInfo.CurrentCulture)} {pointTypeName}";
 
     private static string Format(int? value) => value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
 }

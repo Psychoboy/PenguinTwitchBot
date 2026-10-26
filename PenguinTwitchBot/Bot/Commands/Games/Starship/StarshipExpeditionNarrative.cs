@@ -188,7 +188,7 @@ public static class StarshipExpeditionNarrative
     }
 
     private static string FormatSpokenAmounts(IReadOnlyDictionary<(int PointTypeId, string PointTypeName), decimal> amounts) =>
-        string.Join(" and ", amounts.Select(item => $"{item.Value.ToString("0.##", CultureInfo.CurrentCulture)} {item.Key.PointTypeName}"));
+        string.Join(" and ", amounts.Select(item => $"{Math.Round(item.Value, MidpointRounding.AwayFromZero).ToString("0", CultureInfo.CurrentCulture)} {item.Key.PointTypeName}"));
 
     private static string FormatDelta(int value) => value.ToString("+#;-#;0", CultureInfo.InvariantCulture);
 
@@ -234,5 +234,5 @@ public static class StarshipExpeditionNarrative
             .ToDictionary(item => item.Key, item => item.Average);
 
     private static string FormatAmounts(IReadOnlyDictionary<(int PointTypeId, string PointTypeName), decimal> amounts) =>
-        string.Join(", ", amounts.Select(item => $"{item.Value.ToString("#,##0.##", CultureInfo.CurrentCulture)} {item.Key.PointTypeName}"));
+        string.Join(", ", amounts.Select(item => $"{Math.Round(item.Value, MidpointRounding.AwayFromZero).ToString("#,##0", CultureInfo.CurrentCulture)} {item.Key.PointTypeName}"));
 }

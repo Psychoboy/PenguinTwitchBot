@@ -13,7 +13,10 @@ using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Repository;
+using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Services;
 
@@ -504,6 +507,8 @@ public sealed class StarshipExpeditionService(
                 throw new InvalidOperationException("The previous Starship Expedition still has an unbanked crew payout pending. Resolve the payout before starting another voyage.");
 
             var previousSnapshot = _snapshot == null ? null : Clone(_snapshot);
+            if (previousSnapshot != null && IsTerminal(previousSnapshot.Status))
+                await RecordExpeditionHistoryAsync(previousSnapshot, cancellationToken);
             var now = _timeProvider.GetUtcNow();
             var expeditionSeed = seed ?? RandomNumberGenerator.GetInt32(int.MaxValue);
             _snapshot = new StarshipExpeditionSnapshot
@@ -606,6 +611,31 @@ public sealed class StarshipExpeditionService(
         {
             await AnnounceVoyageEndedAsync(stoppedSnapshot);
             await FireVoyageEndedTriggerAsync(stoppedSnapshot, stoppedBy);
+
+            await _payoutLock.WaitAsync(cancellationToken);
+            try
+            {
+                StarshipExpeditionSnapshot? historySnapshot;
+                await _stateLock.WaitAsync(cancellationToken);
+                try
+                {
+                    historySnapshot = _snapshot == null ? null : Clone(_snapshot);
+                }
+                finally
+                {
+                    _stateLock.Release();
+                }
+
+                if (historySnapshot != null)
+                {
+                    await RecordExpeditionHistoryAsync(historySnapshot, cancellationToken);
+                }
+            }
+            finally
+            {
+                _payoutLock.Release();
+            }
+
             await ProcessPendingBankedPayoutsAsync(cancellationToken);
         }
         return stoppedSnapshot == null ? null : await GetSnapshotAsync(cancellationToken) ?? stoppedSnapshot;
@@ -890,6 +920,7 @@ public sealed class StarshipExpeditionService(
         {
             await AnnounceVoyageEndedAsync(current);
             await FireVoyageEndedTriggerAsync(current, current.Status == StarshipExpeditionStatus.Aborted ? current.StartedBy : null);
+            await RecordExpeditionHistoryAsync(current, CancellationToken.None);
         }
     }
 
@@ -976,6 +1007,9 @@ public sealed class StarshipExpeditionService(
                         DisplayName = payout.DisplayName,
                         UserId = payout.UserId
                     });
+
+                    if (IsTerminal(updatedSnapshot.Status))
+                        await RecordExpeditionHistoryAsync(updatedSnapshot, cancellationToken);
                 }
             }
         }
@@ -2158,4 +2192,160 @@ public sealed class StarshipExpeditionService(
         return message;
     }
 
+    public async Task<List<Database.Bot.Models.Games.StarshipExpeditionHistoryRow>> GetExpeditionHistoryAsync(int limit = 50, CancellationToken cancellationToken = default)
+    {
+        if (scopeFactory == null) return [];
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetService<ApplicationDbContext>();
+        if (context != null)
+        {
+            return await context.StarshipExpeditionHistory
+                .AsNoTracking()
+                .OrderByDescending(x => x.StartedAtUtc)
+                .Take(Math.Clamp(limit, 1, 200))
+                .Select(x => new Database.Bot.Models.Games.StarshipExpeditionHistoryRow
+                {
+                    Id = x.Id,
+                    ExpeditionId = x.ExpeditionId,
+                    ShipName = x.ShipName,
+                    Seed = x.Seed,
+                    StartedBy = x.StartedBy,
+                    StartedByUserId = x.StartedByUserId,
+                    StartedAtUtc = x.StartedAtUtc,
+                    EndedAtUtc = x.EndedAtUtc,
+                    Status = x.Status,
+                    ReturnReason = x.ReturnReason,
+                    TotalLegs = x.TotalLegs,
+                    CompletedLegs = x.CompletedLegs,
+                    CrewCount = x.CrewCount,
+                    EventsSucceeded = x.EventsSucceeded,
+                    EventsFailed = x.EventsFailed,
+                    TotalRewardsPaid = x.TotalRewardsPaid,
+                    HullRemaining = x.HullRemaining,
+                    HullMaximum = x.HullMaximum,
+                    SuppliesRemaining = x.SuppliesRemaining
+                })
+                .ToListAsync(cancellationToken);
+        }
+
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var items = await unitOfWork.StarshipExpeditionHistory.GetAsync(
+            filter: null,
+            orderBy: q => q.OrderByDescending(x => x.StartedAtUtc),
+            limit: Math.Clamp(limit, 1, 200));
+        return items.Select(x => new Database.Bot.Models.Games.StarshipExpeditionHistoryRow
+        {
+            Id = x.Id,
+            ExpeditionId = x.ExpeditionId,
+            ShipName = x.ShipName,
+            Seed = x.Seed,
+            StartedBy = x.StartedBy,
+            StartedByUserId = x.StartedByUserId,
+            StartedAtUtc = x.StartedAtUtc,
+            EndedAtUtc = x.EndedAtUtc,
+            Status = x.Status,
+            ReturnReason = x.ReturnReason,
+            TotalLegs = x.TotalLegs,
+            CompletedLegs = x.CompletedLegs,
+            CrewCount = x.CrewCount,
+            EventsSucceeded = x.EventsSucceeded,
+            EventsFailed = x.EventsFailed,
+            TotalRewardsPaid = x.TotalRewardsPaid,
+            HullRemaining = x.HullRemaining,
+            HullMaximum = x.HullMaximum,
+            SuppliesRemaining = x.SuppliesRemaining
+        }).ToList();
+    }
+
+    public async Task<StarshipExpeditionSnapshot?> GetExpeditionHistorySnapshotAsync(Guid expeditionId, CancellationToken cancellationToken = default)
+    {
+        if (scopeFactory == null || expeditionId == Guid.Empty) return null;
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var entry = (await unitOfWork.StarshipExpeditionHistory.GetAsync(x => x.ExpeditionId == expeditionId)).FirstOrDefault();
+        if (entry == null || string.IsNullOrWhiteSpace(entry.SnapshotJson)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<StarshipExpeditionSnapshot>(entry.SnapshotJson, JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogError(ex, "Failed to deserialize snapshot JSON for expedition history {ExpeditionId}", expeditionId);
+            return null;
+        }
+    }
+
+    private async Task RecordExpeditionHistoryAsync(StarshipExpeditionSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        if (scopeFactory == null || snapshot.ExpeditionId == Guid.Empty) return;
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var existing = (await unitOfWork.StarshipExpeditionHistory.GetAsync(x => x.ExpeditionId == snapshot.ExpeditionId)).FirstOrDefault();
+
+            var endedAtUtc = (snapshot.ActivityFeed.LastOrDefault(item => item.Kind == StarshipActivityKinds.VoyageEnded)?.AtUtc ?? snapshot.UpdatedAtUtc).UtcDateTime;
+            var json = JsonSerializer.Serialize(snapshot, JsonOptions);
+            var eventsSucceeded = snapshot.CompletedEvents.Count(e => e.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess);
+            var eventsFailed = snapshot.CompletedEvents.Count(e => e.OutcomeResult == StarshipExpeditionNarrative.OutcomeFailure);
+            var totalRewardsPaid = snapshot.BankedPayouts.Where(p => p.IsPaid).Sum(p => p.Amount);
+
+            if (existing != null)
+            {
+                existing.EndedAtUtc = endedAtUtc;
+                existing.Status = snapshot.Status.ToString();
+                existing.ReturnReason = snapshot.ReturnReason;
+                existing.CompletedLegs = snapshot.CurrentLeg;
+                existing.CrewCount = snapshot.Crew.Count;
+                existing.EventsSucceeded = eventsSucceeded;
+                existing.EventsFailed = eventsFailed;
+                existing.TotalRewardsPaid = totalRewardsPaid;
+                existing.HullRemaining = snapshot.ShipSystems?.Hull;
+                existing.SuppliesRemaining = snapshot.ShipSystems?.Supplies;
+                existing.SnapshotJson = json;
+                unitOfWork.StarshipExpeditionHistory.Update(existing);
+            }
+            else
+            {
+                var entry = new Database.Bot.Models.Games.StarshipExpeditionHistoryRow
+                {
+                    ExpeditionId = snapshot.ExpeditionId,
+                    ShipName = snapshot.Ship?.Name ?? "Unknown Ship",
+                    Seed = snapshot.Seed,
+                    StartedBy = snapshot.StartedBy,
+                    StartedByUserId = snapshot.StartedByUserId,
+                    StartedAtUtc = snapshot.StartedAtUtc.UtcDateTime,
+                    EndedAtUtc = endedAtUtc,
+                    Status = snapshot.Status.ToString(),
+                    ReturnReason = snapshot.ReturnReason,
+                    TotalLegs = snapshot.LegCount,
+                    CompletedLegs = snapshot.CurrentLeg,
+                    CrewCount = snapshot.Crew.Count,
+                    EventsSucceeded = eventsSucceeded,
+                    EventsFailed = eventsFailed,
+                    TotalRewardsPaid = totalRewardsPaid,
+                    HullRemaining = snapshot.ShipSystems?.Hull,
+                    HullMaximum = snapshot.ShipSystems?.Rules.MaximumHull,
+                    SuppliesRemaining = snapshot.ShipSystems?.Supplies,
+                    SnapshotJson = json
+                };
+                await unitOfWork.StarshipExpeditionHistory.AddAsync(entry);
+            }
+            await unitOfWork.SaveChangesAsync();
+
+            var count = await unitOfWork.StarshipExpeditionHistory.CountAsync();
+            if (count > 200)
+            {
+                var oldest = await unitOfWork.StarshipExpeditionHistory.GetAsync(
+                    orderBy: q => q.OrderBy(x => x.StartedAtUtc),
+                    limit: count - 200);
+                unitOfWork.StarshipExpeditionHistory.RemoveRange(oldest);
+                await unitOfWork.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to record Starship expedition history for {ExpeditionId}", snapshot.ExpeditionId);
+        }
+    }
 }

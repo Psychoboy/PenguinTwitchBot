@@ -705,6 +705,13 @@
                     </MudStack>
                     }
                 </MudTabPanel>
+
+                <MudTabPanel Text="History" Icon="@Icons.Material.Filled.History">
+                    @if (_visitedTabs.Contains(7))
+                    {
+                        <StarshipExpeditionHistoryViewer />
+                    }
+                </MudTabPanel>
             </MudTabs>
                 </ChildContent>
                 <ErrorContent Context="renderError">

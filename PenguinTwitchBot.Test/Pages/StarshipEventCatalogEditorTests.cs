@@ -49,10 +49,14 @@ public class StarshipEventCatalogEditorTests
             Assert.Contains("recovery", editor.Markup);
             Assert.Contains("default route", editor.Markup, StringComparison.OrdinalIgnoreCase);
         });
-        Click(editor, "Apply Event");
+        await ClickAsync(editor, "Apply Event");
+        await editor.WaitForAssertionAsync(() =>
+        {
+            var added = settings.EventCatalog.Single(definition => definition.Title == "Archive Recovery");
+            Assert.Equal("SalvageSite", added.RewardProfileId);
+            Assert.Equal(6, settings.EventCatalog.Count);
+        });
         var added = settings.EventCatalog.Single(definition => definition.Title == "Archive Recovery");
-        Assert.Equal("SalvageSite", added.RewardProfileId);
-        Assert.Equal(6, settings.EventCatalog.Count);
         editor.Find($"button[aria-label='Delete {added.EventType}']").Click();
         Click(editor, "Delete Event");
         Assert.Equal(5, settings.EventCatalog.Count);
@@ -147,9 +151,10 @@ public class StarshipEventCatalogEditorTests
 
         await editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Frontier Route")
             .Find("input").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = false });
-        Click(editor, "Apply Event");
+        await ClickAsync(editor, "Apply Event");
 
-        Assert.Equal(["Uncharted"], settings.EventCatalog.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
+        await editor.WaitForAssertionAsync(() =>
+            Assert.Equal(["Uncharted"], settings.EventCatalog.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes));
     }
 
     [Fact]
@@ -191,16 +196,19 @@ public class StarshipEventCatalogEditorTests
         await using var context = CreateContext();
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
-        editor.Find("button[aria-label='Edit SignalDetected']").Click();
-        editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Step ID")
-            .Find("input").Change("opening");
+        await editor.Find("button[aria-label='Edit SignalDetected']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Step ID")
+            .Find("input").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "opening" });
 
-        Click(editor, "Apply Event");
+        await ClickAsync(editor, "Apply Event");
 
-        var definition = settings.EventCatalog.Single(item => item.EventType == "SignalDetected");
-        Assert.Equal("opening", definition.StartStepId);
-        Assert.Contains(definition.Steps, step => step.StepId == "opening");
-        Assert.DoesNotContain(definition.Steps.SelectMany(step => step.Choices), choice => choice.NextStepId == "approach");
+        await editor.WaitForAssertionAsync(() =>
+        {
+            var definition = settings.EventCatalog.Single(item => item.EventType == "SignalDetected");
+            Assert.Equal("opening", definition.StartStepId);
+            Assert.Contains(definition.Steps, step => step.StepId == "opening");
+            Assert.DoesNotContain(definition.Steps.SelectMany(step => step.Choices), choice => choice.NextStepId == "approach");
+        });
     }
 
     [Fact]
@@ -228,10 +236,14 @@ public class StarshipEventCatalogEditorTests
         for (var index = 0; index < 2; index++) Click(editor, "Add Choice");
         Assert.Equal(4, editor.FindAll("button[aria-label^='Edit choice ']").Count);
         Assert.True(editor.FindAll("button").Single(button => button.TextContent.Trim() == "Add Choice").HasAttribute("disabled"));
-        editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Event ID").Find("input").Change("SignalDetected");
-        Click(editor, "Apply Event");
-        Assert.Equal(5, settings.EventCatalog.Count);
-        Assert.Contains("Event IDs must be unique", editor.Markup);
+        await editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Event ID").Find("input")
+            .ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "SignalDetected" });
+        await ClickAsync(editor, "Apply Event");
+        await editor.WaitForAssertionAsync(() =>
+        {
+            Assert.Equal(5, settings.EventCatalog.Count);
+            Assert.Contains("Event IDs must be unique", editor.Markup);
+        });
         await editor.FindAll("button").Single(button => button.TextContent.Trim() == "Discard Draft")
             .ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
         await editor.WaitForAssertionAsync(() => Assert.DoesNotContain("New Event Draft", editor.Markup));
@@ -243,15 +255,19 @@ public class StarshipEventCatalogEditorTests
         await using var context = CreateContext();
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
-        editor.Find("button[aria-label='Edit RouteChoice']").Click();
+        await editor.Find("button[aria-label='Edit RouteChoice']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
         Assert.DoesNotContain(editor.FindComponents<MudNumericField<int>>(), component => component.Instance.Label == "Selection Weight");
         Assert.DoesNotContain(editor.FindComponents<MudSelect<string>>(), component => component.Instance.Label == "Default Choice");
         Assert.True(editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Choice ID").Instance.Disabled);
         Assert.DoesNotContain(editor.FindAll("button"), button => button.TextContent.Trim() == "Add Choice");
-        editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Title").Find("input").Change("Choose Our Journey");
-        Click(editor, "Apply Event");
-        Assert.Equal("Choose Our Journey", settings.EventCatalog.Single(definition => definition.EventType == "RouteChoice").Title);
-        Assert.Equal("core", settings.EventCatalog.Single(definition => definition.EventType == "RouteChoice").DefaultChoiceId);
+        await editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Title").Find("input")
+            .ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "Choose Our Journey" });
+        await ClickAsync(editor, "Apply Event");
+        await editor.WaitForAssertionAsync(() =>
+        {
+            Assert.Equal("Choose Our Journey", settings.EventCatalog.Single(definition => definition.EventType == "RouteChoice").Title);
+            Assert.Equal("core", settings.EventCatalog.Single(definition => definition.EventType == "RouteChoice").DefaultChoiceId);
+        });
     }
 
     [Fact]
@@ -261,15 +277,19 @@ public class StarshipEventCatalogEditorTests
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
         var json = StarshipEventEditing.Export(settings.EventCatalog[0]);
-        editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Event JSON").Find("textarea").Change(json);
-        Click(editor, "Import as Draft");
+        await editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Event JSON").Find("textarea")
+            .ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = json });
+        await ClickAsync(editor, "Import as Draft");
         Assert.Contains("New Event Draft", editor.Markup);
         Assert.Equal(5, settings.EventCatalog.Count);
-        Click(editor, "Export JSON");
+        await ClickAsync(editor, "Export JSON");
         Assert.Single(context.JSInterop.Invocations["downloadFile"]);
-        Click(editor, "Apply Event");
-        Assert.Equal(6, settings.EventCatalog.Count);
-        Assert.Contains(settings.EventCatalog, definition => definition.EventType == "SignalDetected");
+        await ClickAsync(editor, "Apply Event");
+        await editor.WaitForAssertionAsync(() =>
+        {
+            Assert.Equal(6, settings.EventCatalog.Count);
+            Assert.Contains(settings.EventCatalog, definition => definition.EventType == "SignalDetected");
+        });
     }
 
     [Fact]
@@ -283,11 +303,14 @@ public class StarshipEventCatalogEditorTests
         Click(editor, "Add Event");
         Click(editor, "Create Event Reward Profile");
         Assert.Equal(4, settings.RewardProfiles.Count);
-        Click(editor, "Apply Event");
-        var added = settings.EventCatalog.Single(definition => definition.EventType == "custom-event");
-        var profile = settings.RewardProfiles.Single(item => item.Id == added.RewardProfileId);
-        Assert.Equal(7, profile.Tiers[0].Rewards[0].PointTypeId);
-        Assert.Equal(5, settings.RewardProfiles.Count);
+        await ClickAsync(editor, "Apply Event");
+        await editor.WaitForAssertionAsync(() =>
+        {
+            var added = settings.EventCatalog.Single(definition => definition.EventType == "custom-event");
+            var profile = settings.RewardProfiles.Single(item => item.Id == added.RewardProfileId);
+            Assert.Equal(7, profile.Tiers[0].Rewards[0].PointTypeId);
+            Assert.Equal(5, settings.RewardProfiles.Count);
+        });
     }
 
     [Fact]
@@ -298,10 +321,10 @@ public class StarshipEventCatalogEditorTests
         var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
         var json = StarshipEventEditing.Export(settings.EventCatalog[0]);
         editor.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText(json, "event.json"));
-        editor.WaitForAssertion(() => Assert.Contains("New Event Draft", editor.Markup));
+        await editor.WaitForAssertionAsync(() => Assert.Contains("New Event Draft", editor.Markup));
         Assert.Equal(5, settings.EventCatalog.Count);
-        Click(editor, "Apply Event");
-        Assert.Equal(6, settings.EventCatalog.Count);
+        await ClickAsync(editor, "Apply Event");
+        await editor.WaitForAssertionAsync(() => Assert.Equal(6, settings.EventCatalog.Count));
     }
 
     [Fact]
@@ -326,12 +349,20 @@ public class StarshipEventCatalogEditorTests
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters.Add(component => component.Settings, settings));
         Click(editor, "Add Event");
-        editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Title").Find("input").Change("");
-        Click(editor, "Apply Event");
-        Assert.Equal(5, settings.EventCatalog.Count);
-        Assert.Contains("mud-alert", editor.Markup);
+        await editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Title").Find("input")
+            .ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "" });
+        await ClickAsync(editor, "Apply Event");
+        await editor.WaitForAssertionAsync(() =>
+        {
+            Assert.Equal(5, settings.EventCatalog.Count);
+            Assert.Contains("mud-alert", editor.Markup);
+        });
     }
 
     private static void Click(IRenderedComponent<StarshipEventCatalogEditor> editor, string label) =>
         editor.FindAll("button").Single(button => button.TextContent.Trim() == label).Click();
+
+    private static async Task ClickAsync(IRenderedComponent<StarshipEventCatalogEditor> editor, string label) =>
+        await editor.FindAll("button").Single(button => button.TextContent.Trim() == label)
+            .ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 }

@@ -1,0 +1,203 @@
+@using PenguinTwitchBot.Bot.Commands.Games.Starship
+@using PenguinTwitchBot.Database.Bot.Models.Games
+@using MudBlazor
+@inject IStarshipExpeditionService StarshipService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="3">
+    @if (_loading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-2" />
+    }
+
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-3 text-center" Outlined="true">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Total Voyages</MudText>
+                <MudText Typo="Typo.h5">@_history.Count</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-3 text-center" Outlined="true">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Returned Safely</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Success">@_history.Count(h => h.Status == "Returned" && h.ReturnReason != "HullDepleted")</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-3 text-center" Outlined="true">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Hull Depleted / Lost</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Warning">@_history.Count(h => h.ReturnReason == "HullDepleted" || h.Status == "Aborted")</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-3 text-center" Outlined="true">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Total Points Banked</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Primary">@_history.Sum(h => h.TotalRewardsPaid).ToString("#,##0")</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Outlined="true">
+        <MudTable Items="@FilteredHistory" Hover="true" Dense="true" Striped="true" Elevation="0">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Expedition Log</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_search" Placeholder="Filter by ship, status, or date"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Immediate="true" Clearable="true" Style="max-width: 300px;" />
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" aria-label="Refresh history"
+                               Disabled="@_loading" OnClick="LoadHistoryAsync" Class="ml-2" />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Date</MudTh>
+                <MudTh>Ship</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Legs</MudTh>
+                <MudTh>Crew</MudTh>
+                <MudTh>Events</MudTh>
+                <MudTh>Ship State</MudTh>
+                <MudTh>Rewards Banked</MudTh>
+                <MudTh Style="text-align: right;">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Date">@context.StartedAtUtc.ToLocalTime().ToString("g")</MudTd>
+                <MudTd DataLabel="Ship">
+                    <MudText Typo="Typo.body2"><strong>@context.ShipName</strong></MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Seed: @context.Seed</MudText>
+                </MudTd>
+                <MudTd DataLabel="Status">
+                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status, context.ReturnReason)">
+                        @(context.ReturnReason == "HullDepleted" ? "Hull Depleted" : context.Status)
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Legs">@context.CompletedLegs / @context.TotalLegs</MudTd>
+                <MudTd DataLabel="Crew">@context.CrewCount</MudTd>
+                <MudTd DataLabel="Events">
+                    <MudText Typo="Typo.body2">
+                        <span style="color: var(--mud-palette-success);">@context.EventsSucceeded ✓</span> /
+                        <span style="color: var(--mud-palette-error);">@context.EventsFailed ✗</span>
+                    </MudText>
+                </MudTd>
+                <MudTd DataLabel="Ship State">
+                    @if (context.HullRemaining.HasValue)
+                    {
+                        <MudText Typo="Typo.caption">
+                            Hull: @context.HullRemaining/@context.HullMaximum | Supplies: @context.SuppliesRemaining
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">N/A</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Rewards Banked">
+                    <strong>@context.TotalRewardsPaid.ToString("#,##0")</strong>
+                </MudTd>
+                <MudTd Style="text-align: right;">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Visibility"
+                               OnClick="@(() => OpenDetailsAsync(context))">
+                        Details
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Class="pa-4 text-center" Color="Color.Secondary">
+                    @(_loading ? "Loading expedition history..." : "No past expeditions recorded yet. Completed voyages will appear here.")
+                </MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new[] { 10, 25, 50, 100, 200 }" />
+            </PagerContent>
+        </MudTable>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private bool _loading;
+    private string _search = string.Empty;
+    private List<StarshipExpeditionHistoryRow> _history = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHistoryAsync();
+    }
+
+    public async Task LoadHistoryAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            _history = await StarshipService.GetExpeditionHistoryAsync(200);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load expedition history: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private IEnumerable<StarshipExpeditionHistoryRow> FilteredHistory =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _history
+            : _history.Where(h =>
+                h.ShipName.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                h.Status.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                (h.ReturnReason != null && h.ReturnReason.Contains(_search, StringComparison.OrdinalIgnoreCase)) ||
+                h.StartedBy.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                h.StartedAtUtc.ToLocalTime().ToString("g").Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    private static Color GetStatusColor(string status, string? returnReason)
+    {
+        if (returnReason == "HullDepleted") return Color.Warning;
+        return status switch
+        {
+            "Returned" => Color.Success,
+            "Aborted" => Color.Error,
+            _ => Color.Info
+        };
+    }
+
+    private async Task OpenDetailsAsync(StarshipExpeditionHistoryRow row)
+    {
+        _loading = true;
+        try
+        {
+            var snapshot = await StarshipService.GetExpeditionHistorySnapshotAsync(row.ExpeditionId);
+            if (snapshot == null)
+            {
+                Snackbar.Add("Could not load details for this voyage.", Severity.Warning);
+                return;
+            }
+
+            var parameters = new DialogParameters<StarshipExpeditionDetailDialog>
+            {
+                { x => x.HistoryRow, row },
+                { x => x.Snapshot, snapshot }
+            };
+            var options = new DialogOptions
+            {
+                MaxWidth = MaxWidth.Medium,
+                FullWidth = true,
+                CloseButton = true
+            };
+            await DialogService.ShowAsync<StarshipExpeditionDetailDialog>($"Voyage Details - {row.ShipName}", parameters, options);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error opening details: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}
+

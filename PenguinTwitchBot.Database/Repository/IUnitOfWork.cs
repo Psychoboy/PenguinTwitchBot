@@ -49,6 +49,7 @@ namespace PenguinTwitchBot.Database.Repository
         IGameSettingsRepository GameSettings { get; }
         IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipEventRow> StarshipEvents { get; }
         IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipRewardProfileRow> StarshipRewardProfiles { get; }
+        IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipExpeditionHistoryRow> StarshipExpeditionHistory { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

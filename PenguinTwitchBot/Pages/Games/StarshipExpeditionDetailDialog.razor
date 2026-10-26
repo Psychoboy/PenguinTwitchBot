@@ -1,0 +1,163 @@
+@using PenguinTwitchBot.Bot.Commands.Games.Starship
+@using PenguinTwitchBot.Database.Bot.Models.Games
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Ship</MudText>
+                        <MudText Typo="Typo.body1"><strong>@HistoryRow.ShipName</strong> (Seed: @HistoryRow.Seed)</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Status</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(HistoryRow.Status)">
+                            @HistoryRow.Status @(!string.IsNullOrEmpty(HistoryRow.ReturnReason) ? $"({HistoryRow.ReturnReason})" : "")
+                        </MudChip>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Started</MudText>
+                        <MudText Typo="Typo.body2">@HistoryRow.StartedAtUtc.ToLocalTime().ToString("g")</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Ended</MudText>
+                        <MudText Typo="Typo.body2">@(HistoryRow.EndedAtUtc?.ToLocalTime().ToString("g") ?? "In Progress")</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Legs</MudText>
+                        <MudText Typo="Typo.body2">@HistoryRow.CompletedLegs / @HistoryRow.TotalLegs</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Crew Size</MudText>
+                        <MudText Typo="Typo.body2">@HistoryRow.CrewCount aboard</MudText>
+                    </MudItem>
+                    @if (HistoryRow.HullRemaining.HasValue)
+                    {
+                        <MudItem xs="6" sm="3">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Hull</MudText>
+                            <MudText Typo="Typo.body2">@HistoryRow.HullRemaining / @HistoryRow.HullMaximum</MudText>
+                        </MudItem>
+                        <MudItem xs="6" sm="3">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Supplies</MudText>
+                            <MudText Typo="Typo.body2">@HistoryRow.SuppliesRemaining / 100</MudText>
+                        </MudItem>
+                    }
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Rewards Banked</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Success"><strong>@HistoryRow.TotalRewardsPaid.ToString("#,##0") points total</strong></MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudTabs Elevation="0" Outlined="true" Rounded="true">
+                <MudTabPanel Text="Events Timeline" Icon="@Icons.Material.Filled.Timeline">
+                    @if (Snapshot.CompletedEvents.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">No events completed during this voyage.</MudText>
+                    }
+                    else
+                    {
+                        <MudTimeline TimelineOrientation="TimelineOrientation.Vertical" TimelinePosition="TimelinePosition.Start" Class="pa-2">
+                            @foreach (var ev in Snapshot.CompletedEvents)
+                            {
+                                <MudTimelineItem Color="@GetOutcomeTimelineColor(ev.OutcomeResult)" Size="Size.Small">
+                                    <ItemContent>
+                                        <MudPaper Elevation="1" Class="pa-3 mb-2">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                <MudText Typo="Typo.subtitle2">
+                                                    Leg @ev.Sequence: @ev.Title
+                                                </MudText>
+                                                <MudStack Row="true" Spacing="1">
+                                                    @if (!string.IsNullOrEmpty(ev.OutcomeRarity))
+                                                    {
+                                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@ev.OutcomeRarity</MudChip>
+                                                    }
+                                                    <MudChip T="string" Size="Size.Small" Color="@GetOutcomeTimelineColor(ev.OutcomeResult)">@ev.OutcomeResult</MudChip>
+                                                </MudStack>
+                                            </MudStack>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">Sector: @ev.Sector | Step: @ev.CurrentStepId</MudText>
+                                            @if (!string.IsNullOrWhiteSpace(ev.OutcomeStory))
+                                            {
+                                                <MudText Typo="Typo.body2" Class="mt-1 font-italic">@ev.OutcomeStory</MudText>
+                                            }
+                                            @if (ev.Choices.Count > 0)
+                                            {
+                                                <MudText Typo="Typo.caption" Class="mt-1">
+                                                    Resolved choice: <strong>@(StarshipRewardResolver.FindResolvedChoice(ev)?.Label ?? ev.ResolvedChoiceId ?? "Default")</strong>
+                                                    (@ev.Votes.Count total votes)
+                                                </MudText>
+                                            }
+                                        </MudPaper>
+                                    </ItemContent>
+                                </MudTimelineItem>
+                            }
+                        </MudTimeline>
+                    }
+                </MudTabPanel>
+
+                <MudTabPanel Text="Crew Roster" Icon="@Icons.Material.Filled.People">
+                    @if (Snapshot.Crew.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">No crew members joined this expedition.</MudText>
+                    }
+                    else
+                    {
+                        <MudTable Items="@Snapshot.Crew" Dense="true" Hover="true" Elevation="0">
+                            <HeaderContent>
+                                <MudTh>Crew Member</MudTh>
+                                <MudTh>Enrolled</MudTh>
+                                <MudTh>Joined</MudTh>
+                                <MudTh>Banked Payouts</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Crew Member">@context.DisplayName (@context.UserName)</MudTd>
+                                <MudTd DataLabel="Enrolled">@context.EnrollmentMethod</MudTd>
+                                <MudTd DataLabel="Joined">@context.JoinedAtUtc.ToLocalTime().ToString("t")</MudTd>
+                                <MudTd DataLabel="Banked Payouts">
+                                    @{
+                                        var memberPayouts = Snapshot.BankedPayouts
+                                            .Where(p => string.Equals(p.UserId, context.UserId, StringComparison.OrdinalIgnoreCase))
+                                            .GroupBy(p => p.PointTypeName)
+                                            .Select(g => $"{g.Sum(p => p.Amount).ToString("#,##0")} {g.Key}");
+                                        var text = string.Join(", ", memberPayouts);
+                                    }
+                                    @(string.IsNullOrEmpty(text) ? "0" : text)
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudTabPanel>
+            </MudTabs>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public StarshipExpeditionHistoryRow HistoryRow { get; set; } = default!;
+    [Parameter, EditorRequired] public StarshipExpeditionSnapshot Snapshot { get; set; } = default!;
+
+    private void Close() => MudDialog.Close();
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Returned" => Color.Success,
+        "Cruising" or "Boarding" or "EventOpen" => Color.Info,
+        "Aborted" => Color.Error,
+        _ => Color.Warning
+    };
+
+    private Color GetOutcomeTimelineColor(string outcome) => outcome switch
+    {
+        StarshipExpeditionNarrative.OutcomeSuccess => Color.Success,
+        StarshipExpeditionNarrative.OutcomeFailure => Color.Error,
+        StarshipExpeditionNarrative.OutcomePassed => Color.Default,
+        _ => Color.Info
+    };
+}
+
