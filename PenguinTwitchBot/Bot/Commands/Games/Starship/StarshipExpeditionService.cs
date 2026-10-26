@@ -13,7 +13,10 @@ using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Repository;
+using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Services;
 
@@ -608,7 +611,31 @@ public sealed class StarshipExpeditionService(
         {
             await AnnounceVoyageEndedAsync(stoppedSnapshot);
             await FireVoyageEndedTriggerAsync(stoppedSnapshot, stoppedBy);
-            await RecordExpeditionHistoryAsync(stoppedSnapshot, cancellationToken);
+
+            await _payoutLock.WaitAsync(cancellationToken);
+            try
+            {
+                StarshipExpeditionSnapshot? historySnapshot;
+                await _stateLock.WaitAsync(cancellationToken);
+                try
+                {
+                    historySnapshot = _snapshot == null ? null : Clone(_snapshot);
+                }
+                finally
+                {
+                    _stateLock.Release();
+                }
+
+                if (historySnapshot != null)
+                {
+                    await RecordExpeditionHistoryAsync(historySnapshot, cancellationToken);
+                }
+            }
+            finally
+            {
+                _payoutLock.Release();
+            }
+
             await ProcessPendingBankedPayoutsAsync(cancellationToken);
         }
         return stoppedSnapshot == null ? null : await GetSnapshotAsync(cancellationToken) ?? stoppedSnapshot;
@@ -2169,12 +2196,65 @@ public sealed class StarshipExpeditionService(
     {
         if (scopeFactory == null) return [];
         await using var scope = scopeFactory.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetService<ApplicationDbContext>();
+        if (context != null)
+        {
+            return await context.StarshipExpeditionHistory
+                .AsNoTracking()
+                .OrderByDescending(x => x.StartedAtUtc)
+                .Take(Math.Clamp(limit, 1, 200))
+                .Select(x => new Database.Bot.Models.Games.StarshipExpeditionHistoryRow
+                {
+                    Id = x.Id,
+                    ExpeditionId = x.ExpeditionId,
+                    ShipName = x.ShipName,
+                    Seed = x.Seed,
+                    StartedBy = x.StartedBy,
+                    StartedByUserId = x.StartedByUserId,
+                    StartedAtUtc = x.StartedAtUtc,
+                    EndedAtUtc = x.EndedAtUtc,
+                    Status = x.Status,
+                    ReturnReason = x.ReturnReason,
+                    TotalLegs = x.TotalLegs,
+                    CompletedLegs = x.CompletedLegs,
+                    CrewCount = x.CrewCount,
+                    EventsSucceeded = x.EventsSucceeded,
+                    EventsFailed = x.EventsFailed,
+                    TotalRewardsPaid = x.TotalRewardsPaid,
+                    HullRemaining = x.HullRemaining,
+                    HullMaximum = x.HullMaximum,
+                    SuppliesRemaining = x.SuppliesRemaining
+                })
+                .ToListAsync(cancellationToken);
+        }
+
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         var items = await unitOfWork.StarshipExpeditionHistory.GetAsync(
             filter: null,
             orderBy: q => q.OrderByDescending(x => x.StartedAtUtc),
             limit: Math.Clamp(limit, 1, 200));
-        return items;
+        return items.Select(x => new Database.Bot.Models.Games.StarshipExpeditionHistoryRow
+        {
+            Id = x.Id,
+            ExpeditionId = x.ExpeditionId,
+            ShipName = x.ShipName,
+            Seed = x.Seed,
+            StartedBy = x.StartedBy,
+            StartedByUserId = x.StartedByUserId,
+            StartedAtUtc = x.StartedAtUtc,
+            EndedAtUtc = x.EndedAtUtc,
+            Status = x.Status,
+            ReturnReason = x.ReturnReason,
+            TotalLegs = x.TotalLegs,
+            CompletedLegs = x.CompletedLegs,
+            CrewCount = x.CrewCount,
+            EventsSucceeded = x.EventsSucceeded,
+            EventsFailed = x.EventsFailed,
+            TotalRewardsPaid = x.TotalRewardsPaid,
+            HullRemaining = x.HullRemaining,
+            HullMaximum = x.HullMaximum,
+            SuppliesRemaining = x.SuppliesRemaining
+        }).ToList();
     }
 
     public async Task<StarshipExpeditionSnapshot?> GetExpeditionHistorySnapshotAsync(Guid expeditionId, CancellationToken cancellationToken = default)
