@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -15,7 +16,9 @@ using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Points;
+using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Games;
@@ -2719,6 +2722,51 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(-5, paid.SuppliesDelta);
         Assert.Equal(5, paid.SuppliesCost);
         Assert.Equal("Supplies net -5; Cost 5 supplies; 90% success; Failure: hull 0, supplies -5", paid.Describe());
+    }
+
+    [Fact]
+    public async Task TerminalVoyage_IsPersistedToHistory_AndCanBeRetrieved()
+    {
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var services = new ServiceCollection()
+            .AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection,
+                sqlite => sqlite.MigrationsAssembly(typeof(PenguinTwitchBot.Migrations.Sqlite.SqliteDesignTimeDbContextFactory).Assembly.GetName().Name)))
+            .AddScoped<IUnitOfWork, UnitOfWork>()
+            .BuildServiceProvider();
+
+        await using (var scope = services.CreateAsyncScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await context.Database.MigrateAsync();
+        }
+
+        var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
+        var stateStore = new InMemoryStateStore();
+        var settingsStore = new InMemorySettingsStore();
+        settingsStore.Settings.GameEnabled = true;
+
+        var service = CreateService(stateStore, settingsStore: settingsStore, scopeFactory: scopeFactory);
+
+        var started = await service.StartExpeditionAsync("Cap'n", legCount: 4, minimumEventIntervalMinutes: 10, maximumEventIntervalMinutes: 20, seed: 12345);
+        Assert.Equal(StarshipExpeditionStatus.Boarding, started.Status);
+
+        var stopped = await service.StopExpeditionAsync("Cap'n");
+        Assert.NotNull(stopped);
+        Assert.Equal(StarshipExpeditionStatus.Aborted, stopped.Status);
+
+        var history = await service.GetExpeditionHistoryAsync();
+        var entry = Assert.Single(history);
+        Assert.Equal(started.ExpeditionId, entry.ExpeditionId);
+        Assert.Equal(started.Ship.Name, entry.ShipName);
+        Assert.Equal(12345, entry.Seed);
+        Assert.Equal("Aborted", entry.Status);
+        Assert.Equal(4, entry.TotalLegs);
+
+        var snapshot = await service.GetExpeditionHistorySnapshotAsync(started.ExpeditionId);
+        Assert.NotNull(snapshot);
+        Assert.Equal(started.ExpeditionId, snapshot.ExpeditionId);
+        Assert.Equal(StarshipExpeditionStatus.Aborted, snapshot.Status);
     }
 
     private static StarshipExpeditionService CreateService(

@@ -12,8 +12,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 public class StarshipExpeditionStateStoreTests
 {
     [Theory]
-    [InlineData("en-US", "1,234.5")]
-    [InlineData("de-DE", "1.234,5")]
+    [InlineData("en-US", "1,235")]
+    [InlineData("de-DE", "1.235")]
     public void RewardFeedback_FormatsAveragesUsingCurrentCulture(string cultureName, string expectedAmount)
     {
         var originalCulture = CultureInfo.CurrentCulture;
@@ -62,9 +62,10 @@ public class StarshipExpeditionStateStoreTests
 
         foreach (var text in new[] { overlayLines, chat })
         {
-            Assert.Contains("13.33 Credits, 7 Tokens", text);
+            Assert.Contains("13 Credits, 7 Tokens", text);
             Assert.Contains("average per eligible crew member", text);
             Assert.DoesNotContain("40 Credits", text);
+            Assert.DoesNotContain("13.33", text);
         }
         Assert.Equal(40, expeditionEvent.RewardOutcomes.Where(outcome => outcome.PointTypeId == 1)
             .Sum(outcome => failure ? outcome.LostAmount : outcome.EarnedAmount));
@@ -95,7 +96,7 @@ public class StarshipExpeditionStateStoreTests
         };
 
         var lines = StarshipExpeditionNarrative.BuildVoyageLines(snapshot);
-        Assert.Contains($"Earned {long.MaxValue.ToString("#,##0.##", CultureInfo.CurrentCulture)} Credits average per eligible crew member.", lines);
+        Assert.Contains($"Earned {long.MaxValue.ToString("#,##0", CultureInfo.CurrentCulture)} Credits average per eligible crew member.", lines);
         Assert.Contains("Banked 30 Credits average per banked crew member.", lines);
         var banked = Assert.Single(StarshipOverlayEventResult.From(expeditionEvent, payouts).BankedAmounts);
         Assert.Equal(60, banked.Amount);

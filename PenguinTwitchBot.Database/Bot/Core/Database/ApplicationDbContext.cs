@@ -60,6 +60,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<Models.Games.GameSetting> GameSettings { get; set; }
         public DbSet<Models.Games.StarshipEventRow> StarshipEvents { get; set; } = null!;
         public DbSet<Models.Games.StarshipRewardProfileRow> StarshipRewardProfiles { get; set; } = null!;
+        public DbSet<Models.Games.StarshipExpeditionHistoryRow> StarshipExpeditionHistory { get; set; } = null!;
         public DbSet<Models.Points.PointType> PointTypes { get; set; }
         public DbSet<Models.Points.UserPoints> UserPoints { get; set; }
         public DbSet<Models.Points.PointCommand> PointCommands { get; set; }
@@ -104,6 +105,8 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
             modelBuilder.Entity<Models.Games.StarshipEventRow>().Property(row => row.DocumentJson)
                 .HasColumnType(Database.IsNpgsql() ? "jsonb" : "TEXT");
             modelBuilder.Entity<Models.Games.StarshipRewardProfileRow>().Property(row => row.DocumentJson)
+                .HasColumnType(Database.IsNpgsql() ? "jsonb" : "TEXT");
+            modelBuilder.Entity<Models.Games.StarshipExpeditionHistoryRow>().Property(row => row.SnapshotJson)
                 .HasColumnType(Database.IsNpgsql() ? "jsonb" : "TEXT");
 
             modelBuilder.Entity<SongRequestViewItem>()

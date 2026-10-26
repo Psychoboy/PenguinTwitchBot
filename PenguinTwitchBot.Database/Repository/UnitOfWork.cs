@@ -55,6 +55,7 @@ namespace PenguinTwitchBot.Database.Repository
             GameSettings = new GameSettingsRepository(_context);
             StarshipEvents = new GenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipEventRow>(_context);
             StarshipRewardProfiles = new GenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipRewardProfileRow>(_context);
+            StarshipExpeditionHistory = new GenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipExpeditionHistoryRow>(_context);
             PointTypes = new PointTypesRepository(_context);
             UserPoints = new UserPointsRepository(_context);
             PointCommands = new PointCommandsRepository(_context);
@@ -132,6 +133,7 @@ namespace PenguinTwitchBot.Database.Repository
         public IGameSettingsRepository GameSettings { get; private set; }
         public IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipEventRow> StarshipEvents { get; }
         public IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipRewardProfileRow> StarshipRewardProfiles { get; }
+        public IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipExpeditionHistoryRow> StarshipExpeditionHistory { get; }
         public IPointTypesRepository PointTypes { get; private set; }
         public IUserPointsRepository UserPoints { get; private set; }
         public IPointCommandsRepository PointCommands { get; private set; }

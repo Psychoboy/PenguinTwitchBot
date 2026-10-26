@@ -1595,6 +1595,95 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("starship_events");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Games.StarshipExpeditionHistoryRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompletedLegs")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CrewCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("EndedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EventsFailed")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("EventsSucceeded")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ExpeditionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("HullMaximum")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("HullRemaining")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ReturnReason")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Seed")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ShipName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StartedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("StartedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("SuppliesRemaining")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TotalLegs")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("TotalRewardsPaid")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EndedAtUtc");
+
+                    b.HasIndex("ExpeditionId")
+                        .IsUnique();
+
+                    b.HasIndex("StartedAtUtc");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("starship_expedition_history");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Games.StarshipRewardProfileRow", b =>
                 {
                     b.Property<string>("Id")

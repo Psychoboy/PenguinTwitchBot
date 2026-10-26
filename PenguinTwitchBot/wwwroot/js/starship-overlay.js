@@ -593,9 +593,9 @@
         for (const payout of amounts) {
             const line = document.createElement('span');
             const amount = payout.averagePerCrewMember != null
-                ? payout.averagePerCrewMember
+                ? Math.round(payout.averagePerCrewMember)
                 : payout.amount;
-            line.textContent = Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + payout.pointTypeName + (payout.isPaid ? ' banked' : ' banking') +
+            line.textContent = Number(amount).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' ' + payout.pointTypeName + (payout.isPaid ? ' banked' : ' banking') +
                 (payout.averagePerCrewMember != null ? ' (avg / crew)' : ' crew total');
             container.appendChild(line);
         }
