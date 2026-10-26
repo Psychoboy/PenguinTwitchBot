@@ -427,15 +427,21 @@
         </MudPaper>
     };
 
-    private CommandEventArgs BuildTestEventArgs() => new()
+    private int _testRacerCounter;
+    private CommandEventArgs BuildTestEventArgs()
     {
-        Name = "streamer",
-        DisplayName = "Streamer",
-        Args = [_testEmoteInput],
-        Arg = _testEmoteInput,
-        IsBroadcaster = true,
-        FromOwnChannel = true
-    };
+        var id = Interlocked.Increment(ref _testRacerCounter);
+        return new()
+        {
+            UserId = $"test-user-{id}",
+            Name = id == 1 ? "streamer" : $"racer_{id}",
+            DisplayName = id == 1 ? "Streamer" : $"Racer {id}",
+            Args = [_testEmoteInput],
+            Arg = _testEmoteInput,
+            IsBroadcaster = true,
+            FromOwnChannel = true
+        };
+    }
 
     private async Task SaveAllSettingsAsync()
     {
@@ -472,6 +478,11 @@
 
     private async Task StartRaceLobbyTestAsync()
     {
+        if (_settings?.Racing.GameEnabled != true)
+        {
+            Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
+            return;
+        }
         await SaveAllSettingsAsync();
         var duration = _settings?.Racing.LobbyDurationSeconds ?? 60;
         await RacingGameService.StartRaceLobbyAsync(duration, triggeredBy: "Dashboard");
@@ -480,6 +491,11 @@
 
     private async Task JoinTestRacerAsync()
     {
+        if (_settings?.Racing.GameEnabled != true)
+        {
+            Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
+            return;
+        }
         var token = await RacingGameService.TriggerJoinRaceAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         if (!string.IsNullOrEmpty(token))
             Snackbar.Add("Added test racer to starting grid!", Severity.Info);
@@ -487,6 +503,11 @@
 
     private async Task StartSoloTimeTrialTestAsync()
     {
+        if (_settings?.Racing.GameEnabled != true)
+        {
+            Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
+            return;
+        }
         await SaveAllSettingsAsync();
         await RacingGameService.TriggerSoloTimeTrialAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched Solo Time Trial hot lap! Watch your /racing.html overlay.", Severity.Info);
@@ -503,6 +524,11 @@
 
     private async Task AddMultipleTestRacersAsync(bool autoLaunch)
     {
+        if (_settings?.Racing.GameEnabled != true)
+        {
+            Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
+            return;
+        }
         await SaveAllSettingsAsync();
         var added = await RacingGameService.AddTestRacersAsync(_testRacerCount, _testEmoteInput, autoLaunch);
         Snackbar.Add($"Added {added} test racers! {(autoLaunch ? "Race launched immediately!" : "Ready on grid.")}", Severity.Success);
@@ -510,6 +536,11 @@
 
     private async Task QuickTestHeatsAsync()
     {
+        if (_settings?.Racing.GameEnabled != true)
+        {
+            Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
+            return;
+        }
         await SaveAllSettingsAsync();
         var count = Math.Max(14, (_settings?.Racing.MaxRacersPerHeat ?? 6) * 2);
         var added = await RacingGameService.AddTestRacersAsync(count, _testEmoteInput, autoLaunch: true);
@@ -518,6 +549,11 @@
 
     private async Task QuickTestSingleRaceAsync()
     {
+        if (_settings?.Racing.GameEnabled != true)
+        {
+            Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
+            return;
+        }
         await SaveAllSettingsAsync();
         var count = Math.Min(6, _settings?.Racing.MaxRacersPerHeat ?? 6);
         var added = await RacingGameService.AddTestRacersAsync(count, _testEmoteInput, autoLaunch: true);

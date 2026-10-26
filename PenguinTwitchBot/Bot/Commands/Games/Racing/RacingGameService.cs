@@ -49,6 +49,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         private bool _isRaceRunning = false;
         private RacingTournamentState? _activeTournament;
         private readonly HashSet<string> _singleRaceRemainingTokens = [];
+        private CancellationTokenSource? _heatWatchdogCts;
 
         public class RacingTournamentState
         {
@@ -306,6 +307,42 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             await QueueWsMessageAsync(WsTopics.Racing, startPayload, $"Racing race_start dispatch ({heatTitle})");
             await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(webSocketMessenger, logger, WsTopics.Racing, durationSeconds: 25.0);
 
+            var watchdogCts = new CancellationTokenSource();
+            lock (_racerLock)
+            {
+                _heatWatchdogCts?.Cancel();
+                _heatWatchdogCts?.Dispose();
+                _heatWatchdogCts = watchdogCts;
+            }
+
+            var watchdogDuration = TimeSpan.FromSeconds(Math.Max(90, _currentSessionLaps * 60));
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(watchdogDuration, watchdogCts.Token);
+                    if (watchdogCts.IsCancellationRequested) return;
+
+                    logger.LogWarning("Racing heat watchdog timed out after {Duration}s. Resetting race state.", watchdogDuration.TotalSeconds);
+                    lock (_racerLock)
+                    {
+                        _isRaceRunning = false;
+                        _activeTournament = null;
+                        _singleRaceRemainingTokens.Clear();
+                        dropRegistry.SetSessionActive(DropGameType.Racing, false);
+                    }
+                    await StopSessionAsync("HeatTimeout");
+                }
+                catch (OperationCanceledException)
+                {
+                    // Watchdog cancelled because heat completed normally
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in racing heat watchdog");
+                }
+            });
+
             if (rSettings.AnnounceSessionStatusInChat)
             {
                 var template = isFinal ? rSettings.Messages.ChampionshipFinalStart : rSettings.Messages.RaceStart;
@@ -442,8 +479,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             var rSettings = settings.Racing;
             if (!rSettings.GameEnabled)
             {
-                rSettings.GameEnabled = true;
-                await settingsService.SaveSettingsAsync(settings);
+                logger.LogWarning("AddTestRacersAsync rejected because Racing is disabled.");
+                return 0;
             }
 
             if (!_sessionManager.HasActiveTimedSession() && !_isRaceRunning)
@@ -554,6 +591,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _isRaceRunning = false;
                     _activeTournament = null;
                     _singleRaceRemainingTokens.Clear();
+                    _heatWatchdogCts?.Cancel();
+                    _heatWatchdogCts?.Dispose();
+                    _heatWatchdogCts = null;
                 }
 
                 var dto = new DropGameSessionDto
@@ -655,7 +695,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
             lock (_racerLock)
             {
-                if (_lobbyRacers.Count >= rSettings.MaxRacersPerHeat)
+                if (_lobbyRacers.Count >= rSettings.MaxLobbyRacers)
                 {
                     var msg = RacingMessageSettings.Format(
                         rSettings.Messages.GridFull,
@@ -663,7 +703,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["user"] = eventArgs.DisplayName,
-                            ["max"] = rSettings.MaxRacersPerHeat.ToString(CultureInfo.InvariantCulture)
+                            ["max"] = rSettings.MaxLobbyRacers.ToString(CultureInfo.InvariantCulture)
                         });
                     _ = ServiceBackbone.SendChatMessage(msg);
                     return string.Empty;
@@ -721,10 +761,39 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5)
             };
 
-            dropRegistry.RegisterDrop(record);
-
             lock (_racerLock)
             {
+                if (_lobbyRacers.Count >= rSettings.MaxLobbyRacers)
+                {
+                    var msg = RacingMessageSettings.Format(
+                        rSettings.Messages.GridFull,
+                        RacingMessageSettings.DefaultGridFull,
+                        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["user"] = eventArgs.DisplayName,
+                            ["max"] = rSettings.MaxLobbyRacers.ToString(CultureInfo.InvariantCulture)
+                        });
+                    _ = ServiceBackbone.SendChatMessage(msg);
+                    return string.Empty;
+                }
+
+                if (_lobbyRacers.Any(r => string.Equals(r.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (!string.IsNullOrWhiteSpace(rSettings.Messages.AlreadyJoined))
+                    {
+                        var msg = RacingMessageSettings.Format(
+                            rSettings.Messages.AlreadyJoined,
+                            RacingMessageSettings.DefaultAlreadyJoined,
+                            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["user"] = eventArgs.DisplayName
+                            });
+                        _ = ServiceBackbone.SendChatMessage(msg);
+                    }
+                    return string.Empty;
+                }
+
+                dropRegistry.RegisterDrop(record);
                 _lobbyRacers.Add(record);
             }
 
@@ -734,7 +803,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             {
                 type = "race_grid_update",
                 racerCount = _lobbyRacers.Count,
-                maxRacers = rSettings.MaxRacersPerHeat,
+                maxRacers = rSettings.MaxLobbyRacers,
                 newRacer = new
                 {
                     dropToken = record.DropToken,
@@ -775,6 +844,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             var rSettings = settings.Racing;
             if (!rSettings.GameEnabled)
                 throw new InvalidOperationException("Racing Minigame is disabled.");
+
+            if (_isRaceRunning || _sessionManager.HasActiveTimedSession())
+            {
+                var msg = RacingMessageSettings.Format(
+                    rSettings.Messages.RaceInProgress,
+                    RacingMessageSettings.DefaultRaceInProgress,
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["user"] = eventArgs.DisplayName
+                    });
+                await ServiceBackbone.SendChatMessage(msg);
+                return string.Empty;
+            }
 
             var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, rSettings.ActiveThemeId, emoteService, dropRegistry);
             var resolvedEmoteUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(
@@ -986,6 +1068,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     if (_singleRaceRemainingTokens.Count == 0)
                     {
                         _isRaceRunning = false;
+                        _heatWatchdogCts?.Cancel();
                         dropRegistry.SetSessionActive(DropGameType.Racing, false);
                     }
                 }
@@ -1027,6 +1110,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
                 if (heatFinished)
                 {
+                    lock (_racerLock)
+                    {
+                        _heatWatchdogCts?.Cancel();
+                    }
                     string advancingNames;
                     lock (_racerLock)
                     {
@@ -1121,6 +1208,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     {
                         _isRaceRunning = false;
                         _activeTournament = null;
+                        _heatWatchdogCts?.Cancel();
                         dropRegistry.SetSessionActive(DropGameType.Racing, false);
                     }
                 }
@@ -1180,6 +1268,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
         public void Dispose()
         {
+            lock (_racerLock)
+            {
+                _heatWatchdogCts?.Cancel();
+                _heatWatchdogCts?.Dispose();
+                _heatWatchdogCts = null;
+            }
             _sessionManager.Dispose();
             GC.SuppressFinalize(this);
         }

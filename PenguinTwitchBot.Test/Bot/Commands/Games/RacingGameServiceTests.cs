@@ -377,6 +377,74 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 It.Is<string>(msg => msg == "Custom Winner: TestDriver won +25 in 12.34s!")),
                 Times.Once);
         }
+
+        [Fact]
+        public async Task TriggerSoloTimeTrialAsync_WhenLobbyOrRaceActive_ReturnsEmptyAndSendsRaceInProgress()
+        {
+            using var service = CreateService();
+
+            // Open a lobby so session is active
+            await service.StartRaceLobbyAsync(60, null, "Host");
+
+            var args = new CommandEventArgs
+            {
+                Command = "timetrial",
+                Name = "LateRacer",
+                DisplayName = "LateRacer",
+                UserId = "user-late"
+            };
+
+            var token = await service.TriggerSoloTimeTrialAsync(args);
+
+            Assert.Equal(string.Empty, token);
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(m => m.Contains("LateRacer") && m.Contains("race is currently in progress"))),
+                Times.Once);
+            _dropRegistry.Verify(x => x.RegisterDrop(It.IsAny<PendingDropRecord>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task TriggerJoinRaceAsync_EnforcesMaxLobbyRacers_AndDuplicateUser()
+        {
+            _settings.Racing.MaxLobbyRacers = 2;
+            using var service = CreateService();
+
+            await service.StartRaceLobbyAsync(60, null, "Host");
+
+            var racer1 = new CommandEventArgs { Command = "race", Name = "racer1", DisplayName = "Racer 1", UserId = "user-1" };
+            var racer2 = new CommandEventArgs { Command = "race", Name = "racer2", DisplayName = "Racer 2", UserId = "user-2" };
+            var racer3 = new CommandEventArgs { Command = "race", Name = "racer3", DisplayName = "Racer 3", UserId = "user-3" };
+
+            var token1 = await service.TriggerJoinRaceAsync(racer1);
+            Assert.False(string.IsNullOrEmpty(token1));
+
+            // Duplicate racer1
+            var dupToken = await service.TriggerJoinRaceAsync(racer1);
+            Assert.Equal(string.Empty, dupToken);
+
+            var token2 = await service.TriggerJoinRaceAsync(racer2);
+            Assert.False(string.IsNullOrEmpty(token2));
+
+            // Grid full (MaxLobbyRacers = 2)
+            var token3 = await service.TriggerJoinRaceAsync(racer3);
+            Assert.Equal(string.Empty, token3);
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(m => m.Contains("Racer 3") && m.Contains("grid is full"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task AddTestRacersAsync_WhenGameDisabled_ReturnsZeroWithoutEnabling()
+        {
+            _settings.Racing.GameEnabled = false;
+            using var service = CreateService();
+
+            var added = await service.AddTestRacersAsync(5);
+
+            Assert.Equal(0, added);
+            Assert.False(_settings.Racing.GameEnabled);
+            _settingsService.Verify(x => x.SaveSettingsAsync(It.IsAny<DropGamesSettings>()), Times.Never);
+        }
     }
 }
 

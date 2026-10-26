@@ -63,7 +63,16 @@ internal class Program
         // can find them in self-contained / single-file publish scenarios.
         PreloadMigrationAssemblies();
 
-        var builder = WebApplication.CreateBuilder(args);
+        var cliSkipBackup = args.Any(a => string.Equals(a, "--skip-database-backup", StringComparison.OrdinalIgnoreCase) ||
+                                          string.Equals(a, "--skip-db-backup", StringComparison.OrdinalIgnoreCase));
+        var filteredArgs = args.Where(a => !string.Equals(a, "--skip-database-backup", StringComparison.OrdinalIgnoreCase) &&
+                                           !string.Equals(a, "--skip-db-backup", StringComparison.OrdinalIgnoreCase)).ToArray();
+
+        var builder = WebApplication.CreateBuilder(filteredArgs);
+        if (cliSkipBackup)
+        {
+            builder.Configuration["SkipDatabaseBackup"] = "true";
+        }
         var section = builder.Configuration.GetSection("Secrets");
         var secretsFileLocation = section.GetValue<string>("SecretsConf") ?? "appsettings.secrets.json";
         if (!File.Exists(secretsFileLocation))
@@ -382,20 +391,7 @@ internal class Program
             dbContext.Database.Migrate();
         }
 
-        var skipBackupEnv = Environment.GetEnvironmentVariable("SKIP_DATABASE_BACKUP")
-            ?? Environment.GetEnvironmentVariable("SKIP_DB_BACKUP")
-            ?? Environment.GetEnvironmentVariable("DEBUG_SKIP_BACKUP");
-
-        var skipDatabaseBackup =
-            (!string.IsNullOrWhiteSpace(skipBackupEnv) && (
-                string.Equals(skipBackupEnv, "true", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(skipBackupEnv, "1", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(skipBackupEnv, "yes", StringComparison.OrdinalIgnoreCase))) ||
-            app.Configuration.GetValue<bool>("SkipDatabaseBackup") ||
-            app.Configuration.GetValue<bool>("SKIP_DATABASE_BACKUP") ||
-            app.Configuration.GetValue<bool>("SKIP_DB_BACKUP") ||
-            args.Any(a => string.Equals(a, "--skip-database-backup", StringComparison.OrdinalIgnoreCase) ||
-                          string.Equals(a, "--skip-db-backup", StringComparison.OrdinalIgnoreCase));
+        var skipDatabaseBackup = app.Configuration.GetValue<bool>("SkipDatabaseBackup");
 
         if (skipDatabaseBackup)
         {

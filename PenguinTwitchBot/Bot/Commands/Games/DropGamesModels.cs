@@ -497,7 +497,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
     public class RacingGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
-        public bool GameEnabled { get; set; } = true;
+        public bool GameEnabled { get; set; }
         public string ActiveThemeId { get; set; } = "spring";
 
         // Track & Layout Configuration
@@ -536,6 +536,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         {
             get => _maxRacersPerHeat;
             set => _maxRacersPerHeat = Math.Clamp(value, 2, 30);
+        }
+
+        private int _maxLobbyRacers = 50;
+        public int MaxLobbyRacers
+        {
+            get => _maxLobbyRacers;
+            set => _maxLobbyRacers = Math.Clamp(value, 2, 120);
         }
 
         // Physics, Suspense & Collision Tuning

@@ -582,7 +582,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             IDropRegistry? dropRegistry)
         {
             var baseTheme = ResolveTheme(settings, requestedThemeId, defaultThemeId);
-            var cacheKey = $"{baseTheme.Id}:{baseTheme.Name}:{baseTheme.PlinkoPegImageUrl}:{baseTheme.DefaultCharacterImageUrl}:{baseTheme.ParachuteCanopyImageUrl}:{baseTheme.TargetPlatformImageUrl}:{baseTheme.BalloonCanopyImageUrl}:{baseTheme.CurlingStoneImageUrl}:{baseTheme.GolfBallImageUrl}";
+            var cacheKey = $"{baseTheme.Id}:{baseTheme.Name}:{baseTheme.PlinkoPegImageUrl}:{baseTheme.DefaultCharacterImageUrl}:{baseTheme.ParachuteCanopyImageUrl}:{baseTheme.TargetPlatformImageUrl}:{baseTheme.BalloonCanopyImageUrl}:{baseTheme.CurlingStoneImageUrl}:{baseTheme.GolfBallImageUrl}:{baseTheme.RacingVehicleImageUrl}:{baseTheme.RacingTrackImageUrl}:{baseTheme.RacingHazardImageUrl}:{baseTheme.RacingBoostImageUrl}";
 
             if (_preparedThemeCache.TryGetValue(cacheKey, out var cachedTheme))
             {

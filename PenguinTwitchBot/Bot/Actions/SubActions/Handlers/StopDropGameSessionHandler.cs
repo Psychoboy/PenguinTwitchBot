@@ -58,6 +58,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     await golfGameService.ClearSessionQueueAsync();
                     await golfGameService.StopSessionAsync(triggeredBy);
                 }
+                if (racingGameService != null)
+                {
+                    await racingGameService.ClearSessionQueueAsync();
+                    await racingGameService.StopSessionAsync(triggeredBy);
+                }
             }
             else
             {

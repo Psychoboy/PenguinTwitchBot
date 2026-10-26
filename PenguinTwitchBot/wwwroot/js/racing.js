@@ -1292,13 +1292,16 @@
             if (soundManager && msg.sounds) soundManager.updateBundle(msg.sounds);
             currentSettings.trackType = msg.trackType || 'Perimeter';
             currentSettings.stripPosition = msg.stripPosition || 'Bottom';
-            currentSettings.totalLaps = msg.totalLaps || 2;
+            currentSettings.totalLaps = msg.totalLaps ?? 2;
             currentSettings.gameMode = msg.gameMode || 'GrandPrix';
-            currentSettings.trackAlpha = msg.trackAlpha || 0.55;
-            currentSettings.showTrackBorders = (msg.showTrackBorders !== false);
-            currentSettings.maxRacers = msg.maxRacers || 12;
+            currentSettings.trackAlpha = msg.trackAlpha ?? 0.55;
+            currentSettings.showTrackBorders = msg.showTrackBorders ?? true;
+            if (msg.trackThicknessPercent != null) {
+                currentSettings.trackThickness = Math.max(16, Math.min(width, height) * (msg.trackThicknessPercent / 100));
+            }
+            currentSettings.maxRacers = msg.maxRacers ?? 12;
 
-            lobbyTotalMs = (msg.lobbyDurationSeconds || 60) * 1000;
+            lobbyTotalMs = (msg.lobbyDurationSeconds ?? 60) * 1000;
             lobbyRemainingMs = lobbyTotalMs;
             lobbyRacers = [];
             activeRacers = [];
@@ -1307,18 +1310,32 @@
             trackHazards = [];
             playSound('countdown_beep');
         } else if (msg.type === 'race_grid_update') {
-            if (msg.newRacer) {
-                lobbyRacers.push(msg.newRacer);
+            if (msg.maxRacers != null) {
+                currentSettings.maxRacers = msg.maxRacers;
+            }
+            const incoming = [];
+            if (msg.newRacer) incoming.push(msg.newRacer);
+            if (Array.isArray(msg.racers)) {
+                for (const r of msg.racers) {
+                    if (r) incoming.push(r);
+                }
+            }
+
+            for (const racer of incoming) {
+                if (!racer || !racer.dropToken) continue;
+                if (lobbyRacers.some(lr => lr.dropToken === racer.dropToken)) continue;
+
+                lobbyRacers.push(racer);
                 // Grid slots behind starting line
                 const gridIdx = lobbyRacers.length - 1;
                 const lane = (gridIdx % 2 === 0) ? -10 : 10;
                 const progressOffset = -0.015 * Math.floor(gridIdx / 2);
                 activeRacers.push({
-                    dropToken: msg.newRacer.dropToken,
-                    username: msg.newRacer.username,
-                    displayName: msg.newRacer.displayName,
-                    userColor: msg.newRacer.userColor,
-                    emoteUrl: msg.newRacer.emoteUrl,
+                    dropToken: racer.dropToken,
+                    username: racer.username,
+                    displayName: racer.displayName,
+                    userColor: racer.userColor,
+                    emoteUrl: racer.emoteUrl,
                     progress: progressOffset,
                     laneOffset: lane,
                     driftAngle: 0,
@@ -1334,14 +1351,19 @@
             if (soundManager && msg.sounds) soundManager.updateBundle(msg.sounds);
             currentSettings.trackType = msg.trackType || currentSettings.trackType;
             currentSettings.stripPosition = msg.stripPosition || currentSettings.stripPosition;
-            currentSettings.totalLaps = msg.totalLaps || currentSettings.totalLaps;
+            currentSettings.totalLaps = msg.totalLaps ?? currentSettings.totalLaps;
             currentSettings.gameMode = msg.gameMode || currentSettings.gameMode;
-            currentSettings.baseSpeed = msg.baseSpeed || 0.5;
-            currentSettings.enableCollisions = (msg.enableCollisions !== false);
-            currentSettings.enableDrafting = (msg.enableDrafting !== false);
-            currentSettings.enableDebris = (msg.enableDebris !== false);
-            currentSettings.enableRubberBanding = (msg.enableRubberBanding !== false);
-            currentSettings.rubberBandStrength = msg.rubberBandStrength || 0.25;
+            currentSettings.baseSpeed = msg.baseSpeed ?? 0.5;
+            currentSettings.trackAlpha = msg.trackAlpha ?? currentSettings.trackAlpha;
+            currentSettings.showTrackBorders = msg.showTrackBorders ?? currentSettings.showTrackBorders;
+            if (msg.trackThicknessPercent != null) {
+                currentSettings.trackThickness = Math.max(16, Math.min(width, height) * (msg.trackThicknessPercent / 100));
+            }
+            currentSettings.enableCollisions = msg.enableCollisions ?? true;
+            currentSettings.enableDrafting = msg.enableDrafting ?? true;
+            currentSettings.enableDebris = msg.enableDebris ?? true;
+            currentSettings.enableRubberBanding = msg.enableRubberBanding ?? true;
+            currentSettings.rubberBandStrength = msg.rubberBandStrength ?? 0.25;
 
             currentHeatInfo = {
                 title: msg.heatTitle || '',
@@ -1393,10 +1415,15 @@
             currentSettings.stripPosition = msg.stripPosition || 'Bottom';
             currentSettings.totalLaps = 1;
             currentSettings.gameMode = 'TimeTrial';
-            currentSettings.baseSpeed = msg.baseSpeed || 0.5;
+            currentSettings.baseSpeed = msg.baseSpeed ?? 0.5;
+            currentSettings.trackAlpha = msg.trackAlpha ?? currentSettings.trackAlpha;
+            currentSettings.showTrackBorders = msg.showTrackBorders ?? currentSettings.showTrackBorders;
+            if (msg.trackThicknessPercent != null) {
+                currentSettings.trackThickness = Math.max(16, Math.min(width, height) * (msg.trackThicknessPercent / 100));
+            }
             currentSettings.enableCollisions = false;
             currentSettings.enableDrafting = false;
-            currentSettings.enableDebris = (msg.enableDebris !== false);
+            currentSettings.enableDebris = msg.enableDebris ?? true;
             currentSettings.enableRubberBanding = false;
             currentHeatInfo = null;
 
