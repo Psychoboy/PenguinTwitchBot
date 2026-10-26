@@ -382,7 +382,30 @@ internal class Program
             dbContext.Database.Migrate();
         }
 
-        await app.Services.GetRequiredService<IDatabaseTools>().Backup();
+        var skipBackupEnv = Environment.GetEnvironmentVariable("SKIP_DATABASE_BACKUP")
+            ?? Environment.GetEnvironmentVariable("SKIP_DB_BACKUP")
+            ?? Environment.GetEnvironmentVariable("DEBUG_SKIP_BACKUP");
+
+        var skipDatabaseBackup =
+            (!string.IsNullOrWhiteSpace(skipBackupEnv) && (
+                string.Equals(skipBackupEnv, "true", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(skipBackupEnv, "1", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(skipBackupEnv, "yes", StringComparison.OrdinalIgnoreCase))) ||
+            app.Configuration.GetValue<bool>("SkipDatabaseBackup") ||
+            app.Configuration.GetValue<bool>("SKIP_DATABASE_BACKUP") ||
+            app.Configuration.GetValue<bool>("SKIP_DB_BACKUP") ||
+            args.Any(a => string.Equals(a, "--skip-database-backup", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(a, "--skip-db-backup", StringComparison.OrdinalIgnoreCase));
+
+        if (skipDatabaseBackup)
+        {
+            var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+            startupLogger.LogInformation("Skipping startup database backup phase (SKIP_DATABASE_BACKUP is enabled).");
+        }
+        else
+        {
+            await app.Services.GetRequiredService<IDatabaseTools>().Backup();
+        }
         await ConfigureQuartzTriggersAsync(app.Services);
         PenguinTwitchBot.Bot.Actions.SubActions.VariableReplacer.ServiceBackbone = app.Services.GetService<PenguinTwitchBot.Bot.Core.IServiceBackbone>();
 

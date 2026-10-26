@@ -96,6 +96,17 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string GolfEnd = "Golf.End";
         public const string GolfEnded = "Golf.End";
 
+        // Racing events
+        public const string RacingLobbyOpened = "Racing.LobbyOpened";
+        public const string RacingStart = "Racing.Start";
+        public const string RacingStarted = "Racing.Start";
+        public const string RacingWin = "Racing.Win";
+        public const string RacingPodium = "Racing.Podium";
+        public const string RacingWreck = "Racing.Wreck";
+        public const string RacingEnd = "Racing.End";
+        public const string RacingEnded = "Racing.End";
+        public const string RacingTimeTrialComplete = "Racing.TimeTrialComplete";
+
         // Starship Expedition events
         public const string StarshipBoardingOpened = "Starship.BoardingOpened";
         public const string StarshipCrewJoined = "Starship.CrewJoined";

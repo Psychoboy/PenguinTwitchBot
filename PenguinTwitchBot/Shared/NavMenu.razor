@@ -83,12 +83,13 @@
             </MudNavGroup>
             @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
             {
-                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Minigames" Expanded="@GetGroupExpanded("minigames", "games/balloon", "games/curling", "games/golf", "games/parachute", "games/plinko", "games/starship", "games/themes")">
+                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Minigames" Expanded="@GetGroupExpanded("minigames", "games/balloon", "games/curling", "games/golf", "games/parachute", "games/plinko", "games/racing", "games/starship", "games/themes")">
                     <MudNavLink Icon="@Icons.Material.Filled.Air" Href="/games/balloon" Match="NavLinkMatch.Prefix">Balloon Ascent</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.SportsHockey" Href="/games/curling" Match="NavLinkMatch.Prefix">Curling / Shuffleboard</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.GolfCourse" Href="/games/golf" Match="NavLinkMatch.Prefix">Golf (Chip & Putt)</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Paragliding" Href="/games/parachute" Match="NavLinkMatch.Prefix">Parachute Drop</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Grain" Href="/games/plinko" Match="NavLinkMatch.Prefix">Plinko Bounce</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.DirectionsCar" Href="/games/racing" Match="NavLinkMatch.Prefix">Racing</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.RocketLaunch" Href="/games/starship" Match="NavLinkMatch.Prefix">Starship Expedition</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.CardGiftcard" Href="/games/ufoclaw" Match="NavLinkMatch.Prefix">UFO Claw</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Palette" Href="/games/themes" Match="NavLinkMatch.Prefix">Themes & Assets</MudNavLink>
@@ -422,6 +423,7 @@
             links.Add(CreateQuickLink("Golf (Chip & Putt)", "/games/golf", Icons.Material.Filled.GolfCourse, "Minigames", "golf putt chip cup green minigames"));
             links.Add(CreateQuickLink("Parachute Drop", "/games/parachute", Icons.Material.Filled.Paragliding, "Minigames", "parachute drop droplets minigames"));
             links.Add(CreateQuickLink("Plinko Bounce", "/games/plinko", Icons.Material.Filled.Grain, "Minigames", "plinko bounce minigames"));
+            links.Add(CreateQuickLink("Racing", "/games/racing", Icons.Material.Filled.DirectionsCar, "Minigames", "racing race karts speed minigames"));
             links.Add(CreateQuickLink("Starship Expedition", "/games/starship", Icons.Material.Filled.RocketLaunch, "Minigames", "starship expedition voyage crew space salvage minigames"));
             links.Add(CreateQuickLink("UFO Claw", "/games/ufoclaw", Icons.Material.Filled.CardGiftcard, "Minigames", "ufo claw prizes viewers draw minigames"));
             links.Add(CreateQuickLink("Minigame Themes", "/games/themes", Icons.Material.Filled.Palette, "Minigames", "themes skins assets minigames"));

@@ -9,7 +9,23 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         Plinko,
         Balloon,
         Curling,
-        Golf
+        Golf,
+        Racing
+    }
+
+    public enum RacingTrackType
+    {
+        Perimeter,
+        EdgeOval,
+        Figure8,
+        DragStrip
+    }
+
+    public enum RacingGameMode
+    {
+        GrandPrix,
+        TimeTrial,
+        Elimination
     }
 
     public class DropGamesSettings
@@ -19,6 +35,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public BalloonAscentGameSettings Balloon { get; set; } = new();
         public CurlingGameSettings Curling { get; set; } = new();
         public GolfGameSettings Golf { get; set; } = new();
+        public RacingGameSettings Racing { get; set; } = new();
         public List<DropGameTheme> Themes { get; set; } = [];
     }
 
@@ -66,6 +83,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string GolfBallImageUrl { get; set; } = "";
         public string GolfFlagPinImageUrl { get; set; } = "";
         public string GolfGreenImageUrl { get; set; } = "";
+        public string RacingVehicleImageUrl { get; set; } = "";
+        public string RacingTrackImageUrl { get; set; } = "";
+        public string RacingHazardImageUrl { get; set; } = "";
+        public string RacingBoostImageUrl { get; set; } = "";
 
         // Parachute Sound Overrides
         public DropGameSoundOverride ParachuteStartSound { get; set; } = new();
@@ -113,6 +134,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundOverride GolfCupSound { get; set; } = new();
         public DropGameSoundOverride GolfLipOutSound { get; set; } = new();
         public DropGameSoundOverride GolfWinSound { get; set; } = new();
+
+        // Racing Sound Overrides
+        public DropGameSoundOverride RacingStartSound { get; set; } = new();
+        public DropGameSoundOverride RacingEndSound { get; set; } = new();
+        public DropGameSoundOverride RacingEngineSound { get; set; } = new();
+        public DropGameSoundOverride RacingScreechSound { get; set; } = new();
+        public DropGameSoundOverride RacingCrashSound { get; set; } = new();
+        public DropGameSoundOverride RacingBoostSound { get; set; } = new();
+        public DropGameSoundOverride RacingWinSound { get; set; } = new();
 
         // Legacy sound properties for database JSON backward compatibility
         public string DropSoundUrl { get; set; } = "";
@@ -347,6 +377,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameEffectiveSoundDto? GolfCup { get; set; }
         public DropGameEffectiveSoundDto? GolfLipOut { get; set; }
         public DropGameEffectiveSoundDto? GolfWin { get; set; }
+        public DropGameEffectiveSoundDto? RacingStart { get; set; }
+        public DropGameEffectiveSoundDto? RacingEnd { get; set; }
+        public DropGameEffectiveSoundDto? RacingEngine { get; set; }
+        public DropGameEffectiveSoundDto? RacingScreech { get; set; }
+        public DropGameEffectiveSoundDto? RacingCrash { get; set; }
+        public DropGameEffectiveSoundDto? RacingBoost { get; set; }
+        public DropGameEffectiveSoundDto? RacingWin { get; set; }
     }
 
     public interface IDropGameHeaderSettings
@@ -448,6 +485,143 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         public bool ShowFreePlayCounter { get; set; } = true;
         public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
+        public int HeaderCustomYOffset { get; set; } = 18;
+
+        private int _nameFontSize = 18;
+        public int NameFontSize
+        {
+            get => _nameFontSize;
+            set => _nameFontSize = Math.Clamp(value, 12, 36);
+        }
+    }
+
+    public class RacingGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
+    {
+        public bool GameEnabled { get; set; } = true;
+        public string ActiveThemeId { get; set; } = "spring";
+
+        // Track & Layout Configuration
+        public RacingTrackType TrackType { get; set; } = RacingTrackType.Perimeter;
+        public CurlingStripPosition StripPosition { get; set; } = CurlingStripPosition.Bottom;
+        public double TrackThicknessPercent { get; set; } = 12.0;
+
+        private double _trackAlpha = 0.5;
+        public double TrackAlpha
+        {
+            get => _trackAlpha;
+            set => _trackAlpha = Math.Clamp(value, 0.0, 1.0);
+        }
+
+        public bool ShowTrackBorders { get; set; } = true;
+
+        // Race Mode & Laps
+        public RacingGameMode DefaultGameMode { get; set; } = RacingGameMode.GrandPrix;
+
+        private int _totalLaps = 2;
+        public int TotalLaps
+        {
+            get => _totalLaps;
+            set => _totalLaps = Math.Clamp(value, 1, 10);
+        }
+
+        private int _lobbyDurationSeconds = 60;
+        public int LobbyDurationSeconds
+        {
+            get => _lobbyDurationSeconds;
+            set => _lobbyDurationSeconds = Math.Clamp(value, 15, 180);
+        }
+
+        private int _maxRacersPerHeat = 12;
+        public int MaxRacersPerHeat
+        {
+            get => _maxRacersPerHeat;
+            set => _maxRacersPerHeat = Math.Clamp(value, 2, 30);
+        }
+
+        // Physics, Suspense & Collision Tuning
+        public bool EnableVehicleCollisions { get; set; } = true;
+        public bool EnableDrafting { get; set; } = true;
+        public bool EnableDebrisHazards { get; set; } = true;
+
+        private int _debrisDensity = 6;
+        public int DebrisDensity
+        {
+            get => _debrisDensity;
+            set => _debrisDensity = Math.Clamp(value, 0, 20);
+        }
+
+        public bool EnableRubberBanding { get; set; } = true;
+
+        private double _rubberBandStrength = 0.25;
+        public double RubberBandStrength
+        {
+            get => _rubberBandStrength;
+            set => _rubberBandStrength = Math.Clamp(value, 0.0, 1.0);
+        }
+
+        private double _baseSpeed = 0.5;
+        public double BaseSpeed
+        {
+            get => _baseSpeed;
+            set => _baseSpeed = Math.Clamp(value, 0.2, 2.5);
+        }
+
+        // Championship Points & Payouts
+        public int WinPointsFirst { get; set; } = 25;
+        public int WinPointsSecond { get; set; } = 18;
+        public int WinPointsThird { get; set; } = 15;
+        public int ParticipationPoints { get; set; } = 2;
+
+        // Sound Effects
+        public DropGameSoundConfig StartSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_start.wav", Volume = 70 };
+        public DropGameSoundConfig EndSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_end.wav", Volume = 70 };
+        public DropGameSoundConfig EngineSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_engine.wav", Volume = 55 };
+        public DropGameSoundConfig ScreechSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_screech.wav", Volume = 60 };
+        public DropGameSoundConfig CrashSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_crash.wav", Volume = 65 };
+        public DropGameSoundConfig BoostSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_boost.wav", Volume = 70 };
+        public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_win.wav", Volume = 75 };
+
+        private int _maxConcurrentSounds = 3;
+        public int MaxConcurrentSounds
+        {
+            get => _maxConcurrentSounds;
+            set => _maxConcurrentSounds = Math.Clamp(value, 1, 6);
+        }
+
+        // Session & Announcements
+        public bool SessionModeEnabled { get; set; } = true;
+        public bool AutoStartOnCommand { get; set; } = true;
+        public int DefaultSessionDurationSeconds
+        {
+            get => _lobbyDurationSeconds;
+            set => _lobbyDurationSeconds = Math.Clamp(value, 15, 180);
+        }
+        public int MaxDropsPerUserPerSession { get; set; } = 1;
+        public bool AnnounceSessionStatusInChat { get; set; } = true;
+        public string SessionStartChatMessageTemplate
+        {
+            get => Messages.SessionStart;
+            set => Messages.SessionStart = value;
+        }
+        public string SessionEndChatMessageTemplate
+        {
+            get => Messages.SessionEnd;
+            set => Messages.SessionEnd = value;
+        }
+
+        public Racing.RacingMessageSettings Messages { get; set; } = new();
+
+        // Overlay Header & Display Settings
+        public bool AutoAvoidOverlap { get; set; } = true;
+        public bool ShowHeaderBanner { get; set; } = true;
+        public bool ShowTimer { get; set; } = true;
+        public bool ShowDropCount { get; set; } = true;
+
+        [JsonIgnore]
+        public bool ShowItemCount => ShowDropCount;
+
+        public bool ShowFreePlayCounter { get; set; } = true;
+        public string HeaderPosition { get; set; } = "TopCenter";
         public int HeaderCustomYOffset { get; set; } = 18;
 
         private int _nameFontSize = 18;
@@ -1275,6 +1449,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         [JsonPropertyName("greenRadiusRatio")]
         public double? GreenRadiusRatio { get; set; }
 
+        [JsonPropertyName("racePlacement")]
+        public int? RacePlacement { get; set; }
+
+        [JsonPropertyName("lapTimeSeconds")]
+        public double? LapTimeSeconds { get; set; }
+
+        [JsonPropertyName("wreckCount")]
+        public int? WreckCount { get; set; }
+
+        [JsonPropertyName("racingMode")]
+        public string? RacingMode { get; set; }
+
+        [JsonPropertyName("lapsCompleted")]
+        public int? LapsCompleted { get; set; }
+
         [JsonPropertyName("overlayKey")]
         public string? OverlayKey { get; set; }
     }
@@ -1360,6 +1549,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string BucketLabel { get; set; } = "";
         public bool ForcedOutcome { get; init; }
         public string? RocketAttacker { get; set; }
+
+        // Racing specific outcomes
+        public int? RacePlacement { get; set; }
+        public double? LapTimeSeconds { get; set; }
+        public int? WreckCount { get; set; }
+        public string? RacingMode { get; set; }
+        public int? LapsCompleted { get; set; }
 
         public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];
         public List<ParachuteTrajectoryPointDto> Keyframes { get; set; } = [];

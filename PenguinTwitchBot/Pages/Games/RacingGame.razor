@@ -1,0 +1,526 @@
+@page "/games/racing"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.Games.Racing
+@using PenguinTwitchBot.Bot.Commands.Games.Common
+@using PenguinTwitchBot.Bot.Events.Chat
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Components
+@inject IDropGamesSettingsService SettingsService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+@inject IRacingGameService RacingGameService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILogger<RacingGame> Logger
+
+<PageTitle>Racing Minigame</PageTitle>
+
+<FeatureGate FeatureKey="@FeatureKeys.DropGames" DisabledMessage="Minigames are currently disabled. Enable them on the Bot Features page.">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Racing Minigame</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Non-intrusive stream overlay racing minigame featuring perimeter &amp; edge tracks, mass-start Grand Prix, solo time trials, drafting boosts, and vehicle bumping collisions.
+                </MudText>
+                @if (_settings != null)
+                {
+                    <MudSwitch T="bool" Color="Color.Success" Label="Enable Racing" @bind-Value="_settings.Racing.GameEnabled" />
+                }
+            </div>
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="ResetSettingsToDefaultsAsync">
+                    Reset to Defaults
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.OpenInNew"
+                           Href="@($"/racing.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
+                    Open Racing Overlay
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveAllSettingsAsync">
+                    Save All Settings
+                </MudButton>
+            </MudStack>
+        </MudStack>
+
+        @if (_settings == null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
+                <!-- ================= TAB 1: TRACK & LAYOUT ================= -->
+                <MudTabPanel Text="Track & Layout">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Circuit Geometry &amp; Screen Placement</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSelect T="string" Label="Active Theme" Variant="Variant.Outlined"
+                                               @bind-Value="_settings.Racing.ActiveThemeId"
+                                               HelperText="Seasonal theme for karts, curbs, confetti, and soundtrack.">
+                                        @foreach (var theme in _settings.Themes)
+                                        {
+                                            <MudSelectItem Value="@theme.Id">@theme.Name @(theme.IsStock ? "(Seasonal Stock)" : "(Custom)")</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="RacingTrackType" Label="Track Layout" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Racing.TrackType"
+                                                       HelperText="Perimeter hugs outer borders; Oval and Drag run on an edge.">
+                                                <MudSelectItem Value="RacingTrackType.Perimeter">Perimeter Ring (Outer Screen Border)</MudSelectItem>
+                                                <MudSelectItem Value="RacingTrackType.EdgeOval">Edge Strip Oval</MudSelectItem>
+                                                <MudSelectItem Value="RacingTrackType.Figure8">Figure-8 Intersection</MudSelectItem>
+                                                <MudSelectItem Value="RacingTrackType.DragStrip">Drag / Sprint Strip</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CurlingStripPosition" Label="Edge Position (for Edge / Drag)" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Racing.StripPosition"
+                                                       HelperText="Screen border used when running in Edge Oval or Drag mode.">
+                                                <MudSelectItem Value="CurlingStripPosition.Bottom">Bottom Edge (Default)</MudSelectItem>
+                                                <MudSelectItem Value="CurlingStripPosition.Top">Top Edge</MudSelectItem>
+                                                <MudSelectItem Value="CurlingStripPosition.Left">Left Edge</MudSelectItem>
+                                                <MudSelectItem Value="CurlingStripPosition.Right">Right Edge</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <div>
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                            Track Road Transparency: <b>@((_settings.Racing.TrackAlpha * 100).ToString("F0"))%</b>
+                                        </MudText>
+                                        <MudSlider T="double" Min="0.10" Max="1.0" Step="0.05" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.TrackAlpha" />
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            Controls the opacity of the asphalt road. Lower values keep the stream video transparent and non-intrusive.
+                                        </MudText>
+                                    </div>
+
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Show Track Rumble Strips / Curbs"
+                                               @bind-Value="_settings.Racing.ShowTrackBorders" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderTrackSummaryCard()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 2: RACE MODES & LAPS ================= -->
+                <MudTabPanel Text="Modes & Rules">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Race Format &amp; Timing</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSelect T="RacingGameMode" Label="Default Race Mode" Variant="Variant.Outlined"
+                                               @bind-Value="_settings.Racing.DefaultGameMode">
+                                        <MudSelectItem Value="RacingGameMode.GrandPrix">Grand Prix (Mass Start Grid)</MudSelectItem>
+                                        <MudSelectItem Value="RacingGameMode.Elimination">Elimination (Knockout Per Lap)</MudSelectItem>
+                                        <MudSelectItem Value="RacingGameMode.TimeTrial">Solo Time Trial (Hot Laps)</MudSelectItem>
+                                    </MudSelect>
+
+                                    <div>
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                            Lobby Registration Window: <b>@_settings.Racing.LobbyDurationSeconds seconds</b>
+                                        </MudText>
+                                        <MudSlider T="int" Min="15" Max="180" Step="5" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.LobbyDurationSeconds" />
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            Time window for viewers to type <code>!race [emote]</code> before the countdown lights and simultaneous launch.
+                                        </MudText>
+                                    </div>
+
+                                    <div>
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                            Total Laps: <b>@_settings.Racing.TotalLaps lap(s)</b>
+                                        </MudText>
+                                        <MudSlider T="int" Min="1" Max="6" Step="1" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.TotalLaps" />
+                                    </div>
+
+                                    <div>
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                            Max Racers per Heat: <b>@_settings.Racing.MaxRacersPerHeat racers</b>
+                                        </MudText>
+                                        <MudSlider T="int" Min="2" Max="24" Step="1" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.MaxRacersPerHeat" />
+                                    </div>
+
+                                    <div>
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                            Base Vehicle Speed: <b>@(_settings.Racing.BaseSpeed.ToString("F2"))x</b> (Default: 0.50x)
+                                        </MudText>
+                                        <MudSlider T="double" Min="0.2" Max="2.0" Step="0.05" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.BaseSpeed" />
+                                    </div>
+
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Auto-Open Lobby when a Viewer types !race"
+                                               @bind-Value="_settings.Racing.AutoStartOnCommand" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Chat Commands</MudText>
+                                <MudList T="string" Dense="true">
+                                    <MudListItem Text="!race [emote] — Join open starting grid (or open lobby)" Icon="@Icons.Material.Filled.SportsScore" />
+                                    <MudListItem Text="!race start [seconds] — Mod/Streamer command to open registration" Icon="@Icons.Material.Filled.PlayArrow" />
+                                    <MudListItem Text="!race stop / !race cancel — Abort active lobby or race" Icon="@Icons.Material.Filled.Stop" />
+                                    <MudListItem Text="!timetrial [emote] / !tt — Instant solo hot lap with ghost car" Icon="@Icons.Material.Filled.Timer" />
+                                </MudList>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: PHYSICS, COLLISIONS & HAZARDS ================= -->
+                <MudTabPanel Text="Physics & Hazards">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Suspense &amp; Track Action Tuning</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Enable Vehicle-to-Vehicle Bumping Collisions"
+                                               @bind-Value="_settings.Racing.EnableVehicleCollisions" />
+
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Enable Slipstream / Drafting Overtake Boosts"
+                                               @bind-Value="_settings.Racing.EnableDrafting" />
+
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Enable Track Debris &amp; Boost Pads"
+                                               @bind-Value="_settings.Racing.EnableDebrisHazards" />
+
+                                    @if (_settings.Racing.EnableDebrisHazards)
+                                    {
+                                        <div>
+                                            <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                                Debris &amp; Hazard Density: <b>@_settings.Racing.DebrisDensity hazards</b>
+                                            </MudText>
+                                            <MudSlider T="int" Min="0" Max="14" Step="1" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.DebrisDensity" />
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                Scatters oil slicks/ice (360 spinouts), traffic cones, and boost pads along the circuit.
+                                            </MudText>
+                                        </div>
+                                    }
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Enable Rubber-Banding (Catch-Up Mechanic)"
+                                               @bind-Value="_settings.Racing.EnableRubberBanding" />
+
+                                    @if (_settings.Racing.EnableRubberBanding)
+                                    {
+                                        <div>
+                                            <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                                Catch-Up Strength: <b>@((_settings.Racing.RubberBandStrength * 100).ToString("F0"))%</b>
+                                            </MudText>
+                                            <MudSlider T="double" Min="0.05" Max="0.60" Step="0.05" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.RubberBandStrength" />
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                Grants trailing vehicles a gentle speed bonus so races stay tight and photofinishes happen frequently.
+                                            </MudText>
+                                        </div>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 4: POINTS & AUDIO ================= -->
+                <MudTabPanel Text="Points & Audio">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Championship Points Payout</MudText>
+                                <MudGrid>
+                                    <MudItem xs="12" sm="3">
+                                        <MudNumericField T="int" Label="1st Place Points" Variant="Variant.Outlined"
+                                                         @bind-Value="_settings.Racing.WinPointsFirst" Min="0" Max="1000" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="3">
+                                        <MudNumericField T="int" Label="2nd Place Points" Variant="Variant.Outlined"
+                                                         @bind-Value="_settings.Racing.WinPointsSecond" Min="0" Max="1000" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="3">
+                                        <MudNumericField T="int" Label="3rd Place Points" Variant="Variant.Outlined"
+                                                         @bind-Value="_settings.Racing.WinPointsThird" Min="0" Max="1000" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="3">
+                                        <MudNumericField T="int" Label="Participation Points" Variant="Variant.Outlined"
+                                                         @bind-Value="_settings.Racing.ParticipationPoints" Min="0" Max="1000" />
+                                    </MudItem>
+                                </MudGrid>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Racing Sound Effects</MudText>
+                                <MudStack Spacing="3">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudText Typo="Typo.body2" Style="min-width: 170px;">
+                                            Max Concurrent Sounds: <b>@(_settings.Racing.MaxConcurrentSounds)</b>
+                                        </MudText>
+                                        <div style="flex: 1 1 auto;">
+                                            <MudSlider T="int"
+                                                       Min="1" Max="6" Step="1" ValueLabel="true"
+                                                       @bind-Value="_settings.Racing.MaxConcurrentSounds"
+                                                       Color="Color.Primary" />
+                                        </div>
+                                    </MudStack>
+
+                                    <DropGameSoundEditor Title="Race Start Sound"
+                                                         HelperText="Plays when the race countdown begins"
+                                                         SoundConfig="_settings.Racing.StartSound" />
+
+                                    <DropGameSoundEditor Title="Race Finish Sound"
+                                                         HelperText="Plays when the race completes"
+                                                         SoundConfig="_settings.Racing.EndSound" />
+
+                                    <DropGameSoundEditor Title="Engine Acceleration Sound"
+                                                         HelperText="Plays as vehicles accelerate down the track"
+                                                         SoundConfig="_settings.Racing.EngineSound" />
+
+                                    <DropGameSoundEditor Title="Tire Screech / Skid Sound"
+                                                         HelperText="Plays when a kart hits an oil slick or performs sharp drifts"
+                                                         SoundConfig="_settings.Racing.ScreechSound" />
+
+                                    <DropGameSoundEditor Title="Car Bump / Collision Sound"
+                                                         HelperText="Plays when two karts collide and bounce off each other"
+                                                         SoundConfig="_settings.Racing.CrashSound" />
+
+                                    <DropGameSoundEditor Title="Boost Pad / Slingshot Sound"
+                                                         HelperText="Plays when driving over boost pads or slingshot overtaking"
+                                                         SoundConfig="_settings.Racing.BoostSound" />
+
+                                    <DropGameSoundEditor Title="Victory Fanfare"
+                                                         HelperText="Plays when the winning kart crosses the checkered finish line"
+                                                         SoundConfig="_settings.Racing.WinSound" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 5: MESSAGES & CHAT ================= -->
+                <MudTabPanel Text="Messages & Chat">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12">
+                            <MudPaper Class="pa-4 mb-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Race Chat Broadcasts</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            Enable or disable global race announcements in Twitch chat for lobby, starts, heats, and victories.
+                                        </MudText>
+                                    </div>
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Announce Race Status in Chat"
+                                               @bind-Value="_settings.Racing.AnnounceSessionStatusInChat" />
+                                </MudStack>
+                            </MudPaper>
+
+                            <RacingMessagesEditor Messages="_settings.Racing.Messages" />
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 6: TESTING & LIVE CONTROLS ================= -->
+                <MudTabPanel Text="Testing & Controls">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="8">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Live Overlay Test Controls</MudText>
+                                <MudStack Spacing="3">
+                                    <MudTextField T="string" Label="Test Emote Input (e.g. PogChamp, LUL, sptv318)" Variant="Variant.Outlined"
+                                                  @bind-Value="_testEmoteInput" />
+
+                                    <MudStack Row="true" Spacing="2">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.SportsScore"
+                                                   OnClick="StartRaceLobbyTestAsync">
+                                            Open 60s Race Lobby
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.PersonAdd"
+                                                   OnClick="JoinTestRacerAsync">
+                                            +1 Test Racer
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Timer"
+                                                   OnClick="StartSoloTimeTrialTestAsync">
+                                            Solo Time Trial
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Stop"
+                                                   OnClick="StopRaceSessionLiveAsync">
+                                            Stop Race
+                                        </MudButton>
+                                    </MudStack>
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudText Typo="Typo.subtitle1" Class="fw-bold">Bulk Test Mode (Multi-Heat & Tournaments)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        Populate the grid with multiple test vehicles to test multi-heat progression, driver bumping, and championship finals.
+                                    </MudText>
+
+                                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                        <MudNumericField T="int" Label="Test Racers Count" Variant="Variant.Outlined"
+                                                         Min="2" Max="40" @bind-Value="_testRacerCount" Style="max-width: 160px;" />
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.GroupAdd"
+                                                   OnClick="() => AddMultipleTestRacersAsync(false)">
+                                            Add @_testRacerCount Racers to Grid
+                                        </MudButton>
+                                    </MudStack>
+
+                                    <MudStack Row="true" Spacing="2">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Speed"
+                                                   OnClick="QuickTestHeatsAsync">
+                                            🚀 Quick Launch Multi-Heat Race (14+ Racers)
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow"
+                                                   OnClick="QuickTestSingleRaceAsync">
+                                            Quick Launch Single Race (6 Racers)
+                                        </MudButton>
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudContainer>
+</FeatureGate>
+
+@code {
+    private DropGamesSettings? _settings;
+    private string _overlayKey = "";
+    private string _testEmoteInput = "PogChamp";
+    private int _testRacerCount = 14;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await SettingsService.GetSettingsAsync();
+        _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+    }
+
+    private RenderFragment RenderTrackSummaryCard() => __builder =>
+    {
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">Track Overview</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                Selected: <b>@_settings?.Racing.TrackType</b> (Position: <b>@_settings?.Racing.StripPosition</b>)
+            </MudText>
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.caption">
+                The <b>Perimeter Ring</b> hugs all 4 edges of the stream broadcast leaving 90%+ of center transparent.
+                The <b>Edge Strip Oval</b> places a compact racetrack along any chosen edge.
+            </MudText>
+        </MudPaper>
+    };
+
+    private CommandEventArgs BuildTestEventArgs() => new()
+    {
+        Name = "streamer",
+        DisplayName = "Streamer",
+        Args = [_testEmoteInput],
+        Arg = _testEmoteInput,
+        IsBroadcaster = true,
+        FromOwnChannel = true
+    };
+
+    private async Task SaveAllSettingsAsync()
+    {
+        if (_settings == null) return;
+        try
+        {
+            await SettingsService.SaveSettingsAsync(_settings);
+            Snackbar.Add("Racing Minigame settings saved!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save Racing settings.");
+            Snackbar.Add($"Failed to save settings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ResetSettingsToDefaultsAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset Racing Settings",
+            "Reset all Racing Minigame settings to default values?",
+            yesText: "Reset to Defaults",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        if (_settings != null)
+        {
+            _settings.Racing = new RacingGameSettings();
+            await SettingsService.SaveSettingsAsync(_settings);
+            Snackbar.Add("Racing settings reset to defaults!", Severity.Warning);
+        }
+    }
+
+    private async Task StartRaceLobbyTestAsync()
+    {
+        await SaveAllSettingsAsync();
+        var duration = _settings?.Racing.LobbyDurationSeconds ?? 60;
+        await RacingGameService.StartRaceLobbyAsync(duration, triggeredBy: "Dashboard");
+        Snackbar.Add($"Opened {duration}s Race Lobby! Watch your /racing.html overlay.", Severity.Success);
+    }
+
+    private async Task JoinTestRacerAsync()
+    {
+        var token = await RacingGameService.TriggerJoinRaceAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
+        if (!string.IsNullOrEmpty(token))
+            Snackbar.Add("Added test racer to starting grid!", Severity.Info);
+    }
+
+    private async Task StartSoloTimeTrialTestAsync()
+    {
+        await SaveAllSettingsAsync();
+        await RacingGameService.TriggerSoloTimeTrialAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
+        Snackbar.Add("Launched Solo Time Trial hot lap! Watch your /racing.html overlay.", Severity.Info);
+    }
+
+    private async Task StopRaceSessionLiveAsync()
+    {
+        var result = await RacingGameService.StopSessionAsync(triggeredBy: "Dashboard");
+        if (result != null)
+            Snackbar.Add("Stopped active racing session.", Severity.Warning);
+        else
+            Snackbar.Add("No active racing session to stop.", Severity.Info);
+    }
+
+    private async Task AddMultipleTestRacersAsync(bool autoLaunch)
+    {
+        await SaveAllSettingsAsync();
+        var added = await RacingGameService.AddTestRacersAsync(_testRacerCount, _testEmoteInput, autoLaunch);
+        Snackbar.Add($"Added {added} test racers! {(autoLaunch ? "Race launched immediately!" : "Ready on grid.")}", Severity.Success);
+    }
+
+    private async Task QuickTestHeatsAsync()
+    {
+        await SaveAllSettingsAsync();
+        var count = Math.Max(14, (_settings?.Racing.MaxRacersPerHeat ?? 6) * 2);
+        var added = await RacingGameService.AddTestRacersAsync(count, _testEmoteInput, autoLaunch: true);
+        Snackbar.Add($"Quick Test: Launched tournament with {added} racers across multiple heats!", Severity.Success);
+    }
+
+    private async Task QuickTestSingleRaceAsync()
+    {
+        await SaveAllSettingsAsync();
+        var count = Math.Min(6, _settings?.Racing.MaxRacersPerHeat ?? 6);
+        var added = await RacingGameService.AddTestRacersAsync(count, _testEmoteInput, autoLaunch: true);
+        Snackbar.Add($"Quick Test: Launched single final race with {added} racers!", Severity.Success);
+    }
+}

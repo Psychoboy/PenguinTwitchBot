@@ -319,6 +319,25 @@
                                     </MudPaper>
                                 </MudItem>
 
+                                <!-- Group 5: Racing Visuals -->
+                                <MudItem xs="12">
+                                    <MudPaper Class="pa-3" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Racing Visuals</b></MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Custom Vehicle / Kart Image"
+                                                                @bind-Value="_selectedTheme.RacingVehicleImageUrl"
+                                                                HelperText="Optional custom kart/vehicle sprite (overrides seasonal speedster chassis)." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Custom Track Surface Image"
+                                                                @bind-Value="_selectedTheme.RacingTrackImageUrl"
+                                                                HelperText="Optional custom asphalt / ice / road surface texture." />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                </MudItem>
+
                                 <!-- Group 5: Parachute Drop Visuals -->
                                 <MudItem xs="12">
                                     <MudPaper Class="pa-3" Outlined="true">
@@ -475,6 +494,38 @@
 
                                         <MudDivider Class="my-3" />
 
+                                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-2">Racing Sounds</MudText>
+                                        <DropGameSoundEditor Title="Race Countdown / Start Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.RacingStartSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Racing.StartSound)" />
+                                        <DropGameSoundEditor Title="Race Finish Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.RacingEndSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Racing.EndSound)" />
+                                        <DropGameSoundEditor Title="Engine Acceleration Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.RacingEngineSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Racing.EngineSound)" />
+                                        <DropGameSoundEditor Title="Tire Screech / Spinout Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.RacingScreechSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Racing.ScreechSound)" />
+                                        <DropGameSoundEditor Title="Vehicle Bump / Collision Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.RacingCrashSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Racing.CrashSound)" />
+                                        <DropGameSoundEditor Title="Turbo Boost Pad Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.RacingBoostSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Racing.BoostSound)" />
+                                        <DropGameSoundEditor Title="Checkered Flag / Victory Fanfare"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.RacingWinSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Racing.WinSound)" />
+
+                                        <MudDivider Class="my-3" />
+
                                         <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-2">Parachute Sounds</MudText>
                                         <DropGameSoundEditor Title="Parachute Start Sound"
                                                              IsThemeOverride="true"
@@ -610,6 +661,7 @@
         if (_settings.Balloon.ActiveThemeId == removedId) _settings.Balloon.ActiveThemeId = "spring";
         if (_settings.Curling.ActiveThemeId == removedId) _settings.Curling.ActiveThemeId = "spring";
         if (_settings.Golf.ActiveThemeId == removedId) _settings.Golf.ActiveThemeId = "spring";
+        if (_settings.Racing.ActiveThemeId == removedId) _settings.Racing.ActiveThemeId = "spring";
         if (_settings.Parachute.ActiveThemeId == removedId) _settings.Parachute.ActiveThemeId = "spring";
         if (_settings.Plinko.ActiveThemeId == removedId) _settings.Plinko.ActiveThemeId = "spring";
         _selectedTheme = _settings.Themes.FirstOrDefault();

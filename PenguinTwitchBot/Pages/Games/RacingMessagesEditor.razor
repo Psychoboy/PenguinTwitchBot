@@ -1,0 +1,178 @@
+@using MudBlazor
+@using PenguinTwitchBot.Bot.Commands.Games.Racing
+
+<MudPaper Class="pa-4 mb-4" Outlined="true">
+    <MudStack Spacing="3">
+        <div>
+            <MudText Typo="Typo.h6">Race Chat & Overlay Messages</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Customize any default message used by the Racing Game in Twitch chat and on the stream overlay. Clear a field or click the restore icon to revert to its default response.
+            </MudText>
+        </div>
+
+        <MudExpansionPanels MultiExpansion="true">
+            <!-- 1. Broadcast & Race Announcements -->
+            <MudExpansionPanel Text="🚦 Broadcast & Race Announcements" Expanded="true">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Lobby Open Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.SessionStart"
+                                      HelperText="Placeholders: {duration}, {laps}, {mode}, {theme}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.SessionStart = RacingMessageSettings.DefaultSessionStart)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Race Finish Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.SessionEnd"
+                                      HelperText="Placeholders: {count}, {duration}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.SessionEnd = RacingMessageSettings.DefaultSessionEnd)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Green Flag / Heat Start Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.RaceStart"
+                                      HelperText="Placeholders: {heat}, {count}, {total}, {heatNumber}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.RaceStart = RacingMessageSettings.DefaultRaceStart)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Heat Complete / Qualifiers Advancing" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.HeatComplete"
+                                      HelperText="Placeholders: {heat}, {total}, {qualifiers}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.HeatComplete = RacingMessageSettings.DefaultHeatComplete)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Championship Final Green Flag" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.ChampionshipFinalStart"
+                                      HelperText="Placeholders: {count}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.ChampionshipFinalStart = RacingMessageSettings.DefaultChampionshipFinalStart)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+
+            <!-- 2. Winners & Race Outcomes -->
+            <MudExpansionPanel Text="🏆 Winners & Race Outcomes" Expanded="true">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="1st Place Winner Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.RaceWin"
+                                      HelperText="Placeholders: {user}, {time}, {points}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.RaceWin = RacingMessageSettings.DefaultRaceWin)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Time Trial Lap Finished Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.TimeTrialComplete"
+                                      HelperText="Placeholders: {user}, {time}, {wrecks}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.TimeTrialComplete = RacingMessageSettings.DefaultTimeTrialComplete)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+
+            <!-- 3. Viewer Command Responses (!race) -->
+            <MudExpansionPanel Text="💬 Viewer Command Responses (!race)">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Race Currently In Progress Response" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.RaceInProgress"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.RaceInProgress = RacingMessageSettings.DefaultRaceInProgress)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="No Race Registration Open Response" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.NoLobbyOpen"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.NoLobbyOpen = RacingMessageSettings.DefaultNoLobbyOpen)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Starting Grid Full Response" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.GridFull"
+                                      HelperText="Placeholders: {user}, {max}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.GridFull = RacingMessageSettings.DefaultGridFull)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Racer Joined Starting Grid (Optional)" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.UserJoined"
+                                      HelperText="Placeholders: {user}, {position}. Leave empty to avoid chat flood."
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.UserJoined = "")" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Racer Already Registered (Optional)" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.AlreadyJoined"
+                                      HelperText="Placeholders: {user}. Leave empty for quiet deduplication."
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.AlreadyJoined = "")" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+
+            <!-- 4. Overlay On-Screen Banners & HUD -->
+            <MudExpansionPanel Text="🖥️ Overlay On-Screen Banners & Titles">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Lobby Banner Title" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.OverlayLobbyTitle"
+                                      HelperText="Placeholders: {mode}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.OverlayLobbyTitle = RacingMessageSettings.DefaultOverlayLobbyTitle)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Lobby Subtitle Prompt" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.OverlayLobbySubtitle"
+                                      HelperText="Placeholders: {seconds}, {count}, {max}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.OverlayLobbySubtitle = RacingMessageSettings.DefaultOverlayLobbySubtitle)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" Label="Podium Banner Title" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.OverlayPodiumTitle"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.OverlayPodiumTitle = RacingMessageSettings.DefaultOverlayPodiumTitle)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" Label="Time Trial Result Header" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.OverlayTimeTrialTitle"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.OverlayTimeTrialTitle = RacingMessageSettings.DefaultOverlayTimeTrialTitle)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" Label="New Track Record Text" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.OverlayNewRecord"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.OverlayNewRecord = RacingMessageSettings.DefaultOverlayNewRecord)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired]
+    public RacingMessageSettings Messages { get; set; } = default!;
+}
+

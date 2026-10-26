@@ -4,7 +4,8 @@
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "SKIP_DATABASE_BACKUP": "true"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "http://localhost:5000;https://localhost:8080"
@@ -14,7 +15,8 @@
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "DATABASE_PROVIDER": "postgres"
+        "DATABASE_PROVIDER": "postgres",
+        "SKIP_DATABASE_BACKUP": "true"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "http://localhost:5000;https://localhost:8080"
@@ -24,7 +26,8 @@
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "DATABASE_PROVIDER": "sqlite"
+        "DATABASE_PROVIDER": "sqlite",
+        "SKIP_DATABASE_BACKUP": "true"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "http://localhost:5000;https://localhost:8080"

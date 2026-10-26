@@ -19,7 +19,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             WsTopics.Plinko,
             WsTopics.Balloon,
             WsTopics.Curling,
-            WsTopics.Golf
+            WsTopics.Golf,
+            WsTopics.Racing
         ];
 
         /// <summary>
