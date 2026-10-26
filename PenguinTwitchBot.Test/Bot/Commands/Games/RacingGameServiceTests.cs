@@ -445,6 +445,58 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.False(_settings.Racing.GameEnabled);
             _settingsService.Verify(x => x.SaveSettingsAsync(It.IsAny<DropGamesSettings>()), Times.Never);
         }
+
+        [Fact]
+        public async Task StopSessionAsync_WhenRaceRunningWithoutTimedSession_BroadcastsRaceEnd()
+        {
+            using var service = CreateService();
+
+            // 1. Start lobby and populate racers
+            await service.StartRaceLobbyAsync(60, null, "Host");
+            await service.AddTestRacersAsync(4, "test", autoLaunch: false);
+
+            // 2. Launch race immediately, exchanging/clearing the timed lobby session
+            await service.LaunchRaceNowAsync("Host");
+
+            // 3. Stop session while race is running without an active timed session
+            var dto = await service.StopSessionAsync("Dashboard");
+
+            Assert.NotNull(dto);
+            Assert.False(dto.IsActive);
+            Assert.Equal("racing", dto.GameType);
+
+            _webSocketMessenger.Verify(x => x.AddToQueue(
+                WsTopics.Racing,
+                It.Is<string>(json => json.Contains("race_end"))),
+                Times.Once);
+
+            _dropRegistry.Verify(x => x.SetSessionActive(DropGameType.Racing, false), Times.AtLeastOnce);
+        }
+
+        [Fact]
+        public async Task TriggerJoinRaceAsync_RejectsJoinIfLobbyClosedDuringThemeResolution()
+        {
+            using var service = CreateService();
+
+            // Open lobby
+            await service.StartRaceLobbyAsync(60, null, "Host");
+
+            // When emote resolution runs, simulate lobby being stopped concurrently
+            _emoteService.Setup(x => x.ResolveEmoteUrlAsync(It.IsAny<string>()))
+                .Callback(() =>
+                {
+                    service.StopSessionAsync("Dashboard").GetAwaiter().GetResult();
+                })
+                .ReturnsAsync((string?)null);
+
+            var racer = new CommandEventArgs { Command = "race", Name = "latecomer", DisplayName = "LateComer", UserId = "user-late" };
+            var token = await service.TriggerJoinRaceAsync(racer, "custom_emote");
+
+            Assert.Equal(string.Empty, token);
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(m => m.Contains("LateComer") && m.Contains("no race lobby is open"))),
+                Times.Once);
+        }
     }
 }
 

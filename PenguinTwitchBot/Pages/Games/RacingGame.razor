@@ -443,18 +443,20 @@
         };
     }
 
-    private async Task SaveAllSettingsAsync()
+    private async Task<bool> SaveAllSettingsAsync()
     {
-        if (_settings == null) return;
+        if (_settings == null) return false;
         try
         {
             await SettingsService.SaveSettingsAsync(_settings);
             Snackbar.Add("Racing Minigame settings saved!", Severity.Success);
+            return true;
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to save Racing settings.");
             Snackbar.Add($"Failed to save settings: {ex.Message}", Severity.Error);
+            return false;
         }
     }
 
@@ -483,7 +485,7 @@
             Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
             return;
         }
-        await SaveAllSettingsAsync();
+        if (!await SaveAllSettingsAsync()) return;
         var duration = _settings?.Racing.LobbyDurationSeconds ?? 60;
         await RacingGameService.StartRaceLobbyAsync(duration, triggeredBy: "Dashboard");
         Snackbar.Add($"Opened {duration}s Race Lobby! Watch your /racing.html overlay.", Severity.Success);
@@ -496,6 +498,7 @@
             Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
             return;
         }
+        if (!await SaveAllSettingsAsync()) return;
         var token = await RacingGameService.TriggerJoinRaceAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         if (!string.IsNullOrEmpty(token))
             Snackbar.Add("Added test racer to starting grid!", Severity.Info);
@@ -508,7 +511,7 @@
             Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
             return;
         }
-        await SaveAllSettingsAsync();
+        if (!await SaveAllSettingsAsync()) return;
         await RacingGameService.TriggerSoloTimeTrialAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched Solo Time Trial hot lap! Watch your /racing.html overlay.", Severity.Info);
     }
@@ -529,7 +532,7 @@
             Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
             return;
         }
-        await SaveAllSettingsAsync();
+        if (!await SaveAllSettingsAsync()) return;
         var added = await RacingGameService.AddTestRacersAsync(_testRacerCount, _testEmoteInput, autoLaunch);
         Snackbar.Add($"Added {added} test racers! {(autoLaunch ? "Race launched immediately!" : "Ready on grid.")}", Severity.Success);
     }
@@ -541,7 +544,7 @@
             Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
             return;
         }
-        await SaveAllSettingsAsync();
+        if (!await SaveAllSettingsAsync()) return;
         var count = Math.Max(14, (_settings?.Racing.MaxRacersPerHeat ?? 6) * 2);
         var added = await RacingGameService.AddTestRacersAsync(count, _testEmoteInput, autoLaunch: true);
         Snackbar.Add($"Quick Test: Launched tournament with {added} racers across multiple heats!", Severity.Success);
@@ -554,7 +557,7 @@
             Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
             return;
         }
-        await SaveAllSettingsAsync();
+        if (!await SaveAllSettingsAsync()) return;
         var count = Math.Min(6, _settings?.Racing.MaxRacersPerHeat ?? 6);
         var added = await RacingGameService.AddTestRacersAsync(count, _testEmoteInput, autoLaunch: true);
         Snackbar.Add($"Quick Test: Launched single final race with {added} racers!", Severity.Success);

@@ -147,6 +147,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _currentSessionGameMode = gameModeOverride ?? rSettings.DefaultGameMode;
                     _currentSessionTrackType = trackTypeOverride ?? rSettings.TrackType;
                     _currentSessionLaps = lapsOverride ?? rSettings.TotalLaps;
+                    _heatWatchdogCts?.Cancel();
+                    _heatWatchdogCts?.Dispose();
+                    _heatWatchdogCts = null;
                 }
 
                 var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, rSettings.ActiveThemeId, emoteService, dropRegistry);
@@ -323,14 +326,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     await Task.Delay(watchdogDuration, watchdogCts.Token);
                     if (watchdogCts.IsCancellationRequested) return;
 
-                    logger.LogWarning("Racing heat watchdog timed out after {Duration}s. Resetting race state.", watchdogDuration.TotalSeconds);
                     lock (_racerLock)
                     {
+                        if (_heatWatchdogCts != watchdogCts) return;
                         _isRaceRunning = false;
                         _activeTournament = null;
                         _singleRaceRemainingTokens.Clear();
+                        _heatWatchdogCts = null;
                         dropRegistry.SetSessionActive(DropGameType.Racing, false);
                     }
+
+                    logger.LogWarning("Racing heat watchdog timed out after {Duration}s. Resetting race state.", watchdogDuration.TotalSeconds);
                     await StopSessionAsync("HeatTimeout");
                 }
                 catch (OperationCanceledException)
@@ -573,19 +579,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             try
             {
                 var session = _sessionManager.ExchangeStopSession();
-                if (session == null) return null;
-
-                dropRegistry.SetSessionActive(DropGameType.Racing, false);
-                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
-                var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "racing", StringComparison.OrdinalIgnoreCase));
-
-                var settings = await settingsService.GetSettingsAsync();
-                var rSettings = settings.Racing;
-                var headerConfig = DropGameHeaderConfigDto.FromSettings(rSettings);
 
                 int completedRacersCount;
+                bool hadRaceState;
                 lock (_racerLock)
                 {
+                    hadRaceState = _isRaceRunning || _activeTournament != null || _singleRaceRemainingTokens.Count > 0 || _lobbyRacers.Count > 0;
                     completedRacersCount = _lobbyRacers.Count;
                     _lobbyRacers.Clear();
                     _isRaceRunning = false;
@@ -596,13 +595,31 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _heatWatchdogCts = null;
                 }
 
+                if (session == null && !hadRaceState && !string.Equals(triggeredBy, "HeatTimeout", StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+
+                dropRegistry.SetSessionActive(DropGameType.Racing, false);
+                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+                var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "racing", StringComparison.OrdinalIgnoreCase));
+
+                var settings = await settingsService.GetSettingsAsync();
+                var rSettings = settings.Racing;
+                var headerConfig = DropGameHeaderConfigDto.FromSettings(rSettings);
+
+                var totalDuration = session?.TotalDurationSeconds ?? rSettings.LobbyDurationSeconds;
+                var startedAtMs = session != null
+                    ? new DateTimeOffset(session.StartedAtUtc).ToUnixTimeMilliseconds()
+                    : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
                 var dto = new DropGameSessionDto
                 {
                     GameType = "racing",
                     IsActive = false,
-                    TotalDurationSeconds = session.TotalDurationSeconds,
+                    TotalDurationSeconds = totalDuration,
                     RemainingSeconds = 0,
-                    StartedAtMs = new DateTimeOffset(session.StartedAtUtc).ToUnixTimeMilliseconds(),
+                    StartedAtMs = startedAtMs,
                     EndsAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     TotalDrops = completedRacersCount,
                     IsOtherGameActive = isOtherGameActive,
@@ -622,7 +639,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 await QueueWsMessageAsync(WsTopics.Racing, wsPayload, "Racing race_end");
                 await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(webSocketMessenger, logger, WsTopics.Racing, "racing", isOtherGameActive: false, activeGames: activeGames);
 
-                if (!string.Equals(triggeredBy, "NoRacers", StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(triggeredBy, "NoRacers", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(triggeredBy, "HeatTimeout", StringComparison.OrdinalIgnoreCase))
                 {
                     if (rSettings.AnnounceSessionStatusInChat)
                     {
@@ -632,7 +650,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                             {
                                 ["count"] = completedRacersCount.ToString(CultureInfo.InvariantCulture),
-                                ["duration"] = rSettings.LobbyDurationSeconds.ToString(CultureInfo.InvariantCulture)
+                                ["duration"] = totalDuration.ToString(CultureInfo.InvariantCulture)
                             });
                         await ServiceBackbone.SendChatMessage(endMsg);
                     }
@@ -727,6 +745,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 }
             }
 
+            var currentSession = GetCurrentSession();
+            var capturedStartedAt = currentSession?.StartedAtMs;
+
             var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, rSettings.ActiveThemeId, emoteService, dropRegistry);
             var resolvedEmoteUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(
                 emoteService,
@@ -763,6 +784,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
             lock (_racerLock)
             {
+                var activeSession = GetCurrentSession();
+                if (_isRaceRunning || !_sessionManager.HasActiveTimedSession() || activeSession == null || activeSession.StartedAtMs != capturedStartedAt)
+                {
+                    logger.LogInformation("Lobby state changed while resolving racer media for {User}. Join rejected.", eventArgs.DisplayName);
+                    var msg = RacingMessageSettings.Format(
+                        _isRaceRunning ? rSettings.Messages.RaceInProgress : rSettings.Messages.NoLobbyOpen,
+                        _isRaceRunning ? RacingMessageSettings.DefaultRaceInProgress : RacingMessageSettings.DefaultNoLobbyOpen,
+                        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["user"] = eventArgs.DisplayName
+                        });
+                    _ = ServiceBackbone.SendChatMessage(msg);
+                    return string.Empty;
+                }
+
                 if (_lobbyRacers.Count >= rSettings.MaxLobbyRacers)
                 {
                     var msg = RacingMessageSettings.Format(

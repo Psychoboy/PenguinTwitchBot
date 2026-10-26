@@ -69,10 +69,12 @@ internal class Program
                                            !string.Equals(a, "--skip-db-backup", StringComparison.OrdinalIgnoreCase)).ToArray();
 
         var builder = WebApplication.CreateBuilder(filteredArgs);
-        if (cliSkipBackup)
+        var skipBackupEnv = builder.Configuration["SKIP_DATABASE_BACKUP"] ?? builder.Configuration["SKIP_DB_BACKUP"];
+        if (!string.IsNullOrEmpty(skipBackupEnv))
         {
-            builder.Configuration["SkipDatabaseBackup"] = "true";
+            builder.Configuration["SkipDatabaseBackup"] = skipBackupEnv;
         }
+
         var section = builder.Configuration.GetSection("Secrets");
         var secretsFileLocation = section.GetValue<string>("SecretsConf") ?? "appsettings.secrets.json";
         if (!File.Exists(secretsFileLocation))
@@ -84,6 +86,11 @@ internal class Program
             return;
         }
         builder.Configuration.AddJsonFile(secretsFileLocation, optional: false, reloadOnChange: true);
+
+        if (cliSkipBackup)
+        {
+            builder.Configuration["SkipDatabaseBackup"] = "true";
+        }
 
         var prometheusEnabled = builder.Configuration.GetValue<bool>("Observability:Prometheus:Enabled");
         var prometheusPort = builder.Configuration.GetValue<int>("Observability:Prometheus:Port", 4999);
@@ -391,7 +398,8 @@ internal class Program
             dbContext.Database.Migrate();
         }
 
-        var skipDatabaseBackup = app.Configuration.GetValue<bool>("SkipDatabaseBackup");
+        var skipDatabaseBackup = app.Configuration.GetValue<bool?>("SkipDatabaseBackup")
+            ?? app.Configuration.GetValue<bool>("SKIP_DATABASE_BACKUP");
 
         if (skipDatabaseBackup)
         {
