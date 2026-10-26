@@ -130,5 +130,61 @@ namespace PenguinTwitchBot.Test.Bot.Overlay
 
             Assert.Single(rows);
         }
+
+        [Fact]
+        public async Task MultipleTimers_PersistAndRestoreAcrossRestart()
+        {
+            var original = CreateService();
+            await original.StartAsync(CancellationToken.None);
+
+            await original.ConfigureAsync("down", 123);
+            await original.CreateTimerAsync("Subathon");
+            await original.ConfigureTimerAsync("Subathon", "up", 456);
+
+            await original.StopAsync(CancellationToken.None);
+
+            var restarted = CreateService();
+            await restarted.StartAsync(CancellationToken.None);
+
+            var defaultState = restarted.GetState("Default");
+            var subathonState = restarted.GetState("Subathon");
+
+            Assert.Equal("Default", defaultState.Name);
+            Assert.Equal("down", defaultState.Direction);
+            Assert.Equal(123, defaultState.Seconds, 1);
+
+            Assert.Equal("Subathon", subathonState.Name);
+            Assert.Equal("up", subathonState.Direction);
+            Assert.Equal(456, subathonState.Seconds, 1);
+
+            await restarted.StopAsync(CancellationToken.None);
+        }
+
+        [Fact]
+        public async Task LegacySetting_RestoredIntoDefaultTimer()
+        {
+            // Seed a legacy setting row
+            using (var scope = _provider.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                context.Settings.Add(new global::PenguinTwitchBot.Database.Bot.Models.Setting
+                {
+                    Name = "StreamTimerState",
+                    DataType = global::PenguinTwitchBot.Database.Bot.Models.Setting.DataTypeEnum.String,
+                    StringSetting = System.Text.Json.JsonSerializer.Serialize(new { Direction = "down", Seconds = 999.0 })
+                });
+                await context.SaveChangesAsync();
+            }
+
+            var service = CreateService();
+            await service.StartAsync(CancellationToken.None);
+
+            var state = service.GetState();
+            Assert.Equal("Default", state.Name);
+            Assert.Equal("down", state.Direction);
+            Assert.Equal(999.0, state.Seconds, 1);
+
+            await service.StopAsync(CancellationToken.None);
+        }
     }
 }

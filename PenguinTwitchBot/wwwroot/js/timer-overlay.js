@@ -31,6 +31,7 @@
     }
 
     const settings = {
+        timerName: param("timerName", param("timer", param("name", "Default"))).trim(),
         fontFamily: param("fontFamily", '"Segoe UI", sans-serif'),
         fontSize: parseInt(param("fontSize", "72"), 10),
         fontWeight: param("fontWeight", "700"),
@@ -73,6 +74,11 @@
 
     function applyState(payload) {
         if (!payload) return;
+
+        // If this update is for a different timer, ignore it
+        if (payload.name && payload.name.localeCompare(settings.timerName, undefined, { sensitivity: "accent" }) !== 0) {
+            return;
+        }
 
         const updatedAtMs = Date.parse(payload.updatedAtUtc);
 
@@ -146,7 +152,8 @@
 
     async function loadInitialState() {
         try {
-            const response = await fetch("/api/overlay/timer-state", { cache: "no-store" });
+            const url = "/api/overlay/timer-state?name=" + encodeURIComponent(settings.timerName);
+            const response = await fetch(url, { cache: "no-store" });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             applyState(await response.json());
         } catch (err) {
