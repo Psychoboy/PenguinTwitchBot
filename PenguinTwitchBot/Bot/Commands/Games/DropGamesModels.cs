@@ -503,7 +503,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         // Track & Layout Configuration
         public RacingTrackType TrackType { get; set; } = RacingTrackType.Perimeter;
         public CurlingStripPosition StripPosition { get; set; } = CurlingStripPosition.Bottom;
-        public double TrackThicknessPercent { get; set; } = 12.0;
+        private double _trackThicknessPercent = 4.2;
+        public double TrackThicknessPercent
+        {
+            get => _trackThicknessPercent;
+            set => _trackThicknessPercent = Math.Clamp(value, 2.0, 15.0);
+        }
 
         private double _trackAlpha = 0.5;
         public double TrackAlpha

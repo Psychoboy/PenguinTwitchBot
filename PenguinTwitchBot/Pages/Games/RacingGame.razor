@@ -102,6 +102,17 @@
                                         </MudText>
                                     </div>
 
+                                    <div>
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                            Track Road Width: <b>@((_settings.Racing.TrackThicknessPercent).ToString("F1"))%</b>
+                                        </MudText>
+                                        <MudSlider T="double" Min="2.0" Max="10.0" Step="0.2" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.TrackThicknessPercent" />
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            Controls the width of the racetrack lanes. Default ~4.2% (~45px) keeps the track sleek and non-intrusive.
+                                        </MudText>
+                                    </div>
+
                                     <MudSwitch T="bool" Color="Color.Primary" Label="Show Track Rumble Strips / Curbs"
                                                @bind-Value="_settings.Racing.ShowTrackBorders" />
                                 </MudStack>

@@ -101,6 +101,8 @@
     let countdownStep = 0; // 3, 2, 1, GO
     let countdownTimer = 0;
     let podiumTimer = 0;
+    let eliminatedLaps = new Set();
+    let eliminationBanner = null;
 
     // Time trial state & ghost
     let timeTrialGhost = null;
@@ -509,6 +511,11 @@
         racer.currentX = vx;
         racer.currentY = vy;
 
+        if (racer.isEliminated) {
+            ctx.save();
+            ctx.globalAlpha = 0.35 * overlayAlpha;
+        }
+
         ctx.save();
         ctx.translate(vx, vy);
         ctx.rotate(pt.angle + racer.spinAngle + racer.driftAngle);
@@ -607,7 +614,8 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        const name = racer.displayName || racer.username || 'Driver';
+        const baseName = racer.displayName || racer.username || 'Driver';
+        const name = racer.isEliminated ? `💀 ${baseName}` : baseName;
         const textWidth = ctx.measureText(name).width;
 
         ctx.fillStyle = 'rgba(18, 22, 28, 0.78)';
@@ -615,9 +623,13 @@
         ctx.roundRect(-textWidth / 2 - 6, -9, textWidth + 12, 18, 5);
         ctx.fill();
 
-        ctx.fillStyle = racer.userColor || '#FFFFFF';
+        ctx.fillStyle = racer.isEliminated ? '#FF8A80' : (racer.userColor || '#FFFFFF');
         ctx.fillText(name, 0, 0);
         ctx.restore();
+
+        if (racer.isEliminated) {
+            ctx.restore();
+        }
     }
 
     // Draws Ghost Car for Time Trial
@@ -738,6 +750,26 @@
             ctx.fillText(currentHeatInfo.title, width / 2, 38);
         }
 
+        // Elimination alert banner
+        if (eliminationBanner && eliminationBanner.timer > 0) {
+            const ebW = Math.min(420, width * 0.85);
+            ctx.fillStyle = 'rgba(18, 22, 28, 0.92)';
+            ctx.shadowColor = eliminationBanner.color || '#FF5252';
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            ctx.roundRect((width - ebW) / 2, 54, ebW, 36, 6);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = eliminationBanner.color || '#FF5252';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = eliminationBanner.color || '#FF5252';
+            ctx.font = 'bold 16px "Fredoka", "Rubik", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(eliminationBanner.text, width / 2, 77);
+        }
+
         if (currentSettings.gameMode === 'TimeTrial') {
             const timeSec = (raceElapsedTime / 1000).toFixed(2);
             const savedRecord = loadBestLap(currentSettings.trackType);
@@ -768,31 +800,62 @@
             return;
         }
 
-        // Stopwatch in top right
+        // Leader progress for display
+        let maxProg = 0;
+        activeRacers.forEach(r => { if (r.progress > maxProg) maxProg = r.progress; });
+        const totalLaps = currentSettings.totalLaps || 2;
+        const curLapNum = Math.min(totalLaps, Math.floor(maxProg) + 1);
+
+        // Stopwatch & Lap counter in top right
         const timeSec = (raceElapsedTime / 1000).toFixed(2);
         ctx.fillStyle = 'rgba(18, 22, 28, 0.78)';
         ctx.beginPath();
-        ctx.roundRect(width - 150, 20, 130, 42, 6);
+        ctx.roundRect(width - 150, 20, 130, 48, 6);
         ctx.fill();
         ctx.fillStyle = '#00E5FF';
-        ctx.font = 'bold 18px monospace';
+        ctx.font = 'bold 16px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(`⏱️ ${timeSec}s`, width - 85, 47);
+        ctx.fillText(`⏱️ ${timeSec}s`, width - 85, 42);
+
+        ctx.fillStyle = '#FFD166';
+        ctx.font = 'bold 12px "Fredoka", sans-serif';
+        const lapLabel = currentSettings.gameMode === 'Elimination' ? `⚡ LAP ${curLapNum}/${totalLaps}` : `LAP ${curLapNum}/${totalLaps}`;
+        ctx.fillText(lapLabel, width - 85, 60);
 
         // Leaderboard sidebar
+        const isElim = currentSettings.gameMode === 'Elimination';
         const sorted = [...activeRacers].sort((a, b) => b.progress - a.progress);
-        const topN = sorted.slice(0, 5);
-        let sy = 75;
+        const topN = sorted.slice(0, 6);
+        let sy = 80;
+
+        // Find currently last-place unfinished racer for danger tag in Elimination
+        const unfinished = sorted.filter(r => !r.finished);
+        const dangerRacer = (isElim && unfinished.length > 1) ? unfinished[unfinished.length - 1] : null;
+
         topN.forEach((r, idx) => {
             ctx.fillStyle = 'rgba(18, 22, 28, 0.65)';
             ctx.beginPath();
             ctx.roundRect(width - 150, sy, 130, 24, 4);
             ctx.fill();
-            ctx.fillStyle = idx === 0 ? '#FFD166' : '#FFFFFF';
-            ctx.font = 'bold 11px sans-serif';
-            ctx.textAlign = 'left';
-            const name = r.displayName || r.username;
-            ctx.fillText(`${idx + 1}. ${name.substring(0, 10)}`, width - 142, sy + 16);
+
+            const isDanger = dangerRacer && dangerRacer.dropToken === r.dropToken;
+            if (r.isEliminated) {
+                ctx.fillStyle = '#FF5252';
+                ctx.font = 'bold 10px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`💀 ${(r.displayName || r.username).substring(0, 9)} (OUT)`, width - 142, sy + 16);
+            } else if (isDanger) {
+                ctx.fillStyle = '#FF5252';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`⚠️ ${(r.displayName || r.username).substring(0, 8)}`, width - 142, sy + 16);
+            } else {
+                ctx.fillStyle = idx === 0 ? '#FFD166' : '#FFFFFF';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'left';
+                const name = r.displayName || r.username;
+                ctx.fillText(`${idx + 1}. ${name.substring(0, 10)}`, width - 142, sy + 16);
+            }
             sy += 28;
         });
 
@@ -919,7 +982,10 @@
         ctx.fillStyle = '#FFD166';
         ctx.font = 'bold 22px "Fredoka", "Rubik", sans-serif';
         ctx.textAlign = 'center';
-        const podTitle = (currentMessages && (currentMessages.overlayPodiumTitle || currentMessages.OverlayPodiumTitle)) || '🏆 CHAMPIONSHIP FINAL PODIUM 🏆';
+        let podTitle = (currentMessages && (currentMessages.overlayPodiumTitle || currentMessages.OverlayPodiumTitle)) || '🏆 CHAMPIONSHIP FINAL PODIUM 🏆';
+        if (currentSettings.gameMode === 'Elimination') {
+            podTitle = '🏆 ELIMINATION CHAMPION 🏆';
+        }
         ctx.fillText(podTitle, width / 2, py + 34);
 
         const medals = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
@@ -984,6 +1050,13 @@
         const dtSec = dt / 1000;
         const totalLaps = currentSettings.totalLaps || 2;
 
+        if (eliminationBanner && eliminationBanner.timer > 0) {
+            eliminationBanner.timer -= dtSec;
+            if (eliminationBanner.timer <= 0) {
+                eliminationBanner = null;
+            }
+        }
+
         // Update Ghost Car in Time Trial
         if (timeTrialGhost) {
             if (timeTrialGhost.targetLapMs) {
@@ -993,9 +1066,70 @@
             }
         }
 
-        // Leader progress for rubber banding
+        // Leader progress for rubber banding & lap tracking
         let maxProgress = 0;
         activeRacers.forEach(r => { if (r.progress > maxProgress) maxProgress = r.progress; });
+
+        // Elimination mode per-lap knockout check
+        if (currentSettings.gameMode === 'Elimination') {
+            const unfinished = activeRacers.filter(r => !r.finished);
+            if (unfinished.length > 1) {
+                const currentLap = Math.floor(maxProgress);
+                if (currentLap >= 1 && !eliminatedLaps.has(currentLap)) {
+                    eliminatedLaps.add(currentLap);
+
+                    // Find unfinished racer with lowest progress
+                    let lowestRacer = null;
+                    let lowestProg = Infinity;
+                    for (const r of unfinished) {
+                        if (r.progress < lowestProg) {
+                            lowestProg = r.progress;
+                            lowestRacer = r;
+                        }
+                    }
+
+                    if (lowestRacer) {
+                        lowestRacer.finished = true;
+                        lowestRacer.isEliminated = true;
+                        lowestRacer.lapTime = raceElapsedTime / 1000;
+                        finishedRacers.push(lowestRacer);
+                        const placement = activeRacers.length - finishedRacers.length + 1;
+                        reportRacerCompletion(lowestRacer, placement);
+                        playSound('screech');
+                        eliminationBanner = {
+                            text: `💀 ${lowestRacer.displayName || lowestRacer.username} ELIMINATED!`,
+                            timer: 3.5,
+                            color: '#FF5252'
+                        };
+
+                        // If only 1 racer remains active -> they win!
+                        const remaining = activeRacers.filter(r => !r.finished);
+                        if (remaining.length === 1) {
+                            const champion = remaining[0];
+                            champion.finished = true;
+                            champion.lapTime = raceElapsedTime / 1000;
+                            finishedRacers.push(champion);
+                            reportRacerCompletion(champion, 1);
+                            playSound('win');
+                            eliminationBanner = {
+                                text: `🏆 ${champion.displayName || champion.username} WINS!`,
+                                timer: 4.5,
+                                color: '#00E676'
+                            };
+                            if (commonModule && commonModule.spawnSeasonalBurst) {
+                                commonModule.spawnSeasonalBurst(particles, {
+                                    x: width / 2,
+                                    y: height / 2,
+                                    season: (currentTheme && currentTheme.seasonPreset) || 'spring',
+                                    count: 45,
+                                    isBullseye: true
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         const maxLaneOffset = (currentSettings.trackThickness || 44) * 0.35;
 
@@ -1080,19 +1214,14 @@
                     }
                 }
 
-                // Report completion back to server (sole source of truth)
-                reportRacerCompletion(r, finishedRacers.length);
-
-                // Elimination mode knockout check
-                if (currentSettings.gameMode === 'Elimination' && activeRacers.filter(x => !x.finished).length === 1) {
-                    const lastRacer = activeRacers.filter(x => !x.finished)[0];
-                    lastRacer.finished = true;
-                    finishedRacers.push(lastRacer);
-                    reportRacerCompletion(lastRacer, finishedRacers.length);
-                }
-
-                if (finishedRacers.length === 1) {
+                if (currentSettings.gameMode === 'Elimination') {
+                    reportRacerCompletion(r, 1);
                     playSound('win');
+                    eliminationBanner = {
+                        text: `🏆 ${r.displayName || r.username} WINS!`,
+                        timer: 4.5,
+                        color: '#00E676'
+                    };
                     if (commonModule && commonModule.spawnSeasonalBurst) {
                         commonModule.spawnSeasonalBurst(particles, {
                             x: width / 2,
@@ -1101,6 +1230,31 @@
                             count: 45,
                             isBullseye: true
                         });
+                    }
+
+                    // Any other unfinished racers finish in reverse order of progress
+                    const remaining = activeRacers.filter(x => !x.finished).sort((a, b) => b.progress - a.progress);
+                    remaining.forEach((rem) => {
+                        rem.finished = true;
+                        rem.lapTime = raceElapsedTime / 1000;
+                        finishedRacers.push(rem);
+                        reportRacerCompletion(rem, finishedRacers.length);
+                    });
+                } else {
+                    // Report completion back to server (sole source of truth)
+                    reportRacerCompletion(r, finishedRacers.length);
+
+                    if (finishedRacers.length === 1) {
+                        playSound('win');
+                        if (commonModule && commonModule.spawnSeasonalBurst) {
+                            commonModule.spawnSeasonalBurst(particles, {
+                                x: width / 2,
+                                y: height / 2,
+                                season: (currentTheme && currentTheme.seasonPreset) || 'spring',
+                                count: 45,
+                                isBullseye: true
+                            });
+                        }
                     }
                 }
             }
@@ -1166,10 +1320,31 @@
 
             // 4. Track Hazards Collisions with Respawning
             if (currentSettings.enableDebris && !r.isWrecked) {
-                const normProg = r.progress % 1.0;
+                const rPt = getTrackPoint(r.progress, currentSettings.trackType, currentSettings.stripPosition);
+                const rx = rPt.x + rPt.normalX * r.laneOffset;
+                const ry = rPt.y + rPt.normalY * r.laneOffset;
+                const frontX = rx + Math.cos(rPt.angle) * 14;
+                const frontY = ry + Math.sin(rPt.angle) * 14;
+
+                const curNorm = ((r.progress % 1.0) + 1.0) % 1.0;
+
                 trackHazards.forEach(h => {
                     if (!h.active) return;
-                    if (Math.abs(normProg - h.t) < 0.018 && Math.abs(r.laneOffset - h.laneOffset) < 13) {
+
+                    // Progress pre-filter: ignore hazards far away along spline
+                    let progDiff = Math.abs(curNorm - h.t);
+                    if (progDiff > 0.5) progDiff = 1.0 - progDiff;
+                    if (progDiff > 0.012) return;
+
+                    const hPt = getTrackPoint(h.t, currentSettings.trackType, currentSettings.stripPosition);
+                    const hx = hPt.x + hPt.normalX * h.laneOffset;
+                    const hy = hPt.y + hPt.normalY * h.laneOffset;
+
+                    const dCenter = Math.hypot(rx - hx, ry - hy);
+                    const dFront = Math.hypot(frontX - hx, frontY - hy);
+
+                    // Physical visual contact: triggers only when front bumper or chassis contacts hazard
+                    if (dFront < 15 || dCenter < 18) {
                         h.active = false;
                         h.respawnTimer = 4.5 + Math.random() * 3.0; // Automatically respawns in 4.5-7.5s!
                         if (h.type === 'oil') {
@@ -1178,8 +1353,9 @@
                             r.wrecks = (r.wrecks || 0) + 1;
                             playSound('screech');
                         } else if (h.type === 'cone') {
-                            r.progress -= 0.022;
+                            r.progress -= 0.005;
                             r.wrecks = (r.wrecks || 0) + 1;
+                            r.driftAngle = (Math.random() > 0.5 ? 0.22 : -0.22);
                             playSound('bump');
                         } else if (h.type === 'boost') {
                             r.isBoosting = true;
@@ -1306,6 +1482,8 @@
             lobbyRacers = [];
             activeRacers = [];
             finishedRacers = [];
+            eliminatedLaps.clear();
+            eliminationBanner = null;
             timeTrialGhost = null;
             trackHazards = [];
             playSound('countdown_beep');
@@ -1399,6 +1577,8 @@
             }
 
             finishedRacers = [];
+            eliminatedLaps.clear();
+            eliminationBanner = null;
             gameState = 'countdown';
             countdownStep = 3;
             countdownTimer = 1000;
@@ -1462,6 +1642,8 @@
             }
 
             finishedRacers = [];
+            eliminatedLaps.clear();
+            eliminationBanner = null;
             raceStartTime = performance.now();
             playSound('countdown_go');
         } else if (msg.type === 'race_end') {

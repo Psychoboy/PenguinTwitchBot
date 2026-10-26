@@ -277,6 +277,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 gridPosition = idx + 1
             }).ToList();
 
+            var heatLaps = _currentSessionGameMode == RacingGameMode.Elimination
+                ? Math.Max(1, racersInHeat.Count - 1)
+                : _currentSessionLaps;
+
             var startPayload = JsonSerializer.Serialize(new
             {
                 type = "race_start",
@@ -284,7 +288,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 gameMode = _currentSessionGameMode.ToString(),
                 trackType = _currentSessionTrackType.ToString(),
                 stripPosition = rSettings.StripPosition.ToString(),
-                totalLaps = _currentSessionLaps,
+                totalLaps = heatLaps,
                 heatTitle,
                 heatNumber,
                 totalHeats,
@@ -368,7 +372,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 ["RacerCount"] = racersInHeat.Count.ToString(CultureInfo.InvariantCulture),
                 ["GameMode"] = _currentSessionGameMode.ToString(),
                 ["TrackType"] = _currentSessionTrackType.ToString(),
-                ["Laps"] = _currentSessionLaps.ToString(CultureInfo.InvariantCulture),
+                ["Laps"] = heatLaps.ToString(CultureInfo.InvariantCulture),
                 ["HeatTitle"] = heatTitle,
                 ["Theme"] = theme.Name,
                 ["Game"] = "Racing"
@@ -422,6 +426,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             var rSettings = settings.Racing;
             var maxPerHeat = Math.Max(2, rSettings.MaxRacersPerHeat);
 
+            var isElimination = _currentSessionGameMode == RacingGameMode.Elimination;
+            var isTimeTrial = _currentSessionGameMode == RacingGameMode.TimeTrial;
+
             if (allRacers.Count <= maxPerHeat)
             {
                 lock (_racerLock)
@@ -430,7 +437,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _singleRaceRemainingTokens.Clear();
                     foreach (var r in allRacers) _singleRaceRemainingTokens.Add(r.DropToken);
                 }
-                await LaunchHeatAsync(allRacers, "Grand Prix Final", 1, 1, isFinal: true);
+                var singleTitle = isElimination ? "Elimination Final" : (isTimeTrial ? "Time Trial" : "Grand Prix Final");
+                await LaunchHeatAsync(allRacers, singleTitle, 1, 1, isFinal: true);
             }
             else
             {
@@ -460,7 +468,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 }
 
                 var currentHeat = heats[0];
-                await LaunchHeatAsync(currentHeat, $"Heat 1 of {heatCount} (Top {advancePerHeat} Advance)", 1, heatCount, isFinal: false);
+                var heatTitle = isElimination
+                    ? $"Elimination Heat 1 of {heatCount} (Top {advancePerHeat} Advance)"
+                    : $"Heat 1 of {heatCount} (Top {advancePerHeat} Advance)";
+                await LaunchHeatAsync(currentHeat, heatTitle, 1, heatCount, isFinal: false);
             }
         }
 
@@ -1189,7 +1200,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                                 nextHeat = _activeTournament.Heats[_activeTournament.CurrentHeatIndex];
                                 nextNum = _activeTournament.CurrentHeatIndex + 1;
                             }
-                            await LaunchHeatAsync(nextHeat, $"Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Advance)", nextNum, totalHeats, isFinal: false);
+                            var nextHeatTitle = _currentSessionGameMode == RacingGameMode.Elimination
+                                ? $"Elimination Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Advance)"
+                                : $"Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Advance)";
+                            await LaunchHeatAsync(nextHeat, nextHeatTitle, nextNum, totalHeats, isFinal: false);
                         });
                     }
                     else
@@ -1227,7 +1241,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                                 _activeTournament.FinalFinishedTokens = [.. finalRacers.Select(f => f.DropToken)];
                             }
 
-                            await LaunchHeatAsync(finalRacers, "🏆 Championship Final", totalHeats + 1, totalHeats, isFinal: true);
+                            var finalTitle = _currentSessionGameMode == RacingGameMode.Elimination
+                                ? "🏆 Elimination Championship Final"
+                                : "🏆 Championship Final";
+                            await LaunchHeatAsync(finalRacers, finalTitle, totalHeats + 1, totalHeats, isFinal: true);
                         });
                     }
                 }
