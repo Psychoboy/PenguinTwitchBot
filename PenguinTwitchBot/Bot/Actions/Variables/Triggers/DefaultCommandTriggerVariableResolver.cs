@@ -639,11 +639,21 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("Laps", "Total laps scheduled for the race", source, category, "2");
             variables.SetVariable("Theme", "Active theme name", source, category, "Spring (Cherry Blossoms)");
         }
+        else if (eventType != null && eventType.Equals(DefaultCommandEventTypes.RacingDerbyKnockout, StringComparison.OrdinalIgnoreCase))
+        {
+            variables.SetVariable("Attacker", "Driver who delivered the total knockout", source, category, "SpeedyPenguin");
+            variables.SetVariable("Victim", "Driver whose kart was totaled", source, category, "DriftKing");
+            variables.SetVariable("KnockoutCount", "Total knockouts achieved by this driver in the match", source, category, "1");
+            variables.SetVariable("PointsAwarded", "Bonus points awarded for the knockout", source, category, "20");
+            variables.SetVariable("RacingMode", "Racing game mode", source, category, "DestructionDerby");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+        }
         else
         {
             variables.SetVariable("Placement", "Final race placement (1 for 1st, 2 for 2nd, etc.)", source, category, "1");
             variables.SetVariable("LapTime", "Fastest lap time or total race time in seconds", source, category, "24.50");
             variables.SetVariable("WreckCount", "Number of collisions / wrecks suffered during the race", source, category, "0");
+            variables.SetVariable("KnockoutCount", "Number of opponent karts totaled in Destruction Derby", source, category, "0");
             variables.SetVariable("PointsAwarded", "Championship / currency points awarded for finishing", source, category, "25");
             variables.SetVariable("Score", "Point score achieved", source, category, "25");
             variables.SetVariable("RacingMode", "Racing game mode", source, category, "GrandPrix");

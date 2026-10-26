@@ -18,14 +18,16 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         Perimeter,
         EdgeOval,
         Figure8,
-        DragStrip
+        DragStrip,
+        DerbyBowl
     }
 
     public enum RacingGameMode
     {
         GrandPrix,
         TimeTrial,
-        Elimination
+        Elimination,
+        DestructionDerby
     }
 
     public class DropGamesSettings
@@ -577,6 +579,26 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             get => _baseSpeed;
             set => _baseSpeed = Math.Clamp(value, 0.2, 2.5);
         }
+
+        // Vehicle Durability & Combat Racing
+        public bool EnableVehicleDamage { get; set; } = false;
+        public bool EnableItemPickups { get; set; } = true;
+
+        private int _startingHealth = 100;
+        public int StartingHealth
+        {
+            get => _startingHealth;
+            set => _startingHealth = Math.Clamp(value, 40, 200);
+        }
+
+        private double _ramDamageMultiplier = 1.0;
+        public double RamDamageMultiplier
+        {
+            get => _ramDamageMultiplier;
+            set => _ramDamageMultiplier = Math.Clamp(value, 0.5, 3.0);
+        }
+
+        public int DerbyKnockoutPoints { get; set; } = 20;
 
         // Championship Points & Payouts
         public int WinPointsFirst { get; set; } = 25;
@@ -1476,6 +1498,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         [JsonPropertyName("lapsCompleted")]
         public int? LapsCompleted { get; set; }
 
+        [JsonPropertyName("knockoutCount")]
+        public int? KnockoutCount { get; set; }
+
+        [JsonPropertyName("killerDropToken")]
+        public string? KillerDropToken { get; set; }
+
+        [JsonPropertyName("isTotaled")]
+        public bool? IsTotaled { get; set; }
+
         [JsonPropertyName("overlayKey")]
         public string? OverlayKey { get; set; }
     }
@@ -1568,6 +1599,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public int? WreckCount { get; set; }
         public string? RacingMode { get; set; }
         public int? LapsCompleted { get; set; }
+        public int? KnockoutCount { get; set; }
+        public string? KillerDropToken { get; set; }
+        public bool IsTotaled { get; set; }
 
         public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];
         public List<ParachuteTrajectoryPointDto> Keyframes { get; set; } = [];

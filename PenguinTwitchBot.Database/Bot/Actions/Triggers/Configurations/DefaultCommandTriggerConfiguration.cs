@@ -103,6 +103,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string RacingWin = "Racing.Win";
         public const string RacingPodium = "Racing.Podium";
         public const string RacingWreck = "Racing.Wreck";
+        public const string RacingDerbyKnockout = "Racing.DerbyKnockout";
         public const string RacingEnd = "Racing.End";
         public const string RacingEnded = "Racing.End";
         public const string RacingTimeTrialComplete = "Racing.TimeTrialComplete";

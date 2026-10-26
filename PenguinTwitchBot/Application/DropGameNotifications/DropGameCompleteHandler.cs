@@ -228,6 +228,18 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     {
                         record.LapsCompleted = notification.LapsCompleted.Value;
                     }
+                    if (notification.KnockoutCount.HasValue)
+                    {
+                        record.KnockoutCount = notification.KnockoutCount.Value;
+                    }
+                    if (!string.IsNullOrWhiteSpace(notification.KillerDropToken))
+                    {
+                        record.KillerDropToken = notification.KillerDropToken;
+                    }
+                    if (notification.IsTotaled.HasValue)
+                    {
+                        record.IsTotaled = notification.IsTotaled.Value;
+                    }
 
                     if (racingGameService != null)
                     {

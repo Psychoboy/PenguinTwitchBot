@@ -49,7 +49,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         private bool _isRaceRunning = false;
         private RacingTournamentState? _activeTournament;
         private readonly HashSet<string> _singleRaceRemainingTokens = [];
+        private readonly List<RacerFinalResult> _singleRaceResults = [];
+        private bool _singleRaceAnnounced = false;
         private CancellationTokenSource? _heatWatchdogCts;
+
+        public sealed record RacerFinalResult(
+            string Username,
+            string DisplayName,
+            int Placement,
+            double LapTimeSeconds,
+            int KnockoutCount,
+            bool IsTotaled
+        );
 
         public class RacingTournamentState
         {
@@ -60,6 +71,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             public HashSet<string> CurrentHeatFinishedTokens { get; set; } = [];
             public bool IsChampionshipFinal { get; set; } = false;
             public HashSet<string> FinalFinishedTokens { get; set; } = [];
+            public List<RacerFinalResult> FinalResults { get; } = [];
+            public bool FinalAnnounced { get; set; } = false;
             public int TotalHeats => Heats.Count;
         }
 
@@ -147,6 +160,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _currentSessionGameMode = gameModeOverride ?? rSettings.DefaultGameMode;
                     _currentSessionTrackType = trackTypeOverride ?? rSettings.TrackType;
                     _currentSessionLaps = lapsOverride ?? rSettings.TotalLaps;
+                    _activeTournament = null;
+                    _singleRaceRemainingTokens.Clear();
+                    _singleRaceResults.Clear();
+                    _singleRaceAnnounced = false;
                     _heatWatchdogCts?.Cancel();
                     _heatWatchdogCts?.Dispose();
                     _heatWatchdogCts = null;
@@ -196,6 +213,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     trackAlpha = rSettings.TrackAlpha,
                     showTrackBorders = rSettings.ShowTrackBorders,
                     trackThicknessPercent = rSettings.TrackThicknessPercent,
+                    enableVehicleDamage = rSettings.EnableVehicleDamage || _currentSessionGameMode == RacingGameMode.DestructionDerby,
+                    enableItemPickups = rSettings.EnableItemPickups,
+                    startingHealth = rSettings.StartingHealth,
+                    ramDamageMultiplier = rSettings.RamDamageMultiplier,
+                    derbyKnockoutPoints = rSettings.DerbyKnockoutPoints,
                     messages = rSettings.Messages
                 }, _jsonOptions);
 
@@ -277,6 +299,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 gridPosition = idx + 1
             }).ToList();
 
+            var isDerby = _currentSessionGameMode == RacingGameMode.DestructionDerby;
             var heatLaps = _currentSessionGameMode == RacingGameMode.Elimination
                 ? Math.Max(1, racersInHeat.Count - 1)
                 : _currentSessionLaps;
@@ -297,12 +320,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 enableDrafting = rSettings.EnableDrafting,
                 enableDebris = rSettings.EnableDebrisHazards,
                 debrisDensity = rSettings.DebrisDensity,
-                enableRubberBanding = rSettings.EnableRubberBanding,
+                enableRubberBanding = !isDerby && rSettings.EnableRubberBanding,
                 rubberBandStrength = rSettings.RubberBandStrength,
                 baseSpeed = rSettings.BaseSpeed,
                 trackAlpha = rSettings.TrackAlpha,
                 showTrackBorders = rSettings.ShowTrackBorders,
                 trackThicknessPercent = rSettings.TrackThicknessPercent,
+                enableVehicleDamage = rSettings.EnableVehicleDamage || isDerby,
+                enableItemPickups = rSettings.EnableItemPickups,
+                startingHealth = rSettings.StartingHealth,
+                ramDamageMultiplier = rSettings.RamDamageMultiplier,
+                derbyKnockoutPoints = rSettings.DerbyKnockoutPoints,
                 racers = racersPayload,
                 theme,
                 sounds,
@@ -330,14 +358,44 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     await Task.Delay(watchdogDuration, watchdogCts.Token);
                     if (watchdogCts.IsCancellationRequested) return;
 
+                    bool shouldAnnounceTournament = false;
+                    List<RacerFinalResult> tournamentResults = [];
+                    bool shouldAnnounceSingle = false;
+                    List<RacerFinalResult> singleResults = [];
+
                     lock (_racerLock)
                     {
                         if (_heatWatchdogCts != watchdogCts) return;
+
+                        if (_activeTournament != null && _activeTournament.IsChampionshipFinal && !_activeTournament.FinalAnnounced && _activeTournament.FinalResults.Count > 0)
+                        {
+                            _activeTournament.FinalAnnounced = true;
+                            shouldAnnounceTournament = true;
+                            tournamentResults = [.. _activeTournament.FinalResults.OrderBy(r => r.Placement).ThenBy(r => r.LapTimeSeconds)];
+                        }
+                        else if (_activeTournament == null && !_singleRaceAnnounced && _singleRaceResults.Count > 0)
+                        {
+                            _singleRaceAnnounced = true;
+                            shouldAnnounceSingle = true;
+                            singleResults = [.. _singleRaceResults.OrderBy(r => r.Placement).ThenBy(r => r.LapTimeSeconds)];
+                        }
+
                         _isRaceRunning = false;
                         _activeTournament = null;
                         _singleRaceRemainingTokens.Clear();
+                        _singleRaceResults.Clear();
+                        _singleRaceAnnounced = false;
                         _heatWatchdogCts = null;
                         dropRegistry.SetSessionActive(DropGameType.Racing, false);
+                    }
+
+                    if (shouldAnnounceTournament)
+                    {
+                        await AnnounceRaceResultsAsync(tournamentResults, isTournamentFinal: true, rSettings);
+                    }
+                    else if (shouldAnnounceSingle)
+                    {
+                        await AnnounceRaceResultsAsync(singleResults, isTournamentFinal: false, rSettings);
                     }
 
                     logger.LogWarning("Racing heat watchdog timed out after {Duration}s. Resetting race state.", watchdogDuration.TotalSeconds);
@@ -428,6 +486,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
             var isElimination = _currentSessionGameMode == RacingGameMode.Elimination;
             var isTimeTrial = _currentSessionGameMode == RacingGameMode.TimeTrial;
+            var isDerby = _currentSessionGameMode == RacingGameMode.DestructionDerby;
 
             if (allRacers.Count <= maxPerHeat)
             {
@@ -435,9 +494,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 {
                     _activeTournament = null;
                     _singleRaceRemainingTokens.Clear();
+                    _singleRaceResults.Clear();
+                    _singleRaceAnnounced = false;
                     foreach (var r in allRacers) _singleRaceRemainingTokens.Add(r.DropToken);
                 }
-                var singleTitle = isElimination ? "Elimination Final" : (isTimeTrial ? "Time Trial" : "Grand Prix Final");
+                var singleTitle = isDerby ? "Demolition Derby Final" : (isElimination ? "Elimination Final" : (isTimeTrial ? "Time Trial" : "Grand Prix Final"));
                 await LaunchHeatAsync(allRacers, singleTitle, 1, 1, isFinal: true);
             }
             else
@@ -468,9 +529,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 }
 
                 var currentHeat = heats[0];
-                var heatTitle = isElimination
-                    ? $"Elimination Heat 1 of {heatCount} (Top {advancePerHeat} Advance)"
-                    : $"Heat 1 of {heatCount} (Top {advancePerHeat} Advance)";
+                var heatTitle = isDerby
+                    ? $"Demolition Derby Heat 1 of {heatCount} (Top {advancePerHeat} Survivors Advance)"
+                    : (isElimination
+                        ? $"Elimination Heat 1 of {heatCount} (Top {advancePerHeat} Advance)"
+                        : $"Heat 1 of {heatCount} (Top {advancePerHeat} Advance)");
                 await LaunchHeatAsync(currentHeat, heatTitle, 1, heatCount, isFinal: false);
             }
         }
@@ -601,6 +664,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _isRaceRunning = false;
                     _activeTournament = null;
                     _singleRaceRemainingTokens.Clear();
+                    _singleRaceResults.Clear();
+                    _singleRaceAnnounced = false;
                     _heatWatchdogCts?.Cancel();
                     _heatWatchdogCts?.Dispose();
                     _heatWatchdogCts = null;
@@ -976,6 +1041,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
         private async Task AwardRacePlacementPointsAndTriggers(PendingDropRecord record, int placement, double lapTime, int wreckCount, RacingGameSettings rSettings)
         {
+            var isDerby = _currentSessionGameMode == RacingGameMode.DestructionDerby;
             var pointsAwarded = placement switch
             {
                 1 => rSettings.WinPointsFirst,
@@ -983,6 +1049,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 3 => rSettings.WinPointsThird,
                 _ => rSettings.ParticipationPoints
             };
+
+            // Bonus points for knockouts in Derby / Combat Racing
+            var koBonus = (record.KnockoutCount ?? 0) * rSettings.DerbyKnockoutPoints;
+            pointsAwarded += koBonus;
 
             if (pointsAwarded > 0 && _pointsSystem != null)
             {
@@ -1006,6 +1076,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 ["PointsAwarded"] = pointsAwarded.ToString(CultureInfo.InvariantCulture),
                 ["LapTime"] = lapTime.ToString("F2", CultureInfo.InvariantCulture),
                 ["WreckCount"] = wreckCount.ToString(CultureInfo.InvariantCulture),
+                ["KnockoutCount"] = (record.KnockoutCount ?? 0).ToString(CultureInfo.InvariantCulture),
+                ["IsTotaled"] = record.IsTotaled ? "True" : "False",
                 ["RacingMode"] = record.RacingMode ?? "GrandPrix",
                 ["Theme"] = record.Theme.Name,
                 ["Game"] = "Racing"
@@ -1013,18 +1085,26 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
             try
             {
+                if (record.KnockoutCount > 0)
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("race", DefaultCommandEventTypes.RacingDerbyKnockout, record.EventArgs, actionVars);
+                }
+
                 if (placement == 1)
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("race", DefaultCommandEventTypes.RacingWin, record.EventArgs, actionVars);
                     if (rSettings.AnnounceSessionStatusInChat)
                     {
+                        var winTemplate = isDerby ? rSettings.Messages.DerbyChampion : rSettings.Messages.RaceWin;
+                        var defaultTemplate = isDerby ? RacingMessageSettings.DefaultDerbyChampion : RacingMessageSettings.DefaultRaceWin;
                         var winMsg = RacingMessageSettings.Format(
-                            rSettings.Messages.RaceWin,
-                            RacingMessageSettings.DefaultRaceWin,
+                            winTemplate,
+                            defaultTemplate,
                             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                             {
                                 ["user"] = record.DisplayName,
                                 ["time"] = lapTime.ToString("F2", CultureInfo.InvariantCulture),
+                                ["kills"] = (record.KnockoutCount ?? 0).ToString(CultureInfo.InvariantCulture),
                                 ["points"] = pointsAwarded.ToString(CultureInfo.InvariantCulture)
                             });
                         await ServiceBackbone.SendChatMessage(winMsg);
@@ -1109,15 +1189,33 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 // Single race final
                 await AwardRacePlacementPointsAndTriggers(record, placement, lapTime, wreckCount, rSettings);
 
+                bool raceFinished = false;
+                List<RacerFinalResult> resultsSnapshot = [];
                 lock (_racerLock)
                 {
+                    _singleRaceResults.Add(new RacerFinalResult(
+                        record.Username,
+                        record.DisplayName,
+                        placement,
+                        lapTime,
+                        record.KnockoutCount ?? 0,
+                        record.IsTotaled
+                    ));
                     _singleRaceRemainingTokens.Remove(record.DropToken);
-                    if (_singleRaceRemainingTokens.Count == 0)
+                    if (_singleRaceRemainingTokens.Count == 0 && !_singleRaceAnnounced)
                     {
+                        _singleRaceAnnounced = true;
+                        raceFinished = true;
+                        resultsSnapshot = [.. _singleRaceResults.OrderBy(r => r.Placement).ThenBy(r => r.LapTimeSeconds)];
                         _isRaceRunning = false;
                         _heatWatchdogCts?.Cancel();
                         dropRegistry.SetSessionActive(DropGameType.Racing, false);
                     }
+                }
+
+                if (raceFinished)
+                {
+                    await AnnounceRaceResultsAsync(resultsSnapshot, isTournamentFinal: false, rSettings);
                 }
                 return;
             }
@@ -1200,9 +1298,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                                 nextHeat = _activeTournament.Heats[_activeTournament.CurrentHeatIndex];
                                 nextNum = _activeTournament.CurrentHeatIndex + 1;
                             }
-                            var nextHeatTitle = _currentSessionGameMode == RacingGameMode.Elimination
-                                ? $"Elimination Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Advance)"
-                                : $"Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Advance)";
+                            var nextHeatTitle = _currentSessionGameMode == RacingGameMode.DestructionDerby
+                                ? $"Demolition Derby Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Survivors Advance)"
+                                : (_currentSessionGameMode == RacingGameMode.Elimination
+                                    ? $"Elimination Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Advance)"
+                                    : $"Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Advance)");
                             await LaunchHeatAsync(nextHeat, nextHeatTitle, nextNum, totalHeats, isFinal: false);
                         });
                     }
@@ -1241,9 +1341,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                                 _activeTournament.FinalFinishedTokens = [.. finalRacers.Select(f => f.DropToken)];
                             }
 
-                            var finalTitle = _currentSessionGameMode == RacingGameMode.Elimination
-                                ? "🏆 Elimination Championship Final"
-                                : "🏆 Championship Final";
+                            var finalTitle = _currentSessionGameMode == RacingGameMode.DestructionDerby
+                                ? "🏆 Demolition Championship Final"
+                                : (_currentSessionGameMode == RacingGameMode.Elimination
+                                    ? "🏆 Elimination Championship Final"
+                                    : "🏆 Championship Final");
                             await LaunchHeatAsync(finalRacers, finalTitle, totalHeats + 1, totalHeats, isFinal: true);
                         });
                     }
@@ -1254,18 +1356,96 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 // Championship Final completion
                 await AwardRacePlacementPointsAndTriggers(record, placement, lapTime, wreckCount, rSettings);
 
+                bool finalFinished = false;
+                List<RacerFinalResult> resultsSnapshot = [];
                 lock (_racerLock)
                 {
+                    tournament.FinalResults.Add(new RacerFinalResult(
+                        record.Username,
+                        record.DisplayName,
+                        placement,
+                        lapTime,
+                        record.KnockoutCount ?? 0,
+                        record.IsTotaled
+                    ));
                     tournament.FinalFinishedTokens.Remove(record.DropToken);
-                    if (tournament.FinalFinishedTokens.Count == 0)
+                    if (tournament.FinalFinishedTokens.Count == 0 && !tournament.FinalAnnounced)
                     {
+                        tournament.FinalAnnounced = true;
+                        finalFinished = true;
+                        resultsSnapshot = [.. tournament.FinalResults.OrderBy(r => r.Placement).ThenBy(r => r.LapTimeSeconds)];
                         _isRaceRunning = false;
                         _activeTournament = null;
                         _heatWatchdogCts?.Cancel();
                         dropRegistry.SetSessionActive(DropGameType.Racing, false);
                     }
                 }
+
+                if (finalFinished)
+                {
+                    await AnnounceRaceResultsAsync(resultsSnapshot, isTournamentFinal: true, rSettings);
+                }
             }
+        }
+
+        private async Task AnnounceRaceResultsAsync(
+            IReadOnlyList<RacerFinalResult> results,
+            bool isTournamentFinal,
+            RacingGameSettings rSettings)
+        {
+            if (!rSettings.AnnounceSessionStatusInChat || results.Count == 0) return;
+
+            var isDerby = _currentSessionGameMode == RacingGameMode.DestructionDerby;
+            var template = isDerby
+                ? rSettings.Messages.DerbyFinalComplete
+                : (isTournamentFinal ? rSettings.Messages.ChampionshipFinalComplete : rSettings.Messages.RaceComplete);
+            var fallback = isDerby
+                ? RacingMessageSettings.DefaultDerbyFinalComplete
+                : (isTournamentFinal ? RacingMessageSettings.DefaultChampionshipFinalComplete : RacingMessageSettings.DefaultRaceComplete);
+
+            var first = results.Count > 0 ? results[0] : null;
+            var second = results.Count > 1 ? results[1] : null;
+            var third = results.Count > 2 ? results[2] : null;
+
+            var entries = new List<string>();
+            var countToShow = Math.Min(results.Count, 3);
+            for (var i = 0; i < countToShow; i++)
+            {
+                var r = results[i];
+                var medal = r.Placement switch
+                {
+                    1 => "🥇 1st",
+                    2 => "🥈 2nd",
+                    3 => "🥉 3rd",
+                    _ => $"{r.Placement}th"
+                };
+
+                if (isDerby)
+                {
+                    var koText = r.KnockoutCount == 1 ? "1 KO" : $"{r.KnockoutCount} KOs";
+                    entries.Add($"{medal}: {r.DisplayName} ({koText})");
+                }
+                else
+                {
+                    entries.Add($"{medal}: {r.DisplayName} ({r.LapTimeSeconds:F2}s)");
+                }
+            }
+
+            var resultsSummary = string.Join(" • ", entries);
+
+            var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["results"] = resultsSummary,
+                ["winner"] = first?.DisplayName ?? "",
+                ["first"] = first?.DisplayName ?? "",
+                ["second"] = second?.DisplayName ?? "",
+                ["third"] = third?.DisplayName ?? "",
+                ["time"] = first != null ? first.LapTimeSeconds.ToString("F2", CultureInfo.InvariantCulture) : "0.00",
+                ["kills"] = first != null ? first.KnockoutCount.ToString(CultureInfo.InvariantCulture) : "0"
+            };
+
+            var msg = RacingMessageSettings.Format(template, fallback, replacements);
+            await ServiceBackbone.SendChatMessage(msg);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -1292,19 +1472,38 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             {
                 var firstArg = e.Args.Count > 0 ? e.Args[0] : (e.Arg ?? "").Trim();
 
-                if (e.IsModOrHigher() && firstArg.Equals("start", StringComparison.OrdinalIgnoreCase))
+                if (e.IsModOrHigher() && (firstArg.Equals("start", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("derby", StringComparison.OrdinalIgnoreCase)))
                 {
                     int? customDuration = null;
-                    if (e.Args.Count > 1 && int.TryParse(e.Args[1], out var parsedDuration))
+                    RacingGameMode? modeOverride = firstArg.Equals("derby", StringComparison.OrdinalIgnoreCase) ? RacingGameMode.DestructionDerby : null;
+                    RacingTrackType? trackOverride = firstArg.Equals("derby", StringComparison.OrdinalIgnoreCase) ? RacingTrackType.DerbyBowl : null;
+
+                    if (e.Args.Count > 1)
                     {
-                        customDuration = parsedDuration;
+                        if (int.TryParse(e.Args[1], out var parsedDuration))
+                        {
+                            customDuration = parsedDuration;
+                        }
+                        else if (e.Args[1].Equals("derby", StringComparison.OrdinalIgnoreCase))
+                        {
+                            modeOverride = RacingGameMode.DestructionDerby;
+                            trackOverride = RacingTrackType.DerbyBowl;
+                            if (e.Args.Count > 2 && int.TryParse(e.Args[2], out var parsedDuration2))
+                            {
+                                customDuration = parsedDuration2;
+                            }
+                        }
                     }
                     if (!rSettings.GameEnabled)
                     {
                         logger.LogInformation("Ignored !race start from {User} because Racing is disabled", e.DisplayName);
                         return;
                     }
-                    await StartRaceLobbyAsync(customDuration, triggeredBy: e.DisplayName);
+                    await StartRaceLobbyAsync(
+                        lobbyDurationSeconds: customDuration,
+                        gameModeOverride: modeOverride,
+                        trackTypeOverride: trackOverride,
+                        triggeredBy: e.DisplayName);
                     return;
                 }
 

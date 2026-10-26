@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -12,6 +13,9 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Bot.Services.Chat;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Services;
 using Xunit;
 
@@ -242,6 +246,204 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             _webSocketMessenger.Verify(x => x.AddToQueue(
                 WsTopics.Racing,
                 It.Is<string>(json => json.Contains("race_start") && json.Contains("Heat 1 of"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task MultiHeatTournament_FullLifecycle_TracksFinalCompletion()
+        {
+            _settings.Racing.MaxRacersPerHeat = 4;
+            var registeredDrops = new Dictionary<string, PendingDropRecord>();
+            _dropRegistry.Setup(x => x.RegisterDrop(It.IsAny<PendingDropRecord>()))
+                .Callback<PendingDropRecord>(r => registeredDrops[r.DropToken] = r);
+
+            using var service = CreateService();
+
+            // Capture dispatched WS payloads to get drop tokens
+            var dispatchedStarts = new List<string>();
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Racing, It.IsAny<string>()))
+                .Callback<string, string>((topic, payload) =>
+                {
+                    if (payload.Contains("race_start"))
+                    {
+                        dispatchedStarts.Add(payload);
+                    }
+                });
+
+            await service.AddTestRacersAsync(8, "TestEmote", autoLaunch: true);
+
+            // Verify Heat 1 dispatched
+            Assert.Single(dispatchedStarts);
+            var heat1Json = JsonDocument.Parse(dispatchedStarts[0]);
+            var heat1Racers = heat1Json.RootElement.GetProperty("racers").EnumerateArray().ToList();
+            Assert.Equal(4, heat1Racers.Count);
+
+            // Complete Heat 1
+            for (int i = 0; i < heat1Racers.Count; i++)
+            {
+                var token = heat1Racers[i].GetProperty("dropToken").GetString()!;
+                Assert.True(registeredDrops.TryGetValue(token, out var record));
+                record.RacePlacement = i + 1;
+                record.LapTimeSeconds = 12.0 + i;
+                await service.ProcessCompletionAsync(record);
+            }
+
+            // Verify Heat 1 completion message sent to chat
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(msg => msg.Contains("Heat 1/2 Complete"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task ChampionshipFinal_WhenAllRacersComplete_AnnouncesResultsInChat()
+        {
+            _settings.Racing.MaxRacersPerHeat = 2;
+            var registeredDrops = new Dictionary<string, PendingDropRecord>();
+            _dropRegistry.Setup(x => x.RegisterDrop(It.IsAny<PendingDropRecord>()))
+                .Callback<PendingDropRecord>(r => registeredDrops[r.DropToken] = r);
+
+            using var service = CreateService();
+
+            // Add 2 racers (single race final)
+            await service.AddTestRacersAsync(2, "TestEmote", autoLaunch: true);
+
+            var racers = registeredDrops.Values.ToList();
+            Assert.Equal(2, racers.Count);
+
+            racers[0].RacePlacement = 1;
+            racers[0].LapTimeSeconds = 14.25;
+            await service.ProcessCompletionAsync(racers[0]);
+
+            racers[1].RacePlacement = 2;
+            racers[1].LapTimeSeconds = 15.10;
+            await service.ProcessCompletionAsync(racers[1]);
+
+            // Verify Race Complete announcement was dispatched to chat with podium results
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(msg => msg.Contains("Race Complete! Results:") && msg.Contains("🥇 1st:") && msg.Contains("🥈 2nd:"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task TournamentChampionshipFinal_WhenFinalistsComplete_AnnouncesChampionshipFinalComplete()
+        {
+            using var service = CreateService();
+
+            var racer1 = new PendingDropRecord
+            {
+                DropToken = "finalist-token-1",
+                DisplayName = "AlphaSpeed",
+                Username = "alphaspeed",
+                UserId = "user-1",
+                Theme = _settings.Themes[0],
+                GameType = DropGameType.Racing,
+                EventArgs = new CommandEventArgs { Command = "race", Name = "alphaspeed", DisplayName = "AlphaSpeed" },
+                CreatedAtUtc = DateTime.UtcNow,
+                EarliestCompletionUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5)
+            };
+            var racer2 = new PendingDropRecord
+            {
+                DropToken = "finalist-token-2",
+                DisplayName = "BetaDrift",
+                Username = "betadrift",
+                UserId = "user-2",
+                Theme = _settings.Themes[0],
+                GameType = DropGameType.Racing,
+                EventArgs = new CommandEventArgs { Command = "race", Name = "betadrift", DisplayName = "BetaDrift" },
+                CreatedAtUtc = DateTime.UtcNow,
+                EarliestCompletionUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5)
+            };
+
+            // Setup active tournament in Championship Final phase
+            var tournament = new RacingGameService.RacingTournamentState
+            {
+                IsChampionshipFinal = true,
+                FinalFinishedTokens = [racer1.DropToken, racer2.DropToken],
+                AdvancePerHeat = 1
+            };
+
+            // Set private _activeTournament via reflection for exact test isolation
+            var tournamentField = typeof(RacingGameService).GetField("_activeTournament", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+            tournamentField.SetValue(service, tournament);
+
+            racer1.RacePlacement = 1;
+            racer1.LapTimeSeconds = 13.50;
+            await service.ProcessCompletionAsync(racer1);
+
+            racer2.RacePlacement = 2;
+            racer2.LapTimeSeconds = 14.10;
+            await service.ProcessCompletionAsync(racer2);
+
+            // Verify Championship Final Complete message was sent to chat
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(msg => msg.Contains("Championship Final Complete! Results:") &&
+                                     msg.Contains("AlphaSpeed") &&
+                                     msg.Contains("BetaDrift"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task DerbyChampionshipFinal_WhenFinalistsComplete_AnnouncesDerbyFinalCompleteWithKnockouts()
+        {
+            _settings.Racing.DefaultGameMode = RacingGameMode.DestructionDerby;
+            using var service = CreateService();
+
+            var modeField = typeof(RacingGameService).GetField("_currentSessionGameMode", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+            modeField.SetValue(service, RacingGameMode.DestructionDerby);
+
+            var racer1 = new PendingDropRecord
+            {
+                DropToken = "derby-finalist-1",
+                DisplayName = "CrusherPenguin",
+                Username = "crusherpenguin",
+                UserId = "user-1",
+                Theme = _settings.Themes[0],
+                GameType = DropGameType.Racing,
+                EventArgs = new CommandEventArgs { Command = "race", Name = "crusherpenguin", DisplayName = "CrusherPenguin" },
+                CreatedAtUtc = DateTime.UtcNow,
+                EarliestCompletionUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5),
+                KnockoutCount = 3,
+                IsTotaled = false
+            };
+            var racer2 = new PendingDropRecord
+            {
+                DropToken = "derby-finalist-2",
+                DisplayName = "WreckedKart",
+                Username = "wreckedkart",
+                UserId = "user-2",
+                Theme = _settings.Themes[0],
+                GameType = DropGameType.Racing,
+                EventArgs = new CommandEventArgs { Command = "race", Name = "wreckedkart", DisplayName = "WreckedKart" },
+                CreatedAtUtc = DateTime.UtcNow,
+                EarliestCompletionUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5),
+                KnockoutCount = 1,
+                IsTotaled = true
+            };
+
+            var tournament = new RacingGameService.RacingTournamentState
+            {
+                IsChampionshipFinal = true,
+                FinalFinishedTokens = [racer1.DropToken, racer2.DropToken],
+                AdvancePerHeat = 1
+            };
+
+            var tournamentField = typeof(RacingGameService).GetField("_activeTournament", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+            tournamentField.SetValue(service, tournament);
+
+            racer1.RacePlacement = 1;
+            await service.ProcessCompletionAsync(racer1);
+
+            racer2.RacePlacement = 2;
+            await service.ProcessCompletionAsync(racer2);
+
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(msg => msg.Contains("Demolition Championship Final Complete! Results:") &&
+                                     msg.Contains("CrusherPenguin (3 KOs)") &&
+                                     msg.Contains("WreckedKart (1 KO)"))),
                 Times.Once);
         }
 
@@ -495,6 +697,134 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Equal(string.Empty, token);
             _serviceBackbone.Verify(x => x.SendChatMessage(
                 It.Is<string>(m => m.Contains("LateComer") && m.Contains("no race lobby is open"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task StartRaceLobbyAsync_DestructionDerby_BroadcastsDerbySettings()
+        {
+            _settings.Racing.EnableVehicleDamage = true;
+            _settings.Racing.EnableItemPickups = true;
+            _settings.Racing.StartingHealth = 120;
+            _settings.Racing.RamDamageMultiplier = 1.5;
+            _settings.Racing.DerbyKnockoutPoints = 75;
+
+            using var service = CreateService();
+
+            var session = await service.StartRaceLobbyAsync(
+                lobbyDurationSeconds: 45,
+                gameModeOverride: RacingGameMode.DestructionDerby,
+                trackTypeOverride: RacingTrackType.DerbyBowl,
+                triggeredBy: "DerbyHost");
+
+            Assert.NotNull(session);
+            Assert.True(session.IsActive);
+            Assert.Equal(45, session.TotalDurationSeconds);
+
+            _webSocketMessenger.Verify(x => x.AddToQueue(
+                WsTopics.Racing,
+                It.Is<string>(json =>
+                    json.Contains("race_lobby_start") &&
+                    json.Contains("DestructionDerby") &&
+                    json.Contains("DerbyBowl") &&
+                    json.Contains("\"enableVehicleDamage\":true") &&
+                    json.Contains("\"enableItemPickups\":true") &&
+                    json.Contains("\"startingHealth\":120") &&
+                    json.Contains("\"ramDamageMultiplier\":1.5") &&
+                    json.Contains("\"derbyKnockoutPoints\":75"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task ProcessCompletionAsync_WithKnockouts_AwardsBonusPointsAndFiresDerbyTrigger()
+        {
+            _settings.Racing.WinPointsFirst = 25;
+            _settings.Racing.DerbyKnockoutPoints = 50;
+
+            using var service = CreateService();
+
+            var eventArgs = new CommandEventArgs
+            {
+                Command = "race",
+                Name = "demolition_king",
+                DisplayName = "DemolitionKing",
+                UserId = "user-derby-1"
+            };
+
+            var record = new PendingDropRecord
+            {
+                DropToken = "token-derby-win",
+                GameType = DropGameType.Racing,
+                UserId = "user-derby-1",
+                Username = "demolition_king",
+                DisplayName = "DemolitionKing",
+                Theme = _settings.Themes[0],
+                EventArgs = eventArgs,
+                CreatedAtUtc = DateTime.UtcNow,
+                EarliestCompletionUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5),
+                RacePlacement = 1,
+                LapTimeSeconds = 35.5,
+                WreckCount = 0,
+                KnockoutCount = 3,
+                RacingMode = "DestructionDerby"
+            };
+
+            await service.ProcessCompletionAsync(record);
+
+            // 1st place (25 pts) + 3 knockouts * 50 pts = 175 pts
+            _pointsSystem.Verify(x => x.AddPointsByUserIdAndGame(
+                "user-derby-1",
+                "Racing",
+                175),
+                Times.Once);
+
+            // Knockout trigger fired
+            _defaultCommandTriggerService.Verify(x => x.TriggerDefaultCommandEventAsync(
+                "race",
+                DefaultCommandEventTypes.RacingDerbyKnockout,
+                eventArgs,
+                It.Is<Dictionary<string, string>>(dict =>
+                    dict["KnockoutCount"] == "3" &&
+                    dict["PointsAwarded"] == "175")),
+                Times.Once);
+
+            // RaceWin trigger fired
+            _defaultCommandTriggerService.Verify(x => x.TriggerDefaultCommandEventAsync(
+                "race",
+                DefaultCommandEventTypes.RacingWin,
+                eventArgs,
+                It.IsAny<Dictionary<string, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task OnCommand_RaceDerby_StartsDerbyLobbyWithDerbyBowlTrack()
+        {
+            using var service = CreateService();
+
+            _commandHandler.Setup(x => x.GetCommand("race"))
+                .Returns(new Command(new BaseCommandProperties { CommandName = "race" }, service));
+
+            var eventArgs = new CommandEventArgs
+            {
+                Command = "race",
+                Arg = "derby",
+                Args = ["derby"],
+                Name = "streamer",
+                DisplayName = "Streamer",
+                UserId = "streamer-1",
+                IsBroadcaster = true
+            };
+
+            await service.OnCommand(this, eventArgs);
+
+            _webSocketMessenger.Verify(x => x.AddToQueue(
+                WsTopics.Racing,
+                It.Is<string>(json =>
+                    json.Contains("race_lobby_start") &&
+                    json.Contains("DestructionDerby") &&
+                    json.Contains("DerbyBowl"))),
                 Times.Once);
         }
     }

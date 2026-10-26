@@ -54,6 +54,30 @@
                                       AdornmentAriaLabel="Reset to default"
                                       OnAdornmentClick="@(() => Messages.ChampionshipFinalStart = RacingMessageSettings.DefaultChampionshipFinalStart)" />
                     </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Championship Final Results Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.ChampionshipFinalComplete"
+                                      HelperText="Placeholders: {results}, {winner}, {first}, {second}, {third}, {time}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.ChampionshipFinalComplete = RacingMessageSettings.DefaultChampionshipFinalComplete)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Demolition Derby Final Results Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.DerbyFinalComplete"
+                                      HelperText="Placeholders: {results}, {winner}, {first}, {second}, {third}, {kills}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.DerbyFinalComplete = RacingMessageSettings.DefaultDerbyFinalComplete)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Single Race Complete Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.RaceComplete"
+                                      HelperText="Placeholders: {results}, {winner}, {first}, {second}, {third}, {time}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.RaceComplete = RacingMessageSettings.DefaultRaceComplete)" />
+                    </MudItem>
                 </MudGrid>
             </MudExpansionPanel>
 
@@ -67,6 +91,22 @@
                                       Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
                                       AdornmentAriaLabel="Reset to default"
                                       OnAdornmentClick="@(() => Messages.RaceWin = RacingMessageSettings.DefaultRaceWin)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Demolition Derby Champion Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.DerbyChampion"
+                                      HelperText="Placeholders: {user}, {kills}, {points}, {time}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.DerbyChampion = RacingMessageSettings.DefaultDerbyChampion)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Derby Totaled Knockout Announcement" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.DerbyKnockout"
+                                      HelperText="Placeholders: {attacker}, {victim}, {attackerKills}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.DerbyKnockout = RacingMessageSettings.DefaultDerbyKnockout)" />
                     </MudItem>
                     <MudItem xs="12">
                         <MudTextField T="string" Label="Time Trial Lap Finished Announcement" Variant="Variant.Outlined"
@@ -150,6 +190,13 @@
                                       Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
                                       AdornmentAriaLabel="Reset to default"
                                       OnAdornmentClick="@(() => Messages.OverlayPodiumTitle = RacingMessageSettings.DefaultOverlayPodiumTitle)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" Label="Derby Podium Banner Title" Variant="Variant.Outlined"
+                                      @bind-Value="Messages.OverlayDerbyPodiumTitle"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      AdornmentAriaLabel="Reset to default"
+                                      OnAdornmentClick="@(() => Messages.OverlayDerbyPodiumTitle = RacingMessageSettings.DefaultOverlayDerbyPodiumTitle)" />
                     </MudItem>
                     <MudItem xs="12" sm="4">
                         <MudTextField T="string" Label="Time Trial Result Header" Variant="Variant.Outlined"

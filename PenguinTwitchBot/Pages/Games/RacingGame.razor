@@ -77,6 +77,7 @@
                                                 <MudSelectItem Value="RacingTrackType.EdgeOval">Edge Strip Oval</MudSelectItem>
                                                 <MudSelectItem Value="RacingTrackType.Figure8">Figure-8 Intersection</MudSelectItem>
                                                 <MudSelectItem Value="RacingTrackType.DragStrip">Drag / Sprint Strip</MudSelectItem>
+                                                <MudSelectItem Value="RacingTrackType.DerbyBowl">Derby Bowl (Crash Arena)</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
                                         <MudItem xs="12" sm="6">
@@ -136,6 +137,7 @@
                                                @bind-Value="_settings.Racing.DefaultGameMode">
                                         <MudSelectItem Value="RacingGameMode.GrandPrix">Grand Prix (Mass Start Grid)</MudSelectItem>
                                         <MudSelectItem Value="RacingGameMode.Elimination">Elimination (Knockout Per Lap)</MudSelectItem>
+                                        <MudSelectItem Value="RacingGameMode.DestructionDerby">Destruction Derby (Last Kart Standing)</MudSelectItem>
                                         <MudSelectItem Value="RacingGameMode.TimeTrial">Solo Time Trial (Hot Laps)</MudSelectItem>
                                     </MudSelect>
 
@@ -242,6 +244,47 @@
                                             </MudText>
                                         </div>
                                     }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Vehicle Durability &amp; Combat</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Error" Label="Enable Vehicle Damage & Durability"
+                                               @bind-Value="_settings.Racing.EnableVehicleDamage" />
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Enables HP health bars, collision ramming damage, and detachable parts (bumpers, spoilers, wheels). Always active in Demolition Derby mode.
+                                    </MudText>
+
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Spawn Arena Item Pickups (Wrenches & Shields)"
+                                               @bind-Value="_settings.Racing.EnableItemPickups" />
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Spawns repair wrenches (+35 HP) and spiked shields (5s invulnerable ramming aura) on track.
+                                    </MudText>
+
+                                    <div>
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                            Starting Vehicle Durability: <b>@_settings.Racing.StartingHealth HP</b>
+                                        </MudText>
+                                        <MudSlider T="int" Min="50" Max="200" Step="10" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.StartingHealth" />
+                                    </div>
+
+                                    <div>
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                            Ramming Damage Multiplier: <b>@(_settings.Racing.RamDamageMultiplier.ToString("F1"))x</b>
+                                        </MudText>
+                                        <MudSlider T="double" Min="0.5" Max="3.0" Step="0.1" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.RamDamageMultiplier" />
+                                    </div>
+
+                                    <div>
+                                        <MudNumericField T="int" Label="Derby Knockout Bonus Points" Variant="Variant.Outlined"
+                                                         @bind-Value="_settings.Racing.DerbyKnockoutPoints" Min="0" Max="500"
+                                                         HelperText="Bonus points awarded to a driver whenever they total an opponent kart." />
+                                    </div>
                                 </MudStack>
                             </MudPaper>
                         </MudItem>
@@ -391,7 +434,7 @@
                                         </MudButton>
                                     </MudStack>
 
-                                    <MudStack Row="true" Spacing="2">
+                                    <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
                                         <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Speed"
                                                    OnClick="QuickTestHeatsAsync">
                                             🚀 Quick Launch Multi-Heat Race (14+ Racers)
@@ -399,6 +442,10 @@
                                         <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow"
                                                    OnClick="QuickTestSingleRaceAsync">
                                             Quick Launch Single Race (6 Racers)
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.SportsMma"
+                                                   OnClick="QuickTestDerbyAsync">
+                                            💥 Quick Launch Demolition Derby (8 Racers)
                                         </MudButton>
                                     </MudStack>
                                 </MudStack>
@@ -572,5 +619,22 @@
         var count = Math.Min(6, _settings?.Racing.MaxRacersPerHeat ?? 6);
         var added = await RacingGameService.AddTestRacersAsync(count, _testEmoteInput, autoLaunch: true);
         Snackbar.Add($"Quick Test: Launched single final race with {added} racers!", Severity.Success);
+    }
+
+    private async Task QuickTestDerbyAsync()
+    {
+        if (_settings?.Racing.GameEnabled != true)
+        {
+            Snackbar.Add("Racing Minigame is currently disabled. Enable it above and save first.", Severity.Warning);
+            return;
+        }
+        if (_settings != null)
+        {
+            _settings.Racing.DefaultGameMode = RacingGameMode.DestructionDerby;
+            _settings.Racing.TrackType = RacingTrackType.DerbyBowl;
+        }
+        if (!await SaveAllSettingsAsync()) return;
+        var added = await RacingGameService.AddTestRacersAsync(8, _testEmoteInput, autoLaunch: true);
+        Snackbar.Add($"Quick Test: Launched 8-Car Demolition Derby! Watch your overlay.", Severity.Success);
     }
 }
