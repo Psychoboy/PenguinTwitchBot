@@ -77,17 +77,29 @@ namespace PenguinTwitchBot.Bot.Overlay
 
         public StreamTimerState GetState(string? timerName = null)
         {
+            var name = NormalizeName(timerName);
             lock (_lock)
             {
-                return GetOrCreateTimerLocked(timerName).BuildState();
+                if (_timers.TryGetValue(name, out var entry))
+                {
+                    return entry.BuildState();
+                }
+
+                return new StreamTimerState(false, DirectionUp, 0, DateTime.UtcNow, DateTime.UtcNow, name);
             }
         }
 
         public double GetCurrentSeconds(string? timerName = null)
         {
+            var name = NormalizeName(timerName);
             lock (_lock)
             {
-                return GetOrCreateTimerLocked(timerName).CurrentSeconds();
+                if (_timers.TryGetValue(name, out var entry))
+                {
+                    return entry.CurrentSeconds();
+                }
+
+                return 0;
             }
         }
 

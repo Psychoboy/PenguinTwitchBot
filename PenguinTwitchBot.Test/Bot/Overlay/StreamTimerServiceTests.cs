@@ -179,5 +179,22 @@ namespace PenguinTwitchBot.Test.Bot.Overlay
             Assert.False(service.GetState().IsRunning);
             Assert.True(service.GetState("CountDownTimer").IsRunning);
         }
+
+        [Fact]
+        public void GetState_And_GetCurrentSeconds_DoNotCreateTimer_WhenAbsent()
+        {
+            var service = CreateService();
+
+            var state = service.GetState("NonExistentTimer");
+            var seconds = service.GetCurrentSeconds("NonExistentTimer");
+
+            Assert.Equal("NonExistentTimer", state.Name);
+            Assert.False(state.IsRunning);
+            Assert.Equal(0, state.Seconds);
+            Assert.Equal("up", state.Direction);
+            Assert.Equal(0, seconds);
+
+            Assert.DoesNotContain("NonExistentTimer", service.GetTimerNames());
+        }
     }
 }
