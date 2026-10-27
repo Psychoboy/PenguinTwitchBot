@@ -30,7 +30,20 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 [SubActionTypes.StarshipStopExpedition] = FeatureKeys.DropGames,
                 [SubActionTypes.UfoClawControl] = FeatureKeys.DropGames,
                 [SubActionTypes.StartDropGameSession] = FeatureKeys.DropGames,
-                [SubActionTypes.StopDropGameSession] = FeatureKeys.DropGames
+                [SubActionTypes.StopDropGameSession] = FeatureKeys.DropGames,
+                [SubActionTypes.ParachuteStartSession] = FeatureKeys.DropGames,
+                [SubActionTypes.ParachuteStopSession] = FeatureKeys.DropGames,
+                [SubActionTypes.PlinkoStartSession] = FeatureKeys.DropGames,
+                [SubActionTypes.PlinkoStopSession] = FeatureKeys.DropGames,
+                [SubActionTypes.BalloonStartSession] = FeatureKeys.DropGames,
+                [SubActionTypes.BalloonStopSession] = FeatureKeys.DropGames,
+                [SubActionTypes.CurlingStartSession] = FeatureKeys.DropGames,
+                [SubActionTypes.CurlingStopSession] = FeatureKeys.DropGames,
+                [SubActionTypes.GolfStartSession] = FeatureKeys.DropGames,
+                [SubActionTypes.GolfStopSession] = FeatureKeys.DropGames,
+                [SubActionTypes.RacingStartSession] = FeatureKeys.DropGames,
+                [SubActionTypes.RacingStopSession] = FeatureKeys.DropGames,
+                [SubActionTypes.RacingJoin] = FeatureKeys.DropGames
             };
 
         public static bool IsAvailable(SubActionTypes subActionType, IFeatureRuntimeCoordinator featureRuntimeCoordinator)

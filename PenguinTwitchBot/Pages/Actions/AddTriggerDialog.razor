@@ -66,28 +66,37 @@
             }
             else if (_currentStep == WizardStep.SelectTrigger && _selectedCategory != null)
             {
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
-                    <MudIcon Icon="@_selectedCategory.Icon" Color="@_selectedCategory.Color" />
-                    <MudText Typo="Typo.h6">@_selectedCategory.Name Triggers</MudText>
-                </MudStack>
-                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Select a trigger from @_selectedCategory.Name</MudText>
-                <div style="max-height: 400px; overflow-y: auto;">
-                    <MudList T="string">
-                        @foreach (var item in GetCategoryTriggers(_selectedCategory))
-                        {
-                            <MudListItem T="string" class="@($"trigger-item trigger-{item.Id}")" OnClick="@(() => SelectTrigger(item))">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                    <MudIcon Icon="@item.Icon" Color="@item.Color" />
-                                    <MudStack Spacing="0">
-                                        <MudText Typo="Typo.body1"><b>@item.DisplayName</b></MudText>
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@item.Description</MudText>
+                @if (_selectedCategory.Id == "minigames")
+                {
+                    <MinigameTriggerSelector AvailableTriggers="@GetCategoryTriggers(_selectedCategory)"
+                                             @bind-SelectedMinigameId="_selectedMinigameId"
+                                             OnTriggerSelected="SelectTrigger" />
+                }
+                else
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
+                        <MudIcon Icon="@_selectedCategory.Icon" Color="@_selectedCategory.Color" />
+                        <MudText Typo="Typo.h6">@_selectedCategory.Name Triggers</MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Select a trigger from @_selectedCategory.Name</MudText>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <MudList T="string">
+                            @foreach (var item in GetCategoryTriggers(_selectedCategory))
+                            {
+                                <MudListItem T="string" class="@($"trigger-item trigger-{item.Id}")" OnClick="@(() => SelectTrigger(item))">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@item.Icon" Color="@item.Color" />
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.body1"><b>@item.DisplayName</b></MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@item.Description</MudText>
+                                        </MudStack>
                                     </MudStack>
-                                </MudStack>
-                            </MudListItem>
-                            <MudDivider />
-                        }
-                    </MudList>
-                </div>
+                                </MudListItem>
+                                <MudDivider />
+                            }
+                        </MudList>
+                    </div>
+                }
             }
             else if (_currentStep == WizardStep.Configure)
             {
@@ -513,6 +522,7 @@
     private WizardStep _currentStep = WizardStep.SelectCategory;
     private WizardStep _previousStep = WizardStep.SelectCategory;
     private TriggerCategoryInfo? _selectedCategory;
+    private string? _selectedMinigameId;
     private TriggerItemInfo? _selectedItem;
     private string _searchText = "";
 
@@ -748,6 +758,7 @@
     private void SelectCategory(TriggerCategoryInfo category)
     {
         _selectedCategory = category;
+        _selectedMinigameId = null;
         _previousStep = _currentStep;
         _currentStep = WizardStep.SelectTrigger;
     }
@@ -807,6 +818,11 @@
         }
         else if (_currentStep == WizardStep.SelectTrigger)
         {
+            if (_selectedCategory?.Id == "minigames" && !string.IsNullOrEmpty(_selectedMinigameId))
+            {
+                _selectedMinigameId = null;
+                return;
+            }
             _currentStep = WizardStep.SelectCategory;
         }
     }

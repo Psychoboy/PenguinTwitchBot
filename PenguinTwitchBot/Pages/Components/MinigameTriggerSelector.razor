@@ -1,0 +1,117 @@
+@using MudBlazor
+@using PenguinTwitchBot.Bot.Actions.Triggers
+
+@if (string.IsNullOrEmpty(SelectedMinigameId))
+{
+    <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Minigames Triggers</b> — Select a minigame:</MudText>
+    <div style="max-height: 450px; overflow-y: auto;">
+        <MudList T="string">
+            @foreach (var group in MinigameTriggerGroups)
+            {
+                var count = GetTriggersForGroup(group.GroupId).Count();
+                if (count > 0)
+                {
+                    <MudListItem Value="@group.GroupId"
+                                 OnClick="@(() => SelectGroup(group.GroupId))"
+                                 Class="@($"py-3 trigger-item trigger-minigame-{group.GroupId}")">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Style="width: 100%;">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@group.Icon" Color="@group.Color" />
+                                <div>
+                                    <MudText Typo="Typo.body1"><b>@group.Title</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@group.Description</MudText>
+                                </div>
+                            </MudStack>
+                            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" />
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            }
+        </MudList>
+    </div>
+}
+else
+{
+    <MudText Typo="Typo.subtitle1" Class="mb-2"><b>@GetGroupTitle(SelectedMinigameId) Triggers</b> — Select a trigger event:</MudText>
+    <div style="max-height: 450px; overflow-y: auto;">
+        <MudList T="TriggerItemInfo">
+            @foreach (var item in GetTriggersForGroup(SelectedMinigameId))
+            {
+                <MudListItem Value="@item"
+                             OnClick="@(() => OnTriggerSelected.InvokeAsync(item))"
+                             Class="@($"py-3 trigger-item trigger-{item.Id}")">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@item.Icon" Color="@item.Color" />
+                        <div>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText Typo="Typo.body1"><b>@item.DisplayName</b></MudText>
+                                @if (IsFeatureDisabled != null && IsFeatureDisabled(item))
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                }
+                            </MudStack>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@item.Description</MudText>
+                        </div>
+                    </MudStack>
+                </MudListItem>
+                <MudDivider />
+            }
+        </MudList>
+    </div>
+}
+
+@code {
+    [Parameter] public IEnumerable<TriggerItemInfo> AvailableTriggers { get; set; } = [];
+    [Parameter] public string? SelectedMinigameId { get; set; }
+    [Parameter] public EventCallback<string?> SelectedMinigameIdChanged { get; set; }
+    [Parameter] public EventCallback<TriggerItemInfo> OnTriggerSelected { get; set; }
+    [Parameter] public Func<TriggerItemInfo, bool>? IsFeatureDisabled { get; set; }
+
+    public record MinigameTriggerGroupInfo(string GroupId, string Title, string Description, string Icon, Color Color);
+
+    public static readonly IReadOnlyList<MinigameTriggerGroupInfo> MinigameTriggerGroups =
+    [
+        new("parachute", "Parachute Drop (!drop)", "Bullseye, win, miss, rocket kill, and session start/end triggers", Icons.Material.Filled.Paragliding, Color.Primary),
+        new("plinko", "Plinko Bounce (!plinko)", "Winning bucket, losing bucket, and session start/end triggers", Icons.Material.Filled.Apps, Color.Secondary),
+        new("balloon", "Balloon Ascent (!balloon)", "Bullseye, win, miss, mid-air pop, and session start/end triggers", Icons.Material.Filled.Air, Color.Info),
+        new("curling", "Curling / Shuffleboard (!curl)", "Button bullseye, in-house win, gutter miss, and session start/end triggers", Icons.Material.Filled.SportsHockey, Color.Primary),
+        new("golf", "Golf — Chip & Putt (!golf)", "Hole-in-one, on the green, missed green, and session start/end triggers", Icons.Material.Filled.GolfCourse, Color.Success),
+        new("racing", "Racing & Destruction Derby (!race)", "1st place, podium, match complete, derby knockout, crash/wreck, lobby, and time trial triggers", Icons.Material.Filled.SportsMotorsports, Color.Warning),
+        new("starship", "Starship Expedition (!expedition)", "Boarding, crew join, event voting, event outcome, risk roll, and voyage end triggers", Icons.Material.Filled.RocketLaunch, Color.Tertiary),
+        new("ufoclaw", "UFO Claw Machine (!claw)", "Claw prize/viewer grab result trigger", Icons.Material.Filled.PrecisionManufacturing, Color.Info),
+        new("defuse", "Bomb Defuse (!defuse)", "Bomb defusal success and explosion failure triggers", Icons.Material.Filled.NewReleases, Color.Error),
+        new("heist", "Bank Heist (!heist)", "Heist started, all survived, partial survival, and all caught triggers", Icons.Material.Filled.AccountBalance, Color.Warning),
+        new("wheelspin", "Spin Wheel (!spinwheel)", "Wheel spin result trigger", Icons.Material.Filled.ChangeCircle, Color.Success)
+    ];
+
+    private async Task SelectGroup(string groupId)
+    {
+        SelectedMinigameId = groupId;
+        await SelectedMinigameIdChanged.InvokeAsync(groupId);
+    }
+
+    private IEnumerable<TriggerItemInfo> GetTriggersForGroup(string groupId)
+    {
+        return AvailableTriggers.Where(t => GetMinigameGroupId(t) == groupId);
+    }
+
+    public static string GetMinigameGroupId(TriggerItemInfo item)
+    {
+        if (item.Id.StartsWith("parachute-", StringComparison.OrdinalIgnoreCase)) return "parachute";
+        if (item.Id.StartsWith("plinko-", StringComparison.OrdinalIgnoreCase)) return "plinko";
+        if (item.Id.StartsWith("balloon-", StringComparison.OrdinalIgnoreCase)) return "balloon";
+        if (item.Id.StartsWith("curling-", StringComparison.OrdinalIgnoreCase)) return "curling";
+        if (item.Id.StartsWith("golf-", StringComparison.OrdinalIgnoreCase)) return "golf";
+        if (item.Id.StartsWith("racing-", StringComparison.OrdinalIgnoreCase)) return "racing";
+        if (item.Id.StartsWith("starship-", StringComparison.OrdinalIgnoreCase)) return "starship";
+        if (item.Id.StartsWith("ufoclaw-", StringComparison.OrdinalIgnoreCase)) return "ufoclaw";
+        if (item.Id.StartsWith("defuse-", StringComparison.OrdinalIgnoreCase)) return "defuse";
+        if (item.Id.StartsWith("heist-", StringComparison.OrdinalIgnoreCase)) return "heist";
+        if (item.Id.StartsWith("wheelspin-", StringComparison.OrdinalIgnoreCase)) return "wheelspin";
+        return "other";
+    }
+
+    private static string GetGroupTitle(string groupId)
+        => MinigameTriggerGroups.FirstOrDefault(g => g.GroupId == groupId)?.Title ?? "Minigames";
+}

@@ -1,17 +1,22 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using PenguinTwitchBot.Application.Notifications;
+using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Common;
+using PenguinTwitchBot.Bot.Commands.Games.Parachute;
+using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Commands.Games.Racing;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Bot.Services.Chat;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Bot.Models;
 using PenguinTwitchBot.Bot.Models.Commands;
@@ -992,6 +997,47 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var startedQueued = await queuedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.True(startedQueued.IsActive);
             Assert.Equal(30, startedQueued.TotalDurationSeconds);
+        }
+
+        [Theory]
+        [InlineData("RacingDerby", RacingGameMode.DestructionDerby, RacingTrackType.DerbyBowl)]
+        [InlineData("RacingElimination", RacingGameMode.Elimination, null)]
+        [InlineData("RacingGrandPrix", RacingGameMode.GrandPrix, null)]
+        public async Task StartDropGameSessionHandler_RacingModePresets_ForwardsOverridesToRacingService(
+            string gameTypeValue,
+            RacingGameMode expectedMode,
+            RacingTrackType? expectedTrack)
+        {
+            var parachute = new Mock<IParachuteDropService>();
+            var plinko = new Mock<IPlinkoDropService>();
+            var racing = new Mock<IRacingGameService>();
+
+            var handler = new StartDropGameSessionHandler(
+                parachute.Object,
+                plinko.Object,
+                racingGameService: racing.Object);
+
+            var subAction = new StartDropGameSessionType
+            {
+                GameType = gameTypeValue,
+                DurationSeconds = "75",
+                ThemeOverrideId = "halloween"
+            };
+
+            var variables = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["User"] = "DerbyHost"
+            };
+
+            await handler.ExecuteAsync(subAction, variables);
+
+            racing.Verify(x => x.StartRaceLobbyAsync(
+                75,
+                "halloween",
+                "DerbyHost",
+                expectedMode,
+                expectedTrack,
+                null), Times.Once);
         }
     }
 }

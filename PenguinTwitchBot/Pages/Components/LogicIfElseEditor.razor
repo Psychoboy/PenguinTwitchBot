@@ -468,7 +468,8 @@
 
     private string GetSubActionTypeName(SubActionType subAction)
     {
-        return subAction.GetType().Name.Replace("Type", "");
+        return PenguinTwitchBot.Database.Bot.Actions.SubActions.SubActionRegistry.GetMetadata(subAction.SubActionTypes)?.DisplayName
+            ?? subAction.GetType().Name.Replace("Type", "");
     }
 
     private bool IsDisabled(SubActionType subAction)

@@ -115,7 +115,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         }
 
         [Fact]
-        public async Task ClickMinigamesCategory_ShowsMinigameTriggers()
+        public async Task ClickMinigamesCategory_ShowsMinigameGroupsAndDrillsDownToTriggers()
         {
             SetupContext();
             var dialogProvider = _ctx!.Render<MudDialogProvider>();
@@ -129,10 +129,32 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             {
                 var markup = dialogProvider.Markup;
                 Assert.Contains("Minigames Triggers", markup);
+                Assert.Contains("Parachute Drop (!drop)", markup);
+                Assert.Contains("Plinko Bounce (!plinko)", markup);
+                Assert.Contains("Racing &amp; Destruction Derby (!race)", markup);
+                Assert.Contains("Bomb Defuse (!defuse)", markup);
+                Assert.Contains("Bank Heist (!heist)", markup);
+            });
+
+            var parachuteGroup = dialogProvider.Find(".trigger-minigame-parachute");
+            parachuteGroup.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
                 Assert.Contains("Parachute Drop - Bullseye", markup);
-                Assert.Contains("Plinko - Win", markup);
-                Assert.Contains("Defuse - Success", markup);
-                Assert.Contains("Bank Heist - Started", markup);
+                Assert.Contains("Parachute Drop - Win", markup);
+                Assert.DoesNotContain("Plinko - Win", markup);
+            });
+
+            var backButton = dialogProvider.Find("button:contains('Back')");
+            backButton.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
+                Assert.Contains("Parachute Drop (!drop)", markup);
+                Assert.Contains("Plinko Bounce (!plinko)", markup);
             });
         }
 

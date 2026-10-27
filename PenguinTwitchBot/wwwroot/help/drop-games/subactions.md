@@ -10,8 +10,8 @@ Add these sub-actions inside any custom Action (for example, triggered by a Chan
 
 | Sub-Action | Description |
 | :--- | :--- |
-| **Start Drop Game Session** | Opens a timed overlay round (or queues it if a round is already active) for **Parachute Drop**, **Plinko Bounce**, **Balloon Ascent**, **Curling / Shuffleboard**, **Golf (Chip & Putt)**, or **Racing (`!race`)**. Supports custom duration and seasonal theme overrides. |
-| **Stop Drop Game Session** | Immediately ends the active round and clears any queued sessions for the selected minigame. |
+| **Start Minigame Session** | Opens a timed overlay round (or queues it if a round is already active) for **Parachute Drop**, **Plinko Bounce**, **Balloon Ascent**, **Curling / Shuffleboard**, **Golf (Chip & Putt)**, or **Racing (`!race`, Grand Prix, Elimination, or Destruction Derby)**. Supports custom duration and seasonal theme overrides. |
+| **Stop Minigame Session** | Immediately ends the active round and clears any queued sessions for the selected minigame (or all minigames). |
 | **Parachute Drop** | Spawns a parachutist for `%User%` (or a custom username) with an optional emote/image override and seasonal theme override. |
 | **Parachute Droplets** | Spawns interactive falling droplets (`1`–`25`) on the Parachute overlay that nudge parachutists mid-air. |
 | **Parachute Sky Rockets** | Fires interactive fireworks rockets (`1`–`10`, `Targeted`, `Random`, or `Barrage`) into the sky that knock back parachutists or burn their canopy (`CanopyKillChance`) into free-fall. |

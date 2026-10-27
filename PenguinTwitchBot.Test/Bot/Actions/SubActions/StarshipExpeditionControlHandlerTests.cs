@@ -23,6 +23,33 @@ public class StarshipExpeditionControlHandlerTests
     }
 
     [Fact]
+    public async Task StartResolvesOverridesAndPassesToService()
+    {
+        var service = Substitute.For<IStarshipExpeditionService>();
+        service.StartExpeditionAsync(Arg.Any<string?>(), Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<CancellationToken>(), Arg.Any<string?>())
+            .Returns(new StarshipExpeditionSnapshot());
+        var handler = new StarshipStartExpeditionHandler(service);
+        var variables = new ConcurrentDictionary<string, string>
+        {
+            ["User"] = "Captain",
+            ["UserId"] = "cap-1",
+            ["Legs"] = "5"
+        };
+
+        var config = new StarshipStartExpeditionType
+        {
+            LegCount = "%Legs%",
+            MinEventIntervalMinutes = "2",
+            MaxEventIntervalMinutes = "8",
+            Seed = "1337"
+        };
+
+        await handler.ExecuteAsync(config, variables);
+
+        await service.Received(1).StartExpeditionAsync("Captain", 5, 2, 8, 1337, Arg.Any<CancellationToken>(), "cap-1");
+    }
+
+    [Fact]
     public async Task StopUsesTriggeringUserAndAllowsNoActiveVoyage()
     {
         var service = Substitute.For<IStarshipExpeditionService>();

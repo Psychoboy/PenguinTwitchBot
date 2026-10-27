@@ -31,7 +31,10 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var configuration = new ConfigurationBuilder().Build();
             _ctx.Services.AddSingleton<IConfiguration>(configuration);
-            _ctx.Services.AddSingleton(Substitute.For<IFeatureRuntimeCoordinator>());
+            var featureCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
+            featureCoordinator.HasFeature(Arg.Any<string>()).Returns(true);
+            featureCoordinator.IsEnabled(Arg.Any<string>()).Returns(true);
+            _ctx.Services.AddSingleton(featureCoordinator);
             var variableResolver = Substitute.For<PenguinTwitchBot.Bot.Actions.Variables.IActionVariableResolver>();
             variableResolver.ResolveVariablesAsync(
                 Arg.Any<int?>(),
@@ -379,6 +382,122 @@ namespace PenguinTwitchBot.Test.Pages.Actions
                 var markup = dialogProvider.Markup;
                 Assert.Contains("OBS - Set Scene", markup);
                 Assert.Contains("OBS - Set Source Visibility", markup);
+            });
+        }
+
+        [Fact]
+        public async Task ClickMinigamesCategory_ShowsMinigameGroupsAndDrillsDownToRacingSubActions()
+        {
+            SetupContext();
+            var dialogProvider = _ctx!.Render<MudDialogProvider>();
+            var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddSubActionDialog>("Test Title"));
+
+            var minigamesCategory = dialogProvider.Find(".subaction-minigames-category");
+            minigamesCategory.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
+                Assert.Contains("Parachute Drop (!drop)", markup);
+                Assert.Contains("Racing &amp; Destruction Derby (!race)", markup);
+                Assert.Contains("Starship Expedition (!expedition)", markup);
+                Assert.Contains("UFO Claw Machine (!claw)", markup);
+                Assert.Contains("All Minigames (Global Control)", markup);
+            });
+
+            var racingGroup = dialogProvider.Find(".minigame-group-racing");
+            racingGroup.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
+                Assert.Contains("Join Race / Solo Time Trial", markup);
+                Assert.Contains("Start Race Lobby", markup);
+                Assert.Contains("Stop Race Session", markup);
+            });
+
+            var startRaceItem = dialogProvider.Find(".subaction-racingstartsession");
+            startRaceItem.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
+                Assert.Contains("Configure Start Race Lobby", markup);
+                Assert.Contains("Race Mode", markup);
+                Assert.Contains("Track Layout", markup);
+            });
+
+            var backButton = dialogProvider.Find("button:contains('Back')");
+            backButton.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                Assert.Contains("Start Race Lobby", dialogProvider.Markup);
+                Assert.DoesNotContain("Configure Start Race Lobby", dialogProvider.Markup);
+            });
+
+            backButton = dialogProvider.Find("button:contains('Back')");
+            backButton.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                Assert.Contains("Racing &amp; Destruction Derby (!race)", dialogProvider.Markup);
+            });
+
+            backButton = dialogProvider.Find("button:contains('Back')");
+            backButton.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                Assert.Contains("Select SubAction Type", dialogProvider.Markup);
+            });
+        }
+
+        [Fact]
+        public async Task ClickUfoClawGroup_ShowsOperationPresetsAndPrePopulatesOperation()
+        {
+            SetupContext();
+            var dialogProvider = _ctx!.Render<MudDialogProvider>();
+            var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddSubActionDialog>("Test Title"));
+
+            dialogProvider.Find(".subaction-minigames-category").Click();
+            dialogProvider.Find(".minigame-group-ufoclaw").Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
+                Assert.Contains("Grab from Current Pool", markup);
+                Assert.Contains("Open Viewer Entries", markup);
+                Assert.Contains("Close Viewer Entries", markup);
+                Assert.Contains("Show Overlay Pool", markup);
+            });
+
+            dialogProvider.Find(".subaction-ufoclaw-grab").Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
+                Assert.Contains("Configure UFO Claw Machine", markup);
+                Assert.DoesNotContain("Prize Set ID", markup);
+            });
+
+            dialogProvider.Find("button:contains('Back')").Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                Assert.Contains("Show Overlay Pool", dialogProvider.Markup);
+            });
+
+            dialogProvider.Find(".subaction-ufoclaw-show").Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
+                Assert.Contains("Configure UFO Claw Machine", markup);
+                Assert.Contains("Pool Mode", markup);
+                Assert.Contains("Prize Set ID", markup);
             });
         }
 

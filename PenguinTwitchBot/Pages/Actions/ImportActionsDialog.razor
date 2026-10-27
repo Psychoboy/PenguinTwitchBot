@@ -1141,6 +1141,7 @@
     private static List<SubActionType> NormalizeAndRewriteSubActions(IEnumerable<SubActionType> sourceSubActions, Dictionary<string, ResolvedImportResource> resolvedResources)
     {
         var subActions = sourceSubActions.OrderBy(subAction => subAction.Index).ToList();
+        PenguinTwitchBot.Database.Bot.Actions.SubActions.MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(subActions);
         for (var index = 0; index < subActions.Count; index++)
         {
             NormalizeSubAction(subActions[index], index, resolvedResources);
