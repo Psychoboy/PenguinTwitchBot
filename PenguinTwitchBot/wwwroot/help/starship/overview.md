@@ -61,8 +61,7 @@ Open the **Appearance** tab on the Starship page to restyle both widgets. Everyt
 
 - **Colours and style:** panel, text, accent, highlight and warning colours, panel opacity, corner radius and font. Tick *Use each ship's own accent colour* to keep the per-voyage ship colour, or untick it to use your accent everywhere.
 - **Show or hide:** animations, join toasts, the route map, effect chips, vote bars, the odds and loss lines and the path footer.
-- **Overlay visibility:** choose automatic overlays with no overlap, status-on-demand, both-on-demand, or event-on-demand. The default hides the small status widget while the large event/result widget is visible.
-- **Overlay visibility:** choose whether widgets appear automatically, whether the status widget hides while the event widget is visible, or whether either/both require their Show Widget action. See **Triggers & Actions** for the manual actions.
+- **Overlay visibility:** choose automatic overlays with no overlap (default: hides the small status widget while the large event/result widget is visible), status-on-demand, both-on-demand, or event-on-demand. See **Triggers & Actions** for the manual Show Widget actions.
 - **Custom images:** pick ship images and per-object images (wreck, beacon, debris field, station, route fork) from the media library. They are mixed into the same pool as the built-in art, so each voyage's ship and each event's object is chosen automatically. Switch the built-in art off to use only your images; an object type with no images keeps its built-in art.
 - **Live preview:** the tab shows sample data with your current appearance edits. Press **Save Appearance** to keep them - connected overlays in OBS update immediately, without changing their URLs.
 

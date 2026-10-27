@@ -889,16 +889,16 @@
                 <UfoClawWidgetSettings @key="_selected" FitFullScreen="@(() => { _selected.X = 0; _selected.Y = 0; _selected.Width = _canvasWidth; _selected.Height = _canvasHeight; })" />
             }
 
-            @if (_selected.WidgetType is "parachute" or "plinko" or "balloon" or "curling" or "golf")
+            @if (_selected.WidgetType is "parachute" or "plinko" or "balloon" or "curling" or "golf" or "racing")
             {
                 <MudDivider Class="mb-3" />
-                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>@(_selected.WidgetType switch { "parachute" => "Parachute Drop", "balloon" => "Balloon Ascent", "curling" => "Curling & Shuffleboard", "golf" => "Golf (Chip & Putt)", _ => "Plinko Bounce" }) Settings</b></MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>@(_selected.WidgetType switch { "parachute" => "Parachute Drop", "balloon" => "Balloon Ascent", "curling" => "Curling & Shuffleboard", "golf" => "Golf (Chip & Putt)", "racing" => "Racing Minigame", _ => "Plinko Bounce" }) Settings</b></MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3" Style="display:block;">
                     Configure seasonal themes, interactive physics, mid-air hazards, and win actions in the settings page.
                 </MudText>
                 <MudButton FullWidth="true" Color="Color.Primary" Variant="Variant.Outlined" Class="mb-3"
                            StartIcon="@Icons.Material.Filled.Tune"
-                           Href="@(_selected.WidgetType switch { "parachute" => "/games/parachute", "balloon" => "/games/balloon", "curling" => "/games/curling", "golf" => "/games/golf", _ => "/games/plinko" })">
+                           Href="@(_selected.WidgetType switch { "parachute" => "/games/parachute", "balloon" => "/games/balloon", "curling" => "/games/curling", "golf" => "/games/golf", "racing" => "/games/racing", _ => "/games/plinko" })">
                     Open Game Settings
                 </MudButton>
             }
@@ -1529,6 +1529,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "balloon"   => "#E11D48",
         "curling"   => "#0284C7",
         "golf"      => "#16A34A",
+        "racing"    => "#EA580C",
         "ufoclaw"   => "#239b83",
         _           => "#455A64"
     };

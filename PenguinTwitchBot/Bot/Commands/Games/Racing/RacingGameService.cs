@@ -1815,6 +1815,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     return;
                 }
 
+                if (e.IsModOrHigher() && (firstArg.Equals("launch", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("go", StringComparison.OrdinalIgnoreCase)))
+                {
+                    await LaunchRaceNowAsync(triggeredBy: e.DisplayName);
+                    return;
+                }
+
                 if (e.IsModOrHigher() && (firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("cancel", StringComparison.OrdinalIgnoreCase)))
                 {
                     await ClearSessionQueueAsync();

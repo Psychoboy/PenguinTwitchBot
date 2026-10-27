@@ -98,13 +98,11 @@ Because it is a normal action, you can run it from a command, channel point rewa
 
 ## Action: Starship Show Event Widget
 
-Add **Starship Show Event Widget** (Minigames) to show the large event widget for a set time when the selected overlay visibility mode requires an explicit trigger:
+Add **Starship Show Event Widget** (Minigames) to temporarily show the large event widget when Appearance is set to a mode that requires an explicit trigger:
 
 - **Show Duration (Seconds)**: 1-3600. Supports variables.
-- It can show boarding, the current event or the latest completed event result.
-- It does nothing when there is no event/result to display.
-
-The Appearance setting **Overlay visibility** offers four modes: automatic with no overlap (default), event automatic/status manual, both manual, or status automatic/event manual. Use the matching Show Status or Show Event action for manual widgets.
+- It can show the current boarding/event/result scene, or the latest completed result while one is available.
+- It does nothing when there is no event or result to display.
 
 ## Actions: Start and Stop Starship Expedition
 
@@ -112,14 +110,6 @@ The Appearance setting **Overlay visibility** offers four modes: automatic with 
 - **Stop Starship Expedition** stops the active voyage and settles it through the normal stop flow. If there is no active voyage, it does nothing.
 
 Both actions are available in the **Minigames** category and accept the triggering user as the start/stop actor.
-
-## Action: Starship Show Event Widget
-
-Use **Starship Show Event Widget** (Minigames) to temporarily show the large event widget when Appearance is set to a mode that requires an explicit trigger:
-
-- **Show Duration (Seconds)**: 1-3600. Supports variables.
-- It can show the current boarding/event/result scene, or the latest completed result while one is available.
-- It does nothing when there is no event or result to display.
 
 ## Overlay Visibility Modes
 

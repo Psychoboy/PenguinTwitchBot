@@ -167,6 +167,8 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             else if (nameLower.Contains("balloon") || nameLower.Contains("float")) commandName = "balloon";
             else if (nameLower.Contains("curl") || nameLower.Contains("slide")) commandName = "curl";
             else if (nameLower.Contains("golf") || nameLower.Contains("putt") || nameLower.Contains("chip")) commandName = "golf";
+            else if (nameLower.Contains("time trial") || nameLower.Contains("timetrial")) commandName = "timetrial";
+            else if (nameLower.Contains("race") || nameLower.Contains("racing") || nameLower.Contains("derby") || nameLower.Contains("kart")) commandName = "race";
         }
 
         if (string.IsNullOrEmpty(eventType) && !string.IsNullOrEmpty(commandName))
@@ -645,6 +647,7 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("Victim", "Driver whose kart was totaled", source, category, "DriftKing");
             variables.SetVariable("KnockoutCount", "Total knockouts achieved by this driver in the match", source, category, "1");
             variables.SetVariable("PointsAwarded", "Bonus points awarded for the knockout", source, category, "20");
+            variables.SetVariable("Score", "Bonus points awarded for the knockout (same as PointsAwarded)", source, category, "20");
             variables.SetVariable("RacingMode", "Racing game mode", source, category, "DestructionDerby");
             variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
         }
@@ -679,8 +682,9 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("LapTime", "Fastest lap time or total race time in seconds", source, category, "24.50");
             variables.SetVariable("WreckCount", "Number of collisions / wrecks suffered during the race", source, category, "0");
             variables.SetVariable("KnockoutCount", "Number of opponent karts totaled in Destruction Derby", source, category, "0");
+            variables.SetVariable("IsTotaled", "True if the racer's kart was totaled in Destruction Derby", source, category, "False");
             variables.SetVariable("PointsAwarded", "Championship / currency points awarded for finishing", source, category, "25");
-            variables.SetVariable("Score", "Point score achieved", source, category, "25");
+            variables.SetVariable("Score", "Point score achieved (same as PointsAwarded)", source, category, "25");
             variables.SetVariable("RacingMode", "Racing game mode", source, category, "GrandPrix");
             variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
         }
