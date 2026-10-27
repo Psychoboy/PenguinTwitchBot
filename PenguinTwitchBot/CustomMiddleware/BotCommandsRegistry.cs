@@ -441,6 +441,13 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Golf Chip & Putt stream overlay minigame with parabolic flight, closest-to-the-pin scoring, and 1-stroke or multi-stroke modes."
             );
+            services.AddRuntimeFeatureService<Bot.Commands.Games.Racing.IRacingGameService, Bot.Commands.Games.Racing.RacingGameService>(
+                FeatureKeys.DropGames,
+                "Racing",
+                moduleName: "Racing",
+                isCore: false,
+                description: "Stream racing minigame with simultaneous mass-start Grand Prix, solo time trials, edge & perimeter circuits, drafting, and collisions."
+            );
             services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(
                 FeatureKeys.PointsSystem,
                 "Points",

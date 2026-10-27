@@ -4,6 +4,122 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
     {
         public string DefaultCommandName { get; set; } = null!; // e.g., "gamble", "defuse"
         public string EventType { get; set; } = null!; // e.g., "Gamble.JackpotWin", "Defuse.Success"
+
+        // Racing Filters
+        /// <summary>
+        /// Specific placements that trigger this event (e.g. [1] for 1st place, [2] for 2nd, [1, 2, 3] for podium).
+        /// Empty means any placement.
+        /// </summary>
+        public List<int> Placements { get; set; } = [];
+
+        /// <summary>
+        /// Minimum placement required (e.g. 4 for 4th place or worse / participation). 0 or null = no minimum.
+        /// </summary>
+        public int? MinPlacement { get; set; }
+
+        /// <summary>
+        /// Maximum placement allowed (e.g. 3 for top 3). 0 or null = no maximum.
+        /// </summary>
+        public int? MaxPlacement { get; set; }
+
+        /// <summary>
+        /// Filter by racing game modes (e.g. "GrandPrix", "DestructionDerby", "TimeTrial"). Empty = all modes.
+        /// </summary>
+        public List<string> RacingGameModes { get; set; } = [];
+
+        /// <summary>
+        /// Filter by outcome condition: "Any", "Survived", "Totaled", "CleanRace" (0 wrecks).
+        /// </summary>
+        public string? RacingOutcomeFilter { get; set; }
+
+        /// <summary>
+        /// Minimum knockouts required in Destruction Derby (null or 0 = any).
+        /// </summary>
+        public int? MinKnockouts { get; set; }
+
+        /// <summary>
+        /// Evaluates whether this trigger configuration matches the execution context variables.
+        /// When a filter is actively configured, the required context variable must be present and valid.
+        /// </summary>
+        public bool MatchesVariables(IReadOnlyDictionary<string, string>? variables)
+        {
+            if (variables == null) return true;
+
+            // 1. Placement filter
+            if (Placements != null && Placements.Count > 0)
+            {
+                if (!variables.TryGetValue("Placement", out var placementStr) || !int.TryParse(placementStr, out var placement) || !Placements.Contains(placement))
+                    return false;
+            }
+
+            if (MinPlacement.HasValue && MinPlacement.Value > 0)
+            {
+                if (!variables.TryGetValue("Placement", out var placementStr) || !int.TryParse(placementStr, out var placement) || placement < MinPlacement.Value)
+                    return false;
+            }
+
+            if (MaxPlacement.HasValue && MaxPlacement.Value > 0)
+            {
+                if (!variables.TryGetValue("Placement", out var placementStr) || !int.TryParse(placementStr, out var placement) || placement > MaxPlacement.Value)
+                    return false;
+            }
+
+            // 2. Racing Game Mode filter
+            if (RacingGameModes != null && RacingGameModes.Count > 0)
+            {
+                string? activeMode = null;
+                if (variables.TryGetValue("RacingMode", out var mode) || variables.TryGetValue("GameMode", out mode))
+                {
+                    activeMode = mode;
+                }
+
+                if (string.IsNullOrWhiteSpace(activeMode) || !RacingGameModes.Any(m => string.Equals(m, activeMode, StringComparison.OrdinalIgnoreCase)))
+                    return false;
+            }
+
+            // 3. Racing Outcome condition
+            if (!string.IsNullOrWhiteSpace(RacingOutcomeFilter) && !string.Equals(RacingOutcomeFilter, "Any", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(RacingOutcomeFilter, "Survived", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!variables.TryGetValue("IsTotaled", out var isTotaledStr) || !bool.TryParse(isTotaledStr, out var isTotaled) || isTotaled)
+                        return false;
+                }
+                else if (string.Equals(RacingOutcomeFilter, "Totaled", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!variables.TryGetValue("IsTotaled", out var isTotaledStr) || !bool.TryParse(isTotaledStr, out var isTotaled) || !isTotaled)
+                        return false;
+                }
+                else if (string.Equals(RacingOutcomeFilter, "CleanRace", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!variables.TryGetValue("WreckCount", out var wreckStr) || !int.TryParse(wreckStr, out var wrecks) || wrecks > 0)
+                        return false;
+                }
+                else if (string.Equals(RacingOutcomeFilter, "FirstPlace", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!variables.TryGetValue("Placement", out var pStr) || !int.TryParse(pStr, out var p) || p != 1)
+                        return false;
+                }
+                else if (string.Equals(RacingOutcomeFilter, "Podium", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!variables.TryGetValue("Placement", out var pStr) || !int.TryParse(pStr, out var p) || p > 3)
+                        return false;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            // 4. Knockout count filter
+            if (MinKnockouts.HasValue && MinKnockouts.Value > 0)
+            {
+                if (!variables.TryGetValue("KnockoutCount", out var koStr) || !int.TryParse(koStr, out var knockouts) || knockouts < MinKnockouts.Value)
+                    return false;
+            }
+
+            return true;
+        }
     }
 
     public static class DefaultCommandEventTypes
@@ -95,6 +211,18 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string GolfLose = "Golf.Lose";
         public const string GolfEnd = "Golf.End";
         public const string GolfEnded = "Golf.End";
+
+        // Racing events
+        public const string RacingLobbyOpened = "Racing.LobbyOpened";
+        public const string RacingStart = "Racing.Start";
+        public const string RacingStarted = "Racing.Start";
+        public const string RacingWin = "Racing.Win";
+        public const string RacingPodium = "Racing.Podium";
+        public const string RacingWreck = "Racing.Wreck";
+        public const string RacingDerbyKnockout = "Racing.DerbyKnockout";
+        public const string RacingEnd = "Racing.End";
+        public const string RacingEnded = "Racing.End";
+        public const string RacingTimeTrialComplete = "Racing.TimeTrialComplete";
 
         // Starship Expedition events
         public const string StarshipBoardingOpened = "Starship.BoardingOpened";

@@ -142,7 +142,7 @@
         _outcomes.Any(item => item.DefaultCommandEventType == _selectedEventType) &&
         (_createNewAction
                         ? !string.IsNullOrWhiteSpace(_newActionName) &&
-                            (!_addPointsSubAction || (!string.IsNullOrWhiteSpace(_pointTypeName) && TryEvaluateAmount(out _))) &&
+                            (!_addPointsSubAction || (!string.IsNullOrWhiteSpace(_pointTypeName) && TryEvaluateAmount(out _) && IsAmountTokenSupported())) &&
                             (!_addMessageSubAction || !string.IsNullOrWhiteSpace(_messageTemplate))
             : _selectedActionId.HasValue);
 
@@ -175,13 +175,21 @@
         var selectedOutcome = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == _selectedEventType);
         if (selectedOutcome == null) return;
         _newActionName = $"{GameTitle} {selectedOutcome.DisplayName}";
+        var isRacing = string.Equals(DefaultCommandName, "race", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(DefaultCommandName, "timetrial", StringComparison.OrdinalIgnoreCase) ||
+                       selectedOutcome.DefaultCommandEventType?.StartsWith("Racing.", StringComparison.OrdinalIgnoreCase) == true;
+        var isTimeTrial = string.Equals(DefaultCommandName, "timetrial", StringComparison.OrdinalIgnoreCase) ||
+                          selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.RacingTimeTrialComplete;
         var isScoreOutcome = selectedOutcome.DefaultCommandEventType?.EndsWith(".Win", StringComparison.OrdinalIgnoreCase) == true ||
-                             selectedOutcome.DefaultCommandEventType?.EndsWith(".Bullseye", StringComparison.OrdinalIgnoreCase) == true;
+                             selectedOutcome.DefaultCommandEventType?.EndsWith(".Bullseye", StringComparison.OrdinalIgnoreCase) == true ||
+                             selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.RacingPodium ||
+                             selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.RacingDerbyKnockout ||
+                             selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.RacingEnd;
         _addPointsSubAction = isScoreOutcome;
-        _addMessageSubAction = isScoreOutcome || selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.UfoClawResult;
+        _addMessageSubAction = isScoreOutcome || selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.UfoClawResult || isRacing;
         _amountExpression = selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.PlinkoWin
             ? "1"
-            : isScoreOutcome ? "%Score%" : "1";
+            : (isRacing && !isTimeTrial) ? "%PointsAwarded%" : isScoreOutcome ? "%Score%" : "1";
         _messageTemplate = GetSuggestedMessage(selectedOutcome.DefaultCommandEventType ?? string.Empty);
     }
 
@@ -252,6 +260,14 @@
             DefaultCommandEventTypes.GolfLose => "%User% missed the green with %Score% pts (%StrokeNumber% stroke(s), %GreenCondition%, pin %PinDistance%%)",
             DefaultCommandEventTypes.GolfStart => "%TriggeredBy% started Golf on %Condition% (pin %TargetDistance%%) for %Duration%s.",
             DefaultCommandEventTypes.GolfEnd => "Golf round ended: %TotalDrops% shots in %Duration%s.",
+            DefaultCommandEventTypes.RacingWin => "🏆 %User% took 1ST PLACE in the %RacingMode% race with a time of %LapTime%s! (+%PointsAwarded% pts)",
+            DefaultCommandEventTypes.RacingPodium => "🏁 %User% took %Placement% place on the podium in %LapTime%s!",
+            DefaultCommandEventTypes.RacingEnd => "🏁 %User% finished the race in %Placement% place (%LapTime%s)!",
+            DefaultCommandEventTypes.RacingDerbyKnockout => "💥 %Attacker% totaled %Victim%'s kart in the Demolition Derby! (+%PointsAwarded% pts)",
+            DefaultCommandEventTypes.RacingWreck => "💥 %User% suffered a crash during the race (%WreckCount% wrecks)!",
+            DefaultCommandEventTypes.RacingStart => "🚦 The green flag has dropped! %RacerCount% drivers are racing on %TrackType% (%Theme%)!",
+            DefaultCommandEventTypes.RacingLobbyOpened => "🏁 A new %GameMode% race lobby is open! Type !race to join (%Duration%s)! (%Theme%)",
+            DefaultCommandEventTypes.RacingTimeTrialComplete => "⏱️ %User% completed the time trial in %LapTime%s (%WreckCount% wrecks)!",
             DefaultCommandEventTypes.StarshipBoardingOpened or DefaultCommandEventTypes.StarshipEventOpened or
                 DefaultCommandEventTypes.StarshipEventStepAdvanced or DefaultCommandEventTypes.StarshipEventResolved or
                 DefaultCommandEventTypes.StarshipEventSucceeded or DefaultCommandEventTypes.StarshipEventFailed or
@@ -269,12 +285,23 @@
         return PenguinTwitchBot.Bot.Actions.SubActions.VariableReplacer.ReplaceVariables(_messageTemplate, sampleVariables);
     }
 
+    private bool IsAmountTokenSupported()
+    {
+        if (_amountExpression.Contains("%PointsAwarded%", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetOutcomeVariables().Any(v => string.Equals(v.Name, "PointsAwarded", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return true;
+    }
+
     private bool TryEvaluateAmount(out long amount)
     {
         amount = 0;
         var sampleVariables = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["Score"] = "100",
+            ["PointsAwarded"] = "50",
             ["User"] = "PreviewViewer",
             ["UserId"] = "preview-user"
         };
@@ -291,9 +318,15 @@
     private string GetAmountPreview()
     {
         if (!_addPointsSubAction) return string.Empty;
+        if (!IsAmountTokenSupported())
+        {
+            _previewError = true;
+            return "%PointsAwarded% is not supported for this outcome.";
+        }
         _previewError = !TryEvaluateAmount(out var amount);
         if (_previewError) return "Enter a valid whole-number formula; amount must be positive except Set may be zero.";
-        return $"Preview at Score = 100: {_operation} {amount:N0} {(_pointTypeName.Length == 0 ? "points" : _pointTypeName)}.";
+        var tokenLabel = _amountExpression.Contains("%PointsAwarded%", StringComparison.OrdinalIgnoreCase) ? "PointsAwarded = 50" : "Score = 100";
+        return $"Preview at {tokenLabel}: {_operation} {amount:N0} {(_pointTypeName.Length == 0 ? "points" : _pointTypeName)}.";
     }
 
     private async Task Save()

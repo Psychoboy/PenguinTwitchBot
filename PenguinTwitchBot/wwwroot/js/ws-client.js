@@ -20,6 +20,7 @@
         balloon: 'balloon',
         curling: 'curling',
         golf: 'golf',
+        racing: 'racing',
         starship: 'starship',
         ufoclaw: 'ufoclaw'
     };

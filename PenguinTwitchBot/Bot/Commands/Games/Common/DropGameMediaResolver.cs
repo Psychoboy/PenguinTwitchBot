@@ -582,7 +582,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             IDropRegistry? dropRegistry)
         {
             var baseTheme = ResolveTheme(settings, requestedThemeId, defaultThemeId);
-            var cacheKey = $"{baseTheme.Id}:{baseTheme.Name}:{baseTheme.PlinkoPegImageUrl}:{baseTheme.DefaultCharacterImageUrl}:{baseTheme.ParachuteCanopyImageUrl}:{baseTheme.TargetPlatformImageUrl}:{baseTheme.BalloonCanopyImageUrl}:{baseTheme.CurlingStoneImageUrl}:{baseTheme.GolfBallImageUrl}";
+            var cacheKey = $"{baseTheme.Id}:{baseTheme.Name}:{baseTheme.PlinkoPegImageUrl}:{baseTheme.DefaultCharacterImageUrl}:{baseTheme.ParachuteCanopyImageUrl}:{baseTheme.TargetPlatformImageUrl}:{baseTheme.BalloonCanopyImageUrl}:{baseTheme.CurlingStoneImageUrl}:{baseTheme.GolfBallImageUrl}:{baseTheme.RacingVehicleImageUrl}:{baseTheme.RacingTrackImageUrl}:{baseTheme.RacingHazardImageUrl}:{baseTheme.RacingBoostImageUrl}";
 
             if (_preparedThemeCache.TryGetValue(cacheKey, out var cachedTheme))
             {
@@ -620,6 +620,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             resolved.GolfBallImageUrl = await ResolveAssetAsync(baseTheme.GolfBallImageUrl);
             resolved.GolfFlagPinImageUrl = await ResolveAssetAsync(baseTheme.GolfFlagPinImageUrl);
             resolved.GolfGreenImageUrl = await ResolveAssetAsync(baseTheme.GolfGreenImageUrl);
+            resolved.RacingVehicleImageUrl = await ResolveAssetAsync(baseTheme.RacingVehicleImageUrl);
+            resolved.RacingTrackImageUrl = await ResolveAssetAsync(baseTheme.RacingTrackImageUrl);
+            resolved.RacingHazardImageUrl = await ResolveAssetAsync(baseTheme.RacingHazardImageUrl);
+            resolved.RacingBoostImageUrl = await ResolveAssetAsync(baseTheme.RacingBoostImageUrl);
 
             if (allResolved)
             {
@@ -651,6 +655,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             RegisterIfValid(dropRegistry, theme.GolfBallImageUrl);
             RegisterIfValid(dropRegistry, theme.GolfFlagPinImageUrl);
             RegisterIfValid(dropRegistry, theme.GolfGreenImageUrl);
+            RegisterIfValid(dropRegistry, theme.RacingVehicleImageUrl);
+            RegisterIfValid(dropRegistry, theme.RacingTrackImageUrl);
+            RegisterIfValid(dropRegistry, theme.RacingHazardImageUrl);
+            RegisterIfValid(dropRegistry, theme.RacingBoostImageUrl);
         }
 
         private static void RegisterIfValid(IDropRegistry registry, string? url)
@@ -844,6 +852,26 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 GolfCup = ResolveSound(settings.CupSound, theme.GolfCupSound, mediaService),
                 GolfLipOut = ResolveSound(settings.LipOutSound, theme.GolfLipOutSound, mediaService),
                 GolfWin = ResolveSound(settings.WinSound, theme.GolfWinSound, mediaService)
+            };
+        }
+
+        public static DropGameSoundBundleDto ResolveRacingSoundBundle(
+            RacingGameSettings settings,
+            DropGameTheme theme,
+            MediaUploadService? mediaService)
+        {
+            return new DropGameSoundBundleDto
+            {
+                MaxConcurrentSounds = settings.MaxConcurrentSounds,
+                Start = ResolveSound(settings.StartSound, theme.RacingStartSound, mediaService),
+                End = ResolveSound(settings.EndSound, theme.RacingEndSound, mediaService),
+                RacingStart = ResolveSound(settings.StartSound, theme.RacingStartSound, mediaService),
+                RacingEnd = ResolveSound(settings.EndSound, theme.RacingEndSound, mediaService),
+                RacingEngine = ResolveSound(settings.EngineSound, theme.RacingEngineSound, mediaService),
+                RacingScreech = ResolveSound(settings.ScreechSound, theme.RacingScreechSound, mediaService),
+                RacingCrash = ResolveSound(settings.CrashSound, theme.RacingCrashSound, mediaService),
+                RacingBoost = ResolveSound(settings.BoostSound, theme.RacingBoostSound, mediaService),
+                RacingWin = ResolveSound(settings.WinSound, theme.RacingWinSound, mediaService)
             };
         }
     }

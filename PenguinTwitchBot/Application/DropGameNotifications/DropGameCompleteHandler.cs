@@ -5,6 +5,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Curling;
 using PenguinTwitchBot.Bot.Commands.Games.Golf;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
+using PenguinTwitchBot.Bot.Commands.Games.Racing;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.Overlay;
 
@@ -19,7 +20,8 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         IFeatureRuntimeCoordinator featureRuntimeCoordinator,
         IBalloonAscentService? balloonAscentService = null,
         ICurlingGameService? curlingGameService = null,
-        IGolfGameService? golfGameService = null)
+        IGolfGameService? golfGameService = null,
+        IRacingGameService? racingGameService = null)
         : Notifications.INotificationHandler<DropGameCompleteNotification>
     {
         public async Task Handle(DropGameCompleteNotification notification, CancellationToken cancellationToken)
@@ -197,6 +199,51 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     if (golfGameService != null)
                     {
                         await golfGameService.ProcessCompletionAsync(record);
+                    }
+                }
+                else if (record.GameType == DropGameType.Racing)
+                {
+                    // Authorized client with secret key: directly trust the client's rendered race results
+                    if (notification.RacePlacement.HasValue)
+                    {
+                        record.RacePlacement = notification.RacePlacement.Value;
+                    }
+                    if (notification.LapTimeSeconds.HasValue)
+                    {
+                        record.LapTimeSeconds = notification.LapTimeSeconds.Value;
+                    }
+                    if (notification.WreckCount.HasValue)
+                    {
+                        record.WreckCount = notification.WreckCount.Value;
+                    }
+                    if (notification.Score.HasValue)
+                    {
+                        record.Score = notification.Score.Value;
+                    }
+                    if (!string.IsNullOrWhiteSpace(notification.RacingMode))
+                    {
+                        record.RacingMode = notification.RacingMode;
+                    }
+                    if (notification.LapsCompleted.HasValue)
+                    {
+                        record.LapsCompleted = notification.LapsCompleted.Value;
+                    }
+                    if (notification.KnockoutCount.HasValue)
+                    {
+                        record.KnockoutCount = notification.KnockoutCount.Value;
+                    }
+                    if (!string.IsNullOrWhiteSpace(notification.KillerDropToken))
+                    {
+                        record.KillerDropToken = notification.KillerDropToken;
+                    }
+                    if (notification.IsTotaled.HasValue)
+                    {
+                        record.IsTotaled = notification.IsTotaled.Value;
+                    }
+
+                    if (racingGameService != null)
+                    {
+                        await racingGameService.ProcessCompletionAsync(record);
                     }
                 }
 

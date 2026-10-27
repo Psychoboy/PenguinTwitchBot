@@ -16,7 +16,15 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         int? strokePenalty = null,
         double? startAxisPosition = null,
         bool? isLipOut = null,
-        double? greenRadiusRatio = null) : Application.Notifications.INotification
+        double? greenRadiusRatio = null,
+        int? racePlacement = null,
+        double? lapTimeSeconds = null,
+        int? wreckCount = null,
+        string? racingMode = null,
+        int? lapsCompleted = null,
+        int? knockoutCount = null,
+        string? killerDropToken = null,
+        bool? isTotaled = null) : Application.Notifications.INotification
     {
         public string DropToken { get; } = dropToken;
         public double? LandingX { get; set; } = landingX;
@@ -34,6 +42,14 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         public double? StartAxisPosition { get; set; } = startAxisPosition;
         public bool? IsLipOut { get; set; } = isLipOut;
         public double? GreenRadiusRatio { get; set; } = greenRadiusRatio;
+        public int? RacePlacement { get; set; } = racePlacement;
+        public double? LapTimeSeconds { get; set; } = lapTimeSeconds;
+        public int? WreckCount { get; set; } = wreckCount;
+        public string? RacingMode { get; set; } = racingMode;
+        public int? LapsCompleted { get; set; } = lapsCompleted;
+        public int? KnockoutCount { get; set; } = knockoutCount;
+        public string? KillerDropToken { get; set; } = killerDropToken;
+        public bool? IsTotaled { get; set; } = isTotaled;
     }
 }
 

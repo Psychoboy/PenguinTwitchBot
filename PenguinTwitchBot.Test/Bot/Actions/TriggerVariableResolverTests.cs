@@ -481,6 +481,51 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.True(variables.ContainsKey("Amount"));
             Assert.True(variables.ContainsKey("User"));
         }
+
+        [Fact]
+        public void DefaultCommandTriggerVariableResolver_ResolvesRacingVariables_AndOmitsPointsForTimeTrial()
+        {
+            var resolver = new DefaultCommandTriggerVariableResolver();
+
+            // Time trial event
+            var ttVars = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Name = "Time Trial Complete",
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "timetrial",
+                    EventType = DefaultCommandEventTypes.RacingTimeTrialComplete
+                })
+            }, ttVars);
+
+            Assert.True(ttVars.ContainsKey("Placement"));
+            Assert.True(ttVars.ContainsKey("LapTime"));
+            Assert.True(ttVars.ContainsKey("WreckCount"));
+            Assert.True(ttVars.ContainsKey("RacingMode"));
+            Assert.True(ttVars.ContainsKey("Theme"));
+            Assert.False(ttVars.ContainsKey("PointsAwarded"));
+            Assert.False(ttVars.ContainsKey("Score"));
+            Assert.False(ttVars.ContainsKey("KnockoutCount"));
+
+            // Race end event
+            var raceEndVars = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Name = "Race End",
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "race",
+                    EventType = DefaultCommandEventTypes.RacingEnd
+                })
+            }, raceEndVars);
+
+            Assert.True(raceEndVars.ContainsKey("PointsAwarded"));
+            Assert.True(raceEndVars.ContainsKey("Score"));
+            Assert.True(raceEndVars.ContainsKey("Placement"));
+        }
     }
 }
 

@@ -143,6 +143,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             settings.Balloon ??= new BalloonAscentGameSettings();
             settings.Curling ??= new CurlingGameSettings();
             settings.Golf ??= new GolfGameSettings();
+            settings.Racing ??= new RacingGameSettings();
             settings.Themes ??= [];
             if (settings.Themes.Count > 0)
             {

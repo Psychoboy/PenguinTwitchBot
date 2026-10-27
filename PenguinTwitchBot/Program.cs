@@ -63,7 +63,18 @@ internal class Program
         // can find them in self-contained / single-file publish scenarios.
         PreloadMigrationAssemblies();
 
-        var builder = WebApplication.CreateBuilder(args);
+        var cliSkipBackup = args.Any(a => string.Equals(a, "--skip-database-backup", StringComparison.OrdinalIgnoreCase) ||
+                                          string.Equals(a, "--skip-db-backup", StringComparison.OrdinalIgnoreCase));
+        var filteredArgs = args.Where(a => !string.Equals(a, "--skip-database-backup", StringComparison.OrdinalIgnoreCase) &&
+                                           !string.Equals(a, "--skip-db-backup", StringComparison.OrdinalIgnoreCase)).ToArray();
+
+        var builder = WebApplication.CreateBuilder(filteredArgs);
+        var skipBackupEnv = builder.Configuration["SKIP_DATABASE_BACKUP"] ?? builder.Configuration["SKIP_DB_BACKUP"];
+        if (!string.IsNullOrEmpty(skipBackupEnv))
+        {
+            builder.Configuration["SkipDatabaseBackup"] = skipBackupEnv;
+        }
+
         var section = builder.Configuration.GetSection("Secrets");
         var secretsFileLocation = section.GetValue<string>("SecretsConf") ?? "appsettings.secrets.json";
         if (!File.Exists(secretsFileLocation))
@@ -75,6 +86,11 @@ internal class Program
             return;
         }
         builder.Configuration.AddJsonFile(secretsFileLocation, optional: false, reloadOnChange: true);
+
+        if (cliSkipBackup)
+        {
+            builder.Configuration["SkipDatabaseBackup"] = "true";
+        }
 
         var prometheusEnabled = builder.Configuration.GetValue<bool>("Observability:Prometheus:Enabled");
         var prometheusPort = builder.Configuration.GetValue<int>("Observability:Prometheus:Port", 4999);
@@ -382,7 +398,18 @@ internal class Program
             dbContext.Database.Migrate();
         }
 
-        await app.Services.GetRequiredService<IDatabaseTools>().Backup();
+        var skipDatabaseBackup = app.Configuration.GetValue<bool?>("SkipDatabaseBackup")
+            ?? app.Configuration.GetValue<bool>("SKIP_DATABASE_BACKUP");
+
+        if (skipDatabaseBackup)
+        {
+            var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+            startupLogger.LogInformation("Skipping startup database backup phase (SKIP_DATABASE_BACKUP is enabled).");
+        }
+        else
+        {
+            await app.Services.GetRequiredService<IDatabaseTools>().Backup();
+        }
         await ConfigureQuartzTriggersAsync(app.Services);
         PenguinTwitchBot.Bot.Actions.SubActions.VariableReplacer.ServiceBackbone = app.Services.GetService<PenguinTwitchBot.Bot.Core.IServiceBackbone>();
 

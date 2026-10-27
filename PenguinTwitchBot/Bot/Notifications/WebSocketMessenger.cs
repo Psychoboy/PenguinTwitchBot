@@ -351,7 +351,15 @@ namespace PenguinTwitchBot.Bot.Notifications
                                 dropComplete.StrokePenalty,
                                 dropComplete.StartAxisPosition,
                                 dropComplete.IsLipOut,
-                                dropComplete.GreenRadiusRatio));
+                                dropComplete.GreenRadiusRatio,
+                                dropComplete.RacePlacement,
+                                dropComplete.LapTimeSeconds,
+                                dropComplete.WreckCount,
+                                dropComplete.RacingMode,
+                                dropComplete.LapsCompleted,
+                                dropComplete.KnockoutCount,
+                                dropComplete.KillerDropToken,
+                                dropComplete.IsTotaled));
                     }
                     catch (JsonException)
                     {

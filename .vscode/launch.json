@@ -21,6 +21,7 @@
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
+                "SKIP_DATABASE_BACKUP": "true",
                 "ASPNETCORE_URLS": "http://localhost:5000;https://localhost:8080"
             },
             "sourceFileMap": {
@@ -45,6 +46,7 @@
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
                 "DATABASE_PROVIDER": "postgres",
+                "SKIP_DATABASE_BACKUP": "true",
                 "ASPNETCORE_URLS": "http://localhost:5000;https://localhost:8080"
             },
             "sourceFileMap": {
@@ -69,6 +71,7 @@
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
                 "DATABASE_PROVIDER": "sqlite",
+                "SKIP_DATABASE_BACKUP": "true",
                 "ASPNETCORE_URLS": "http://localhost:5000;https://localhost:8080"
             },
             "sourceFileMap": {

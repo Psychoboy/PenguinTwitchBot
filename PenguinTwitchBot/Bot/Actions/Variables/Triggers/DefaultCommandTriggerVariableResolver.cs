@@ -112,6 +112,15 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
                 ResolveGolfVariables(variables, source, category, eventType);
                 break;
 
+            case "race":
+            case "racing":
+            case "kart":
+            case "grandprix":
+            case "timetrial":
+            case "tt":
+                ResolveRacingVariables(variables, source, category, eventType);
+                break;
+
             case "starship":
                 ResolveStarshipVariables(variables, source, category, eventType);
                 break;
@@ -607,6 +616,56 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("TargetDistancePercent", "Pin distance as a percent of strip length", source, category, "84.0");
             variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Summer (Beach Party)");
             variables.SetVariable("Game", "Game name", source, category, "Golf");
+        }
+    }
+
+    private static void ResolveRacingVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category, string? eventType)
+    {
+        variables.SetVariable("Game", "Game name", source, category, "Racing");
+        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.RacingLobbyOpened, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("Duration", "Total duration of the race lobby in seconds", source, category, "60");
+            variables.SetVariable("GameMode", "Active racing game mode (GrandPrix, Elimination)", source, category, "GrandPrix");
+            variables.SetVariable("TrackType", "Track circuit type (Perimeter, EdgeOval, Figure8, DragStrip)", source, category, "Perimeter");
+            variables.SetVariable("Laps", "Total laps scheduled for the race", source, category, "2");
+            variables.SetVariable("Theme", "Active theme name", source, category, "Spring (Cherry Blossoms)");
+        }
+        else if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.RacingStart, StringComparison.OrdinalIgnoreCase) ||
+                                       eventType.Equals(DefaultCommandEventTypes.RacingStarted, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("RacerCount", "Total number of racers lined up on the grid", source, category, "8");
+            variables.SetVariable("GameMode", "Active racing game mode", source, category, "GrandPrix");
+            variables.SetVariable("TrackType", "Track circuit type", source, category, "Perimeter");
+            variables.SetVariable("Laps", "Total laps scheduled for the race", source, category, "2");
+            variables.SetVariable("Theme", "Active theme name", source, category, "Spring (Cherry Blossoms)");
+        }
+        else if (eventType != null && eventType.Equals(DefaultCommandEventTypes.RacingDerbyKnockout, StringComparison.OrdinalIgnoreCase))
+        {
+            variables.SetVariable("Attacker", "Driver who delivered the total knockout", source, category, "SpeedyPenguin");
+            variables.SetVariable("Victim", "Driver whose kart was totaled", source, category, "DriftKing");
+            variables.SetVariable("KnockoutCount", "Total knockouts achieved by this driver in the match", source, category, "1");
+            variables.SetVariable("PointsAwarded", "Bonus points awarded for the knockout", source, category, "20");
+            variables.SetVariable("RacingMode", "Racing game mode", source, category, "DestructionDerby");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+        }
+        else if (eventType != null && eventType.Equals(DefaultCommandEventTypes.RacingTimeTrialComplete, StringComparison.OrdinalIgnoreCase))
+        {
+            variables.SetVariable("Placement", "Final race placement (always 1 for solo time trial)", source, category, "1");
+            variables.SetVariable("LapTime", "Hot lap time in seconds", source, category, "22.35");
+            variables.SetVariable("WreckCount", "Number of collisions / wall impacts during the hot lap", source, category, "0");
+            variables.SetVariable("RacingMode", "Racing game mode", source, category, "TimeTrial");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+        }
+        else
+        {
+            variables.SetVariable("Placement", "Final race placement (1 for 1st, 2 for 2nd, etc.)", source, category, "1");
+            variables.SetVariable("LapTime", "Fastest lap time or total race time in seconds", source, category, "24.50");
+            variables.SetVariable("WreckCount", "Number of collisions / wrecks suffered during the race", source, category, "0");
+            variables.SetVariable("KnockoutCount", "Number of opponent karts totaled in Destruction Derby", source, category, "0");
+            variables.SetVariable("PointsAwarded", "Championship / currency points awarded for finishing", source, category, "25");
+            variables.SetVariable("Score", "Point score achieved", source, category, "25");
+            variables.SetVariable("RacingMode", "Racing game mode", source, category, "GrandPrix");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
         }
     }
 

@@ -1,6 +1,6 @@
 # Stream Drop Minigames Overview
 
-The **Stream Drop Minigames** system provides interactive, physics-driven games for your broadcast overlays: **Parachute Drop**, **Plinko Bounce**, and **Balloon Ascent**. Viewers can launch characters, tokens, and balloons into the stream using chat commands (such as `!drop`, `!plinko`, or `!balloon`), Channel Point rewards, or automated bot actions.
+The **Stream Drop Minigames** system provides interactive, physics-driven games for your broadcast overlays: **Parachute Drop**, **Plinko Bounce**, **Balloon Ascent**, **Curling**, **Golf**, and **Racing**. Viewers can launch characters, tokens, stones, golf balls, and race cars into the stream using chat commands (such as `!drop`, `!plinko`, `!balloon`, `!curling`, `!golf`, or `!race`), Channel Point rewards, or automated bot actions.
 
 ## Stream Overlay Widgets
 
@@ -9,6 +9,7 @@ All minigames run on high-performance, transparent HTML5 canvas overlays designe
 - **Parachute Drop Overlay**: `/parachute.html` (recommended 1920×1080 transparent Browser Source)
 - **Plinko Bounce Overlay**: `/plinko.html` (recommended 1920×1080 transparent Browser Source)
 - **Balloon Ascent Overlay**: `/balloon.html` (recommended 1920×1080 transparent Browser Source)
+- **Racing Minigame Overlay**: `/racing.html` (recommended 1920×1080 transparent Browser Source)
 
 Each overlay automatically connects to the bot's WebSocket server and renders entity movement, collisions, and particle effects at a smooth 60 FPS.
 

@@ -7,6 +7,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Curling;
 using PenguinTwitchBot.Bot.Commands.Games.Golf;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
+using PenguinTwitchBot.Bot.Commands.Games.Racing;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
@@ -17,7 +18,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         IPlinkoDropService plinkoDropService,
         IBalloonAscentService? balloonAscentService = null,
         ICurlingGameService? curlingGameService = null,
-        IGolfGameService? golfGameService = null) : ISubActionHandler
+        IGolfGameService? golfGameService = null,
+        IRacingGameService? racingGameService = null) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.StartDropGameSession;
 
@@ -39,6 +41,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 var g when g.Equals("Balloon", StringComparison.OrdinalIgnoreCase) || g.Equals("BalloonAscent", StringComparison.OrdinalIgnoreCase) => DropGameType.Balloon,
                 var g when g.Equals("Curling", StringComparison.OrdinalIgnoreCase) || g.Equals("Shuffleboard", StringComparison.OrdinalIgnoreCase) => DropGameType.Curling,
                 var g when g.Equals("Golf", StringComparison.OrdinalIgnoreCase) || g.Equals("Chip", StringComparison.OrdinalIgnoreCase) || g.Equals("Putt", StringComparison.OrdinalIgnoreCase) => DropGameType.Golf,
+                var g when g.Equals("Racing", StringComparison.OrdinalIgnoreCase) || g.Equals("Race", StringComparison.OrdinalIgnoreCase) || g.Equals("Kart", StringComparison.OrdinalIgnoreCase) => DropGameType.Racing,
                 _ => DropGameType.Parachute
             };
 
@@ -68,6 +71,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             else if (gameType == DropGameType.Golf && golfGameService != null)
             {
                 await golfGameService.StartSessionAsync(durationSeconds, resolvedTheme, triggeredBy);
+            }
+            else if (gameType == DropGameType.Racing && racingGameService != null)
+            {
+                await racingGameService.StartRaceLobbyAsync(durationSeconds, resolvedTheme, triggeredBy);
             }
             else
             {
