@@ -51,6 +51,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         private readonly HashSet<string> _singleRaceRemainingTokens = [];
         private readonly List<RacerFinalResult> _singleRaceResults = [];
         private readonly Dictionary<string, PendingDropRecord> _activeRaceDropRecords = [];
+        private readonly HashSet<string> _soloTimeTrialTokens = [];
         private bool _singleRaceAnnounced = false;
         private CancellationTokenSource? _heatWatchdogCts;
 
@@ -954,7 +955,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["user"] = eventArgs.DisplayName,
-                        ["position"] = _lobbyRacers.Count.ToString(CultureInfo.InvariantCulture)
+                        ["position"] = gridPosition.ToString(CultureInfo.InvariantCulture)
                     });
                 _ = ServiceBackbone.SendChatMessage(msg);
             }
@@ -1022,6 +1023,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             };
 
             dropRegistry.RegisterDrop(record);
+            lock (_racerLock)
+            {
+                _soloTimeTrialTokens.Add(dropToken);
+            }
 
             var sounds = DropGameMediaResolver.ResolveRacingSoundBundle(rSettings, theme, GetMediaUploadService());
             var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
@@ -1169,17 +1174,16 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             var settings = await settingsService.GetSettingsAsync();
             var rSettings = settings.Racing;
 
-            bool isRaceRunning;
+            bool isTimeTrial;
             lock (_racerLock)
             {
                 _activeRaceDropRecords[record.DropToken] = record;
-                isRaceRunning = _isRaceRunning;
+                isTimeTrial = _soloTimeTrialTokens.Remove(record.DropToken);
             }
 
             var placement = record.RacePlacement ?? 1;
             var lapTime = record.LapTimeSeconds ?? 0.0;
             var wreckCount = record.WreckCount ?? 0;
-            var isTimeTrial = string.Equals(record.RacingMode, "TimeTrial", StringComparison.OrdinalIgnoreCase) && !isRaceRunning;
 
             if (isTimeTrial)
             {

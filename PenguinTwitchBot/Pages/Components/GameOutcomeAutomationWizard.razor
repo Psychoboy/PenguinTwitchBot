@@ -176,7 +176,10 @@
         if (selectedOutcome == null) return;
         _newActionName = $"{GameTitle} {selectedOutcome.DisplayName}";
         var isRacing = string.Equals(DefaultCommandName, "race", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(DefaultCommandName, "timetrial", StringComparison.OrdinalIgnoreCase) ||
                        selectedOutcome.DefaultCommandEventType?.StartsWith("Racing.", StringComparison.OrdinalIgnoreCase) == true;
+        var isTimeTrial = string.Equals(DefaultCommandName, "timetrial", StringComparison.OrdinalIgnoreCase) ||
+                          selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.RacingTimeTrialComplete;
         var isScoreOutcome = selectedOutcome.DefaultCommandEventType?.EndsWith(".Win", StringComparison.OrdinalIgnoreCase) == true ||
                              selectedOutcome.DefaultCommandEventType?.EndsWith(".Bullseye", StringComparison.OrdinalIgnoreCase) == true ||
                              selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.RacingPodium ||
@@ -186,7 +189,7 @@
         _addMessageSubAction = isScoreOutcome || selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.UfoClawResult || isRacing;
         _amountExpression = selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.PlinkoWin
             ? "1"
-            : isRacing ? "%PointsAwarded%" : isScoreOutcome ? "%Score%" : "1";
+            : (isRacing && !isTimeTrial) ? "%PointsAwarded%" : isScoreOutcome ? "%Score%" : "1";
         _messageTemplate = GetSuggestedMessage(selectedOutcome.DefaultCommandEventType ?? string.Empty);
     }
 

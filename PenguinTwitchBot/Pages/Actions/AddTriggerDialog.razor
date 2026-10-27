@@ -182,7 +182,7 @@
                     @if (IsRacingTrigger())
                     {
                         var supportsPlacement = _selectedEventType is DefaultCommandEventTypes.RacingEnd or DefaultCommandEventTypes.RacingWin or DefaultCommandEventTypes.RacingPodium;
-                        var supportsOutcome = _selectedEventType is DefaultCommandEventTypes.RacingEnd or DefaultCommandEventTypes.RacingWin or DefaultCommandEventTypes.RacingPodium or DefaultCommandEventTypes.RacingWreck or DefaultCommandEventTypes.RacingTimeTrialComplete;
+                        var supportsOutcome = _selectedEventType is DefaultCommandEventTypes.RacingEnd or DefaultCommandEventTypes.RacingWin or DefaultCommandEventTypes.RacingPodium or DefaultCommandEventTypes.RacingWreck;
                         var supportsKnockouts = _selectedEventType == DefaultCommandEventTypes.RacingDerbyKnockout || (_selectedEventType == DefaultCommandEventTypes.RacingEnd && _racingGameModes.Contains("DestructionDerby"));
 
                         <MudPaper Outlined="true" Class="pa-3 mt-3">
@@ -1390,12 +1390,28 @@
 
             if (IsRacingTrigger())
             {
-                defaultCmdConfig.Placements = _racingPlacements.ToList();
-                defaultCmdConfig.MinPlacement = _racingMinPlacement;
-                defaultCmdConfig.MaxPlacement = _racingMaxPlacement;
+                var supportsPlacement = _selectedEventType is DefaultCommandEventTypes.RacingEnd or DefaultCommandEventTypes.RacingWin or DefaultCommandEventTypes.RacingPodium;
+                var supportsOutcome = _selectedEventType is DefaultCommandEventTypes.RacingEnd or DefaultCommandEventTypes.RacingWin or DefaultCommandEventTypes.RacingPodium or DefaultCommandEventTypes.RacingWreck;
+                var supportsKnockouts = _selectedEventType == DefaultCommandEventTypes.RacingDerbyKnockout || (_selectedEventType == DefaultCommandEventTypes.RacingEnd && _racingGameModes.Contains("DestructionDerby"));
+
+                if (supportsPlacement)
+                {
+                    defaultCmdConfig.Placements = _racingPlacements.ToList();
+                    defaultCmdConfig.MinPlacement = _racingMinPlacement;
+                    defaultCmdConfig.MaxPlacement = _racingMaxPlacement;
+                }
+
                 defaultCmdConfig.RacingGameModes = _racingGameModes.ToList();
-                defaultCmdConfig.RacingOutcomeFilter = _racingOutcomeFilter;
-                defaultCmdConfig.MinKnockouts = _racingMinKnockouts;
+
+                if (supportsOutcome && !string.IsNullOrWhiteSpace(_racingOutcomeFilter) && !string.Equals(_racingOutcomeFilter, "Any", StringComparison.OrdinalIgnoreCase))
+                {
+                    defaultCmdConfig.RacingOutcomeFilter = _racingOutcomeFilter;
+                }
+
+                if (supportsKnockouts)
+                {
+                    defaultCmdConfig.MinKnockouts = _racingMinKnockouts;
+                }
             }
 
             configuration = System.Text.Json.JsonSerializer.Serialize(defaultCmdConfig);

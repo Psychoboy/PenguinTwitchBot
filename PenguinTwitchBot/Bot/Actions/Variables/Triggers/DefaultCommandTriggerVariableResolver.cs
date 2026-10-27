@@ -648,6 +648,14 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("RacingMode", "Racing game mode", source, category, "DestructionDerby");
             variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
         }
+        else if (eventType != null && eventType.Equals(DefaultCommandEventTypes.RacingTimeTrialComplete, StringComparison.OrdinalIgnoreCase))
+        {
+            variables.SetVariable("Placement", "Final race placement (always 1 for solo time trial)", source, category, "1");
+            variables.SetVariable("LapTime", "Hot lap time in seconds", source, category, "22.35");
+            variables.SetVariable("WreckCount", "Number of collisions / wall impacts during the hot lap", source, category, "0");
+            variables.SetVariable("RacingMode", "Racing game mode", source, category, "TimeTrial");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+        }
         else
         {
             variables.SetVariable("Placement", "Final race placement (1 for 1st, 2 for 2nd, etc.)", source, category, "1");
