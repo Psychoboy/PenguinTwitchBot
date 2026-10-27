@@ -18,8 +18,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             var pointTypeName = VariableReplacer.ReplaceVariables(managePoints.PointTypeName, variables).Trim();
             var pointType = await pointsSystem.GetPointTypeByName(pointTypeName);
-            if (pointType?.Id is not int pointTypeId)
+            if (pointType == null || pointType.Id == Guid.Empty)
                 throw new SubActionUserFacingException(subAction, "Point type not found: {0}", pointTypeName);
+            var pointTypeId = pointType.Id;
 
             if (!Enum.TryParse<ManagePointsOperation>(managePoints.Operation, true, out var operation))
                 throw new SubActionUserFacingException(subAction, "Unknown points operation: {0}", managePoints.Operation);

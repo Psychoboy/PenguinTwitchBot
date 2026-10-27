@@ -49,9 +49,9 @@ namespace PenguinTwitchBot.Bot.Actions
                     $"End the {normalized.RaffleName} raffle",
                     Rank.Moderator);
 
-                int? joinActionId;
-                int? startActionId;
-                int? endActionId;
+                Guid? joinActionId;
+                Guid? startActionId;
+                Guid? endActionId;
 
                 await using (var transaction = await unitOfWork.BeginTransactionAsync())
                 {
@@ -444,7 +444,7 @@ namespace PenguinTwitchBot.Bot.Actions
         public string JoinCommandName { get; set; } = string.Empty;
         public string StartCommandName { get; set; } = string.Empty;
         public string EndCommandName { get; set; } = string.Empty;
-        public int? PointTypeId { get; set; }
+        public Guid? PointTypeId { get; set; }
         public int WinnerCount { get; set; } = 1;
         public long TotalAward { get; set; }
         public bool IncludeStarterMessages { get; set; } = true;
@@ -454,9 +454,9 @@ namespace PenguinTwitchBot.Bot.Actions
     {
         public bool Success { get; init; }
         public List<string> Errors { get; init; } = [];
-        public int? JoinActionId { get; init; }
-        public int? StartActionId { get; init; }
-        public int? EndActionId { get; init; }
+        public Guid? JoinActionId { get; init; }
+        public Guid? StartActionId { get; init; }
+        public Guid? EndActionId { get; init; }
         public string RaffleKey { get; init; } = string.Empty;
         public string JoinCommandName { get; init; } = string.Empty;
         public string StartCommandName { get; init; } = string.Empty;
@@ -468,7 +468,7 @@ namespace PenguinTwitchBot.Bot.Actions
             Errors = errors
         };
 
-        public static RaffleSetupResult SuccessResult(RaffleSetupRequest request, int? joinActionId, int? startActionId, int? endActionId) => new()
+        public static RaffleSetupResult SuccessResult(RaffleSetupRequest request, Guid? joinActionId, Guid? startActionId, Guid? endActionId) => new()
         {
             Success = true,
             JoinActionId = joinActionId,

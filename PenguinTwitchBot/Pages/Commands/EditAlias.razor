@@ -1,4 +1,4 @@
-@page "/commands/aliases/{id:int}"
+@page "/commands/aliases/{id:guid}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using System.ComponentModel.DataAnnotations
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias AliasCommand
@@ -71,15 +71,14 @@
 
 @code {
     [Parameter]
-    public int id { get; set; }
+    public Guid id { get; set; }
 
     private PenguinTwitchBot.Database.Bot.Models.AliasModel? theAlias { get; set; }
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
-    protected override async void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         theAlias = await AliasCommand.GetAliasAsync(id);
-        StateHasChanged();
     }
 
     public async void OnSubmit()

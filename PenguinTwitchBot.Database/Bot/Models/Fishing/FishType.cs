@@ -1,12 +1,13 @@
 using PenguinTwitchBot.Database.Bot.Models.Points;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 {
     public class FishType
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public FishRarity Rarity { get; set; } = FishRarity.Common;
         public double BaseWeight { get; set; } = 5.0;
@@ -20,9 +21,10 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     public class FishCategory
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int FishTypeId { get; set; }
+        public Guid FishTypeId { get; set; }
+        [JsonIgnore]
         public FishType FishType { get; set; } = null!;
 
         [MaxLength(128)]
@@ -68,7 +70,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     public class FishingTournament
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         [MaxLength(255)]
         public string Name { get; set; } = string.Empty;
@@ -85,7 +87,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public string AutoScheduleCron { get; set; } = string.Empty;
         public int RunDurationMinutes { get; set; } = 60;
         public long? EntryFeeAmount { get; set; }
-        public int? EntryFeePointTypeId { get; set; }
+        public Guid? EntryFeePointTypeId { get; set; }
         public PointType? EntryFeePointType { get; set; }
 
         public ICollection<FishingTournamentFishType> EligibleFish { get; set; } = [];
@@ -96,21 +98,23 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     public class FishingTournamentFishType
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int FishingTournamentId { get; set; }
+        public Guid FishingTournamentId { get; set; }
+        [JsonIgnore]
         public FishingTournament FishingTournament { get; set; } = null!;
 
-        public int FishTypeId { get; set; }
+        public Guid FishTypeId { get; set; }
         public FishType FishType { get; set; } = null!;
     }
 
     public class FishingTournamentEligibleCategory
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int FishingTournamentId { get; set; }
+        public Guid FishingTournamentId { get; set; }
+        [JsonIgnore]
         public FishingTournament FishingTournament { get; set; } = null!;
 
         [MaxLength(128)]
@@ -120,19 +124,20 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     public class FishingTournamentRewardRule
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int FishingTournamentId { get; set; }
+        public Guid FishingTournamentId { get; set; }
+        [JsonIgnore]
         public FishingTournament FishingTournament { get; set; } = null!;
 
         public FishingTournamentScoreCategory ScoreCategory { get; set; } = FishingTournamentScoreCategory.Largest;
-        public int? TargetFishTypeId { get; set; }
+        public Guid? TargetFishTypeId { get; set; }
         public FishType? TargetFishType { get; set; }
         public FishingTournamentRewardKind RewardKind { get; set; } = FishingTournamentRewardKind.Points;
         public int Placement { get; set; } = 1;
         public long Points { get; set; } = 0;
         public int? EntryFeePercentage { get; set; }
-        public int PointTypeId { get; set; }
+        public Guid PointTypeId { get; set; }
         public PointType PointType { get; set; } = null!;
 
         /// <summary>Optional additive gold reward on top of the Points/EntryFeePercentage payout above. Null/0 = no gold.</summary>

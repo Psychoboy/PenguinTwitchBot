@@ -23,9 +23,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
         }
 
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public VoiceType Type { get; set; }
         public string Name { get; set; } = "";
         public string? LanguageCode { get; set; }

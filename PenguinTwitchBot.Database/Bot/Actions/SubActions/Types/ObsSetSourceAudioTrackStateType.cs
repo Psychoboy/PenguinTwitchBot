@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
@@ -16,7 +17,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             SubActionTypes = SubActionTypes.ObsSetSourceAudioTrackState;
         }
 
-        public int? OBSConnectionId { get; set; }
+        public Guid? OBSConnectionId { get; set; }
 
         [Column(TypeName = "TEXT")]
         public string InputName { get; set; } = string.Empty;
@@ -90,8 +91,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (values.TryGetValue(nameof(OBSConnectionId), out var connId))
             {
-                if (connId is string s && int.TryParse(s, out var i)) OBSConnectionId = i;
-                else if (connId is int intId) OBSConnectionId = intId;
+                if (connId is Guid guidId) OBSConnectionId = guidId;
+                else if (UuidMigrationHelper.TryParseGuidOrLegacyInt(connId?.ToString(), out var parsedId) && parsedId != Guid.Empty) OBSConnectionId = parsedId;
             }
             if (values.TryGetValue(nameof(InputName), out var n)) InputName = n as string ?? "";
             if (values.TryGetValue(nameof(TrackNumber), out var t))
@@ -108,14 +109,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             if (!values.TryGetValue(nameof(OBSConnectionId), out var connId) || connId == null)
                 return "OBS Connection is required";
 
-            var parsedConnectionId = connId switch
-            {
-                string s when int.TryParse(s, out var parsed) => parsed,
-                int i => i,
-                _ => 0
-            };
-
-            if (parsedConnectionId < 1)
+            if (!UuidMigrationHelper.TryParseGuidOrLegacyInt(connId.ToString(), out var parsedConnectionId) || parsedConnectionId == Guid.Empty)
                 return "OBS Connection is required";
 
             if (!values.TryGetValue(nameof(InputName), out var n) || string.IsNullOrWhiteSpace(n as string))

@@ -96,10 +96,10 @@
             }
             else
             {
-                <MudSelect T="int?" Label="Existing Action" Variant="Variant.Outlined" @bind-Value="_selectedActionId">
-                    @foreach (var action in _actions.Where(action => action.Id.HasValue).OrderBy(action => action.Name))
+                <MudSelect T="Guid?" Label="Existing Action" Variant="Variant.Outlined" @bind-Value="_selectedActionId">
+                    @foreach (var action in _actions.Where(action => action.Id != Guid.Empty).OrderBy(action => action.Name))
                     {
-                        <MudSelectItem T="int?" Value="@action.Id" Disabled="@(!action.Enabled)">@(action.Enabled ? action.Name : $"{action.Name} (Disabled)")</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@action.Id" Disabled="@(!action.Enabled)">@(action.Enabled ? action.Name : $"{action.Name} (Disabled)")</MudSelectItem>
                     }
                 </MudSelect>
             }
@@ -131,7 +131,7 @@
     private string _amountExpression = "%Score%";
     private string _messageTemplate = string.Empty;
     private string _error = string.Empty;
-    private int? _selectedActionId;
+    private Guid? _selectedActionId;
     private ManagePointsOperation _operation = ManagePointsOperation.Add;
     private bool _createNewAction = true;
     private bool _addPointsSubAction = true;
@@ -355,11 +355,12 @@
         }
 
         var defaultCommand = await CommandHandler.GetDefaultCommandByDefaultCommandName(defaultCommandName);
-        if (defaultCommand?.Id is not int defaultCommandId)
+        if (defaultCommand == null || defaultCommand.Id == Guid.Empty)
         {
             _error = $"The {defaultCommandName} default command is not available.";
             return;
         }
+        var defaultCommandId = defaultCommand.Id;
 
         if (_createNewAction)
         {
@@ -417,11 +418,12 @@
         }
 
         var selectedAction = _actions.FirstOrDefault(action => action.Id == _selectedActionId);
-        if (selectedAction?.Id is not int actionId)
+        if (selectedAction == null || selectedAction.Id == Guid.Empty)
         {
             _error = "Select an existing action.";
             return;
         }
+        var actionId = selectedAction.Id;
 
         var actionTriggers = await ActionService.GetTriggersForActionAsync(actionId);
         var matchingTriggers = actionTriggers.Where(trigger => IsSameOutcome(trigger, defaultCommandName, eventType)).ToList();
@@ -452,7 +454,7 @@
         MudDialog.Close(DialogResult.Ok(actionId));
     }
 
-    private TriggerType CreateTrigger(TriggerItemInfo outcome, int defaultCommandId) => new()
+    private TriggerType CreateTrigger(TriggerItemInfo outcome, Guid defaultCommandId) => new()
     {
         Name = TriggerCatalog.GetDefaultCommandTriggerName(outcome.DefaultCommandName!, outcome.DefaultCommandEventType!),
         Type = TriggerTypes.DefaultCommand,

@@ -10,9 +10,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class SubscriptionHistory
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string Username { get; set; } = null!;
         public DateTime LastSub { get; set; } = DateTime.UtcNow;
         public string UserId { get; set; } = string.Empty;

@@ -135,7 +135,7 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
     [HttpGet("leaderboards")]
     public async Task<IActionResult> GetLeaderboards(
         [FromQuery] string type = "points",
-        [FromQuery] int? pointTypeId = null,
+        [FromQuery] Guid? pointTypeId = null,
         [FromQuery] int top = 10)
     {
         var safeTop = Math.Clamp(top, 1, 50);
@@ -917,7 +917,7 @@ public record ExtensionFeaturesResponse(bool Fishing, bool Giveaway, bool Points
 
 public record ExtensionLeaderboardResponse(string Title, string ScoreLabel, List<ExtensionLeaderboardEntryResponse> Entries);
 public record ExtensionLeaderboardEntryResponse(int Rank, string Username, double Score, string FormattedScore);
-public record ExtensionPointTypeMeta(int Id, string Name);
+public record ExtensionPointTypeMeta(Guid Id, string Name);
 
 public record ExtensionGiveawayResponse(
     bool IsClosed,
@@ -938,12 +938,12 @@ public record ExtensionGiveawayViewerResponse(
 
 public record ExtensionGiveawayEnterRequest(int Amount);
 
-public record ExtensionTournamentResponse(int Id, string Name, string ScoreCategory, List<ExtensionTournamentStandingResponse> Standings);
+public record ExtensionTournamentResponse(Guid Id, string Name, string ScoreCategory, List<ExtensionTournamentStandingResponse> Standings);
 public record ExtensionTournamentStandingResponse(int Rank, string Username, double Score, int CatchCount);
 public record ExtensionRecentCatchResponse(string Username, string FishName, double Weight, DateTime CaughtAt);
 
 public record ExtensionFishingShopItemResponse(
-    int Id,
+    Guid Id,
     string Name,
     string Description,
     int Cost,
@@ -956,8 +956,8 @@ public record ExtensionFishingShopItemResponse(
 
 public record ExtensionFishingViewerResponse(string Username, int TotalGold, List<ExtensionUserFishingBoostResponse> Items);
 public record ExtensionUserFishingBoostResponse(
-    int Id,
-    int ShopItemId,
+    Guid Id,
+    Guid ShopItemId,
     string Name,
     string Description,
     string? EquipmentSlot,
@@ -970,9 +970,9 @@ public record ExtensionUserFishingBoostResponse(
     bool CanRepair = false,
     int? RepairCost = null);
 
-public record ExtensionBuyItemRequest(int ShopItemId, int Quantity);
-public record ExtensionEquipItemRequest(int UserBoostId);
-public record ExtensionRepairItemRequest(int UserBoostId);
+public record ExtensionBuyItemRequest(Guid ShopItemId, int Quantity);
+public record ExtensionEquipItemRequest(Guid UserBoostId);
+public record ExtensionRepairItemRequest(Guid UserBoostId);
 
 public record ExtensionCommandResponse(
     string Command,

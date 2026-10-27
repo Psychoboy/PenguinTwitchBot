@@ -303,7 +303,7 @@ namespace PenguinTwitchBot.Bot.Commands.WheelSpin
 
         private async Task<Wheel?> GetWheelFromCommand(CommandEventArgs e)
         {
-            if(!int.TryParse(e.Arg, out var id))
+            if(!Guid.TryParse(e.Arg, out var id))
             {
                 logger.LogError("Invalid wheel id {id}", e.Arg);
                 return null;

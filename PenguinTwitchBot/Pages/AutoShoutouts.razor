@@ -132,8 +132,8 @@
                 <MudItem xs="12" lg="5" xl="4">
                     <MudPaper Elevation="2" Class="pa-4">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
-                            <MudIcon Icon="@(autoShoutout.Id == 0 ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
-                            <MudText Typo="Typo.h6">@(autoShoutout.Id == 0 ? "Add Auto Shoutout" : $"Edit Shoutout: {autoShoutout.Name}")</MudText>
+                            <MudIcon Icon="@(autoShoutout.Id == Guid.Empty ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6">@(autoShoutout.Id == Guid.Empty ? "Add Auto Shoutout" : $"Edit Shoutout: {autoShoutout.Name}")</MudText>
                         </MudStack>
 
                         <EditForm Model="@autoShoutout" OnValidSubmit="OnSubmit">
@@ -181,7 +181,7 @@
                                               HelperText="Extra instructions for AI generation (e.g. tone, lore, or inside jokes)." />
 
                                 <MudStack Row="true" Spacing="2" Class="mt-2" Justify="Justify.FlexEnd">
-                                    @if (autoShoutout.Id != 0)
+                                    @if (autoShoutout.Id != Guid.Empty)
                                     {
                                         <MudButton Variant="Variant.Outlined"
                                                    Color="Color.Default"
@@ -195,7 +195,7 @@
                                                Color="Color.Primary"
                                                StartIcon="@Icons.Material.Filled.Save"
                                                Disabled="_isSaving">
-                                        @(_isSaving ? "Saving..." : (autoShoutout.Id == 0 ? "Add Shoutout" : "Save Changes"))
+                                        @(_isSaving ? "Saving..." : (autoShoutout.Id == Guid.Empty ? "Add Shoutout" : "Save Changes"))
                                     </MudButton>
                                 </MudStack>
                             </MudStack>

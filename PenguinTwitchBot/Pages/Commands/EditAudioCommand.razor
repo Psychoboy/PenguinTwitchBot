@@ -1,4 +1,4 @@
-@page "/audiocommands/{id:int}"
+@page "/audiocommands/{id:guid}"
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
@@ -86,7 +86,7 @@
 
 @code {
     [Parameter]
-    public int id { get; set; }
+    public Guid id { get; set; }
 
     private AudioCommand? audioCommand { get; set; }
     private List<string>? audioFiles;
@@ -96,13 +96,12 @@
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     private string SpecificUsersOnly { get; set; } = "";
 
-    protected override async void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         audioCommand = await AudioCommands.GetAudioCommand(id);
         ranks = audioCommand != null ? audioCommand.SpecificRanks : [];
         audioFiles = AudioCommands.GetAudioFiles();
         PointTypes = await pointSystem.GetPointTypes();
-        StateHasChanged();
     }
 
     public async void OnSubmit()

@@ -135,7 +135,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             UserFishingBoost boost, 
             FishingBoostType? boostType, 
             double boostAmount,
-            int? targetFishTypeId)
+            Guid? targetFishTypeId)
         {
             if (boostType == FishingBoostType.GeneralRarityBoost)
             {
@@ -229,7 +229,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         /// Determines whether a fish is eligible for a tournament based on its explicitly selected fish types,
         /// selected categories, or (when neither are set) all fish are eligible by default.
         /// </summary>
-        public static bool IsFishEligible(FishingTournament tournament, int fishTypeId, IEnumerable<string> fishCategoryNames)
+        public static bool IsFishEligible(FishingTournament tournament, Guid fishTypeId, IEnumerable<string> fishCategoryNames)
         {
             var hasEligibleFish = tournament.EligibleFish.Count > 0;
             var hasEligibleCategories = tournament.EligibleCategories.Count > 0;

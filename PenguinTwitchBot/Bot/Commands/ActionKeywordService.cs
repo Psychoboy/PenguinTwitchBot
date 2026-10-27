@@ -22,7 +22,7 @@ namespace PenguinTwitchBot.Bot.Commands
                 includeProperties: "PointType");
         }
 
-        public async Task<ActionKeyword?> GetByIdAsync(int id)
+        public async Task<ActionKeyword?> GetByIdAsync(Guid id)
         {
             return await unitOfWork.ActionKeywords.GetByIdAsync(id);
         }
@@ -55,17 +55,6 @@ namespace PenguinTwitchBot.Bot.Commands
 
         public async Task<ActionKeyword> UpdateAsync(ActionKeyword keyword)
         {
-            // Check if the keyword name has changed
-            if (keyword.Id.HasValue)
-            {
-                var existingKeyword = await unitOfWork.ActionKeywords.Find(x => x.Id == keyword.Id.Value).AsNoTracking().FirstOrDefaultAsync();
-                if (existingKeyword != null && existingKeyword.CommandName != keyword.CommandName)
-                {
-                    // Keyword name has changed - update trigger configurations
-                    await unitOfWork.Actions.UpdateKeywordTriggerConfigurationsForRenamedKeyword(keyword.Id.Value, existingKeyword.CommandName, keyword.CommandName);
-                }
-            }
-
             // Ensure category is never null
             keyword.Category = keyword.Category ?? string.Empty;
 
@@ -80,7 +69,7 @@ namespace PenguinTwitchBot.Bot.Commands
             return keyword;
         }
 
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(Guid id)
         {
             var keyword = await unitOfWork.ActionKeywords.GetByIdAsync(id);
             if (keyword != null)

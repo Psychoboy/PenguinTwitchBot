@@ -6,12 +6,11 @@ using System.Threading.Tasks;
 
 namespace PenguinTwitchBot.Database.Bot.Models
 {
+    [ExcludeFromBackup]
     public class SongRequestViewItem
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.None)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string SongId { get; set; } = null!;
         public string Title { get; set; } = null!;
         public string RequestedBy { get; set; } = "";

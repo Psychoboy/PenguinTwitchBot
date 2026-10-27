@@ -5,9 +5,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Giveaway
     public class GiveawayWinner
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public Int64? Id { get; set; }
+        public Guid Id { get; set; }
         public string Username { get; set; } = "";
         public DateTime WinningDate { get; set; } = DateTime.UtcNow;
         public string Prize { get; set; } = "";

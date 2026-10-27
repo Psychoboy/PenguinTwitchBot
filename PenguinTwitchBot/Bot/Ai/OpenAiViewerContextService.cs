@@ -355,8 +355,12 @@ namespace PenguinTwitchBot.Bot.Ai
             {
                 try
                 {
-                    var points = await pointsSystem.GetUserPointsByUserId(viewer.UserId, 1);
-                    attrs.Append($" points=\"{points.Points:N0}\"");
+                    var defaultPointType = (await pointsSystem.GetPointTypes()).FirstOrDefault();
+                    if (defaultPointType != null)
+                    {
+                        var points = await pointsSystem.GetUserPointsByUserId(viewer.UserId, defaultPointType.Id);
+                        attrs.Append($" points=\"{points.Points:N0}\"");
+                    }
                 }
                 catch
                 {

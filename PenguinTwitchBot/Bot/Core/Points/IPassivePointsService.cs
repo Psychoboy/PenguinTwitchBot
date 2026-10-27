@@ -6,7 +6,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
     {
         Task ProcessTickAsync(CancellationToken cancellationToken = default);
         Task DistributeForPointTypeAsync(PointType pointType, CancellationToken cancellationToken = default);
-        void ResetScheduleForPointType(int pointTypeId);
+        void ResetScheduleForPointType(Guid pointTypeId);
     }
 }
 

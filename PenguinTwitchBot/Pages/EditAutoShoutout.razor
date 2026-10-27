@@ -1,4 +1,4 @@
-@page "/community/auto-shoutouts/{id:int}"
+@page "/community/auto-shoutouts/{id:guid}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using System.ComponentModel.DataAnnotations
 @using PenguinTwitchBot.Database.Bot.Models
@@ -107,7 +107,7 @@
 
 @code {
     [Parameter]
-    public int id { get; set; }
+    public Guid id { get; set; }
 
     private PenguinTwitchBot.Database.Bot.Models.AutoShoutout? autoShoutout { get; set; }
     private bool _isLoading = true;

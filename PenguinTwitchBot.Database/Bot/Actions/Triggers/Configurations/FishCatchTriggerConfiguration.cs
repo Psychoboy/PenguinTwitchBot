@@ -5,7 +5,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         /// <summary>
         /// Fish type IDs to match. Empty = any fish type.
         /// </summary>
-        public List<int> FishTypeIds { get; set; } = [];
+        public List<Guid> FishTypeIds { get; set; } = [];
 
         /// <summary>
         /// Category names to match (fish must belong to at least one). Empty = any category.

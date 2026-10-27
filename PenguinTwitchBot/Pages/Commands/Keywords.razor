@@ -118,7 +118,7 @@
             {
                 <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
                     <MudStack Spacing="3">
-                        @if (!_isNewKeyword && _selectedKeyword?.Id.HasValue == true)
+                        @if (!_isNewKeyword && _selectedKeyword?.Id != Guid.Empty)
                         {
                             <MudPaper Class="pa-4" Elevation="0" Outlined="true">
                                 <MudStack Spacing="2">
@@ -189,7 +189,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "keywordId")]
-    public int? KeywordIdFromQuery { get; set; }
+    public Guid? KeywordIdFromQuery { get; set; }
     public string None => "None";
 
     private List<ActionKeyword> _keywords = new();
@@ -230,7 +230,7 @@
         var uri = new Uri(e.Location);
         var queryString = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
 
-        if (queryString.TryGetValue("keywordId", out var keywordIdString) && int.TryParse(keywordIdString, out var keywordId))
+        if (queryString.TryGetValue("keywordId", out var keywordIdString) && Guid.TryParse(keywordIdString, out var keywordId))
         {
             var keyword = _keywords.FirstOrDefault(k => k.Id == keywordId);
             if (keyword != null && keyword != _selectedKeyword)
@@ -280,18 +280,18 @@
         _isNewKeyword = false;
 
         // Update URL to include keywordId
-        if (keyword.Id.HasValue)
+        if (keyword.Id != Guid.Empty)
         {
             _isNavigating = true;
-            NavigationManager.NavigateTo($"/actions/keywords?keywordId={keyword.Id.Value}", false);
+            NavigationManager.NavigateTo($"/actions/keywords?keywordId={keyword.Id}", false);
             _isNavigating = false;
 
             // Load triggered actions
-            await LoadTriggeredActions(keyword.Id.Value);
+            await LoadTriggeredActions(keyword.Id);
         }
     }
 
-    private async Task LoadTriggeredActions(int keywordId)
+    private async Task LoadTriggeredActions(Guid keywordId)
     {
         _triggeredActions = null; // Show loading
         try
@@ -378,11 +378,11 @@
             $"Are you sure you want to delete the keyword '{keyword.CommandName}'? This cannot be undone.",
             yesText: "Delete", cancelText: "Cancel");
 
-        if (result == true && keyword.Id.HasValue)
+        if (result == true && keyword.Id != Guid.Empty)
         {
             try
             {
-                await KeywordService.DeleteAsync(keyword.Id.Value);
+                await KeywordService.DeleteAsync(keyword.Id);
                 Snackbar.Add($"Keyword '{keyword.CommandName}' deleted successfully", Severity.Success);
 
                 await LoadKeywords();

@@ -267,14 +267,14 @@
                                     </MudSelect>
                                 </MudItem>
                                 <MudItem xs="12" sm="6" lg="3">
-                                    <MudSelect T="int?" Label="Point Type" Variant="Variant.Outlined" Value="_bulkPointTypeId" ValueChanged="SetBulkPointType" Placeholder="Select a point type">
+                                    <MudSelect T="Guid?" Label="Point Type" Variant="Variant.Outlined" Value="_bulkPointTypeId" ValueChanged="SetBulkPointType" Placeholder="Select a point type">
                                         @if (!_bulkAddReward)
                                         {
-                                            <MudSelectItem T="int?" Value="@((int?)null)">All point types</MudSelectItem>
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)null)">All point types</MudSelectItem>
                                         }
                                         @foreach (var pointType in _rewardPointTypes)
                                         {
-                                            <MudSelectItem T="int?" Value="@((int?)pointType.Key)">@pointType.Value</MudSelectItem>
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)pointType.Key)">@pointType.Value</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudItem>
@@ -758,11 +758,11 @@
     private readonly HashSet<int> _visitedTabs = new() { 0 };
     private IJSObjectReference? _editorModule;
     private StarshipEventCatalogEditor? _eventCatalogEditor;
-    private Dictionary<int, string> _rewardPointTypes = [];
-    private Dictionary<int, string> _rewardActions = [];
+    private Dictionary<Guid, string> _rewardPointTypes = [];
+    private Dictionary<Guid, string> _rewardActions = [];
     private readonly HashSet<string> _bulkProfileIds = new(StringComparer.OrdinalIgnoreCase);
     private string _bulkRarityName = string.Empty;
-    private int? _bulkPointTypeId;
+    private Guid? _bulkPointTypeId;
     private bool _bulkAddReward;
     private long? _bulkMinimum;
     private long? _bulkMaximum;
@@ -772,7 +772,7 @@
     private bool _isApplyingBulkRewards;
 
     private bool HasBulkRewardChanges => _bulkAddReward
-        ? _bulkPointTypeId is > 0 && _bulkMinimum.HasValue && _bulkMaximum.HasValue
+        ? _bulkPointTypeId.HasValue && _bulkPointTypeId.Value != Guid.Empty && _bulkMinimum.HasValue && _bulkMaximum.HasValue
         : _bulkMinimum.HasValue || _bulkMaximum.HasValue || _bulkChancePercent.HasValue;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -1105,12 +1105,12 @@
             var actionsTask = ActionManagement.GetAllActionsAsync();
             await Task.WhenAll(pointTypesTask, actionsTask);
             _rewardPointTypes = (await pointTypesTask)
-                .Where(pointType => pointType.Id.HasValue)
+                .Where(pointType => pointType.Id != Guid.Empty)
                 .OrderBy(pointType => pointType.Name)
                 .ToDictionary(pointType => pointType.GetId(), pointType => pointType.Name);
             _rewardActions = (await actionsTask)
-                .Where(action => action.Id.HasValue)
-                .ToDictionary(action => action.Id!.Value, action => action.Name);
+                .Where(action => action.Id != Guid.Empty)
+                .ToDictionary(action => action.Id, action => action.Name);
             _rewardEditorOptionsLoaded = true;
         }
         catch (Exception ex)
@@ -1335,7 +1335,7 @@
         InvalidateBulkRewardPreview();
     }
 
-    private void SetBulkPointType(int? pointTypeId)
+    private void SetBulkPointType(Guid? pointTypeId)
     {
         _bulkPointTypeId = pointTypeId;
         InvalidateBulkRewardPreview();
@@ -1360,7 +1360,7 @@
             .SelectMany(profile => profile.GetTiers())
             .Where(tier => string.Equals(tier.Name, _bulkRarityName, StringComparison.OrdinalIgnoreCase));
         if (_bulkAddReward)
-            return _bulkPointTypeId is > 0
+            return _bulkPointTypeId.HasValue && _bulkPointTypeId.Value != Guid.Empty
                 ? tiers.Count(tier => tier.Rewards.Count < StarshipRewardProfile.MaximumRewardsPerTier &&
                                       !tier.Rewards.Any(reward => reward.PointTypeId == _bulkPointTypeId.Value))
                 : 0;
@@ -1455,7 +1455,7 @@
             if (tier == null) continue;
             if (_bulkAddReward)
             {
-                if (_bulkPointTypeId is not { } pointTypeId || tier.Rewards.Count >= StarshipRewardProfile.MaximumRewardsPerTier ||
+                if (_bulkPointTypeId is not { } pointTypeId || pointTypeId == Guid.Empty || tier.Rewards.Count >= StarshipRewardProfile.MaximumRewardsPerTier ||
                     tier.Rewards.Any(reward => reward.PointTypeId == pointTypeId)) continue;
                 tier.Rewards.Add(new StarshipRewardEntry
                 {
@@ -1534,7 +1534,7 @@
 
     private string GetRewardProfilePreview(StarshipRewardProfile profile, bool useSnapshotPointName = false)
     {
-        string PointName(int id) => useSnapshotPointName ? profile.GetPointTypeName(id) : _rewardPointTypes.GetValueOrDefault(id, "No point type selected");
+        string PointName(Guid id) => useSnapshotPointName ? profile.GetPointTypeName(id) : _rewardPointTypes.GetValueOrDefault(id, "No point type selected");
         var tiers = profile.GetTiers().Where(tier => tier.Enabled && tier.Weight > 0).ToList();
         var total = Math.Max(1, tiers.Sum(tier => tier.Weight));
         var odds = tiers.Select(tier => $"{tier.Name} {100d * tier.Weight / total:0.#}%: " +

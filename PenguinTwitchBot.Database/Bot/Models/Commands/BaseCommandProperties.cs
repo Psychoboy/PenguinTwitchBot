@@ -7,9 +7,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Commands
     public class BaseCommandProperties
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string CommandName { get; set; } = null!;
         public int UserCooldown { get; set; } = 0;
         public int UserCooldownMax { get; set; } = 0;
@@ -17,7 +15,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Commands
         public int GlobalCooldownMax { get; set; } = 0;
         public Rank MinimumRank { get; set; } = Rank.Viewer;
         public int Cost { get; set; } = 0;
-        public int? PointTypeId { get; set; }
+        public Guid? PointTypeId { get; set; }
         [JsonIgnore]
         public PointType? PointType { get; set; }
         public bool Disabled { get; set; } = false;

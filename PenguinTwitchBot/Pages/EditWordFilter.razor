@@ -1,4 +1,4 @@
-@page "/blacklist/{id:int}"
+@page "/blacklist/{id:guid}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using System.ComponentModel.DataAnnotations
 @using System.Text.RegularExpressions
@@ -39,7 +39,7 @@
             <MudPaper Elevation="2" Class="pa-6">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-4">
                     <MudIcon Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Large" />
-                    <MudText Typo="Typo.h5">@(id == 0 ? "New Word Filter" : $"Edit Filter: {wordFilter.Phrase}")</MudText>
+                    <MudText Typo="Typo.h5">@(id == Guid.Empty ? "New Word Filter" : $"Edit Filter: {wordFilter.Phrase}")</MudText>
                 </MudStack>
 
                 <EditForm Model="@wordFilter" OnValidSubmit="OnSubmit">
@@ -182,7 +182,7 @@
 
 @code {
     [Parameter]
-    public int id { get; set; }
+    public Guid id { get; set; }
 
     private WordFilter? wordFilter;
     private bool _isLoading = true;
@@ -200,7 +200,7 @@
         wordFilter = null;
         try
         {
-            if (id == 0)
+            if (id == Guid.Empty)
             {
                 wordFilter = new WordFilter();
             }
@@ -279,7 +279,7 @@
         _isSaving = true;
         try
         {
-            if (wordFilter.Id == 0)
+            if (wordFilter.Id == Guid.Empty)
             {
                 await Blacklist.AddBlacklist(wordFilter);
                 Snackbar.Add($"Added filter '{wordFilter.Phrase}'.", Severity.Success);

@@ -1,7 +1,7 @@
 @page "/defaultcommands"
-@page "/defaultcommands/{id:int}"
+@page "/defaultcommands/{id:guid}"
 @page "/aliases"
-@page "/aliases/{id:int}"
+@page "/aliases/{id:guid}"
 @page "/externalcommands"
 @page "/command-cooldowns"
 @page "/viewers"
@@ -9,7 +9,7 @@
 @page "/connectedviewers"
 @page "/knownbots"
 @page "/autoshoutouts"
-@page "/autoshoutouts/{id:int}"
+@page "/autoshoutouts/{id:guid}"
 @page "/botauth"
 @page "/updatesandlogs"
 @page "/pointsettings"
@@ -36,7 +36,7 @@
 </MudContainer>
 
 @code {
-    [Parameter] public int? id { get; set; }
+    [Parameter] public Guid? id { get; set; }
 
     private static readonly (string OldPrefix, string NewPrefix)[] RedirectPrefixes =
     [

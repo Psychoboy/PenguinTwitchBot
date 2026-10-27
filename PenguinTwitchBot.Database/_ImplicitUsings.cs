@@ -4,3 +4,4 @@ global using Microsoft.EntityFrameworkCore;
 global using Microsoft.Extensions.Logging;
 global using PenguinTwitchBot.Database.Bot.Models;
 global using PenguinTwitchBot.Database.Bot.Core.Database;
+global using PenguinTwitchBot.Database.Bot.DatabaseTools;

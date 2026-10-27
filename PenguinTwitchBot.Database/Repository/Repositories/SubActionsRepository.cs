@@ -1,5 +1,4 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
-using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -12,26 +11,9 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         {
         }
 
-        public async Task<int> GetNextIdAsync()
+        public Task<Guid> GetNextIdAsync()
         {
-            var maxId = await _context.SubActions.MaxAsync(s => (int?)s.Id) ?? 0;
-            return maxId + 1;
-        }
-
-        public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            // SubActions are now backed up as part of ActionType backup
-            // This method intentionally does nothing to avoid duplicate backups
-            logger?.LogDebug("Skipping SubActionType backup (included in ActionType backup)");
-            await Task.CompletedTask;
-        }
-
-        public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            // SubActions are now restored as part of ActionType restore
-            // This method intentionally does nothing to avoid conflicts
-            logger?.LogDebug("Skipping SubActionType restore (included in ActionType restore)");
-            await Task.CompletedTask;
+            return Task.FromResult(Guid.CreateVersion7());
         }
     }
 

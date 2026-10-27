@@ -87,7 +87,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 await ServiceBackbone.ResponseWithMessage(e, "you forgot to include the ID you want to delete.");
                 throw new SkipCooldownException();
             }
-            if (Int32.TryParse(e.Args[0], out var id))
+            if (Guid.TryParse(e.Args[0], out var id))
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -143,7 +143,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 
             if (quote == null && string.IsNullOrWhiteSpace(searchParam?.Trim()) == false)
             {
-                if (int.TryParse(searchParam.Trim(), out int quoteId))
+                if (Guid.TryParse(searchParam.Trim(), out Guid quoteId))
                 {
                     await using var scope = _scopeFactory.CreateAsyncScope();
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

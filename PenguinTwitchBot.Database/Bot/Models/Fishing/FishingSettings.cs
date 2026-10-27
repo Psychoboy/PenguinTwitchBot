@@ -12,7 +12,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public const double DefaultRepairCostMultiplier = 0.0;
 
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public bool Enabled { get; set; } = true;
         public int DisplayDurationMs { get; set; } = 5000;
         public bool BoostMode { get; set; } = false;

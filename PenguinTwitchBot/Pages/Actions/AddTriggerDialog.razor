@@ -362,13 +362,13 @@
 
                     @if (_fishTypes.Count > 0)
                     {
-                        <MudSelect T="int" @bind-SelectedValues="_fishCatchFishTypeIds"
+                        <MudSelect T="Guid" @bind-SelectedValues="_fishCatchFishTypeIds"
                                    Label="Specific Fish Types" MultiSelection="true" Variant="Variant.Outlined"
                                    ToStringFunc="GetFishTypeNameById"
                                    HelperText="Leave empty to include all fish types">
                             @foreach (var fish in _fishTypes)
                             {
-                                <MudSelectItem T="int" Value="@fish.Id">@fish.Name (@fish.Rarity)</MudSelectItem>
+                                <MudSelectItem T="Guid" Value="@fish.Id">@fish.Name (@fish.Rarity)</MudSelectItem>
                             }
                         </MudSelect>
                     }
@@ -503,7 +503,7 @@
     [CascadingParameter] 
     private IMudDialogInstance MudDialog { get; set; } = null!;
 
-    [Parameter] public int ActionId { get; set; }
+    [Parameter] public Guid ActionId { get; set; }
     [Parameter] public TriggerType? ExistingTrigger { get; set; }
     [Inject] private IActionCommandService CommandService { get; set; } = null!;
     [Inject] private IActionKeywordService KeywordService { get; set; } = null!;
@@ -531,8 +531,8 @@
     private List<ActionKeyword> _keywords = new();
     private List<TimerGroup> _timerGroups = new();
     private List<DefaultCommand> _defaultCommands = new();
-    private int? _selectedCommandId;
-    private int? _selectedKeywordId;
+    private Guid? _selectedCommandId;
+    private Guid? _selectedKeywordId;
     private TimerGroup? _selectedTimerGroup;
     private DefaultCommand? _selectedDefaultCommand;
     private string _selectedEventType = "";
@@ -550,7 +550,7 @@
     private string _racingOutcomeFilter = "Any";
     private int? _racingMinKnockouts;
 
-    private IReadOnlyCollection<int> _fishCatchFishTypeIds = new HashSet<int>();
+    private IReadOnlyCollection<Guid> _fishCatchFishTypeIds = new HashSet<Guid>();
     private IReadOnlyCollection<string> _fishCatchCategories = new HashSet<string>();
     private IReadOnlyCollection<string> _fishCatchRarities = new HashSet<string>();
     private int _fishCatchMinStars = 0;
@@ -558,7 +558,7 @@
     private int _fishCatchMinGold = 0;
     private bool _fishCatchRequireActiveTournament = false;
     private IReadOnlyCollection<string> _fishingItemBrokenSlots = new HashSet<string>();
-    private List<int> _fishingItemBrokenShopItemIds = new();
+    private List<Guid> _fishingItemBrokenShopItemIds = new();
     private IReadOnlyCollection<FishingAttemptOutcome> _fishingAccidentOutcomes = new HashSet<FishingAttemptOutcome>();
     private List<FishType> _fishTypes = new();
     private bool IsEditMode => ExistingTrigger != null;
@@ -684,7 +684,7 @@
             {
                 var config = System.Text.Json.JsonSerializer.Deserialize<FishCatchTriggerConfiguration>(trigger.Configuration)
                     ?? new FishCatchTriggerConfiguration();
-                _fishCatchFishTypeIds = new HashSet<int>(config.FishTypeIds);
+                _fishCatchFishTypeIds = new HashSet<Guid>(config.FishTypeIds);
                 _fishCatchCategories = new HashSet<string>(config.Categories, StringComparer.OrdinalIgnoreCase);
                 _fishCatchRarities = new HashSet<string>(config.Rarities, StringComparer.OrdinalIgnoreCase);
                 _fishCatchMinStars = config.MinStars;
@@ -694,7 +694,7 @@
             }
             catch
             {
-                _fishCatchFishTypeIds = new HashSet<int>();
+                _fishCatchFishTypeIds = new HashSet<Guid>();
                 _fishCatchCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 _fishCatchRarities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 _fishCatchMinStars = 0;
@@ -716,7 +716,7 @@
             catch
             {
                 _fishingItemBrokenSlots = new HashSet<string>();
-                _fishingItemBrokenShopItemIds = new List<int>();
+                _fishingItemBrokenShopItemIds = new List<Guid>();
             }
             _selectedItem = TriggerCatalog.FindItem(trigger.Type);
         }
@@ -884,7 +884,7 @@
         };
     }
 
-    private void OnCommandSelected(int? commandId)
+    private void OnCommandSelected(Guid? commandId)
     {
         _selectedCommandId = commandId;
 
@@ -899,7 +899,7 @@
         }
     }
 
-    private void OnKeywordSelected(int? keywordId)
+    private void OnKeywordSelected(Guid? keywordId)
     {
         _selectedKeywordId = keywordId;
 
@@ -948,9 +948,9 @@
         _selectedTimerGroup = timerGroup;
 
         // Auto-populate trigger name with timer group format
-        if (timerGroup?.Id.HasValue == true)
+        if (timerGroup?.Id != null && timerGroup.Id != Guid.Empty)
         {
-            _triggerName = $"TimerGroup_{timerGroup.Id.Value}";
+            _triggerName = $"TimerGroup_{timerGroup.Id}";
         }
     }
 
@@ -1352,10 +1352,10 @@
         if (!CanSubmit() || !_selectedType.HasValue) return;
 
         var configuration = "";
-        int? commandIdRef = null;
-        int? keywordIdRef = null;
-        int? timerGroupIdRef = null;
-        int? defaultCommandIdRef = null;
+        Guid? commandIdRef = null;
+        Guid? keywordIdRef = null;
+        Guid? timerGroupIdRef = null;
+        Guid? defaultCommandIdRef = null;
 
         // Build configuration JSON based on trigger type
         if (_selectedType == TriggerTypes.Command && _selectedCommandId.HasValue)
@@ -1366,8 +1366,7 @@
                 commandIdRef = command.Id;
                 configuration = System.Text.Json.JsonSerializer.Serialize(new
                 {
-                    CommandId = command.Id,
-                    CommandName = command.CommandName
+                    CommandId = command.Id
                 });
             }
         }
@@ -1379,18 +1378,16 @@
                 keywordIdRef = keyword.Id;
                 configuration = System.Text.Json.JsonSerializer.Serialize(new
                 {
-                    KeywordId = keyword.Id,
-                    KeywordName = keyword.CommandName
+                    KeywordId = keyword.Id
                 });
             }
         }
-        else if (_selectedType == TriggerTypes.Timer && _selectedTimerGroup?.Id.HasValue == true)
+        else if (_selectedType == TriggerTypes.Timer && _selectedTimerGroup != null && _selectedTimerGroup.Id != Guid.Empty)
         {
             timerGroupIdRef = _selectedTimerGroup.Id;
             configuration = System.Text.Json.JsonSerializer.Serialize(new
             {
-                TimerGroupId = _selectedTimerGroup.Id.Value,
-                TimerGroupName = _selectedTimerGroup.Name
+                TimerGroupId = _selectedTimerGroup.Id
             });
         }
         else if (_selectedType == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(_selectedTwitchEvent))
@@ -1512,7 +1509,7 @@
         return TriggerFeatureGate.IsAvailable(triggerType, FeatureRuntimeCoordinator);
     }
 
-    private string GetFishTypeNameById(int fishTypeId)
+    private string GetFishTypeNameById(Guid fishTypeId)
     {
         var fish = _fishTypes.FirstOrDefault(f => f.Id == fishTypeId);
         return fish == null ? fishTypeId.ToString() : $"{fish.Name} ({fish.Rarity})";

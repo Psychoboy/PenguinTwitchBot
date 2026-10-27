@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using PenguinTwitchBot.Database.Repository.Repositories;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
@@ -33,19 +34,24 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
             modelBuilder.Entity<ActionType>()
                 .HasMany(a => a.SubActions)
                 .WithOne()
-                .HasForeignKey("ActionTypeId")
+                .HasForeignKey(s => s.ActionTypeId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ActionType>()
                 .HasMany(a => a.CatchSubActions)
                 .WithOne()
-                .HasForeignKey("CatchActionTypeId")
+                .HasForeignKey(s => s.CatchActionTypeId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Configure JSON serialization for LogicIfElseType nested subactions
             var jsonOptions = new JsonSerializerOptions
             {
-                TypeInfoResolver = new SubActionTypeResolver()
+                TypeInfoResolver = new SubActionTypeResolver(),
+                Converters =
+                {
+                    new LegacyIntCompatibleGuidJsonConverter(),
+                    new LegacyIntCompatibleNullableGuidJsonConverter()
+                }
             };
 
             var valueComparer = new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<SubActionType>>(

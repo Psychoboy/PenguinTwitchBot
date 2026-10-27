@@ -95,7 +95,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             }
         }
 
-        public async Task<Viewer?> GetViewerById(int id)
+        public async Task<Viewer?> GetViewerById(Guid id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -140,7 +140,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            if (viewer.Id == null)
+            if (viewer.Id == Guid.Empty)
             {
                 await db.Viewers.AddAsync(viewer);
             }

@@ -80,8 +80,8 @@ public static class SubActionUIFieldEnhancer
             .Select(c => new SelectOption { Id = c.Id, Name = c.Name })
             .ToList();
 
-        var selectedConnectionId = subAction.GetType().GetProperty(nameof(ObsSetSceneType.OBSConnectionId))?.GetValue(subAction) as int?;
-        if (selectedConnectionId.HasValue && connectionOptions.All(option => option.Id != selectedConnectionId.Value))
+        var selectedConnectionId = subAction.GetType().GetProperty(nameof(ObsSetSceneType.OBSConnectionId))?.GetValue(subAction) as Guid?;
+        if (selectedConnectionId.HasValue && selectedConnectionId.Value != Guid.Empty && connectionOptions.All(option => option.Id != selectedConnectionId.Value))
         {
             connectionOptions.Add(new SelectOption { Id = selectedConnectionId.Value, Name = $"Connection #{selectedConnectionId.Value}" });
         }
@@ -291,7 +291,7 @@ public static class SubActionUIFieldEnhancer
     private static List<SubActionUIField> EnhanceObsTextSource(List<SubActionUIField> fields, ObsSetTextType textSource, IServiceProvider serviceProvider)
         => EnhanceObsInputField(fields, serviceProvider, textSource.OBSConnectionId, nameof(ObsSetTextType.InputName), TextInputKinds, "Select the OBS text source");
 
-    private static List<SubActionUIField> EnhanceObsInputField(List<SubActionUIField> fields, IServiceProvider serviceProvider, int? connectionId, string propertyName, IEnumerable<string>? allowedKinds, string helperText)
+    private static List<SubActionUIField> EnhanceObsInputField(List<SubActionUIField> fields, IServiceProvider serviceProvider, Guid? connectionId, string propertyName, IEnumerable<string>? allowedKinds, string helperText)
     {
         var connectionManager = serviceProvider.GetService<ObsConnector.IOBSConnectionManager>();
         if (connectionManager == null || !connectionId.HasValue)
@@ -481,8 +481,8 @@ public static class SubActionUIFieldEnhancer
         var actionService = serviceProvider.GetRequiredService<IActionManagementService>();
         var actions = Task.Run(async () => await actionService.GetAllActionsAsync()).GetAwaiter().GetResult();
         var actionOptions = actions
-            .Where(a => a.Id.HasValue)
-            .Select(a => new SelectOption { Name = a.Name, Id = a.Id!.Value })
+            .Where(a => a.Id != Guid.Empty)
+            .Select(a => new SelectOption { Name = a.Name, Id = a.Id })
             .OrderBy(a => a.Name)
             .ToList();
 
@@ -631,8 +631,8 @@ public static class SubActionUIFieldEnhancer
         var timerService = serviceProvider.GetRequiredService<IAutoTimers>();
         var timerGroups = Task.Run(async () => await timerService.GetTimerGroupsAsync()).GetAwaiter().GetResult();
         var timerGroupOptions = timerGroups
-            .Where(tg => tg.Id.HasValue)
-            .Select(tg => new SelectOption { Name = tg.Name, Id = tg.Id!.Value })
+            .Where(tg => tg.Id != Guid.Empty)
+            .Select(tg => new SelectOption { Name = tg.Name, Id = tg.Id })
             .OrderBy(tg => tg.Name)
             .ToList();
 
@@ -744,8 +744,8 @@ public static class SubActionUIFieldEnhancer
         var actionService = serviceProvider.GetRequiredService<IActionManagementService>();
         var actions = Task.Run(async () => await actionService.GetAllActionsAsync()).GetAwaiter().GetResult();
         var actionOptions = actions
-            .Where(a => a.Id.HasValue)
-            .Select(a => new SelectOption { Name = a.Name, Id = a.Id!.Value })
+            .Where(a => a.Id != Guid.Empty)
+            .Select(a => new SelectOption { Name = a.Name, Id = a.Id })
             .OrderBy(a => a.Name)
             .ToList();
 

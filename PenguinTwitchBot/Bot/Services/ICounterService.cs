@@ -37,12 +37,12 @@ public interface ICounterService
 {
     Task<List<Counter>> GetAllCountersAsync();
     Task<Counter?> GetCounterByNameAsync(string counterName);
-    Task<Counter?> GetCounterByIdAsync(int id);
+    Task<Counter?> GetCounterByIdAsync(Guid id);
     Task<Counter> CreateCounterAsync(Counter counter);
     Task<Counter> CreateCounterWithActionAsync(Counter counter, CounterActionCreationOptions? options);
     Task CreateActionForCounterAsync(Counter counter, CounterActionCreationOptions options);
     Task<Counter> UpdateCounterAsync(Counter counter);
-    Task<bool> DeleteCounterAsync(int id);
+    Task<bool> DeleteCounterAsync(Guid id);
     Task<CounterResult> AdjustCounterAsync(
         string counterName,
         CounterOperation operation,

@@ -77,7 +77,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 if (_pointsToGiveOut > 0 && _lastPointsGivenOut.AddSeconds(delay) < GetDateTime())
                 {
                     var pointType = await pointSystem.GetPointTypeForGame(ModuleName);
-                    await pointSystem.AddPointsToActiveUsers(pointType.Id.GetValueOrDefault(), _pointsToGiveOut);
+                    await pointSystem.AddPointsToActiveUsers(pointType.Id, _pointsToGiveOut);
 
                     var message = await gameSettingsService.GetStringSetting(ModuleName, MESSAGE, "Sending {Amount} {PointType} to all active users.");
                     message = message

@@ -31,7 +31,7 @@
 
     private string _error = string.Empty;
 
-    private bool IsEditMode => Model.Id > 0;
+    private bool IsEditMode => Model.Id != Guid.Empty;
 
     private void Save()
     {

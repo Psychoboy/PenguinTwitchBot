@@ -9,11 +9,8 @@ namespace PenguinTwitchBot.Database.Bot.Models.Points
     public class UserPoints
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
-        [JsonIgnore]
-        public int PointTypeId { get; set; }
+        public Guid Id { get; set; }
+        public Guid PointTypeId { get; set; }
         [JsonIgnore]
         public PointType PointType { get; set; } = null!;
         public string UserId { get; set; } = null!;

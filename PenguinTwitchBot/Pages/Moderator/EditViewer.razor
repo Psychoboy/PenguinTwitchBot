@@ -386,7 +386,7 @@
 @code {
     [Parameter]
     [SupplyParameterFromQuery(Name = "id")]
-    public int? ViewerId { get; set; }
+    public Guid? ViewerId { get; set; }
 
     [Parameter]
     [SupplyParameterFromQuery(Name = "name")]
@@ -451,7 +451,7 @@
                 viewer.PointRankings = [];
                 foreach (var pt in allPointTypes)
                 {
-                    var rank = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, pt.Id.GetValueOrDefault());
+                    var rank = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, pt.Id);
                     viewer.PointRankings.Add(new ViewerPointRanking { PointTypeName = pt.Name, Ranking = rank });
                 }
                 viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);

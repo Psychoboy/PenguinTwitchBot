@@ -8,9 +8,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Games
     public class GameSetting
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string GameName { get; set; } = null!;
         public string SettingName { get; set; } = null!;
         public string? SettingStringValue { get; set; }

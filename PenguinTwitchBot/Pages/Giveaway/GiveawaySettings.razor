@@ -309,7 +309,7 @@
     {
         await GiveawayFeature.SetPointsPerEntry(PointsPerEntry);
         if (SelectedPointType != null)
-            await PointSystem.SetPointTypeForGame("GiveawayFeature", SelectedPointType.GetId());
+            await PointSystem.SetPointTypeForGame("GiveawayFeature", SelectedPointType.Id);
         Snackbar.Add("Entry settings saved.", Severity.Success);
     }
 

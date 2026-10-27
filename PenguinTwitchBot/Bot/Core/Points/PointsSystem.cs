@@ -31,7 +31,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
         private static readonly KeyedSemaphore UserLocks = new();
         private static readonly Prometheus.Gauge NumberOfPoints = Prometheus.Metrics.CreateGauge("points", "Number of points", ["username", "pointTypeId"]);
         private static readonly Prometheus.Gauge NumberOfPointsByGame = Prometheus.Metrics.CreateGauge("points_by_game", "Number of points by game", ["game", "pointTypeId"]);
-        public async Task<long> AddPointsByUserId(string userId, int pointType, long points)
+        public async Task<long> AddPointsByUserId(string userId, Guid pointType, long points)
         {
             using var userLock = await UserLocks.AcquireAsync($"{userId}:{pointType}", CancellationToken.None);
             try
@@ -90,10 +90,10 @@ namespace PenguinTwitchBot.Bot.Core.Points
             }
         }
 
-        public async Task<bool> AddPointsByUserIdOnce(string userId, int pointType, long points, string operationId)
+        public async Task<bool> AddPointsByUserIdOnce(string userId, Guid pointType, long points, string operationId)
         {
             if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException("A user ID is required.", nameof(userId));
-            if (pointType <= 0) throw new ArgumentOutOfRangeException(nameof(pointType));
+            if (pointType == Guid.Empty) throw new ArgumentOutOfRangeException(nameof(pointType));
             if (points <= 0) throw new ArgumentOutOfRangeException(nameof(points), "An idempotent point award must be positive.");
             if (string.IsNullOrWhiteSpace(operationId) || operationId.Length > 180)
                 throw new ArgumentException("The point award operation ID must contain 1-180 characters.", nameof(operationId));
@@ -153,7 +153,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return true;
         }
 
-        public async Task<long> SetPointsByUserId(string userId, int pointType, long points)
+        public async Task<long> SetPointsByUserId(string userId, Guid pointType, long points)
         {
             if (points < 0)
             {
@@ -207,7 +207,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return points;
         }
 
-        public async Task<long> AddPointsByUsername(string username, int pointType, long points)
+        public async Task<long> AddPointsByUsername(string username, Guid pointType, long points)
         {
             var viewer = await viewerFeature.GetViewerByUserName(username);
             if (viewer == null)
@@ -223,7 +223,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
         //    throw new NotImplementedException();
         //}
 
-        public async Task<long> GetMaxPointsByUserId(string userId, int pointType, long max)
+        public async Task<long> GetMaxPointsByUserId(string userId, Guid pointType, long max)
         {
             var viewerPoints = await GetUserPointsByUserId(userId, pointType);
             if (viewerPoints == null)
@@ -237,7 +237,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return viewerPoints.Points;
         }
 
-        public async Task<UserPoints> GetUserPointsByUserId(string userId, int pointType)
+        public async Task<UserPoints> GetUserPointsByUserId(string userId, Guid pointType)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -262,7 +262,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return userPoints;
         }
 
-        public async Task<UserPoints> GetUserPointsByUsername(string username, int pointType)
+        public async Task<UserPoints> GetUserPointsByUsername(string username, Guid pointType)
         {
             var viewer = await viewerFeature.GetViewerByUserName(username);
             if (viewer == null)
@@ -301,7 +301,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return Task.CompletedTask;
         }
 
-        public async Task<PointType?> GetPointTypeById(int pointTypeId)
+        public async Task<PointType?> GetPointTypeById(Guid pointTypeId)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -343,7 +343,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             await db.SaveChangesAsync();
         }
 
-        public async Task DeletePointType(int pointTypeId)
+        public async Task DeletePointType(Guid pointTypeId)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -360,7 +360,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
 
             var defaultPoint = new PointType
             {
-                Id = 1,
+                Id = Guid.NewGuid(),
                 Name = "Points",
                 Description = "Points earned by viewers",
             };
@@ -427,12 +427,12 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return gameSettingsService.RegisterDefaultPointForGame(gameName);
         }
 
-        public Task SetPointTypeForGame(string gameName, int pointTypeId)
+        public Task SetPointTypeForGame(string gameName, Guid pointTypeId)
         {
             return gameSettingsService.SetPointTypeForGame(gameName, pointTypeId);
         }
 
-        public async Task<bool> RemovePointsFromUserByUserId(string userId, int pointType, long points)
+        public async Task<bool> RemovePointsFromUserByUserId(string userId, Guid pointType, long points)
         {
             using var userLock = await UserLocks.AcquireAsync($"{userId}:{pointType}", CancellationToken.None);
             var userPoints = await GetUserPointsByUserId(userId, pointType);
@@ -460,7 +460,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return true;
         }
 
-        public async Task<bool> RemovePointsFromUserByUsername(string username, int pointType, long points)
+        public async Task<bool> RemovePointsFromUserByUsername(string username, Guid pointType, long points)
         {
             var viewer = await viewerFeature.GetViewerByUserName(username);
             if (viewer == null)
@@ -758,7 +758,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             }
         }
 
-        public async Task AddPointsToActiveUsers(int pointType, long points)
+        public async Task AddPointsToActiveUsers(Guid pointType, long points)
         {
             var activeViewers = viewerFeature.GetActiveViewers();
             if (IncludeSubsInActive)
@@ -778,7 +778,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             }
         }
 
-        public Task AddPointsToSubbedUsers(int pointType, long points)
+        public Task AddPointsToSubbedUsers(Guid pointType, long points)
         {
             viewerFeature.GetCurrentViewers().ForEach(async viewer =>
             {
@@ -790,7 +790,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return Task.CompletedTask;
         }
 
-        public Task AddPointsToAllCurrentUsers(int pointType, long points)
+        public Task AddPointsToAllCurrentUsers(Guid pointType, long points)
         {
             viewerFeature.GetCurrentViewers().ForEach(async viewer =>
             {
@@ -799,7 +799,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return Task.CompletedTask;
         }
 
-        public async Task<UserPointsWithRank> GetPointsWithRankByUsername(string name, int pointType)
+        public async Task<UserPointsWithRank> GetPointsWithRankByUsername(string name, Guid pointType)
         {
             var viewer = await viewerFeature.GetViewerByUserName(name);
             if (viewer == null)
@@ -816,7 +816,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return await GetPointsWithRankByUserId(viewer.UserId, pointType);
         }
 
-        public async Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, int pointType)
+        public async Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, Guid pointType)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -834,7 +834,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
 
         }
 
-        private async Task SendPointsMessage(CommandEventArgs e, int pointType)
+        private async Task SendPointsMessage(CommandEventArgs e, Guid pointType)
         {
             var userId = e.UserId;
             await using var scope = scopeFactory.CreateAsyncScope();
@@ -851,7 +851,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             }
         }
 
-        public async Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, int pointType)
+        public async Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, Guid pointType)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

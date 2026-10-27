@@ -33,16 +33,16 @@
     @if (!_showCreateForm)
     {
         <!-- Selection Mode -->
-        <MudSelect T="int?" Value="_selectedKeywordId" Label="@SelectLabel" Variant="Variant.Outlined" 
+        <MudSelect T="Guid?" Value="_selectedKeywordId" Label="@SelectLabel" Variant="Variant.Outlined" 
                    Required="@Required" 
                    ValueChanged="OnKeywordSelectedInternal">
             @if (AllowNone)
             {
-                <MudSelectItem T="int?" Value="null">None</MudSelectItem>
+                <MudSelectItem T="Guid?" Value="null">None</MudSelectItem>
             }
             @foreach (var keyword in _keywords)
             {
-                <MudSelectItem T="int?" Value="@keyword.Id">
+                <MudSelectItem T="Guid?" Value="@keyword.Id">
                     @keyword.CommandName @(keyword.IsRegex ? "(Regex)" : "")
                 </MudSelectItem>
             }
@@ -73,8 +73,8 @@
 </MudStack>
 
 @code {
-    [Parameter] public int? SelectedKeywordId { get; set; }
-    [Parameter] public EventCallback<int?> SelectedKeywordIdChanged { get; set; }
+    [Parameter] public Guid? SelectedKeywordId { get; set; }
+    [Parameter] public EventCallback<Guid?> SelectedKeywordIdChanged { get; set; }
     [Parameter] public EventCallback<ActionKeyword> OnKeywordCreated { get; set; }
     [Parameter] public string SelectLabel { get; set; } = "Select Keyword";
     [Parameter] public bool Required { get; set; } = true;
@@ -82,7 +82,7 @@
     [Parameter] public bool AllowCreate { get; set; } = true;
 
     private List<ActionKeyword> _keywords = new();
-    private int? _selectedKeywordId;
+    private Guid? _selectedKeywordId;
     private bool _showCreateForm = false;
     private ActionKeyword _newKeyword = new();
 
@@ -105,7 +105,7 @@
         _keywords = (await KeywordService.GetAllAsync()).OrderBy(k => k.CommandName).ToList();
     }
 
-    private async Task OnKeywordSelectedInternal(int? keywordId)
+    private async Task OnKeywordSelectedInternal(Guid? keywordId)
     {
         _selectedKeywordId = keywordId;
         await SelectedKeywordIdChanged.InvokeAsync(keywordId);

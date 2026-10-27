@@ -2,6 +2,8 @@
 @using PenguinTwitchBot.Services
 @using PenguinTwitchBot.Shared.Help
 @using System.IO
+@using PenguinTwitchBot.Database.Bot.DatabaseTools
+@using Microsoft.AspNetCore.Components.Forms
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Admin Admin
 @inject PenguinTwitchBot.Database.Bot.DatabaseTools.IBackupTools BackupTools
 @inject IBackupSettingsService BackupSettings
@@ -19,6 +21,13 @@
                 <MudText Typo="Typo.body2" Color="Color.Secondary">Create, download, and restore compressed database backups with automated retention.</MudText>
             </div>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudFileUpload T="IBrowserFile" Accept=".zip" FilesChanged="UploadBackupArchive">
+                    <CustomContent>
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudUpload" Disabled="_uploading" OnClick="@context.OpenFilePickerAsync">
+                            @(_uploading ? "Uploading..." : "Upload Backup (.zip)")
+                        </MudButton>
+                    </CustomContent>
+                </MudFileUpload>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Backup" OnClick="BackupDatabase">
                     Create Backup
                 </MudButton>
@@ -76,12 +85,50 @@
                     <MudTh>File Name</MudTh>
                     <MudTh>Creation Time</MudTh>
                     <MudTh>Size</MudTh>
+                    <MudTh>Format</MudTh>
+                    <MudTh>Migration ID</MudTh>
+                    <MudTh>Rows</MudTh>
                     <MudTh Style="text-align: right;">Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
+                    @{
+                        var manifest = GetOrLoadManifest(context);
+                    }
                     <MudTd DataLabel="File Name">@context.Name</MudTd>
                     <MudTd DataLabel="Creation Time">@context.CreationTime.ToString("yyyy-MM-dd HH:mm")</MudTd>
                     <MudTd DataLabel="Size">@FormatBytes(context.Length)</MudTd>
+                    <MudTd DataLabel="Format">
+                        @if (manifest != null)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">v@manifest.FormatVersion</MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Legacy / Unknown</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Migration ID">
+                        @if (!string.IsNullOrWhiteSpace(manifest?.LatestMigrationId))
+                        {
+                            <MudTooltip Text="@manifest.LatestMigrationId">
+                                <MudText Typo="Typo.body2">@(manifest.LatestMigrationId.Length > 20 ? manifest.LatestMigrationId[..20] + "..." : manifest.LatestMigrationId)</MudText>
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Rows">
+                        @if (manifest != null)
+                        {
+                            <MudText Typo="Typo.body2">@manifest.Tables.Values.Sum(t => t.RowCount).ToString("N0")</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                        }
+                    </MudTd>
                     <MudTd DataLabel="Actions" Style="text-align: right;">
                         <MudStack Row="true" Style="justify-content: flex-end;" Spacing="1">
                             <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" OnClick="() => RestoreBackup(context)" StartIcon="@Icons.Material.Filled.Restore">
@@ -100,10 +147,12 @@
 
 @code {
     private List<FileInfo> _backups = new();
+    private readonly Dictionary<string, BackupManifest?> _manifestCache = new(StringComparer.OrdinalIgnoreCase);
     private int _maxBackups = 15;
     private int _maxDays = 15;
     private int _chatHistoryMonthsToBackup = 12;
     private bool _saving;
+    private bool _uploading;
 
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
@@ -111,6 +160,77 @@
     {
         await LoadSettingsAsync();
         await RefreshBackupsAsync();
+    }
+
+    private BackupManifest? GetOrLoadManifest(FileInfo fileInfo)
+    {
+        if (_manifestCache.TryGetValue(fileInfo.FullName, out var cached))
+        {
+            return cached;
+        }
+
+        try
+        {
+            var manifest = BackupTools.ValidateBackupArchive(fileInfo.FullName);
+            _manifestCache[fileInfo.FullName] = manifest;
+            return manifest;
+        }
+        catch
+        {
+            _manifestCache[fileInfo.FullName] = null;
+            return null;
+        }
+    }
+
+    private async Task UploadBackupArchive(IBrowserFile file)
+    {
+        if (file == null) return;
+
+        if (!file.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add("Only .zip backup archives can be uploaded.", Severity.Error);
+            return;
+        }
+
+        _uploading = true;
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zip");
+        try
+        {
+            await using (var stream = file.OpenReadStream(maxAllowedSize: 500 * 1024 * 1024))
+            await using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write))
+            {
+                await stream.CopyToAsync(fs);
+            }
+
+            var manifest = BackupTools.ValidateBackupArchive(tempFile);
+
+            var destFile = Path.Combine(BackupTools.BackupDirectory, file.Name);
+            if (File.Exists(destFile))
+            {
+                var nameWithoutExt = Path.GetFileNameWithoutExtension(file.Name);
+                destFile = Path.Combine(BackupTools.BackupDirectory, $"{nameWithoutExt}_{DateTime.UtcNow:yyyyMMddHHmmss}.zip");
+            }
+
+            File.Move(tempFile, destFile, overwrite: true);
+            _manifestCache[destFile] = manifest;
+
+            var totalRows = manifest.Tables.Values.Sum(t => t.RowCount);
+            Snackbar.Add($"Backup uploaded and validated successfully! Format v{manifest.FormatVersion}, Migration: {manifest.LatestMigrationId ?? "N/A"}, Tables: {manifest.Tables.Count}, Total Rows: {totalRows:N0}", Severity.Success);
+
+            await RefreshBackupsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to upload backup archive: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                try { File.Delete(tempFile); } catch { /* ignore */ }
+            }
+            _uploading = false;
+        }
     }
 
     private async Task LoadSettingsAsync()
@@ -163,6 +283,7 @@
 
     private async Task RefreshBackupsAsync()
     {
+        _manifestCache.Clear();
         _backups = BackupTools.GetBackupFiles(BackupTools.BackupDirectory)
             .OrderByDescending(x => x.CreationTime)
             .ToList();

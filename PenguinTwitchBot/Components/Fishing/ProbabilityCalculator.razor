@@ -123,12 +123,12 @@
 </MudPaper>
 
 @code {
-    [Parameter] public List<int> EquippedItemIds { get; set; } = new();
+    [Parameter] public List<Guid> EquippedItemIds { get; set; } = new();
     
     private bool useBoostMode = false;
     private double boostMultiplier = 5.0;
     private RarityProbability? rarityProbs;
-    private Dictionary<int, FishProbability>? fishProbs;
+    private Dictionary<Guid, FishProbability>? fishProbs;
     private string fishFilter = string.Empty;
     private bool isCalculating = false;
 
@@ -155,9 +155,9 @@
         }
     }
 
-    private IEnumerable<KeyValuePair<int, FishProbability>> GetFilteredFish()
+    private IEnumerable<KeyValuePair<Guid, FishProbability>> GetFilteredFish()
     {
-        if (fishProbs == null) return Enumerable.Empty<KeyValuePair<int, FishProbability>>();
+        if (fishProbs == null) return Enumerable.Empty<KeyValuePair<Guid, FishProbability>>();
 
         var filtered = fishProbs.AsEnumerable();
 

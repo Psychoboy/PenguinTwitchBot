@@ -100,12 +100,12 @@
 </MudPaper>
 
 @code {
-    [Parameter] public List<int> EquippedItemIds { get; set; } = new();
+    [Parameter] public List<Guid> EquippedItemIds { get; set; } = new();
     [Parameter] public bool ShowTopFish { get; set; } = true;
     [Parameter] public EventCallback OnRefresh { get; set; }
 
     private RarityProbability? rarityProbs;
-    private Dictionary<int, FishProbability>? topFish;
+    private Dictionary<Guid, FishProbability>? topFish;
     private bool isLoading = false;
 
     protected override async Task OnInitializedAsync()
@@ -116,14 +116,14 @@
     protected override async Task OnParametersSetAsync()
     {
         // Only reload if equipped items actually changed
-        if (EquippedItemIds != null && !EquippedItemIds.SequenceEqual(_previousEquippedItemIds ?? new List<int>()))
+        if (EquippedItemIds != null && !EquippedItemIds.SequenceEqual(_previousEquippedItemIds ?? new List<Guid>()))
         {
             _previousEquippedItemIds = EquippedItemIds.ToList();
             await LoadProbabilities();
         }
     }
 
-    private List<int>? _previousEquippedItemIds = null;
+    private List<Guid>? _previousEquippedItemIds = null;
 
     private async Task LoadProbabilities()
     {

@@ -174,7 +174,7 @@
     public LogicIfElseType IfElseType { get; set; } = null!;
 
     [Parameter]
-    public int? ActionId { get; set; }
+    public Guid? ActionId { get; set; }
 
     [Parameter]
     public IEnumerable<TriggerType>? Triggers { get; set; }
@@ -231,7 +231,7 @@
         var result = await dialog.Result;
         if (result != null && !result.Canceled && result.Data is SubActionType newSubAction)
         {
-            newSubAction.Id = 0; // Ensure new entity for EF Core tracking
+            newSubAction.Id = Guid.Empty; // Ensure new entity for EF Core tracking
             newSubAction.Index = IfElseType.TrueSubActions.Count;
             IfElseType.TrueSubActions.Add(newSubAction);
             StateHasChanged();
@@ -360,7 +360,7 @@
         var result = await dialog.Result;
         if (result != null && !result.Canceled && result.Data is SubActionType newSubAction)
         {
-            newSubAction.Id = 0; // Ensure new entity for EF Core tracking
+            newSubAction.Id = Guid.Empty; // Ensure new entity for EF Core tracking
             newSubAction.Index = IfElseType.FalseSubActions.Count;
             IfElseType.FalseSubActions.Add(newSubAction);
             StateHasChanged();

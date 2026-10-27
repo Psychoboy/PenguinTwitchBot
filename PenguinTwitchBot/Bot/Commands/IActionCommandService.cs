@@ -5,10 +5,10 @@ namespace PenguinTwitchBot.Bot.Commands
     public interface IActionCommandService
     {
         Task<List<ActionCommand>> GetAllAsync();
-        Task<ActionCommand?> GetByIdAsync(int id);
+        Task<ActionCommand?> GetByIdAsync(Guid id);
         Task<ActionCommand> AddAsync(ActionCommand command);
         Task<ActionCommand> UpdateAsync(ActionCommand command);
-        Task DeleteAsync(int id);
+        Task DeleteAsync(Guid id);
         Task<bool> CommandExistsAsync(string commandName);
         Task<ActionCommand?> GetByCommandNameAsync(string commandName);
     }

@@ -1,4 +1,4 @@
-@page "/viewplaylist/{id:int}"
+@page "/viewplaylist/{id:guid}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 
@@ -35,13 +35,12 @@
 }
 @code {
     [Parameter]
-    public int id { get; set; }
+    public Guid id { get; set; }
     private MusicPlaylist? musicPlaylist { get; set; }
 
-    protected override async void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         musicPlaylist = await YtPlayer.GetPlayList(id);
-        StateHasChanged();
     }
 
     private async Task RemoveSong(Song song)

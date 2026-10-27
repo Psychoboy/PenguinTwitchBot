@@ -7,8 +7,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Points
     public class PointType
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public ICollection<UserPoints> UserPoints { get; set; } = [];
         public string Name { get; set; } = null!;
         public string Description { get; set; } = "";
@@ -28,6 +27,6 @@ namespace PenguinTwitchBot.Database.Bot.Models.Points
         public long PassivePointsAllViewers { get; set; } = 0;
         public long PassivePointsActiveViewers { get; set; } = 0;
         public long PassivePointsSubscribers { get; set; } = 0;
-        public int GetId() { return Id ?? 0; }
+        public Guid GetId() { return Id; }
     }
 }

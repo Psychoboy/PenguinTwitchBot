@@ -52,13 +52,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionUserFacingException(subAction, "Target user not found: {0}", targetName);
             var from = await viewerFeature.GetViewerByUserName(fromName) ??
                 throw new SubActionUserFacingException(subAction, "From user not found: {0}", fromName);
-            if(pointType.Id == null)
+            if(pointType.Id == Guid.Empty)
             {
                 throw new SubActionUserFacingException(subAction, "Point type ID is null for point type: {0}", pointType.Name);
             }
-            if (await pointsSystem.RemovePointsFromUserByUserId(from.UserId, pointType.Id.Value, amount))
+            if (await pointsSystem.RemovePointsFromUserByUserId(from.UserId, pointType.Id, amount))
             {
-                await pointsSystem.AddPointsByUserId(target.UserId, pointType.Id.Value, amount);
+                await pointsSystem.AddPointsByUserId(target.UserId, pointType.Id, amount);
                 logger.LogInformation("Gifted {Amount} {PointType} from {From} to {Target}", amount, pointType.Name, from.Username, target.Username);
             }
             else

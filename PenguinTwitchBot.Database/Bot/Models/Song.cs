@@ -5,16 +5,13 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class Song
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string SongId { get; set; } = null!;
         public string Title { get; set; } = null!;
         public string RequestedBy { get; set; } = "";
         public TimeSpan Duration { get; set; }
 
-        [JsonIgnore]
-        public int MusicPlaylistId { get; set; }
+        public Guid MusicPlaylistId { get; set; }
         [JsonIgnore]
         public MusicPlaylist MusicPlaylist { get; set; } = null!;
 

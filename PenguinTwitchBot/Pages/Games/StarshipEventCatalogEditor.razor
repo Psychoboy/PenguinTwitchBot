@@ -378,8 +378,8 @@
 
 @code {
     [Parameter, EditorRequired] public StarshipExpeditionSettings Settings { get; set; } = default!;
-    [Parameter] public IReadOnlyDictionary<int, string> PointTypes { get; set; } = new Dictionary<int, string>();
-    [Parameter] public IReadOnlyDictionary<int, string> Actions { get; set; } = new Dictionary<int, string>();
+    [Parameter] public IReadOnlyDictionary<Guid, string> PointTypes { get; set; } = new Dictionary<Guid, string>();
+    [Parameter] public IReadOnlyDictionary<Guid, string> Actions { get; set; } = new Dictionary<Guid, string>();
     [Parameter] public EventCallback<StarshipEventDefinition> EventApplied { get; set; }
     [Parameter] public EventCallback<string> EventDeleted { get; set; }
     private StarshipEventDraft? _draft;

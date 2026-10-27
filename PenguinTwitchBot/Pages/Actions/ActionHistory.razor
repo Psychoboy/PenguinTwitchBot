@@ -182,7 +182,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "actionId")]
-    public int? ActionIdFilter { get; set; }
+    public Guid? ActionIdFilter { get; set; }
 
     private List<ActionExecutionLog> _executionLogs = new();
     private List<ActionExecutionLog> _allLogs = new();
@@ -196,7 +196,7 @@
     private bool _updatesPaused = false;
     private int _pendingUpdatesCount = 0;
     private MudTable<ActionExecutionLog>? _table;
-    private int? _lastActionIdFilter;
+    private Guid? _lastActionIdFilter;
 
     protected override async Task OnInitializedAsync()
     {

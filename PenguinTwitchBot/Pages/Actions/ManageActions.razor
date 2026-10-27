@@ -99,14 +99,14 @@
                     }
                     else
                     {
-                        <MudList T="int?" SelectedValue="_selectedActionIdInList" Dense="true" @key="_actionsListRenderVersion">
+                        <MudList T="Guid?" SelectedValue="_selectedActionIdInList" Dense="true" @key="_actionsListRenderVersion">
                             @foreach (var group in _filteredActions.Select(a => (a.Group ?? string.Empty).Trim()).Distinct().Order())
                             {
                                 <MudListItem Text="@(string.IsNullOrWhiteSpace(group) ? Ungrouped : group)" Expanded="@(GetNormalizedGroup(group) == _expandedGroupInList)">
                                     <NestedList>
                                 @foreach (var action in _filteredActions.Where(a => (a.Group ?? string.Empty) == group))
                                 {
-                                    <MudListItem T="int?" Value="@action.Id" OnClick="@(() => OnActionSelected(action))">
+                                    <MudListItem T="Guid?" Value="@action.Id" OnClick="@(() => OnActionSelected(action))">
                                         <MudStack Spacing="0">
                                             <MudText Typo="Typo.body1">@action.Name</MudText>
                                             <MudStack Row="true" Spacing="1">
@@ -269,7 +269,7 @@
                             </MudExpansionPanel>
                         </MudExpansionPanels>
 
-                        @if (!_isNewAction && _selectedAction.Id.HasValue)
+                        @if (!_isNewAction && _selectedAction.Id != Guid.Empty)
                         {
                             <MudPaper Class="pa-4" Elevation="0" Outlined="true">
                                 <MudStack Spacing="2">
@@ -346,7 +346,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "actionId")]
-    public int? ActionIdFromQuery { get; set; }
+    public Guid? ActionIdFromQuery { get; set; }
 
     private List<ActionType> _actions = new();
     private List<ActionType> _filteredActions = new();
@@ -358,7 +358,7 @@
     private bool _isLoading = true;
     private bool _isNavigating = false;
     private bool _skipNextNavigationPrompt = false;
-    private int? _selectedActionIdInList;
+    private Guid? _selectedActionIdInList;
     private int _actionsListRenderVersion;
     private string _expandedGroupInList = string.Empty;
     private string _searchString = "";
@@ -389,7 +389,7 @@
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var actionIdStr = query["actionId"];
 
-        if (int.TryParse(actionIdStr, out var actionId))
+        if (Guid.TryParse(actionIdStr, out var actionId))
         {
             if (actionId != _selectedAction?.Id)
             {
@@ -551,9 +551,9 @@
         }
 
         ActionType? actionToEdit = action;
-        if (action.Id.HasValue)
+        if (action.Id != Guid.Empty)
         {
-            actionToEdit = await ActionService.GetActionByIdAsync(action.Id.Value);
+            actionToEdit = await ActionService.GetActionByIdAsync(action.Id);
             if (actionToEdit == null)
             {
                 Snackbar.Add("Unable to load action details.", Severity.Error);
@@ -563,7 +563,7 @@
 
         _selectedAction = actionToEdit;
         _selectedAction.CatchSubActions ??= new List<SubActionType>();
-        _isNewAction = !_selectedAction.Id.HasValue;
+        _isNewAction = _selectedAction.Id == Guid.Empty;
         _selectedActionIdInList = _selectedAction.Id;
         _expandedGroupInList = GetNormalizedGroup(_selectedAction.Group);
 
@@ -571,9 +571,9 @@
         CaptureOriginalSnapshot();
         LoadSelectedActionHistory();
 
-        if (action.Id.HasValue && !_isNavigating)
+        if (action.Id != Guid.Empty && !_isNavigating)
         {
-            NavigateToManagePage(action.Id.Value, false);
+            NavigateToManagePage(action.Id, false);
         }
     }
 
@@ -746,7 +746,8 @@
 
     private async Task OpenApiInfoDialog()
     {
-        if (_selectedAction?.Id is not int actionId) return;
+        if (_selectedAction == null || _selectedAction.Id == Guid.Empty) return;
+        var actionId = _selectedAction.Id;
         var parameters = new DialogParameters<ActionApiInfoDialog>
         {
             { x => x.ActionId, actionId },
@@ -758,7 +759,7 @@
 
     private async Task RunAction()
     {
-        if (_selectedAction == null || !_selectedAction.Id.HasValue) return;
+        if (_selectedAction == null || _selectedAction.Id == Guid.Empty) return;
         try
         {
             var variables = new System.Collections.Concurrent.ConcurrentDictionary<string, string>
@@ -792,7 +793,7 @@
 
             _selectedAction.Triggers = _actionTriggers;
 
-            if (_isNewAction || !_selectedAction.Id.HasValue)
+            if (_isNewAction || _selectedAction.Id == Guid.Empty)
             {
                 _selectedAction = await ActionService.CreateActionAsync(_selectedAction);
                 _isNewAction = false;
@@ -854,7 +855,7 @@
         {
             var duplicatedTrigger = new TriggerType
             {
-                Id = 0,
+                Id = Guid.Empty,
                 Name = trigger.Name,
                 Type = trigger.Type,
                 Configuration = trigger.Configuration,
@@ -880,7 +881,7 @@
 
     private async Task DeleteAction()
     {
-        if (_selectedAction == null || !_selectedAction.Id.HasValue) return;
+        if (_selectedAction == null || _selectedAction.Id == Guid.Empty) return;
 
         bool? result = await DialogService.ShowMessageBoxAsync(
             "Delete Action",
@@ -892,7 +893,7 @@
         {
             try
             {
-                await ActionService.DeleteActionAsync(_selectedAction.Id.Value);
+                await ActionService.DeleteActionAsync(_selectedAction.Id);
                 Snackbar.Add($"Action '{_selectedAction.Name}' deleted successfully", Severity.Success);
                 _selectedAction = null;
                 _selectedActionIdInList = null;
@@ -954,12 +955,12 @@
 
     private void ResetActionsListSelectionVisual()
     {
-        _selectedActionIdInList = _selectedAction?.Id;
+        _selectedActionIdInList = _selectedAction?.Id != Guid.Empty ? _selectedAction?.Id : null;
         _expandedGroupInList = GetNormalizedGroup(_selectedAction?.Group);
         _actionsListRenderVersion++;
     }
 
-    private void NavigateToManagePage(int? actionId = null, bool replace = false)
+    private void NavigateToManagePage(Guid? actionId = null, bool replace = false)
     {
         var targetPath = actionId.HasValue ? $"/actions/manage?actionId={actionId.Value}" : "/actions/manage";
         var currentPathAndQuery = new Uri(NavigationManager.Uri).PathAndQuery;
@@ -1008,7 +1009,7 @@
 
     private void OpenSelectedActionHistory()
     {
-        if (_selectedAction?.Id is int actionId)
+        if (_selectedAction?.Id is Guid actionId && actionId != Guid.Empty)
         {
             NavigationManager.NavigateTo($"/actions/history?actionId={actionId}");
         }
@@ -1017,7 +1018,7 @@
     private void OpenExecutionHistory(ActionExecutionLog executionLog)
     {
         var actionId = executionLog.ActionId ?? _selectedAction?.Id;
-        if (actionId.HasValue)
+        if (actionId.HasValue && actionId.Value != Guid.Empty)
         {
             NavigationManager.NavigateTo($"/actions/history?actionId={actionId.Value}");
         }
@@ -1028,7 +1029,7 @@
         var subActionType = subAction.GetType();
         var duplicatedSubAction = (SubActionType)Activator.CreateInstance(subActionType)!;
 
-        duplicatedSubAction.Id = 0;
+        duplicatedSubAction.Id = Guid.Empty;
         duplicatedSubAction.Index = subAction.Index;
         duplicatedSubAction.Text = subAction.Text;
         duplicatedSubAction.Enabled = subAction.Enabled;
@@ -1052,7 +1053,7 @@
     {
         _selectedActionExecutionLogsAll.Clear();
 
-        if (_selectedAction?.Id is not int actionId)
+        if (_selectedAction?.Id is not Guid actionId || actionId == Guid.Empty)
         {
             _selectedActionExecutionLogs.Clear();
             return;
@@ -1075,7 +1076,7 @@
 
     private void FilterSelectedActionHistory()
     {
-        if (_selectedAction?.Id is not int actionId)
+        if (_selectedAction?.Id is not Guid actionId || actionId == Guid.Empty)
         {
             _selectedActionExecutionLogs.Clear();
             return;

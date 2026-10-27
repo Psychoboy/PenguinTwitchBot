@@ -73,10 +73,10 @@
                         <MudNumericField @bind-Value="editorEntryFeeAmount" Label="Entry Fee Amount" Min="0" />
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <MudSelect T="int?" @bind-Value="editorEntryFeePointTypeId" Label="Entry Fee Point Type" Clearable="true" ToStringFunc="@(pointTypeId => GetPointTypeName(pointTypeId ?? 0))">
+                        <MudSelect T="Guid?" @bind-Value="editorEntryFeePointTypeId" Label="Entry Fee Point Type" Clearable="true" ToStringFunc="@(pointTypeId => GetPointTypeName(pointTypeId ?? Guid.Empty))">
                             @foreach (var pointType in pointTypes)
                             {
-                                <MudSelectItem Value="@(pointType.Id as int?)">@pointType.Name</MudSelectItem>
+                                <MudSelectItem Value="@((Guid?)pointType.Id)">@pointType.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -162,10 +162,10 @@
                                         </MudSelect>
                                     </MudItem>
                                     <MudItem xs="12" md="3">
-                                        <MudSelect T="int?" @bind-Value="item.Rule.TargetFishTypeId" Label="Target Fish" Clearable="true" Disabled="item.Rule.ScoreCategory != FishingTournamentScoreCategory.SpecificFish">
+                                        <MudSelect T="Guid?" @bind-Value="item.Rule.TargetFishTypeId" Label="Target Fish" Clearable="true" Disabled="item.Rule.ScoreCategory != FishingTournamentScoreCategory.SpecificFish">
                                             @foreach (var fish in fishTypes.Where(fish => selectedFishTypeIds.Contains(fish.Id)))
                                             {
-                                                <MudSelectItem Value="@(fish.Id as int?)">@fish.Name</MudSelectItem>
+                                                <MudSelectItem Value="@((Guid?)fish.Id)">@fish.Name</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </MudItem>
@@ -194,10 +194,10 @@
                                         }
                                     </MudItem>
                                     <MudItem xs="12" md="2">
-                                        <MudSelect T="int" @bind-Value="item.Rule.PointTypeId" Label="Point Type" ToStringFunc="@GetPointTypeName">
+                                        <MudSelect T="Guid" @bind-Value="item.Rule.PointTypeId" Label="Point Type" ToStringFunc="@GetPointTypeName">
                                             @foreach (var pointType in pointTypes)
                                             {
-                                                <MudSelectItem T="int" Value="@pointType.GetId()">@pointType.Name</MudSelectItem>
+                                                <MudSelectItem T="Guid" Value="@pointType.Id">@pointType.Name</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </MudItem>
@@ -298,7 +298,7 @@
     private readonly List<FishType> fishTypes = new();
     private readonly List<PointType> pointTypes = new();
     private readonly List<FishingTournamentRewardRule> rewardRules = new();
-    private readonly List<int> selectedFishTypeIds = new();
+    private readonly List<Guid> selectedFishTypeIds = new();
     private IReadOnlyCollection<string> selectedCategoryNames { get; set; } = new HashSet<string>();
     private readonly List<int> placementOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     private List<string> AvailableCategories => fishTypes
@@ -314,7 +314,7 @@
         FishingTournamentStatus.Cancelled
     ];
 
-    private int? editingTournamentId;
+    private Guid? editingTournamentId;
     private string editorTitle = "Create Tournament";
     private string editingTournamentStatus = FishingTournamentStatus.Draft.ToString();
     private string editorName = string.Empty;
@@ -326,7 +326,7 @@
     private bool editorEnabled = true;
     private int editorRunDurationMinutes = 60;
     private long? editorEntryFeeAmount;
-    private int? editorEntryFeePointTypeId;
+    private Guid? editorEntryFeePointTypeId;
     private string? errorMessage;
     private string? statusMessage;
     private bool isLoading = true;
@@ -440,7 +440,7 @@
             RewardKind = FishingTournamentRewardKind.Points,
             Placement = 1,
             Points = 0,
-            PointTypeId = pointTypes.FirstOrDefault()?.Id ?? 0,
+            PointTypeId = pointTypes.FirstOrDefault()?.Id ?? Guid.Empty,
             Enabled = true
         });
     }
@@ -499,7 +499,7 @@
         return fishIds.Count;
     }
 
-    private void ToggleFishSelection(int fishTypeId, ChangeEventArgs changeEventArgs)
+    private void ToggleFishSelection(Guid fishTypeId, ChangeEventArgs changeEventArgs)
     {
         var isSelected = changeEventArgs.Value is bool checkedValue && checkedValue;
         if (isSelected)
@@ -572,7 +572,7 @@
                     return;
                 }
 
-                if (rule.PointTypeId == 0)
+                if (rule.PointTypeId == Guid.Empty)
                 {
                     errorMessage = "Every reward rule needs a point type.";
                     return;
@@ -586,7 +586,7 @@
 
             var tournament = new FishingTournament
             {
-                Id = editingTournamentId ?? 0,
+                Id = editingTournamentId ?? Guid.Empty,
                 Name = editorName.Trim(),
                 Description = editorDescription?.Trim() ?? string.Empty,
                 Enabled = editorEnabled,
@@ -736,7 +736,7 @@
         {
             var duplicatedTournament = new FishingTournament
             {
-                Id = 0,
+                Id = Guid.Empty,
                 Name = $"{tournament.Name} (Copy)",
                 Description = tournament.Description,
                 Enabled = true,
@@ -864,7 +864,7 @@
         await DuplicateTournament(tournament);
     }
 
-    private string GetPointTypeName(int pointTypeId)
+    private string GetPointTypeName(Guid pointTypeId)
     {
         return pointTypes.FirstOrDefault(pointType => pointType.Id == pointTypeId)?.Name ?? "Select a point type";
     }

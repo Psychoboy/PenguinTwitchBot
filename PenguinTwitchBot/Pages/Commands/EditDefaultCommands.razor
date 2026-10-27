@@ -1,4 +1,4 @@
-@page "/commands/default/{id:int}"
+@page "/commands/default/{id:guid}"
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @using System.ComponentModel.DataAnnotations
@@ -214,7 +214,7 @@
 @code
 {
     [Parameter]
-    public int id { get; set; }
+    public Guid id { get; set; }
     private DefaultCommand? defaultCommand;
     [Inject] private IDialogService DialogService { get; set; } = default!;
     IReadOnlyCollection<Rank> ranks = [];
@@ -222,12 +222,11 @@
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     private string SpecificUsersOnly { get; set; } = "";
 
-    protected override async void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         defaultCommand = await CommandHandler.GetDefaultCommandById(id);
         ranks = defaultCommand != null ? defaultCommand.SpecificRanks : new HashSet<Rank>();
         PointTypes = await pointSystem.GetPointTypes();
-        StateHasChanged();
     }
 
     public async void OnSubmit()

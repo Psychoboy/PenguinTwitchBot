@@ -24,16 +24,16 @@ public class ActionVariableResolver(
         (triggerResolvers?.ToList() ?? GetDefaultTriggerResolvers());
 
     public async Task<List<ActionVariableInfo>> ResolveVariablesAsync(
-        int? currentActionId,
+        Guid? currentActionId,
         IEnumerable<TriggerType>? triggers,
         IEnumerable<SubActionType>? previousSubActions,
         bool isCatchSubAction = false,
-        HashSet<int>? visitedActionIds = null)
+        HashSet<Guid>? visitedActionIds = null)
     {
         var variables = new Dictionary<string, ActionVariableInfo>(StringComparer.OrdinalIgnoreCase);
-        visitedActionIds ??= new HashSet<int>();
+        visitedActionIds ??= new HashSet<Guid>();
 
-        if (currentActionId.HasValue)
+        if (currentActionId.HasValue && currentActionId.Value != Guid.Empty)
         {
             visitedActionIds.Add(currentActionId.Value);
         }
@@ -42,7 +42,7 @@ public class ActionVariableResolver(
         ResolveSystemVariables(variables);
 
         // 2. Caller Actions (via ExecuteAction)
-        if (currentActionId.HasValue)
+        if (currentActionId.HasValue && currentActionId.Value != Guid.Empty)
         {
             List<ActionType>? allActions = null;
             try
@@ -137,9 +137,9 @@ public class ActionVariableResolver(
     }
 
     private void ResolveCallerActions(
-        int targetActionId,
+        Guid targetActionId,
         Dictionary<string, ActionVariableInfo> variables,
-        HashSet<int> visitedActionIds,
+        HashSet<Guid> visitedActionIds,
         List<ActionType> allActions,
         int depth)
     {
@@ -151,7 +151,7 @@ public class ActionVariableResolver(
 
             foreach (var (callerAction, execSubAction, subActionIdx) in callers)
             {
-                if (!callerAction.Id.HasValue || !visitedActionIds.Add(callerAction.Id.Value))
+                if (callerAction.Id == Guid.Empty || !visitedActionIds.Add(callerAction.Id))
                 {
                     continue; // Skip already visited caller action to prevent loops
                 }
@@ -181,7 +181,7 @@ public class ActionVariableResolver(
                 variables.SetVariable("TargetUser", "Target user specified by caller action", callerLabel, "Caller Actions", "TargetViewer");
 
                 // Recursively check callers of the caller
-                ResolveCallerActions(callerAction.Id.Value, variables, visitedActionIds, allActions, depth + 1);
+                ResolveCallerActions(callerAction.Id, variables, visitedActionIds, allActions, depth + 1);
             }
         }
         catch (Exception ex)
@@ -191,7 +191,7 @@ public class ActionVariableResolver(
     }
 
     private static List<(ActionType CallerAction, ExecuteActionType ExecSubAction, int SubActionIndex)> FindCallerActions(
-        int targetActionId,
+        Guid targetActionId,
         IEnumerable<ActionType> allActions)
     {
         var result = new List<(ActionType CallerAction, ExecuteActionType ExecSubAction, int SubActionIndex)>();
@@ -226,7 +226,7 @@ public class ActionVariableResolver(
 
     private static bool ContainsExecuteAction(
         SubActionType subAction,
-        int targetActionId,
+        Guid targetActionId,
         out ExecuteActionType? matchingExec)
     {
         if (subAction is ExecuteActionType exec && exec.ActionId == targetActionId)

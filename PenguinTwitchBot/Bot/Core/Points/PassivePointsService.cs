@@ -17,7 +17,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
         private readonly TimeProvider _timeProvider;
         private readonly Timer _tickTimer = new(TimeSpan.FromMinutes(1).TotalMilliseconds);
         private readonly SemaphoreSlim _distributionLock = new(1, 1);
-        private readonly ConcurrentDictionary<int, DateTime> _lastAwardedUtc = new();
+        private readonly ConcurrentDictionary<Guid, DateTime> _lastAwardedUtc = new();
 
         public PassivePointsService(
             ILogger<PassivePointsService> logger,
@@ -56,9 +56,9 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return Task.CompletedTask;
         }
 
-        public void ResetScheduleForPointType(int pointTypeId)
+        public void ResetScheduleForPointType(Guid pointTypeId)
         {
-            if (pointTypeId <= 0) return;
+            if (pointTypeId == Guid.Empty) return;
             _lastAwardedUtc[pointTypeId] = _timeProvider.GetUtcNow().UtcDateTime;
         }
 
@@ -109,7 +109,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
                     cancellationToken.ThrowIfCancellationRequested();
 
                     var pointTypeId = pointType.GetId();
-                    if (pointTypeId <= 0) continue;
+                    if (pointTypeId == Guid.Empty) continue;
 
                     if (!pointType.PassivePointsEnabled ||
                         (pointType.PassivePointsAllViewers <= 0 &&
@@ -143,7 +143,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
         public async Task DistributeForPointTypeAsync(PointType pointType, CancellationToken cancellationToken = default)
         {
             var pointTypeId = pointType.GetId();
-            if (pointTypeId <= 0) return;
+            if (pointTypeId == Guid.Empty) return;
 
             var allAmount = Math.Max(0, pointType.PassivePointsAllViewers);
             var activeAmount = Math.Max(0, pointType.PassivePointsActiveViewers);

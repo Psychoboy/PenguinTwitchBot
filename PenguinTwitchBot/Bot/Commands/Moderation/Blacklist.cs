@@ -51,7 +51,7 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
             await LoadBlacklist();
         }
 
-        public async Task<WordFilter?> GetWordFilter(int id)
+        public async Task<WordFilter?> GetWordFilter(Guid id)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

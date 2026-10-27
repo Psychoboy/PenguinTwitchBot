@@ -5,13 +5,13 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     public class FishCatch
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         [MaxLength(255)]
         public string UserId { get; set; } = string.Empty;
 
         public string Username { get; set; } = string.Empty;
-        public int FishTypeId { get; set; }
+        public Guid FishTypeId { get; set; }
         public virtual FishType? FishType { get; set; }
         public int Stars { get; set; } = 1;
         public double Weight { get; set; } = 0;

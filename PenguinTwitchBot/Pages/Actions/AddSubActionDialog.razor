@@ -201,7 +201,7 @@
     public SubActionType? ExistingSubAction { get; set; }
 
     [Parameter]
-    public int? ActionId { get; set; }
+    public Guid? ActionId { get; set; }
 
     [Parameter]
     public IEnumerable<TriggerType>? Triggers { get; set; }
@@ -695,7 +695,7 @@
         }
         else if (_currentSubAction != null)
         {
-            _currentSubAction.Id = 0;
+            _currentSubAction.Id = Guid.Empty;
         }
         
         MudDialog.Close(DialogResult.Ok(_currentSubAction));

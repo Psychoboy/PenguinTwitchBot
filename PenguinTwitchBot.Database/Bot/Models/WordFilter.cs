@@ -9,9 +9,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class WordFilter
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public int TimeOutLength { get; set; } = 300;
         public bool PermaBan { get; set; } = false;
         public bool IsRegex { get; set; } = false;

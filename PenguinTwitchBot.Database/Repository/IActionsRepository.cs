@@ -1,22 +1,16 @@
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
-using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Database.Repository
 {
     public interface IActionsRepository : IGenericRepository<ActionType>
     {
-        Task<ActionType?> GetByIdWithDetailsAsync(int id);
+        Task<ActionType?> GetByIdWithDetailsAsync(Guid id);
         Task<List<ActionType>> GetAllWithDetailsAsync();
         Task<ActionType> CreateActionAsync(ActionType action);
         Task<ActionType> UpdateActionAsync(ActionType action);
-        Task DeleteActionAsync(int id);
+        Task DeleteActionAsync(Guid id);
         Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName);
-        Task UpdateExecuteActionNamesForRenamedAction(int actionId, string newName);
-        Task UpdateCommandTriggerConfigurationsForRenamedCommand(int commandId, string oldCommandName, string newCommandName);
-        Task UpdateKeywordTriggerConfigurationsForRenamedKeyword(int keywordId, string oldKeywordName, string newKeywordName);
-        Task UpdateTimerGroupNamesForRenamedTimerGroup(int timerGroupId, string newName);
         Task UpdateToggleCommandDisabledNamesForRenamedCommand(string oldCommandName, string newCommandName);
-        Task RemapEntityReferencesAfterRestore(ILogger? logger = null);
     }
 }

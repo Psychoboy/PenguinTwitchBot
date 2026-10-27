@@ -9,7 +9,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Overlay
     public class OverlayLayout
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         [Required]
         [MaxLength(100)]

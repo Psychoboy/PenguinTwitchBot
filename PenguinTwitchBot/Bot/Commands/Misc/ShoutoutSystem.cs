@@ -173,7 +173,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             await db.SaveChangesAsync();
         }
 
-        public async Task<AutoShoutout?> GetAutoShoutoutAsync(int id)
+        public async Task<AutoShoutout?> GetAutoShoutoutAsync(Guid id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

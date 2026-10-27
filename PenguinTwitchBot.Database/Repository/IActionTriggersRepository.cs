@@ -1,17 +1,15 @@
-using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
-using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Database.Repository
 {
     public interface IActionTriggersRepository
     {
-        Task<ActionTrigger?> GetByIdAsync(int id);
-        Task<List<ActionTrigger>> GetByActionIdAsync(int actionId);
-        Task<List<ActionTrigger>> GetByTriggerIdAsync(int triggerId);
+        Task<ActionTrigger?> GetByIdAsync(Guid id);
+        Task<List<ActionTrigger>> GetByActionIdAsync(Guid actionId);
+        Task<List<ActionTrigger>> GetByTriggerIdAsync(Guid triggerId);
         Task<ActionTrigger> AddAsync(ActionTrigger actionTrigger);
-        Task DeleteAsync(int id);
-        Task DeleteByActionAndTriggerAsync(int actionId, int triggerId);
-        Task<bool> ExistsAsync(int actionId, int triggerId);
+        Task DeleteAsync(Guid id);
+        Task DeleteByActionAndTriggerAsync(Guid actionId, Guid triggerId);
+        Task<bool> ExistsAsync(Guid actionId, Guid triggerId);
     }
 }

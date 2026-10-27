@@ -1,8 +1,5 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace PenguinTwitchBot.Database.Repository.Repositories
 {
@@ -12,7 +9,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         {
         }
 
-        public new async Task<TriggerType?> GetByIdAsync(int id)
+        public new async Task<TriggerType?> GetByIdAsync(Guid id)
         {
             return await _context.Triggers
                 .AsNoTracking()
@@ -39,7 +36,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<TriggerType>> GetTriggersForActionAsync(int actionId)
+        public async Task<List<TriggerType>> GetTriggersForActionAsync(Guid actionId)
         {
             return await _context.Triggers
                 .AsNoTracking()
@@ -65,7 +62,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             return trigger;
         }
 
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(Guid id)
         {
             var trigger = await _context.Triggers.FindAsync(id);
             if (trigger != null)
@@ -78,7 +75,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         /// <summary>
         /// Efficiently queries triggers by TimerGroupId using the reference column instead of JSON deserialization.
         /// </summary>
-        public async Task<List<TriggerType>> GetByTimerGroupIdAsync(int timerGroupId)
+        public async Task<List<TriggerType>> GetByTimerGroupIdAsync(Guid timerGroupId)
         {
             return await _context.Triggers
                 .AsNoTracking()
@@ -92,7 +89,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         /// <summary>
         /// Efficiently queries triggers by CommandId using the reference column instead of JSON deserialization.
         /// </summary>
-        public async Task<List<TriggerType>> GetByCommandIdAsync(int commandId)
+        public async Task<List<TriggerType>> GetByCommandIdAsync(Guid commandId)
         {
             return await _context.Triggers
                 .AsNoTracking()
@@ -106,7 +103,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         /// <summary>
         /// Efficiently queries triggers by DefaultCommandId using the reference column instead of JSON deserialization.
         /// </summary>
-        public async Task<List<TriggerType>> GetByDefaultCommandIdAsync(int defaultCommandId)
+        public async Task<List<TriggerType>> GetByDefaultCommandIdAsync(Guid defaultCommandId)
         {
             return await _context.Triggers
                 .AsNoTracking()
@@ -120,7 +117,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         /// <summary>
         /// Efficiently queries triggers by KeywordId using the reference column instead of JSON deserialization.
         /// </summary>
-        public async Task<List<TriggerType>> GetByKeywordIdAsync(int keywordId)
+        public async Task<List<TriggerType>> GetByKeywordIdAsync(Guid keywordId)
         {
             return await _context.Triggers
                 .AsNoTracking()
@@ -129,22 +126,6 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .Where(t => t.Type == TriggerTypes.Keyword && t.KeywordId == keywordId)
                 .OrderBy(t => t.Name)
                 .ToListAsync();
-        }
-
-        public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            // No-op: Triggers are now backed up as children of Actions
-            // They are included when ActionsRepository backs up with .Include(a => a.Triggers)
-            logger?.LogDebug("Skipping TriggerType backup - backed up with Actions");
-            await Task.CompletedTask;
-        }
-
-        public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            // No-op: Triggers are now restored as children of Actions
-            // They are restored when ActionsRepository restores with .Include(a => a.Triggers)
-            logger?.LogDebug("Skipping TriggerType restore - restored with Actions");
-            await Task.CompletedTask;
         }
     }
 }

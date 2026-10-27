@@ -12,8 +12,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Games;
 public sealed class StarshipExpeditionHistoryRow
 {
     [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public Guid ExpeditionId { get; set; }
 

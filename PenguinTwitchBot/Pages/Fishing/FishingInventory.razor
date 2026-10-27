@@ -693,9 +693,9 @@
 
     // Performance optimization: cached filter results and lookups
     private List<UserFishingBoost>? cachedFilteredItems = null;
-    private Dictionary<int, string> fishTypeLookup = new();
-    private Dictionary<int, EquipmentTier> tierMap = new(); // Dynamic tier assignments
-    private List<int> equippedItemIds = new();
+    private Dictionary<Guid, string> fishTypeLookup = new();
+    private Dictionary<Guid, EquipmentTier> tierMap = new(); // Dynamic tier assignments
+    private List<Guid> equippedItemIds = new();
     private List<FishingShopItem> equippedShopItems = new();
 
     private bool equipDialogVisible = false;
@@ -810,7 +810,7 @@
         return cachedFilteredItems;
     }
 
-    private async Task SellItem(int userBoostId)
+    private async Task SellItem(Guid userBoostId)
     {
        
         try
@@ -849,7 +849,7 @@
                }
            }
 
-           private async Task EquipItem(int userBoostId)
+           private async Task EquipItem(Guid userBoostId)
            {
                try
                {
@@ -863,7 +863,7 @@
                }
            }
 
-           private async Task UnequipItem(int userBoostId)
+           private async Task UnequipItem(Guid userBoostId)
            {
                try
                {
@@ -877,7 +877,7 @@
                }
            }
 
-    private async Task RepairItem(int userBoostId)
+    private async Task RepairItem(Guid userBoostId)
     {
         try
         {
@@ -995,7 +995,7 @@
         equipDialogVisible = true;
     }
 
-    private async Task EquipItemFromDialog(int userBoostId)
+    private async Task EquipItemFromDialog(Guid userBoostId)
     {
         equipDialogVisible = false;
         await EquipItem(userBoostId);

@@ -511,9 +511,9 @@
     private List<UserFishingBoost> userBoosts = new();
     private int userGold = 0;
     private bool isPurchasing = false;
-    private int? confirmingPurchaseItemId = null;
-    private readonly Dictionary<int, int> purchaseQuantities = new();
-    private int? sellingBoostId = null;
+    private Guid? confirmingPurchaseItemId = null;
+    private readonly Dictionary<Guid, int> purchaseQuantities = new();
+    private Guid? sellingBoostId = null;
     private bool isLoading = false;
     private OwnedItemsSortOption ownedItemsSort = OwnedItemsSortOption.PurchasedNewest;
 
@@ -589,12 +589,12 @@
 
     // Performance optimization: cached filter results and lookups
     private List<FishingShopItem> filteredShopItems = new();
-    private Dictionary<int, string> fishTypeLookup = new();
-    private Dictionary<int, FishType> fishTypesById = new();
-    private Dictionary<int, FishingShopItem> shopItemsById = new();
+    private Dictionary<Guid, string> fishTypeLookup = new();
+    private Dictionary<Guid, FishType> fishTypesById = new();
+    private Dictionary<Guid, FishingShopItem> shopItemsById = new();
     private Dictionary<EquipmentSlot, FishingShopItem> equippedShopItemBySlot = new();
-    private Dictionary<int, EquipmentTier> tierMap = new(); // Dynamic tier assignments
-    private List<int> equippedItemIds = new();
+    private Dictionary<Guid, EquipmentTier> tierMap = new(); // Dynamic tier assignments
+    private List<Guid> equippedItemIds = new();
     private List<FishingShopItem> equippedItems = new();
 
     private enum OwnedItemsSortOption
@@ -667,7 +667,7 @@
         previewDialogVisible = true;
     }
 
-    private async Task PurchaseItem(int shopItemId)
+    private async Task PurchaseItem(Guid shopItemId)
     {
         if (isPurchasing || confirmingPurchaseItemId == shopItemId) return;
 
@@ -744,12 +744,12 @@
         return "Buy";
     }
 
-    private int GetPurchaseQuantity(int shopItemId)
+    private int GetPurchaseQuantity(Guid shopItemId)
     {
         return purchaseQuantities.GetValueOrDefault(shopItemId, 1);
     }
 
-    private void SetPurchaseQuantity(int shopItemId, int quantity)
+    private void SetPurchaseQuantity(Guid shopItemId, int quantity)
     {
         purchaseQuantities[shopItemId] = Math.Clamp(quantity, 1, 99);
     }
@@ -884,7 +884,7 @@
         return boost.ShopItem ?? (shopItemsById.TryGetValue(boost.ShopItemId, out var lookupItem) ? lookupItem : null);
     }
 
-    private async Task SellItem(int userBoostId)
+    private async Task SellItem(Guid userBoostId)
     {
         if (sellingBoostId.HasValue)
         {
@@ -986,7 +986,7 @@
         return (Color.Default, Icons.Material.Filled.SwapHoriz, "Sidegrade");
     }
 
-    private async Task EquipItem(int userBoostId)
+    private async Task EquipItem(Guid userBoostId)
     {
         try
         {
@@ -1004,7 +1004,7 @@
         }
     }
 
-    private async Task UnequipItem(int userBoostId)
+    private async Task UnequipItem(Guid userBoostId)
     {
         try
         {

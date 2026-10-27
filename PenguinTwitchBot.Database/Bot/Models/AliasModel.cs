@@ -9,9 +9,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class AliasModel
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string AliasName { get; set; } = null!;
         public string CommandName { get; set; } = null!;
     }

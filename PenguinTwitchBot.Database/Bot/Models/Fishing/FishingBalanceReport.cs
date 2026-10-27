@@ -187,7 +187,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 
     public class ItemEconomyAnalysis
     {
-        public int ShopItemId { get; set; }
+        public Guid ShopItemId { get; set; }
         public string ItemName { get; set; } = string.Empty;
         public string EquipmentSlot { get; set; } = string.Empty;
         public int Cost { get; set; }

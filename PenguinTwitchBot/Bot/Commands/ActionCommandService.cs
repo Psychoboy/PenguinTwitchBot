@@ -14,7 +14,7 @@ namespace PenguinTwitchBot.Bot.Commands
             return await unitOfWork.ActionCommands.GetAsync(includeProperties: "PointType");
         }
 
-        public async Task<ActionCommand?> GetByIdAsync(int id)
+        public async Task<ActionCommand?> GetByIdAsync(Guid id)
         {
             return await unitOfWork.ActionCommands.GetByIdAsync(id);
         }
@@ -47,13 +47,12 @@ namespace PenguinTwitchBot.Bot.Commands
         public async Task<ActionCommand> UpdateAsync(ActionCommand command)
         {
             // Check if the command name has changed
-            if (command.Id.HasValue)
+            if (command.Id != Guid.Empty)
             {
-                var existingCommand = await unitOfWork.ActionCommands.Find(x => x.Id == command.Id.Value).AsNoTracking().FirstOrDefaultAsync();
+                var existingCommand = await unitOfWork.ActionCommands.Find(x => x.Id == command.Id).AsNoTracking().FirstOrDefaultAsync();
                 if (existingCommand != null && existingCommand.CommandName != command.CommandName)
                 {
-                    // Command name has changed - update trigger configurations and subactions
-                    await unitOfWork.Actions.UpdateCommandTriggerConfigurationsForRenamedCommand(command.Id.Value, existingCommand.CommandName, command.CommandName);
+                    // Command name has changed - update subactions
                     await unitOfWork.Actions.UpdateToggleCommandDisabledNamesForRenamedCommand(existingCommand.CommandName, command.CommandName);
                 }
             }
@@ -70,7 +69,7 @@ namespace PenguinTwitchBot.Bot.Commands
             return command;
         }
 
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(Guid id)
         {
             var command = await unitOfWork.ActionCommands.GetByIdAsync(id);
             if (command != null)

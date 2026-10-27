@@ -1,16 +1,25 @@
 using Microsoft.EntityFrameworkCore;
-using PenguinTwitchBot.Database.Repository;
-using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions;
+using PenguinTwitchBot.Database.Repository.Repositories;
 using System.IO.Abstractions;
 using System.IO.Compression;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 {
     public class BackupTools : IBackupTools
     {
+        private const string BackupChatHistoryMonthsToKeepSetting = "BackupChatHistoryMonthsToKeep";
+        private const int RestoreBatchSize = 1000;
+
         private readonly IFileSystem _fs;
         private readonly ILogger _logger;
         private readonly IZipService _zipService;
@@ -18,6 +27,12 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
         public string BackupDirectory { get; }
 
         private static readonly string[] WwwrootSubdirectories = ["audio", "fishes", "gifs", "sfx"];
+
+        private static readonly MethodInfo BackupTableGenericMethod = typeof(BackupTools)
+            .GetMethod(nameof(BackupEntityTableInternalAsync), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        private static readonly MethodInfo RestoreTableGenericMethod = typeof(BackupTools)
+            .GetMethod(nameof(RestoreEntityTableInternalAsync), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
         public BackupTools(IFileSystem fileSystem, ILogger<BackupTools> logger, IZipService zipService)
         {
@@ -29,7 +44,14 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 
         public List<FileInfo> GetBackupFiles(string backupDirectory)
         {
-            return _fs.Directory.GetFiles(backupDirectory, "*.zip").Select(x => new FileInfo(x)).ToList();
+            if (!_fs.Directory.Exists(backupDirectory))
+            {
+                return [];
+            }
+
+            return _fs.Directory.GetFiles(backupDirectory, "*.zip")
+                .Select(x => new FileInfo(x))
+                .ToList();
         }
 
         public Task DeleteOldBackupsAsync(string directory, int maxCount, int maxDays, ILogger? logger)
@@ -77,37 +99,131 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             return Task.CompletedTask;
         }
 
-        public async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger) where T : class
+        public static JsonSerializerOptions CreateBackupJsonOptions(DbContext? context = null, bool writeIndented = true)
         {
-            var fileName = _fs.Path.Combine(backupDirectory, $"{typeof(T).Name}.json");
+            var resolver = new SubActionTypeResolver();
+            if (context != null)
+            {
+                resolver.Modifiers.Add(typeInfo =>
+                {
+                    if (typeInfo.Kind != JsonTypeInfoKind.Object)
+                        return;
+
+                    var entityType = context.Model.FindEntityType(typeInfo.Type);
+                    if (entityType == null)
+                        return;
+
+                    var mappedPropertyNames = entityType.GetProperties()
+                        .Where(p => !p.IsShadowProperty())
+                        .Select(p => p.Name)
+                        .ToHashSet(StringComparer.Ordinal);
+
+                    for (var i = typeInfo.Properties.Count - 1; i >= 0; i--)
+                    {
+                        var prop = typeInfo.Properties[i];
+                        var clrName = (prop.AttributeProvider as MemberInfo)?.Name ?? prop.Name;
+                        if (!mappedPropertyNames.Contains(clrName))
+                        {
+                            typeInfo.Properties.RemoveAt(i);
+                        }
+                        else
+                        {
+                            prop.ShouldSerialize = null;
+                        }
+                    }
+                });
+            }
+
             var options = new JsonSerializerOptions
             {
-                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
-                WriteIndented = true
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                WriteIndented = writeIndented,
+                TypeInfoResolver = resolver
             };
-            await using var fileStream = _fs.File.Open(fileName, FileMode.Create, FileAccess.Write, FileShare.None);
-            await using var writer = new System.Text.Json.Utf8JsonWriter(fileStream);
-            writer.WriteStartArray();
-            var count = 0;
-            await foreach (var record in context.Set<T>().AsNoTracking().AsAsyncEnumerable())
+
+            options.Converters.Add(new LegacyIntCompatibleGuidJsonConverter());
+            options.Converters.Add(new LegacyIntCompatibleNullableGuidJsonConverter());
+            return options;
+        }
+
+        /// <summary>
+        /// Discovers all concrete, non-excluded, table-mapped entity types in the DbContext model
+        /// and orders them topologically so parent tables are inserted before child tables.
+        /// </summary>
+        public static IReadOnlyList<IEntityType> GetOrderedBackupEntityTypes(DbContext context)
+        {
+            var eligibleEntities = context.Model.GetEntityTypes()
+                .Where(et => !et.IsOwned()
+                    && !et.ClrType.IsAbstract
+                    && et.FindPrimaryKey() != null
+                    && !string.IsNullOrWhiteSpace(et.GetTableName())
+                    && et.GetViewName() == null
+                    && et.ClrType.GetCustomAttribute<ExcludeFromBackupAttribute>() == null)
+                .OrderBy(et => et.ClrType.Name, StringComparer.Ordinal)
+                .ToList();
+
+            var eligibleSet = eligibleEntities.ToHashSet();
+            var dependents = eligibleEntities.ToDictionary(et => et, _ => new HashSet<IEntityType>());
+            var inDegree = eligibleEntities.ToDictionary(et => et, _ => 0);
+
+            foreach (var entityType in eligibleEntities)
             {
-                JsonSerializer.Serialize(writer, record, options);
-                count++;
-                if (count % 500 == 0)
-                    await writer.FlushAsync();
+                foreach (var fk in entityType.GetForeignKeys())
+                {
+                    var principal = fk.PrincipalEntityType;
+                    if (principal != entityType && eligibleSet.Contains(principal))
+                    {
+                        if (dependents[principal].Add(entityType))
+                        {
+                            inDegree[entityType]++;
+                        }
+                    }
+                }
             }
-            writer.WriteEndArray();
-            await writer.FlushAsync();
-            logger?.LogDebug("Backed up {Count} records to {Name}", count, typeof(T).Name);
+
+            var ready = new SortedSet<IEntityType>(
+                eligibleEntities.Where(et => inDegree[et] == 0),
+                Comparer<IEntityType>.Create((a, b) => string.CompareOrdinal(a.ClrType.FullName, b.ClrType.FullName)));
+
+            var sorted = new List<IEntityType>(eligibleEntities.Count);
+            while (ready.Count > 0)
+            {
+                var current = ready.Min!;
+                ready.Remove(current);
+                sorted.Add(current);
+
+                foreach (var dep in dependents[current])
+                {
+                    inDegree[dep]--;
+                    if (inDegree[dep] == 0)
+                    {
+                        ready.Add(dep);
+                    }
+                }
+            }
+
+            // If any cyclic FKs exist, append remaining types deterministically
+            if (sorted.Count < eligibleEntities.Count)
+            {
+                var visited = sorted.ToHashSet();
+                foreach (var remaining in eligibleEntities.Where(et => !visited.Contains(et)))
+                {
+                    sorted.Add(remaining);
+                }
+            }
+
+            return sorted;
+        }
+
+        public async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger) where T : class
+        {
+            var options = CreateBackupJsonOptions(context, writeIndented: true);
+            await BackupEntityTableInternalAsync<T>(context, backupDirectory, options, logger);
         }
 
         public async Task WriteData<T>(string backupDirectory, List<T> records, ILogger? logger)
         {
-            var options = new JsonSerializerOptions
-            {
-                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
-                WriteIndented = true
-            };
+            var options = CreateBackupJsonOptions(null, writeIndented: true);
             var fileName = _fs.Path.Combine(backupDirectory, $"{typeof(T).Name}.json");
             await using var fileStream = _fs.File.Open(fileName, FileMode.Create, FileAccess.Write, FileShare.None);
             await JsonSerializer.SerializeAsync(fileStream, records, options);
@@ -116,32 +232,167 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 
         public async Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger) where T : class
         {
+            var options = CreateBackupJsonOptions(context, writeIndented: false);
+            await DeleteEntityTableAsync(context, typeof(T));
+            context.ChangeTracker.Clear();
+            await RestoreEntityTableInternalAsync<T>(context, backupDirectory, options, logger);
+        }
+
+        private async Task<BackupTableManifestEntry> BackupEntityTableInternalAsync<T>(
+            DbContext context,
+            string backupDirectory,
+            JsonSerializerOptions options,
+            ILogger? logger) where T : class
+        {
+            var entityType = context.Model.FindEntityType(typeof(T));
+            var shortName = $"{typeof(T).Name}.json";
+            var fileName = _fs.Path.Combine(backupDirectory, shortName);
+            var tempFileName = fileName + ".tmp";
+
+            IQueryable<T> query = context.Set<T>().AsNoTracking().IgnoreAutoIncludes();
+
+            if (typeof(T) == typeof(ViewerChatHistory))
+            {
+                var monthsToKeep = await context.Set<Setting>()
+                    .AsNoTracking()
+                    .Where(x => x.Name == BackupChatHistoryMonthsToKeepSetting)
+                    .Select(x => (int?)x.IntSetting)
+                    .FirstOrDefaultAsync() ?? 12;
+
+                if (monthsToKeep <= 0)
+                {
+                    query = query.Where(_ => false);
+                }
+                else
+                {
+                    var cutoff = DateTime.UtcNow.AddMonths(-monthsToKeep);
+                    query = (IQueryable<T>)(object)((IQueryable<ViewerChatHistory>)query)
+                        .Where(x => x.CreatedAt != null && x.CreatedAt > cutoff);
+                }
+            }
+
             try
             {
-                var fileName = _fs.Path.Combine(backupDirectory, $"{typeof(T).Name}.json");
-                if (!_fs.File.Exists(fileName)) return;
-
-                var options = new JsonSerializerOptions
+                var count = 0;
+                await using (var fileStream = _fs.File.Open(tempFileName, FileMode.Create, FileAccess.Write, FileShare.None))
+                await using (var writer = new Utf8JsonWriter(fileStream, new JsonWriterOptions { Indented = options.WriteIndented }))
                 {
-                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+                    writer.WriteStartArray();
+                    await foreach (var record in query.AsAsyncEnumerable())
+                    {
+                        JsonSerializer.Serialize(writer, record, options);
+                        count++;
+                        if (count % 500 == 0)
+                        {
+                            await writer.FlushAsync();
+                        }
+                    }
+                    writer.WriteEndArray();
+                    await writer.FlushAsync();
+                    await fileStream.FlushAsync();
+                }
+
+                if (_fs.File.Exists(fileName))
+                {
+                    _fs.File.Delete(fileName);
+                }
+                _fs.File.Move(tempFileName, fileName);
+
+                var sha256 = await ComputeFileSha256Async(fileName);
+                logger?.LogDebug("Backed up {Count} records to {Name}", count, shortName);
+
+                return new BackupTableManifestEntry
+                {
+                    EntityTypeName = typeof(T).Name,
+                    TableName = entityType?.GetTableName() ?? typeof(T).Name,
+                    FileName = shortName,
+                    RowCount = count,
+                    Sha256 = sha256
                 };
-
-                await using var fileStream = _fs.File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                var records = await JsonSerializer.DeserializeAsync<List<T>>(fileStream, options);
-                if (records == null) throw new Exception($"{typeof(T).Name}.json was null");
-
-                await context.Set<T>().ExecuteDeleteAsync();
-                context.Set<T>().AddRange(records);
-                logger?.LogDebug("Restored {Count} records from {Name}", records.Count, typeof(T).Name);
             }
-            catch (Exception ex)
+            catch
             {
-                logger?.LogError(ex, "Failed to restore {Name}", typeof(T).Name);
+                if (_fs.File.Exists(tempFileName))
+                {
+                    _fs.File.Delete(tempFileName);
+                }
                 throw;
             }
         }
 
-        public async Task BackupDatabase(DbContext context, string backupDirectory, ILogger logger)
+        private async Task<int> RestoreEntityTableInternalAsync<T>(
+            DbContext context,
+            string backupDirectory,
+            JsonSerializerOptions options,
+            ILogger? logger) where T : class
+        {
+            var shortName = $"{typeof(T).Name}.json";
+            var fileName = _fs.Path.Combine(backupDirectory, shortName);
+            if (!_fs.File.Exists(fileName))
+            {
+                return 0;
+            }
+
+            await using var fileStream = _fs.File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var batch = new List<T>(RestoreBatchSize);
+            var totalCount = 0;
+
+            await foreach (var record in JsonSerializer.DeserializeAsyncEnumerable<T>(fileStream, options))
+            {
+                if (record == null)
+                {
+                    continue;
+                }
+
+                if (record is Bot.Actions.SubActions.Types.LogicIfElseType logic)
+                {
+                    MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(logic.TrueSubActions);
+                    MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(logic.FalseSubActions);
+                }
+
+                batch.Add(record);
+                totalCount++;
+
+                if (batch.Count >= RestoreBatchSize)
+                {
+                    context.Set<T>().AddRange(batch);
+                    await context.SaveChangesAsync();
+                    context.ChangeTracker.Clear();
+                    batch.Clear();
+                }
+            }
+
+            if (batch.Count > 0)
+            {
+                context.Set<T>().AddRange(batch);
+                await context.SaveChangesAsync();
+                context.ChangeTracker.Clear();
+                batch.Clear();
+            }
+
+            logger?.LogDebug("Restored {Count} records from {Name}", totalCount, shortName);
+            return totalCount;
+        }
+
+        private static async Task DeleteEntityTableAsync(DbContext context, Type clrType)
+        {
+            var entityType = context.Model.FindEntityType(clrType);
+            var tableName = entityType?.GetTableName();
+
+            if (!string.IsNullOrWhiteSpace(tableName))
+            {
+                var sqlHelper = context.Database.GetService<ISqlGenerationHelper>();
+                var delimitedTable = sqlHelper != null
+                    ? sqlHelper.DelimitIdentifier(tableName, entityType?.GetSchema())
+                    : $"\"{tableName.Replace("\"", "\"\"")}\"";
+
+#pragma warning disable EF1002
+                await context.Database.ExecuteSqlRawAsync($"DELETE FROM {delimitedTable}");
+#pragma warning restore EF1002
+            }
+        }
+
+        public async Task<string> BackupDatabase(DbContext context, string backupDirectory, ILogger logger, string filePrefix = "backup")
         {
             logger.LogInformation("Backing up database");
             var tempDirectory = _fs.Path.Combine(backupDirectory, $"temp-{Guid.NewGuid():N}");
@@ -151,98 +402,248 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             }
 
             _fs.Directory.CreateDirectory(tempDirectory);
-            
-            var handlers = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(s =>
-            {
-                try { return s.GetTypes(); }
-                catch (ReflectionTypeLoadException) { return Array.Empty<Type>(); }
-            })
-            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false)
-            .Where(p => p.GetConstructors().Any(c =>
-            {
-                var parameters = c.GetParameters();
-                return parameters.Length == 1 && typeof(DbContext).IsAssignableFrom(parameters[0].ParameterType);
-            }));
 
-            foreach (var handler in handlers)
+            try
             {
-                IBackupDb? handlerInstance = null;
+                var manifest = new BackupManifest
+                {
+                    FormatVersion = BackupManifest.CurrentFormatVersion,
+                    CreatedAtUtc = DateTime.UtcNow,
+                    DatabaseProvider = context.Database.ProviderName
+                };
+
                 try
                 {
-                    var ctor = handler.GetConstructors().First(c =>
-                    {
-                        var parameters = c.GetParameters();
-                        return parameters.Length == 1 && typeof(DbContext).IsAssignableFrom(parameters[0].ParameterType);
-                    });
-                    handlerInstance = (IBackupDb?)ctor.Invoke(new object[] { context });
+                    var appliedMigrations = await context.Database.GetAppliedMigrationsAsync();
+                    manifest.LatestMigrationId = appliedMigrations.LastOrDefault();
                 }
-                catch (MissingMethodException)
+                catch
                 {
-                    logger.LogWarning("Skipping backup handler {Name}: incompatible constructor", handler.Name);
-                    continue;
+                    // In-memory or non-migrated test databases may not have a migrations history table
                 }
-                catch (Exception ex)
+
+                var options = CreateBackupJsonOptions(context, writeIndented: true);
+                var entityTypes = GetOrderedBackupEntityTypes(context);
+
+                foreach (var entityType in entityTypes)
                 {
-                    logger.LogWarning(ex, "Failed to instantiate backup handler {Name}", handler.Name);
-                    continue;
+                    var method = BackupTableGenericMethod.MakeGenericMethod(entityType.ClrType);
+                    var task = (Task<BackupTableManifestEntry>)method.Invoke(this, [context, tempDirectory, options, logger])!;
+                    var entry = await task;
+                    manifest.Tables[entityType.ClrType.Name] = entry;
                 }
-                if (handlerInstance == null)
+
+                await BackupWwwrootDirectoriesAsync(tempDirectory, manifest, logger);
+
+                var manifestPath = _fs.Path.Combine(tempDirectory, BackupManifest.ManifestFileName);
+                await using (var manifestStream = _fs.File.Open(manifestPath, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
-                    logger.LogError("Failed to create instance of {Name}", handler.Name);
-                    continue;
+                    await JsonSerializer.SerializeAsync(manifestStream, manifest, new JsonSerializerOptions { WriteIndented = true });
+                    await manifestStream.FlushAsync();
                 }
-                try
-                {
-                    await handlerInstance.BackupTable(context, tempDirectory, logger);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to backup {Name}", handler.Name);
-                }
+
+                var zipPath = _fs.Path.Combine(
+                    backupDirectory,
+                    $"{filePrefix}-{DateTime.Now:yyyy-MM-dd--HH-mm-ss}-{Guid.NewGuid().ToString("N")[..6]}.zip");
+                _zipService.CreateFromDirectory(tempDirectory, zipPath);
+                logger.LogInformation("Backup created at {ZipPath}", zipPath);
+                return zipPath;
             }
-
-            BackupWwwrootDirectories(tempDirectory, logger);
-
-            var startPath = tempDirectory;
-            var zipPath = _fs.Path.Combine(backupDirectory, string.Format("backup-{0}.zip", DateTime.Now.ToString("yyyy-MM-dd--HH-mm-ss")));
-            _zipService.CreateFromDirectory(startPath, zipPath);
-            _fs.Directory.Delete(tempDirectory, true);
-            logger?.LogInformation($"Backup created at {zipPath}");
-
-            var orphaned = _fs.Directory.GetDirectories(backupDirectory, "temp-*");
-            if (orphaned.Length > 0)
+            finally
             {
-                logger?.LogWarning("Found {Count} orphaned temp directories in {BackupDirectory}. Manually delete them to conserve disk space. Paths: {Paths}",
-                    orphaned.Length, backupDirectory, string.Join("; ", orphaned));
-                foreach (var leftover in orphaned)
+                if (_fs.Directory.Exists(tempDirectory))
                 {
-                    logger?.LogWarning("Orphaned temp directory detected: {Path}", leftover);
+                    try
+                    {
+                        _fs.Directory.Delete(tempDirectory, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to clean up temporary backup directory {TempDirectory}", tempDirectory);
+                    }
                 }
             }
         }
 
+        public BackupManifest ValidateBackupDirectory(string backupDirectory)
+        {
+            if (!_fs.Directory.Exists(backupDirectory))
+            {
+                throw new DirectoryNotFoundException($"Backup directory not found: {backupDirectory}");
+            }
+
+            var manifestPath = _fs.Path.Combine(backupDirectory, BackupManifest.ManifestFileName);
+            if (!_fs.File.Exists(manifestPath))
+            {
+                throw new InvalidOperationException(
+                    "Backup archive does not contain a manifest.json file. Legacy integer-ID (v1) backups cannot be restored into a UUIDv7 (v2) database.");
+            }
+
+            using var manifestStream = _fs.File.Open(manifestPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var manifest = JsonSerializer.Deserialize<BackupManifest>(manifestStream)
+                ?? throw new InvalidDataException("Failed to deserialize manifest.json.");
+
+            if (manifest.FormatVersion != BackupManifest.CurrentFormatVersion)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported backup format version {manifest.FormatVersion}. Expected version {BackupManifest.CurrentFormatVersion}.");
+            }
+
+            foreach (var (_, tableEntry) in manifest.Tables)
+            {
+                var tableFilePath = _fs.Path.Combine(backupDirectory, tableEntry.FileName);
+                if (!_fs.File.Exists(tableFilePath))
+                {
+                    throw new FileNotFoundException(
+                        $"Backup is missing expected table file '{tableEntry.FileName}'.", tableFilePath);
+                }
+
+                if (!string.IsNullOrWhiteSpace(tableEntry.Sha256))
+                {
+                    var actualHash = ComputeFileSha256(tableFilePath);
+                    if (!string.Equals(actualHash, tableEntry.Sha256, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException(
+                            $"Checksum mismatch for '{tableEntry.FileName}'. Expected {tableEntry.Sha256}, got {actualHash}.");
+                    }
+                }
+            }
+
+            foreach (var (_, mediaEntry) in manifest.MediaFiles)
+            {
+                var normalizedRelative = mediaEntry.RelativePath.Replace('/', _fs.Path.DirectorySeparatorChar);
+                var mediaFilePath = _fs.Path.Combine(backupDirectory, normalizedRelative);
+                if (!_fs.File.Exists(mediaFilePath))
+                {
+                    throw new FileNotFoundException(
+                        $"Backup is missing expected media file '{mediaEntry.RelativePath}'.", mediaFilePath);
+                }
+
+                if (!string.IsNullOrWhiteSpace(mediaEntry.Sha256))
+                {
+                    var actualHash = ComputeFileSha256(mediaFilePath);
+                    if (!string.Equals(actualHash, mediaEntry.Sha256, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException(
+                            $"Checksum mismatch for media file '{mediaEntry.RelativePath}'. Expected {mediaEntry.Sha256}, got {actualHash}.");
+                    }
+                }
+            }
+
+            return manifest;
+        }
+
+        public BackupManifest ValidateBackupArchive(string zipFilePath)
+        {
+            if (!_fs.File.Exists(zipFilePath))
+            {
+                throw new FileNotFoundException("Backup archive file not found.", zipFilePath);
+            }
+
+            using var fileStream = _fs.File.Open(zipFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
+
+            var manifestEntry = archive.Entries.FirstOrDefault(e =>
+                string.Equals(e.FullName, BackupManifest.ManifestFileName, StringComparison.OrdinalIgnoreCase));
+
+            if (manifestEntry == null)
+            {
+                throw new InvalidOperationException(
+                    "Backup archive does not contain a manifest.json file. Legacy integer-ID (v1) backups cannot be restored into a UUIDv7 (v2) database.");
+            }
+
+            BackupManifest manifest;
+            using (var entryStream = manifestEntry.Open())
+            {
+                manifest = JsonSerializer.Deserialize<BackupManifest>(entryStream)
+                    ?? throw new InvalidDataException("Failed to deserialize manifest.json from archive.");
+            }
+
+            if (manifest.FormatVersion != BackupManifest.CurrentFormatVersion)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported backup format version {manifest.FormatVersion}. Expected version {BackupManifest.CurrentFormatVersion}.");
+            }
+
+            var entryLookup = archive.Entries.ToDictionary(
+                e => e.FullName.Replace('\\', '/'),
+                e => e,
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (_, tableEntry) in manifest.Tables)
+            {
+                var key = tableEntry.FileName.Replace('\\', '/');
+                if (!entryLookup.TryGetValue(key, out var zipEntry))
+                {
+                    throw new FileNotFoundException($"Backup archive is missing expected table file '{tableEntry.FileName}'.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(tableEntry.Sha256))
+                {
+                    using var stream = zipEntry.Open();
+                    var actualHash = Convert.ToHexStringLower(SHA256.HashData(stream));
+                    if (!string.Equals(actualHash, tableEntry.Sha256, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException(
+                            $"Checksum mismatch in archive for '{tableEntry.FileName}'. Expected {tableEntry.Sha256}, got {actualHash}.");
+                    }
+                }
+            }
+
+            return manifest;
+        }
+
         public async Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger)
         {
-            logger?.LogInformation("Restoring database");
+            await RestoreDatabase(context, backupDirectory, logger, createPreRestoreBackup: true);
+        }
 
-            // Reset fishing deletion flag at the start of restore
-            Repository.Repositories.FishingRepository.ResetDeletionFlag();
+        public async Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger, bool createPreRestoreBackup = true)
+        {
+            logger?.LogInformation("Validating backup directory before restore: {BackupDirectory}", backupDirectory);
 
-            // Reloading the entire dataset means every table is rewritten (delete + reinsert).
-            // Restoring PointTypes before its dependents would otherwise trip "FOREIGN KEY
-            // constraint failed" when ExecuteDeleteAsync wipes PointTypes while rows in
-            // tournaments, reward rules, and point balances still reference them. Disable
-            // FK enforcement for the duration of the restore and re-enable it afterward.
-            // Keep a single open connection for the whole restore so connection-scoped
-            // FK/session settings stay in effect across every command.
+            var manifestPath = _fs.Path.Combine(backupDirectory, BackupManifest.ManifestFileName);
+            if (_fs.File.Exists(manifestPath))
+            {
+                ValidateBackupDirectory(backupDirectory);
+            }
+            else
+            {
+                EnsureDirectoryFilesAreValidJson(backupDirectory);
+            }
+
+            if (createPreRestoreBackup && !string.IsNullOrWhiteSpace(BackupDirectory))
+            {
+                try
+                {
+                    logger?.LogInformation("Creating automatic pre-restore safety backup...");
+                    await BackupDatabase(context, BackupDirectory, logger ?? _logger, filePrefix: "pre_restore");
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Could not create automatic pre-restore safety backup before restore");
+                }
+            }
+
+            logger?.LogInformation("Restoring database inside atomic transaction");
+
             await context.Database.OpenConnectionAsync();
-
             await SetForeignKeysAsync(context, false, logger);
 
             try
             {
-                await RestoreDatabaseCore(context, backupDirectory, logger);
+                await using var transaction = await context.Database.BeginTransactionAsync();
+                try
+                {
+                    await RestoreDatabaseCoreAsync(context, backupDirectory, logger);
+                    await transaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Database restore failed; rolling back transaction");
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             }
             finally
             {
@@ -255,122 +656,55 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                     await context.Database.CloseConnectionAsync();
                 }
             }
-        }
 
-        private async Task RestoreDatabaseCore(DbContext context, string backupDirectory, ILogger? logger)
-        {
-            // Get all handler types
-            var allHandlers = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(s =>
-                {
-                    try { return s.GetTypes(); }
-                    catch (ReflectionTypeLoadException) { return Array.Empty<Type>(); }
-                })
-                .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false)
-                .Where(p => p.GetConstructors().Any(c =>
-                {
-                    var parameters = c.GetParameters();
-                    return parameters.Length == 1 && typeof(DbContext).IsAssignableFrom(parameters[0].ParameterType);
-                }))
-                .ToList();
-
-            // Define restore order priority (lower number = restore first)
-            var restoreOrder = new Dictionary<string, int>
-            {
-                { "ActionsRepository", 1 },        // First (includes SubActions and Triggers)
-                { "PointTypesRepository", 2 },     // Point types must exist before reward tables
-                { "SubActionsRepository", 999 },   // Skip (no-op)
-                { "TriggersRepository", 999 },     // Skip (no-op)
-                { "ActionTriggersRepository", 999 }, // Skip (no-op, deprecated)
-
-                // Fishing system - must restore in dependency order
-                { "FishingRepository", 10 },       // FishType first (master table)
-                { "FishingShopItemRepository", 11 }, // FishingShopItem second (references FishType)
-                { "FishCatchRepository", 12 },     // FishCatch (depends on FishType)
-                { "UserFishingBoostRepository", 13 }, // UserFishingBoost (depends on FishingShopItem)
-                { "FishingGoldRepository", 14 },   // FishingGold (no dependencies)
-                { "FishingSettingsRepository", 15 }, // FishingSettings (no dependencies)
-                { "FishingSnapEventRepository", 16 }, // FishingSnapEvent (historical, no dependencies)
-                { "FishingTournamentRepository", 17 }, // Tournament header table
-                { "FishingTournamentFishTypeRepository", 18 }, // Tournament fish eligibility rows
-                { "FishingTournamentRewardRuleRepository", 19 }, // Tournament reward rows
-                { "FishingTournamentCatchRepository", 20 } // Tournament catches (depends on tournaments + fish catches)
-            };
-
-            // Sort handlers by priority
-            var orderedHandlers = allHandlers
-                .OrderBy(h => restoreOrder.TryGetValue(h.Name, out int priority) ? priority : 100) // Default priority 100
-                .ThenBy(h => h.Name) // Alphabetical for same priority
-                .ToList();
-
-            logger?.LogDebug("Restore order: {Handlers}", string.Join(", ", orderedHandlers.Select(h => h.Name)));
-
-            var errors = "";
-            var currentPriority = -1;
-
-            foreach (var handler in orderedHandlers)
-            {
-                try
-                {
-                    var ctor = handler.GetConstructors().First(c =>
-                    {
-                        var parameters = c.GetParameters();
-                        return parameters.Length == 1 && typeof(DbContext).IsAssignableFrom(parameters[0].ParameterType);
-                    });
-                    var handlerInstance = (IBackupDb?)ctor.Invoke(new object[] { context });
-                    if (handlerInstance == null)
-                    {
-                        logger?.LogError("Failed to create instance of {Name}", handler.Name);
-                        continue;
-                    }
-
-                    var priority = restoreOrder.TryGetValue(handler.Name, out int p) ? p : 100;
-
-                    // Save changes when priority level changes (to ensure previous entities are persisted)
-                    // Priority 1 (Actions) must be saved before Priority 100 (everything else)
-                    if (currentPriority != -1 && currentPriority != priority && priority < 100)
-                    {
-                        logger?.LogDebug("Committing priority {Priority} entities before moving to priority {NextPriority}", currentPriority, priority);
-                        await context.SaveChangesAsync();
-                        context.ChangeTracker.Clear(); // Clear after save to avoid conflicts
-                    }
-
-                    currentPriority = priority;
-
-                    await handlerInstance.RestoreTable(context, backupDirectory, logger);
-                }
-                catch (Exception ex)
-                {
-                    errors += $"{handler.Name}: {ex.Message}\n";
-                }
-            }
-
-            logger?.LogInformation("Database committing final changes");
-            await context.SaveChangesAsync();
-
-            // Post-restore: Remap entity references now that all tables have their new IDs
-            logger?.LogInformation("Starting post-restore entity reference remapping");
-            var actionsRepository = new Repository.Repositories.ActionsRepository((ApplicationDbContext)context);
-            await actionsRepository.RemapEntityReferencesAfterRestore(logger);
-
-            // Post-restore: Reset PostgreSQL sequences that may have de-synced due to explicit ID inserts.
-            // SQLite ROWID advance automatically on explicit inserts, so this is PostgreSQL-only.
-            if (context.Database.ProviderName?.Contains("Npgsql") == true)
-            {
-                logger?.LogInformation("Resetting PostgreSQL sequences after restore");
-                await ResetPostgresSequencesAsync(context, logger);
-            }
-
-            if (!string.IsNullOrEmpty(errors))
-            {
-                logger?.LogError("Errors occurred during restore:\n{Errors}", errors);
-            }
             RestoreWwwrootDirectories(backupDirectory, logger);
-
-            logger?.LogInformation("Database restored");
+            logger?.LogInformation("Database restored successfully");
         }
 
-        private void BackupWwwrootDirectories(string tempDirectory, ILogger? logger)
+        private void EnsureDirectoryFilesAreValidJson(string backupDirectory)
+        {
+            if (!_fs.Directory.Exists(backupDirectory))
+            {
+                throw new DirectoryNotFoundException($"Backup directory not found: {backupDirectory}");
+            }
+
+            foreach (var jsonFile in _fs.Directory.GetFiles(backupDirectory, "*.json"))
+            {
+                using var stream = _fs.File.Open(jsonFile, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var doc = JsonDocument.Parse(stream);
+                if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                {
+                    throw new InvalidDataException($"Backup file '{jsonFile}' does not contain a root JSON array.");
+                }
+            }
+        }
+
+        private async Task RestoreDatabaseCoreAsync(DbContext context, string backupDirectory, ILogger? logger)
+        {
+            var options = CreateBackupJsonOptions(context, writeIndented: false);
+            var insertOrder = GetOrderedBackupEntityTypes(context);
+            var deleteOrder = insertOrder.Reverse().ToList();
+
+            context.ChangeTracker.Clear();
+
+            // Phase 1: Delete all backup-eligible tables in reverse topological order (children before parents)
+            foreach (var entityType in deleteOrder)
+            {
+                await DeleteEntityTableAsync(context, entityType.ClrType);
+            }
+
+            context.ChangeTracker.Clear();
+
+            // Phase 2: Stream-insert all backup-eligible tables in topological order (parents before children)
+            foreach (var entityType in insertOrder)
+            {
+                var method = RestoreTableGenericMethod.MakeGenericMethod(entityType.ClrType);
+                var task = (Task<int>)method.Invoke(this, [context, backupDirectory, options, logger])!;
+                await task;
+            }
+        }
+
+        private async Task BackupWwwrootDirectoriesAsync(string tempDirectory, BackupManifest manifest, ILogger? logger)
         {
             var wwwrootSource = _fs.Path.Combine(_fs.Directory.GetCurrentDirectory(), "wwwroot");
             foreach (var subDir in WwwrootSubdirectories)
@@ -384,7 +718,7 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                         continue;
                     }
                     var destPath = _fs.Path.Combine(tempDirectory, "wwwroot", subDir);
-                    CopyDirectory(sourcePath, destPath, logger);
+                    await CopyDirectoryWithManifestAsync(sourcePath, destPath, $"wwwroot/{subDir}", manifest, logger);
                     logger?.LogDebug("Backed up wwwroot/{SubDir}", subDir);
                 }
                 catch (Exception ex)
@@ -422,8 +756,6 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                         }
                         catch (Exception ex)
                         {
-                            // A locked file (OneDrive, open handle) shouldn't abort the restore -
-                            // the copy below overwrites in place, only stale files are left behind.
                             logger?.LogWarning(ex, "Could not clear wwwroot/{SubDir}, overwriting in place", subDir);
                         }
                     }
@@ -433,6 +765,39 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                 catch (Exception ex)
                 {
                     logger?.LogWarning(ex, "Failed to restore wwwroot/{SubDir}", subDir);
+                }
+            }
+        }
+
+        private async Task CopyDirectoryWithManifestAsync(
+            string sourceDir,
+            string destDir,
+            string relativePrefix,
+            BackupManifest manifest,
+            ILogger? logger)
+        {
+            _fs.Directory.CreateDirectory(destDir);
+            foreach (var file in _fs.Directory.GetFiles(sourceDir))
+            {
+                try
+                {
+                    var fileName = _fs.Path.GetFileName(file);
+                    var destFile = _fs.Path.Combine(destDir, fileName);
+                    _fs.File.Copy(file, destFile, overwrite: true);
+
+                    var relativePath = $"{relativePrefix}/{fileName}";
+                    var fileInfo = _fs.FileInfo.New(destFile);
+                    var sha256 = await ComputeFileSha256Async(destFile);
+                    manifest.MediaFiles[relativePath] = new BackupMediaManifestEntry
+                    {
+                        RelativePath = relativePath,
+                        SizeBytes = fileInfo.Length,
+                        Sha256 = sha256
+                    };
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to copy file {File}, skipping", file);
                 }
             }
         }
@@ -454,6 +819,20 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             }
         }
 
+        private async Task<string> ComputeFileSha256Async(string filePath)
+        {
+            await using var stream = _fs.File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var hashBytes = await SHA256.HashDataAsync(stream);
+            return Convert.ToHexStringLower(hashBytes);
+        }
+
+        private string ComputeFileSha256(string filePath)
+        {
+            using var stream = _fs.File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var hashBytes = SHA256.HashData(stream);
+            return Convert.ToHexStringLower(hashBytes);
+        }
+
         private static async Task SetForeignKeysAsync(DbContext context, bool enable, ILogger? logger)
         {
             try
@@ -465,7 +844,6 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 
                 if (isPostgres)
                 {
-                    // 'replica' disables triggers (incl. FK checks) for the session.
                     await context.Database.ExecuteSqlRawAsync(enable ? "SET session_replication_role = 'origin';" : sql);
                 }
                 else
@@ -476,63 +854,6 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             catch (Exception ex)
             {
                 logger?.LogWarning(ex, "Failed to {State} foreign keys during restore", enable ? "enable" : "disable");
-            }
-        }
-
-        private static async Task ResetPostgresSequencesAsync(DbContext context, ILogger? logger)
-        {
-            // Reset the identity sequence for every table whose rows were restored with
-            // explicit Id values. If the sequence's last value fell behind the restored
-            // MAX(Id), the next auto-generated Id collides with an existing row and fails
-            // with a duplicate-key error (e.g. PK_FishTypes).
-            //
-            // Driven off the catalog rather than the EF model: TPT child tables (e.g.
-            // subactions_*) have an "Id" primary key that is a plain FK column, not an
-            // identity, and ALTER ... RESTART WITH errors out on those.
-            //
-            // ALTER TABLE ... RESTART WITH is used for identity columns (not setval, since
-            // pg_get_serial_sequence returns NULL for GENERATED AS IDENTITY); legacy serial
-            // columns fall back to setval.
-            const string resetSql = """
-                DO $$
-                DECLARE
-                    r record;
-                    next_val bigint;
-                    seq text;
-                BEGIN
-                    FOR r IN
-                        SELECT c.table_name, c.is_identity
-                        FROM information_schema.columns c
-                        JOIN information_schema.tables t
-                          ON t.table_schema = c.table_schema
-                         AND t.table_name = c.table_name
-                         AND t.table_type = 'BASE TABLE'
-                        WHERE c.table_schema = current_schema()
-                          AND c.column_name = 'Id'
-                          AND (c.is_identity = 'YES' OR c.column_default LIKE 'nextval(%')
-                    LOOP
-                        EXECUTE format('SELECT COALESCE(MAX("Id"), 0) + 1 FROM %I', r.table_name) INTO next_val;
-
-                        IF r.is_identity = 'YES' THEN
-                            EXECUTE format('ALTER TABLE %I ALTER COLUMN "Id" RESTART WITH %s', r.table_name, next_val);
-                        ELSE
-                            seq := pg_get_serial_sequence(quote_ident(r.table_name), 'Id');
-                            IF seq IS NOT NULL THEN
-                                PERFORM setval(seq, next_val, false);
-                            END IF;
-                        END IF;
-                    END LOOP;
-                END $$;
-                """;
-
-            try
-            {
-                await context.Database.ExecuteSqlRawAsync(resetSql);
-                logger?.LogInformation("Reset identity sequences for restored tables");
-            }
-            catch (Exception ex)
-            {
-                logger?.LogWarning(ex, "Failed to reset identity sequences after restore");
             }
         }
     }

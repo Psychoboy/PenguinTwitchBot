@@ -31,7 +31,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .ToListAsync();
         }
 
-        public async Task<OverlayLayout?> GetByIdWithWidgetsAsync(int id)
+        public async Task<OverlayLayout?> GetByIdWithWidgetsAsync(Guid id)
         {
             return await _context.OverlayLayouts
                 .AsNoTracking()

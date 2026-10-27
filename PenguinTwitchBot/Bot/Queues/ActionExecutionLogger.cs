@@ -32,7 +32,7 @@ namespace PenguinTwitchBot.Bot.Queues
             _updateTimer = new Timer(SendThrottledLogUpdates, null, Timeout.Infinite, Timeout.Infinite);
         }
 
-        public Guid LogActionEnqueued(string actionName, int? actionId, string queueName, ConcurrentDictionary<string, string> variables)
+        public Guid LogActionEnqueued(string actionName, Guid? actionId, string queueName, ConcurrentDictionary<string, string> variables)
         {
             var log = new ActionExecutionLog
             {

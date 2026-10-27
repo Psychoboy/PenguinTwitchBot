@@ -9,23 +9,12 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
     public class UserPointsRepository(ApplicationDbContext context) :
         GenericRepository<UserPoints>(context), IUserPointsRepository
     {
-        public Task<UserPoints?> GetUserPointsByUserId(string userId, int pointType)
+        public Task<UserPoints?> GetUserPointsByUserId(string userId, Guid pointType)
         {
             return _context.UserPoints.Include(x => x.PointType).FirstOrDefaultAsyncEF(x => x.UserId == userId && x.PointTypeId == pointType);
         }
 
-        // Override the backup and restore methods to do nothing, they are covered by PointTypesRepository
-        public override Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            return Task.CompletedTask;
-        }
-
-        public override Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            return Task.CompletedTask;
-        }
-
-        public Task<UserPointsWithRank?> UserPointsByUserIdWithRank(string userId, int pointType)
+        public Task<UserPointsWithRank?> UserPointsByUserIdWithRank(string userId, Guid pointType)
         {
             var allPoints = _context.UserPoints
                 .Where(x => x.PointTypeId == pointType && x.Banned == false)
@@ -48,7 +37,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .FirstOrDefaultAsyncLinqToDB();
         }
 
-        public IQueryable<UserPointsWithRank> GetRankedPoints(int pointType,
+        public IQueryable<UserPointsWithRank> GetRankedPoints(Guid pointType,
             Expression<Func<UserPointsWithRank, bool>>? filter = null,
             int? limit = null, int? offset = null)
         {

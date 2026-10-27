@@ -128,7 +128,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "commandId")]
-    public int? CommandIdFromQuery { get; set; }
+    public Guid? CommandIdFromQuery { get; set; }
     public string None => "None";
 
     private List<AudioCommand> _commands = new();
@@ -171,7 +171,7 @@
         var uri = new Uri(e.Location);
         var queryString = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
 
-        if (queryString.TryGetValue("commandId", out var commandIdString) && int.TryParse(commandIdString, out var commandId))
+        if (queryString.TryGetValue("commandId", out var commandIdString) && Guid.TryParse(commandIdString, out var commandId))
         {
             var command = _commands.FirstOrDefault(c => c.Id == commandId);
             if (command != null && command != _selectedCommand)
@@ -221,10 +221,10 @@
         _isNewCommand = false;
 
         // Update URL to include commandId
-        if (command.Id.HasValue)
+        if (command.Id != Guid.Empty)
         {
             _isNavigating = true;
-            NavigationManager.NavigateTo($"/actions/audiocommands?commandId={command.Id.Value}", false);
+            NavigationManager.NavigateTo($"/actions/audiocommands?commandId={command.Id}", false);
             _isNavigating = false;
         }
     }
@@ -298,7 +298,7 @@
             $"Are you sure you want to delete the audio command '!{command.CommandName}'? This cannot be undone.",
             yesText: "Delete", cancelText: "Cancel");
 
-        if (result == true && command.Id.HasValue)
+        if (result == true && command.Id != Guid.Empty)
         {
             try
             {

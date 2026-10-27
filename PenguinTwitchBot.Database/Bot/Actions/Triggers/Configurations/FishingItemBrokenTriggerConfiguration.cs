@@ -10,6 +10,6 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         /// <summary>
         /// Filter by specific ShopItemIds. Empty = any item.
         /// </summary>
-        public List<int> ShopItemIds { get; set; } = [];
+        public List<Guid> ShopItemIds { get; set; } = [];
     }
 }

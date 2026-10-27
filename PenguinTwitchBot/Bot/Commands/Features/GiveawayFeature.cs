@@ -491,7 +491,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            if (prize.Id == null)
+            if (prize.Id == Guid.Empty)
             {
                 await db.Settings.AddAsync(prize);
             }

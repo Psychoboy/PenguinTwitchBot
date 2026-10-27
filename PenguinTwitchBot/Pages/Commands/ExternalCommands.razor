@@ -183,7 +183,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "commandId")]
-    public int? CommandIdFromQuery { get; set; }
+    public Guid? CommandIdFromQuery { get; set; }
 
     private List<Database.Bot.Models.Commands.ExternalCommands>? commands;
     private Database.Bot.Models.Commands.ExternalCommands externalCommand { get; set; } = new();
@@ -214,7 +214,7 @@
         var uri = new Uri(e.Location);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var commandIdStr = query["commandId"];
-        if (int.TryParse(commandIdStr, out var commandId) && commands != null)
+        if (Guid.TryParse(commandIdStr, out var commandId) && commands != null)
         {
             var cmd = commands.FirstOrDefault(c => c.Id == commandId);
             if (cmd != null && cmd.Id != externalCommand?.Id)

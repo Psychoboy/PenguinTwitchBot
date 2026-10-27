@@ -44,7 +44,7 @@ public class CounterService(
             .FirstOrDefaultAsync();
     }
 
-    public async Task<Counter?> GetCounterByIdAsync(int id)
+    public async Task<Counter?> GetCounterByIdAsync(Guid id)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -371,7 +371,7 @@ public class CounterService(
         await using var scope = scopeFactory.CreateAsyncScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         var existing = await unitOfWork.Counters
-            .Find(c => (counter.Id.HasValue && c.Id == counter.Id) || c.CounterName.ToLower() == normalizedName)
+            .Find(c => (counter.Id != Guid.Empty && c.Id == counter.Id) || c.CounterName.ToLower() == normalizedName)
             .FirstOrDefaultAsync();
 
         if (existing == null)
@@ -401,7 +401,7 @@ public class CounterService(
         return existing;
     }
 
-    public async Task<bool> DeleteCounterAsync(int id)
+    public async Task<bool> DeleteCounterAsync(Guid id)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

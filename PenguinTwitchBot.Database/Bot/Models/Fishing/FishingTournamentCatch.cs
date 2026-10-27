@@ -9,19 +9,19 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     public class FishingTournamentCatch
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int FishingTournamentId { get; set; }
+        public Guid FishingTournamentId { get; set; }
         public FishingTournament FishingTournament { get; set; } = null!;
 
-        public int? FishCatchId { get; set; }
+        public Guid? FishCatchId { get; set; }
         public FishCatch? FishCatch { get; set; }
 
         [MaxLength(255)]
         public string UserId { get; set; } = string.Empty;
 
         public string Username { get; set; } = string.Empty;
-        public int FishTypeId { get; set; }
+        public Guid FishTypeId { get; set; }
         public int Stars { get; set; } = 1;
         public double Weight { get; set; }
         public int GoldEarned { get; set; }

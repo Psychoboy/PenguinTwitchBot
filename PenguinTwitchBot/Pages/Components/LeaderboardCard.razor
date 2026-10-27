@@ -66,8 +66,8 @@
 
         if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.PointLeaderboard, StringComparison.OrdinalIgnoreCase))
         {
-            var pointTypeId = Widget.PointTypeId ?? PointTypes.FirstOrDefault()?.GetId() ?? 0;
-            if (pointTypeId == 0)
+            var pointTypeId = Widget.PointTypeId ?? PointTypes.FirstOrDefault()?.Id ?? Guid.Empty;
+            if (pointTypeId == Guid.Empty)
             {
                 return new TableData<LeaderPosition> { TotalItems = 0, Items = [] };
             }
@@ -106,20 +106,20 @@
 
         if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.PointLeaderboard, StringComparison.OrdinalIgnoreCase))
         {
-            return ResolvePointTypeName(Widget.PointTypeId ?? PointTypes.FirstOrDefault()?.GetId());
+            return ResolvePointTypeName(Widget.PointTypeId ?? PointTypes.FirstOrDefault()?.Id);
         }
 
         return LeaderboardsWidgetCatalog.TryGetDefinition(Widget.Type, out var definition) ? definition.DisplayName : Widget.Type;
     }
 
-    private string ResolvePointTypeName(int? pointTypeId)
+    private string ResolvePointTypeName(Guid? pointTypeId)
     {
         if (pointTypeId == null)
         {
             return "Point Leaderboard";
         }
 
-        var pointType = PointTypes.FirstOrDefault(x => x.GetId() == pointTypeId.Value);
+        var pointType = PointTypes.FirstOrDefault(x => x.Id == pointTypeId.Value);
         return pointType?.Name ?? "Point Leaderboard";
     }
 

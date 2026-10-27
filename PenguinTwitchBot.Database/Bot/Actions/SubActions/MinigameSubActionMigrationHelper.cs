@@ -128,6 +128,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
         private static void CopyBaseProperties(SubActionType source, SubActionType target)
         {
             target.Id = source.Id;
+            target.ActionTypeId = source.ActionTypeId;
+            target.CatchActionTypeId = source.CatchActionTypeId;
             target.Index = source.Index;
             target.Text = source.Text;
             target.Enabled = source.Enabled;

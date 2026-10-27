@@ -18,7 +18,7 @@ public sealed class StarshipRewardTier
 
 public sealed class StarshipRewardEntry
 {
-    public int PointTypeId { get; set; }
+    public Guid PointTypeId { get; set; }
     public string PointTypeName { get; set; } = string.Empty;
     public long Minimum { get; set; }
     public long Maximum { get; set; }
@@ -34,7 +34,7 @@ public static class StarshipActionTimings
 
 public sealed class StarshipRewardAction
 {
-    public int ActionId { get; set; }
+    public Guid ActionId { get; set; }
     public string ActionName { get; set; } = string.Empty;
     /// <summary><see cref="StarshipActionTimings.Immediate"/> runs right after the event resolves; <see cref="StarshipActionTimings.AfterBank"/> runs once the crew's points are banked.</summary>
     public string Timing { get; set; } = StarshipActionTimings.Immediate;
@@ -42,14 +42,14 @@ public sealed class StarshipRewardAction
 
 public sealed class StarshipRewardCap
 {
-    public int PointTypeId { get; set; }
+    public Guid PointTypeId { get; set; }
     public long? MaximumPerEvent { get; set; }
     public long? MaximumUnbankedPerVoyage { get; set; }
 }
 
 public sealed class StarshipLossRule
 {
-    public int PointTypeId { get; set; }
+    public Guid PointTypeId { get; set; }
     public string PointTypeName { get; set; } = string.Empty;
     public int Percent { get; set; }
     public long? MaximumPerEvent { get; set; }
@@ -91,7 +91,7 @@ public sealed partial class StarshipRewardProfile
         ];
     }
 
-    public StarshipRewardCap GetCap(int pointTypeId) =>
+    public StarshipRewardCap GetCap(Guid pointTypeId) =>
         Caps.FirstOrDefault(cap => cap.PointTypeId == pointTypeId) ?? new StarshipRewardCap
         {
             PointTypeId = pointTypeId,
@@ -104,23 +104,23 @@ public sealed partial class StarshipRewardProfile
         : LossRules;
 
     /// <summary>The point type shown in summaries: the first one any tier pays, else the first loss rule's.</summary>
-    public int GetPrimaryPointTypeId()
+    public Guid GetPrimaryPointTypeId()
     {
         if (UsesLegacyFields) return PointTypeId;
-        return Tiers.SelectMany(tier => tier.Rewards).Select(reward => reward.PointTypeId).FirstOrDefault(id => id > 0) is var rewardType && rewardType > 0
+        return Tiers.SelectMany(tier => tier.Rewards).Select(reward => reward.PointTypeId).FirstOrDefault(id => id != Guid.Empty) is var rewardType && rewardType != Guid.Empty
             ? rewardType
-            : LossRules.Select(rule => rule.PointTypeId).FirstOrDefault(id => id > 0);
+            : LossRules.Select(rule => rule.PointTypeId).FirstOrDefault(id => id != Guid.Empty);
     }
 
     /// <summary>Every point type this profile can pay, take away or cap.</summary>
-    public IReadOnlyList<int> GetPointTypeIds() => GetTiers()
+    public IReadOnlyList<Guid> GetPointTypeIds() => GetTiers()
         .SelectMany(tier => tier.Rewards.Select(reward => reward.PointTypeId))
         .Concat(GetLossRules().Select(rule => rule.PointTypeId))
-        .Where(id => id > 0)
+        .Where(id => id != Guid.Empty)
         .Distinct()
         .ToList();
 
-    public string GetPointTypeName(int pointTypeId)
+    public string GetPointTypeName(Guid pointTypeId)
     {
         var name = GetTiers().SelectMany(tier => tier.Rewards).FirstOrDefault(reward => reward.PointTypeId == pointTypeId && reward.PointTypeName.Length > 0)?.PointTypeName;
         return name ?? LossRules.FirstOrDefault(rule => rule.PointTypeId == pointTypeId && !string.IsNullOrWhiteSpace(rule.PointTypeName))?.PointTypeName
@@ -198,7 +198,7 @@ public sealed partial class StarshipRewardProfile
                 throw new ArgumentException($"{label}: tier {tier.Name} can have at most {MaximumRewardsPerTier} rewards.", nameof(Tiers));
             foreach (var reward in tier.Rewards)
             {
-                if (Enabled && reward.PointTypeId <= 0)
+                if (Enabled && reward.PointTypeId == Guid.Empty)
                     throw new ArgumentOutOfRangeException(nameof(Tiers), $"{label}: select a point type for each reward in tier {tier.Name}.");
                 if (reward.Minimum < 0 || reward.Maximum < reward.Minimum || reward.Maximum > StarshipExpeditionSettings.MaximumConfiguredReward)
                     throw new ArgumentOutOfRangeException(nameof(Tiers), $"{label}: reward ranges in tier {tier.Name} must be non-negative with the maximum at least the minimum.");
@@ -220,10 +220,10 @@ public sealed partial class StarshipRewardProfile
         if (UsesLegacyFields) return;
         if (LossRules.Count > MaximumLossRules)
             throw new ArgumentException($"{label}: use at most {MaximumLossRules} loss rules.", nameof(LossRules));
-        var lossTypes = new HashSet<int>();
+        var lossTypes = new HashSet<Guid>();
         foreach (var rule in LossRules)
         {
-            if (Enabled && rule.PointTypeId <= 0)
+            if (Enabled && rule.PointTypeId == Guid.Empty)
                 throw new ArgumentOutOfRangeException(nameof(LossRules), $"{label}: select a point type for each loss rule.");
             if (!lossTypes.Add(rule.PointTypeId))
                 throw new ArgumentException($"{label}: there are two loss rules for the same point type.", nameof(LossRules));
@@ -231,7 +231,7 @@ public sealed partial class StarshipRewardProfile
                 throw new ArgumentOutOfRangeException(nameof(LossRules), $"{label}: loss must be 0-100 percent with a non-negative amount cap.");
         }
 
-        Caps = Caps.Where(cap => cap.PointTypeId > 0).GroupBy(cap => cap.PointTypeId).Select(group => group.First()).ToList();
+        Caps = Caps.Where(cap => cap.PointTypeId != Guid.Empty).GroupBy(cap => cap.PointTypeId).Select(group => group.First()).ToList();
         foreach (var cap in Caps)
         {
             if (cap.MaximumPerEvent is < 0 or > StarshipExpeditionSettings.MaximumConfiguredReward ||
@@ -246,7 +246,7 @@ public sealed partial class StarshipRewardProfile
             throw new ArgumentException($"{label}: use at most {MaximumActionsPerList} actions.", nameof(actions));
         foreach (var action in actions)
         {
-            if (action.ActionId <= 0)
+            if (action.ActionId == Guid.Empty)
                 throw new ArgumentOutOfRangeException(nameof(actions), $"{label}: select an action for each action row.");
             if (!ActionTimings.Contains(action.Timing, StringComparer.Ordinal))
                 throw new ArgumentException($"{label}: an action's timing must be Immediate or AfterBank.", nameof(actions));

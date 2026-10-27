@@ -17,7 +17,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public static TierComparisonResult CompareToEquipped(
             FishingShopItem item,
             IReadOnlyDictionary<EquipmentSlot, FishingShopItem> equippedShopItemBySlot,
-            IReadOnlyDictionary<int, EquipmentTier> tierMap)
+            IReadOnlyDictionary<Guid, EquipmentTier> tierMap)
         {
             if (item.MaxUses.HasValue || !item.EquipmentSlot.HasValue)
             {

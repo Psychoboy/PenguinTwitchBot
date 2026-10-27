@@ -66,16 +66,16 @@ namespace PenguinTwitchBot.Bot.Validation
             _logger.LogDebug("Validating {ActionCount} actions", allActions.Count);
 
             // Track action names to check for duplicates
-            var actionNameCounts = new Dictionary<string, List<int?>>(StringComparer.OrdinalIgnoreCase);
+            var actionNameCounts = new Dictionary<string, List<Guid>>(StringComparer.OrdinalIgnoreCase);
 
             // Build set of action IDs that are called by other actions via ExecuteAction subactions.
             // These are "triggered" indirectly and should not be flagged as having no triggers.
-            var calledByExecuteAction = new HashSet<int>();
+            var calledByExecuteAction = new HashSet<Guid>();
             foreach (var a in allActions)
             {
                 foreach (var ea in GetAllExecuteActionSubActions(a.SubActions ?? []))
                 {
-                    if (ea.ActionId.HasValue)
+                    if (ea.ActionId.HasValue && ea.ActionId.Value != Guid.Empty)
                         calledByExecuteAction.Add(ea.ActionId.Value);
                 }
             }
@@ -99,7 +99,7 @@ namespace PenguinTwitchBot.Bot.Validation
                 {
                     // Track for duplicate checking
                     if (!actionNameCounts.ContainsKey(action.Name))
-                        actionNameCounts[action.Name] = new List<int?>();
+                        actionNameCounts[action.Name] = new List<Guid>();
                     actionNameCounts[action.Name].Add(action.Id);
                 }
 
@@ -120,7 +120,7 @@ namespace PenguinTwitchBot.Bot.Validation
                 // Warn about actions with no triggers (orphaned actions).
                 // Skip if this action is called by another action via ExecuteAction — that counts as a trigger.
                 if ((action.Triggers == null || action.Triggers.Count == 0) &&
-                    !(action.Id.HasValue && calledByExecuteAction.Contains(action.Id.Value)))
+                    !(action.Id != Guid.Empty && calledByExecuteAction.Contains(action.Id)))
                 {
                     result.Issues.Add(new ValidationIssue
                     {
@@ -154,7 +154,7 @@ namespace PenguinTwitchBot.Bot.Validation
             // Report duplicate action names
             foreach (var kvp in actionNameCounts.Where(x => x.Value.Count > 1))
             {
-                var duplicateIds = string.Join(", ", kvp.Value.Select(id => id?.ToString() ?? "null"));
+                var duplicateIds = string.Join(", ", kvp.Value.Select(id => id.ToString()));
                 result.Issues.Add(new ValidationIssue
                 {
                     IssueType = ValidationIssueType.ActionDuplicateName,
@@ -172,13 +172,13 @@ namespace PenguinTwitchBot.Bot.Validation
 
         private void ValidateCircularDependencies(ActionType action, List<ActionType> allActions, ValidationResult result)
         {
-            if (action.SubActions == null || !action.Id.HasValue)
+            if (action.SubActions == null || action.Id == Guid.Empty)
                 return;
 
-            var visited = new HashSet<int>();
-            var recursionStack = new HashSet<int>();
+            var visited = new HashSet<Guid>();
+            var recursionStack = new HashSet<Guid>();
 
-            if (HasCircularDependency(action.Id.Value, allActions, visited, recursionStack, out var cyclePath))
+            if (HasCircularDependency(action.Id, allActions, visited, recursionStack, out var cyclePath))
             {
                 // Parse the action IDs from the cycle path (format: "1 -> 2 -> 1")
                 // and check if any action in the cycle uses the counter-decrement pattern:
@@ -186,12 +186,12 @@ namespace PenguinTwitchBot.Bot.Validation
                 // ExecuteAction call. Such cycles will naturally exit and are not infinite loops.
                 var cycleActionIds = cyclePath
                     .Split(" -> ", StringSplitOptions.RemoveEmptyEntries)
-                    .Select(id => int.TryParse(id, out var i) ? i : -1)
-                    .Where(id => id > 0)
+                    .Select(id => Guid.TryParse(id, out var g) ? g : Guid.Empty)
+                    .Where(id => id != Guid.Empty)
                     .ToHashSet();
 
                 var cycleActions = allActions
-                    .Where(a => a.Id.HasValue && cycleActionIds.Contains(a.Id.Value));
+                    .Where(a => a.Id != Guid.Empty && cycleActionIds.Contains(a.Id));
 
                 if (cycleActions.Any(HasCounterDecrementPattern))
                     return;
@@ -242,10 +242,10 @@ namespace PenguinTwitchBot.Bot.Validation
         }
 
         private bool HasCircularDependency(
-            int actionId, 
+            Guid actionId, 
             List<ActionType> allActions, 
-            HashSet<int> visited, 
-            HashSet<int> recursionStack,
+            HashSet<Guid> visited, 
+            HashSet<Guid> recursionStack,
             out string cyclePath)
         {
             cyclePath = string.Empty;
@@ -269,6 +269,7 @@ namespace PenguinTwitchBot.Bot.Validation
                 foreach (var executeAction in executeActions)
                 {
                     if (executeAction.ActionId.HasValue && 
+                        executeAction.ActionId.Value != Guid.Empty &&
                         HasCircularDependency(executeAction.ActionId.Value, allActions, visited, recursionStack, out var nestedPath))
                     {
                         cyclePath = $"{actionId} -> {nestedPath}";
@@ -323,26 +324,26 @@ namespace PenguinTwitchBot.Bot.Validation
             // Get all timer groups and commands for validation - with full entities for name validation
             var timerGroups = await db.TimerGroups.GetAsync();
             var timerGroupDict = timerGroups
-                .Where(t => t.Id.HasValue)
-                .ToDictionary(t => t.Id!.Value, t => t);
+                .Where(t => t.Id != Guid.Empty)
+                .ToDictionary(t => t.Id, t => t);
 
             var commands = await db.ActionCommands.GetAsync();
             var commandDict = commands
-                .Where(c => c.Id.HasValue)
-                .ToDictionary(c => c.Id!.Value, c => c);
+                .Where(c => c.Id != Guid.Empty)
+                .ToDictionary(c => c.Id, c => c);
 
             var keywords = await db.ActionKeywords.GetAsync();
             var keywordDict = keywords
-                .Where(k => k.Id.HasValue)
-                .ToDictionary(k => k.Id!.Value, k => k);
+                .Where(k => k.Id != Guid.Empty)
+                .ToDictionary(k => k.Id, k => k);
 
             // Get all actions to check for orphaned triggers
             var allActions = await db.Actions.GetAllWithDetailsAsync();
-            var actionIds = new HashSet<int>(allActions.Where(a => a.Id.HasValue).Select(a => a.Id!.Value));
+            var actionIds = new HashSet<Guid>(allActions.Where(a => a.Id != Guid.Empty).Select(a => a.Id));
 
             // Track duplicate triggers per action
             var triggersByAction = allTriggers
-                .Where(t => t.ActionId.HasValue)
+                .Where(t => t.ActionId.HasValue && t.ActionId.Value != Guid.Empty)
                 .GroupBy(t => t.ActionId!.Value)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -511,10 +512,10 @@ namespace PenguinTwitchBot.Bot.Validation
 
             // Get all commands and actions for validation
             var commands = await db.ActionCommands.GetAsync();
-            var commandIds = new HashSet<int>(commands.Where(c => c.Id.HasValue).Select(c => c.Id!.Value));
+            var commandIds = new HashSet<Guid>(commands.Where(c => c.Id != Guid.Empty).Select(c => c.Id));
             var commandNames = new HashSet<string>(commands.Select(c => c.CommandName), StringComparer.OrdinalIgnoreCase);
 
-            var actionIds = new HashSet<int>(allActions.Where(a => a.Id.HasValue).Select(a => a.Id!.Value));
+            var actionIds = new HashSet<Guid>(allActions.Where(a => a.Id != Guid.Empty).Select(a => a.Id));
 
             // Get all default commands for ExecuteDefaultCommand validation
             var defaultCommands = await db.DefaultCommands.GetAllAsync();
@@ -526,7 +527,7 @@ namespace PenguinTwitchBot.Bot.Validation
 
             // Get all timer groups for TimerGroupSetEnabledState validation
             var timerGroups = await db.TimerGroups.GetAsync();
-            var timerGroupIds = new HashSet<int>(timerGroups.Where(tg => tg.Id.HasValue).Select(tg => tg.Id!.Value));
+            var timerGroupIds = new HashSet<Guid>(timerGroups.Where(tg => tg.Id != Guid.Empty).Select(tg => tg.Id));
 
             foreach (var action in allActions)
             {
@@ -549,14 +550,14 @@ namespace PenguinTwitchBot.Bot.Validation
 
         private void ValidateSubActionList(
             List<SubActionType> subActions, 
-            HashSet<int> commandIds,
+            HashSet<Guid> commandIds,
             HashSet<string> commandNames,
-            HashSet<int> actionIds,
+            HashSet<Guid> actionIds,
             HashSet<string> defaultCommandNames,
             HashSet<string> pointTypeNames,
-            HashSet<int> timerGroupIds,
+            HashSet<Guid> timerGroupIds,
             ValidationResult result,
-            int? parentActionId,
+            Guid? parentActionId,
             string parentActionName)
         {
             foreach (var subAction in subActions)
@@ -597,7 +598,7 @@ namespace PenguinTwitchBot.Bot.Validation
                 // Validate ExecuteAction subactions
                 if (subAction is ExecuteActionType executeAction)
                 {
-                    if (!executeAction.ActionId.HasValue || executeAction.ActionId.Value <= 0)
+                    if (!executeAction.ActionId.HasValue || executeAction.ActionId.Value == Guid.Empty)
                     {
                         result.Issues.Add(new ValidationIssue
                         {
@@ -620,7 +621,40 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityType = "SubAction",
                             EntityId = subAction.Id,
                             EntityName = "Execute Action",
-                            Message = $"SubAction 'Execute Action' references non-existent Action ID: {executeAction.ActionId} (Name: {executeAction.ActionName})",
+                            Message = $"SubAction 'Execute Action' references non-existent Action ID: {executeAction.ActionId}",
+                            RelatedActionId = parentActionId,
+                            RelatedActionName = parentActionName
+                        });
+                    }
+                }
+
+                // Validate ForEachViewer subactions
+                if (subAction is ForEachViewerType forEachViewer)
+                {
+                    if (!forEachViewer.ActionId.HasValue || forEachViewer.ActionId.Value == Guid.Empty)
+                    {
+                        result.Issues.Add(new ValidationIssue
+                        {
+                            IssueType = ValidationIssueType.SubActionActionNotFound,
+                            Severity = ValidationSeverity.Error,
+                            EntityType = "SubAction",
+                            EntityId = subAction.Id,
+                            EntityName = "For Each Viewer",
+                            Message = "SubAction 'For Each Viewer' has missing or invalid ActionId",
+                            RelatedActionId = parentActionId,
+                            RelatedActionName = parentActionName
+                        });
+                    }
+                    else if (!actionIds.Contains(forEachViewer.ActionId.Value))
+                    {
+                        result.Issues.Add(new ValidationIssue
+                        {
+                            IssueType = ValidationIssueType.SubActionActionNotFound,
+                            Severity = ValidationSeverity.Error,
+                            EntityType = "SubAction",
+                            EntityId = subAction.Id,
+                            EntityName = "For Each Viewer",
+                            Message = $"SubAction 'For Each Viewer' references non-existent Action ID: {forEachViewer.ActionId}",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -711,7 +745,7 @@ namespace PenguinTwitchBot.Bot.Validation
                 // Validate TimerGroupSetEnabledState subactions
                 if (subAction is TimerGroupSetEnabledStateType timerGroupSetEnabled)
                 {
-                    if (!timerGroupSetEnabled.TimerGroupId.HasValue || timerGroupSetEnabled.TimerGroupId.Value <= 0)
+                    if (!timerGroupSetEnabled.TimerGroupId.HasValue || timerGroupSetEnabled.TimerGroupId.Value == Guid.Empty)
                     {
                         result.Issues.Add(new ValidationIssue
                         {
@@ -1049,7 +1083,7 @@ namespace PenguinTwitchBot.Bot.Validation
                 // Validate ObsSetScene subactions
                 if (subAction is ObsSetSceneType obsSetScene)
                 {
-                    if (!obsSetScene.OBSConnectionId.HasValue || obsSetScene.OBSConnectionId.Value <= 0)
+                    if (!obsSetScene.OBSConnectionId.HasValue || obsSetScene.OBSConnectionId.Value == Guid.Empty)
                     {
                         result.Issues.Add(new ValidationIssue
                         {
@@ -1083,7 +1117,7 @@ namespace PenguinTwitchBot.Bot.Validation
                 // Validate ObsSetSceneFilterState subactions
                 if (subAction is ObsSetSceneFilterStateType obsSetFilter)
                 {
-                    if (!obsSetFilter.OBSConnectionId.HasValue || obsSetFilter.OBSConnectionId.Value <= 0)
+                    if (!obsSetFilter.OBSConnectionId.HasValue || obsSetFilter.OBSConnectionId.Value == Guid.Empty)
                     {
                         result.Issues.Add(new ValidationIssue
                         {
@@ -1146,7 +1180,7 @@ namespace PenguinTwitchBot.Bot.Validation
                    (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
         }
 
-        public async Task MarkEntityWithIssueAsync(string entityType, int entityId, bool hasIssue)
+        public async Task MarkEntityWithIssueAsync(string entityType, Guid entityId, bool hasIssue)
         {
             // This could be implemented to add a flag to the database entities
             // For now, we'll just log it
@@ -1180,7 +1214,7 @@ namespace PenguinTwitchBot.Bot.Validation
             }
         }
 
-        private void ValidateTimerTrigger(TriggerType trigger, Dictionary<int, TimerGroup> timerGroupDict, ValidationResult result)
+        private void ValidateTimerTrigger(TriggerType trigger, Dictionary<Guid, TimerGroup> timerGroupDict, ValidationResult result)
         {
             var configData = ParseTimerTriggerConfiguration(trigger.Configuration);
             var configTimerGroupId = configData?.TimerGroupId;
@@ -1331,7 +1365,7 @@ namespace PenguinTwitchBot.Bot.Validation
             }
         }
 
-        private void ValidateKeywordTrigger(TriggerType trigger, Dictionary<int, ActionKeyword> keywordDict, ValidationResult result)
+        private void ValidateKeywordTrigger(TriggerType trigger, Dictionary<Guid, ActionKeyword> keywordDict, ValidationResult result)
         {
             var configData = ParseKeywordTriggerConfiguration(trigger.Configuration);
             var configKeywordId = configData?.KeywordId;
@@ -1485,7 +1519,7 @@ namespace PenguinTwitchBot.Bot.Validation
             }
         }
 
-        private void ValidateCommandTrigger(TriggerType trigger, Dictionary<int, ActionCommand> commandDict, ValidationResult result)
+        private void ValidateCommandTrigger(TriggerType trigger, Dictionary<Guid, ActionCommand> commandDict, ValidationResult result)
         {
             var configData = ParseCommandTriggerConfiguration(trigger.Configuration);
             var configCommandId = configData?.CommandId;
@@ -1651,9 +1685,9 @@ namespace PenguinTwitchBot.Bot.Validation
 
                 var result = new TimerTriggerConfig();
 
-                if (config.TryGetValue("TimerGroupId", out var timerGroupIdElement))
+                if (config.TryGetValue("TimerGroupId", out var timerGroupIdElement) && timerGroupIdElement.TryGetGuid(out var timerGroupId))
                 {
-                    result.TimerGroupId = timerGroupIdElement.GetInt32();
+                    result.TimerGroupId = timerGroupId;
                 }
 
                 if (config.TryGetValue("TimerGroupName", out var timerGroupNameElement))
@@ -1682,9 +1716,9 @@ namespace PenguinTwitchBot.Bot.Validation
 
                 var result = new KeywordTriggerConfig();
 
-                if (config.TryGetValue("KeywordId", out var keywordIdElement))
+                if (config.TryGetValue("KeywordId", out var keywordIdElement) && keywordIdElement.TryGetGuid(out var keywordId))
                 {
-                    result.KeywordId = keywordIdElement.GetInt32();
+                    result.KeywordId = keywordId;
                 }
 
                 if (config.TryGetValue("KeywordName", out var keywordNameElement))
@@ -1713,9 +1747,9 @@ namespace PenguinTwitchBot.Bot.Validation
 
                 var result = new CommandTriggerConfig();
 
-                if (config.TryGetValue("CommandId", out var commandIdElement))
+                if (config.TryGetValue("CommandId", out var commandIdElement) && commandIdElement.TryGetGuid(out var commandId))
                 {
-                    result.CommandId = commandIdElement.GetInt32();
+                    result.CommandId = commandId;
                 }
 
                 if (config.TryGetValue("CommandName", out var commandNameElement))
@@ -1745,9 +1779,9 @@ namespace PenguinTwitchBot.Bot.Validation
 
             // Get all triggers to check which commands are referenced
             var allTriggers = await db.Triggers.GetAllAsync();
-            var commandsReferencedByTriggers = new HashSet<int>(
+            var commandsReferencedByTriggers = new HashSet<Guid>(
                 allTriggers
-                    .Where(t => t.Type == TriggerTypes.Command && t.CommandId.HasValue)
+                    .Where(t => t.Type == TriggerTypes.Command && t.CommandId.HasValue && t.CommandId.Value != Guid.Empty)
                     .Select(t => t.CommandId!.Value));
 
             foreach (var command in commands)
@@ -1767,7 +1801,7 @@ namespace PenguinTwitchBot.Bot.Validation
                 }
 
                 // Warn about orphaned commands (not referenced by any trigger)
-                if (command.Id.HasValue && !commandsReferencedByTriggers.Contains(command.Id.Value))
+                if (command.Id != Guid.Empty && !commandsReferencedByTriggers.Contains(command.Id))
                 {
                     result.Issues.Add(new ValidationIssue
                     {
@@ -1798,9 +1832,9 @@ namespace PenguinTwitchBot.Bot.Validation
 
             // Get all triggers to check which keywords are referenced
             var allTriggers = await db.Triggers.GetAllAsync();
-            var keywordsReferencedByTriggers = new HashSet<int>(
+            var keywordsReferencedByTriggers = new HashSet<Guid>(
                 allTriggers
-                    .Where(t => t.Type == TriggerTypes.Keyword && t.KeywordId.HasValue)
+                    .Where(t => t.Type == TriggerTypes.Keyword && t.KeywordId.HasValue && t.KeywordId.Value != Guid.Empty)
                     .Select(t => t.KeywordId!.Value));
 
             foreach (var keyword in keywords)
@@ -1820,7 +1854,7 @@ namespace PenguinTwitchBot.Bot.Validation
                 }
 
                 // Warn about orphaned keywords (not referenced by any trigger)
-                if (keyword.Id.HasValue && !keywordsReferencedByTriggers.Contains(keyword.Id.Value))
+                if (keyword.Id != Guid.Empty && !keywordsReferencedByTriggers.Contains(keyword.Id))
                 {
                     result.Issues.Add(new ValidationIssue
                     {
@@ -1841,19 +1875,19 @@ namespace PenguinTwitchBot.Bot.Validation
 
     internal class TimerTriggerConfig
     {
-        public int? TimerGroupId { get; set; }
+        public Guid? TimerGroupId { get; set; }
         public string? TimerGroupName { get; set; }
     }
 
     internal class CommandTriggerConfig
     {
-        public int? CommandId { get; set; }
+        public Guid? CommandId { get; set; }
         public string? CommandName { get; set; }
     }
 
     internal class KeywordTriggerConfig
     {
-        public int? KeywordId { get; set; }
+        public Guid? KeywordId { get; set; }
         public string? KeywordName { get; set; }
     }
 }

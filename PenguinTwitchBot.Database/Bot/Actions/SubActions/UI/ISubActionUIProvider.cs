@@ -123,7 +123,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.UI
     public class SelectOption
     {
         public string Name { get; set; } = string.Empty;
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         /// <summary>
         /// Optional string value. When set, this will be used instead of Id.ToString().

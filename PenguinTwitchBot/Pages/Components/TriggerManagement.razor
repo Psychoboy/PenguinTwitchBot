@@ -204,7 +204,7 @@
 
 @code {
     [Parameter]
-    public int? ActionId { get; set; }
+    public Guid? ActionId { get; set; }
 
     [Parameter]
     public List<TriggerType> ActionTriggers { get; set; } = new();
@@ -215,10 +215,10 @@
     [Parameter]
     public bool ReadOnly { get; set; } = false;
 
-    private Dictionary<int, string> _timerGroupNames = new();
-    private Dictionary<int, bool> _defaultCommandFeatureDisabled = new();
-    private Dictionary<int, string> _defaultCommandFeatureNames = new();
-    private int? _previousActionId;
+    private Dictionary<Guid, string> _timerGroupNames = new();
+    private Dictionary<Guid, bool> _defaultCommandFeatureDisabled = new();
+    private Dictionary<Guid, string> _defaultCommandFeatureNames = new();
+    private Guid? _previousActionId;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -296,12 +296,12 @@
         }
     }
 
-    private int? ExtractTimerGroupId(string triggerName)
+    private Guid? ExtractTimerGroupId(string triggerName)
     {
         if (triggerName.StartsWith("TimerGroup_"))
         {
             var idPart = triggerName.Substring("TimerGroup_".Length);
-            if (int.TryParse(idPart, out var id))
+            if (Guid.TryParse(idPart, out var id))
             {
                 return id;
             }
@@ -372,9 +372,9 @@
                     try
                     {
                         var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
-                        if (config.TryGetProperty("CommandId", out var commandIdElement))
+                        if (config.TryGetProperty("CommandId", out var commandIdElement) && commandIdElement.TryGetGuid(out var commandGuid))
                         {
-                            newTrigger.CommandId = commandIdElement.GetInt32();
+                            newTrigger.CommandId = commandGuid;
                         }
                     }
                     catch { /* Ignore JSON parsing errors */ }
@@ -384,9 +384,9 @@
                     try
                     {
                         var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
-                        if (config.TryGetProperty("KeywordId", out var keywordIdElement))
+                        if (config.TryGetProperty("KeywordId", out var keywordIdElement) && keywordIdElement.TryGetGuid(out var keywordGuid))
                         {
-                            newTrigger.KeywordId = keywordIdElement.GetInt32();
+                            newTrigger.KeywordId = keywordGuid;
                         }
                     }
                     catch { /* Ignore JSON parsing errors */ }
@@ -396,9 +396,9 @@
                     try
                     {
                         var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
-                        if (config.TryGetProperty("TimerGroupId", out var timerGroupIdElement))
+                        if (config.TryGetProperty("TimerGroupId", out var timerGroupIdElement) && timerGroupIdElement.TryGetGuid(out var timerGroupGuid))
                         {
-                            newTrigger.TimerGroupId = timerGroupIdElement.GetInt32();
+                            newTrigger.TimerGroupId = timerGroupGuid;
                         }
                     }
                     catch { /* Ignore JSON parsing errors */ }
@@ -412,9 +412,9 @@
                         {
                             // Look up the default command by name to get the ID
                             var defaultCommand = await CommandHandler.GetDefaultCommandByDefaultCommandName(config.DefaultCommandName);
-                            if (defaultCommand?.Id.HasValue == true)
+                            if (defaultCommand != null && defaultCommand.Id != Guid.Empty)
                             {
-                                newTrigger.DefaultCommandId = defaultCommand.Id.Value;
+                                newTrigger.DefaultCommandId = defaultCommand.Id;
                             }
                         }
                     }
@@ -465,7 +465,7 @@
     {
         var parameters = new DialogParameters<AddTriggerDialog>
         {
-            { x => x.ActionId, ActionId ?? trigger.ActionId ?? 0 },
+            { x => x.ActionId, ActionId ?? trigger.ActionId ?? Guid.Empty },
             { x => x.ExistingTrigger, trigger }
         };
 
@@ -493,7 +493,7 @@
             trigger.TimerGroupId = data.TimerGroupId;
             trigger.DefaultCommandId = data.DefaultCommandId;
 
-            if (trigger.Id > 0)
+            if (trigger.Id != Guid.Empty)
             {
                 var updatedTrigger = await ActionService.UpdateTriggerAsync(trigger);
                 var triggerIndex = ActionTriggers.FindIndex(t => t.Id == updatedTrigger.Id);
@@ -531,8 +531,8 @@
 
         if (result == true)
         {
-            // Only delete from database if it has been saved (Id > 0)
-            if (trigger.Id > 0)
+            // Only delete from database if it has been saved (Id != Guid.Empty)
+            if (trigger.Id != Guid.Empty)
             {
                 await ActionService.DeleteTriggerAsync(trigger.Id);
             }

@@ -197,7 +197,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
         }
 
-        private async Task TriggerFishingTournamentCatchActionsAsync(ConcurrentDictionary<string, string> variables, int fishTypeId, IEnumerable<string> fishCategoryNames)
+        private async Task TriggerFishingTournamentCatchActionsAsync(ConcurrentDictionary<string, string> variables, Guid fishTypeId, IEnumerable<string> fishCategoryNames)
         {
             try
             {

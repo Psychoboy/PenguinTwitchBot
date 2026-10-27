@@ -6,9 +6,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class BannedViewer
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         [Unicode(true)]
         public string Username { get; set; } = "";
         public string Reason { get; set; } = "";

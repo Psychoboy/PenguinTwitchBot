@@ -29,7 +29,7 @@ namespace PenguinTwitchBot.Bot.Actions
             return actions;
         }
 
-        public async Task<ActionType?> GetActionByIdAsync(int id)
+        public async Task<ActionType?> GetActionByIdAsync(Guid id)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -68,25 +68,6 @@ namespace PenguinTwitchBot.Bot.Actions
 
             try
             {
-                // Check if the name has changed to update ExecuteAction references
-                if (action.Id.HasValue)
-                {
-                    var existingAction = await unitOfWork.Actions.GetByIdWithDetailsAsync(action.Id.Value);
-                    if (existingAction != null && existingAction.Name != action.Name)
-                    {
-                        _logger.LogInformation("Action name changed from '{OldName}' to '{NewName}', updating ExecuteAction references", 
-                            existingAction.Name, action.Name);
-
-                        // Update the action first
-                        var updatedAction = await unitOfWork.Actions.UpdateActionAsync(action);
-
-                        // Then update all ExecuteAction references to the new name
-                        await unitOfWork.Actions.UpdateExecuteActionNamesForRenamedAction(action.Id.Value, action.Name);
-
-                        return updatedAction;
-                    }
-                }
-
                 return await unitOfWork.Actions.UpdateActionAsync(action);
             }
             catch (Exception ex)
@@ -96,7 +77,7 @@ namespace PenguinTwitchBot.Bot.Actions
             }
         }
 
-        public async Task DeleteActionAsync(int id)
+        public async Task DeleteActionAsync(Guid id)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -143,7 +124,7 @@ namespace PenguinTwitchBot.Bot.Actions
             return actions.Where(a => a.Enabled).ToList();
         }
 
-        public async Task<List<TriggerType>> GetTriggersForActionAsync(int actionId)
+        public async Task<List<TriggerType>> GetTriggersForActionAsync(Guid actionId)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -157,7 +138,7 @@ namespace PenguinTwitchBot.Bot.Actions
             return await unitOfWork.Triggers.GetAllAsync();
         }
 
-        public async Task<TriggerType?> GetTriggerByIdAsync(int id)
+        public async Task<TriggerType?> GetTriggerByIdAsync(Guid id)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -196,7 +177,7 @@ namespace PenguinTwitchBot.Bot.Actions
             }
         }
 
-        public async Task DeleteTriggerAsync(int triggerId)
+        public async Task DeleteTriggerAsync(Guid triggerId)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -212,7 +193,7 @@ namespace PenguinTwitchBot.Bot.Actions
             }
         }
 
-        public async Task DeleteTriggersForCommandAsync(int commandId)
+        public async Task DeleteTriggersForCommandAsync(Guid commandId)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -234,7 +215,7 @@ namespace PenguinTwitchBot.Bot.Actions
             }
         }
 
-        public async Task DeleteTriggersForKeywordAsync(int keywordId)
+        public async Task DeleteTriggersForKeywordAsync(Guid keywordId)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

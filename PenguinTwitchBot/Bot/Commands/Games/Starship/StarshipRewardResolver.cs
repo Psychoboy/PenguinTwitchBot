@@ -102,7 +102,7 @@ internal static class StarshipRewardResolver
         var primaryTypeId = profile.GetPrimaryPointTypeId();
         if (isRisky && !isEligible)
         {
-            if (primaryTypeId > 0)
+            if (primaryTypeId != Guid.Empty)
                 resolvedEvent.RewardOutcomes.Add(new StarshipRewardOutcomeSnapshot
                 {
                     UserId = member.UserId,
@@ -116,7 +116,7 @@ internal static class StarshipRewardResolver
             return;
         }
 
-        var typeIds = new List<int>();
+        var typeIds = new List<Guid>();
         if (succeeded)
         {
             if (tier != null) typeIds.AddRange(tier.Rewards.Select(reward => reward.PointTypeId));
@@ -125,16 +125,16 @@ internal static class StarshipRewardResolver
         {
             typeIds.AddRange(profile.GetLossRules().Select(rule => rule.PointTypeId));
         }
-        typeIds = typeIds.Where(id => id > 0).Distinct().ToList();
-        if (typeIds.Count == 0 && primaryTypeId > 0) typeIds.Add(primaryTypeId);
+        typeIds = typeIds.Where(id => id != Guid.Empty).Distinct().ToList();
+        if (typeIds.Count == 0 && primaryTypeId != Guid.Empty) typeIds.Add(primaryTypeId);
 
-        var rolledByType = new Dictionary<int, long>();
+        var rolledByType = new Dictionary<Guid, long>();
         if (succeeded && isEligible && tier != null)
         {
             for (var index = 0; index < tier.Rewards.Count; index++)
             {
                 var reward = tier.Rewards[index];
-                if (reward.PointTypeId <= 0) continue;
+                if (reward.PointTypeId == Guid.Empty) continue;
                 if (reward.ChancePercent < 100 && StarshipExpeditionStory.StableIndex(snapshot.Seed, resolvedEvent.Sequence,
                         $"reward-chance:{resolvedEvent.EventId:N}:{member.UserId}:{rarity}:{index}", 100) >= reward.ChancePercent)
                     continue;
@@ -243,7 +243,7 @@ internal static class StarshipRewardResolver
             tier.Weight * (1m + progress * index / highestTierIndex), MidpointRounding.AwayFromZero))).ToList();
     }
 
-    private static StarshipUnbankedBalanceSnapshot AddUnbankedBalance(StarshipCrewMemberSnapshot member, int pointTypeId, string pointTypeName)
+    private static StarshipUnbankedBalanceSnapshot AddUnbankedBalance(StarshipCrewMemberSnapshot member, Guid pointTypeId, string pointTypeName)
     {
         var balance = new StarshipUnbankedBalanceSnapshot
         {

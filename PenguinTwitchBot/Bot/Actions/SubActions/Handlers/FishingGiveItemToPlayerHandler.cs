@@ -28,7 +28,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionUserFacingException(subAction, "Target Username is required.");
             }
 
-            if (!giveItem.ShopItemId.HasValue || giveItem.ShopItemId.Value <= 0)
+            if (!giveItem.ShopItemId.HasValue || giveItem.ShopItemId.Value == Guid.Empty)
             {
                 throw new SubActionHandlerException(subAction, "A fishing item is required");
             }

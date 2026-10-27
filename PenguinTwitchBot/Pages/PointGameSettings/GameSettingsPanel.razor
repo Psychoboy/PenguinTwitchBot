@@ -165,7 +165,7 @@ else
         {
             await Provider.SaveAsync(ServiceProvider, _values);
             if (Provider.PointsGameName != null && _selectedPointType != null)
-                await PointsSystem.SetPointTypeForGame(Provider.PointsGameName, _selectedPointType.GetId());
+                await PointsSystem.SetPointTypeForGame(Provider.PointsGameName, _selectedPointType.Id);
             Snackbar.Add($"{Provider.DisplayName} settings saved.", Severity.Success);
         }
         catch (Exception ex)

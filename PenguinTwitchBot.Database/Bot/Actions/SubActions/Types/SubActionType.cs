@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
@@ -6,8 +6,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
-        [JsonIgnore]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
+        public Guid? ActionTypeId { get; set; }
+        public Guid? CatchActionTypeId { get; set; }
         public int Index { get; set; } = 0;
         public string Text { get; set; } = "";
         public bool Enabled { get; set; } = true;

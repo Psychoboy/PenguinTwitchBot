@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
@@ -10,8 +11,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         tableName: "subactions_foreachviewer")]
     public class ForEachViewerType : SubActionType, ISubActionUIProvider
     {
-        public int? ActionId { get; set; }
-        public string ActionName { get; set; } = string.Empty;
+        public Guid? ActionId { get; set; }
 
         /// <summary>
         /// "AllViewers" = everyone currently in chat, "ActiveViewers" = recently active viewers, "Subscribers" = viewers who are subscribed to the channel current in chat.
@@ -61,7 +61,6 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         public Dictionary<string, object?> GetValues() => new()
         {
             { nameof(ActionId), ActionId?.ToString() ?? string.Empty },
-            { nameof(ActionName), ActionName },
             { nameof(ViewerScope), ViewerScope },
             { nameof(Enabled), Enabled }
         };
@@ -70,7 +69,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (values.TryGetValue(nameof(ActionId), out var actionId) &&
                 !string.IsNullOrWhiteSpace(actionId?.ToString()) &&
-                int.TryParse(actionId?.ToString(), out var parsedId))
+                UuidMigrationHelper.TryParseGuidOrLegacyInt(actionId?.ToString(), out var parsedId) &&
+                parsedId != Guid.Empty)
             {
                 ActionId = parsedId;
             }
@@ -78,9 +78,6 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 ActionId = null;
             }
-
-            if (values.TryGetValue(nameof(ActionName), out var actionName))
-                ActionName = actionName?.ToString() ?? string.Empty;
 
             if (values.TryGetValue(nameof(ViewerScope), out var scope))
                 ViewerScope = scope?.ToString() ?? "AllViewers";
@@ -93,7 +90,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (!values.TryGetValue(nameof(ActionId), out var actionId) ||
                 string.IsNullOrWhiteSpace(actionId?.ToString()) ||
-                !int.TryParse(actionId?.ToString(), out var parsedId) || parsedId <= 0)
+                !UuidMigrationHelper.TryParseGuidOrLegacyInt(actionId?.ToString(), out var parsedId) ||
+                parsedId == Guid.Empty)
             {
                 return "Action to Run is required";
             }
