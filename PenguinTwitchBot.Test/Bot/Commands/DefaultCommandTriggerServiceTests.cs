@@ -315,4 +315,101 @@ public sealed class DefaultCommandTriggerServiceTests : IDisposable
 
         await _actionService.DidNotReceiveWithAnyArgs().EnqueueAction(default!, default!);
     }
+
+    [Fact]
+    public async Task TriggerDefaultCommandEventAsync_RacingPlacementFilter_ExecutesOnlyForMatchingPlacement()
+    {
+        var raceCommand = new DefaultCommand
+        {
+            CommandName = "race",
+            CustomCommandName = "race",
+            ModuleName = "Racing"
+        };
+        _context.DefaultCommands.Add(raceCommand);
+
+        var firstPlaceAction = new ActionType { Name = "First Place Action", Enabled = true };
+        _context.Actions.Add(firstPlaceAction);
+        await _context.SaveChangesAsync();
+
+        _context.Triggers.Add(new TriggerType
+        {
+            Name = "Racing 1st Place",
+            Type = TriggerTypes.DefaultCommand,
+            Enabled = true,
+            Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+            {
+                DefaultCommandName = "race",
+                EventType = DefaultCommandEventTypes.RacingEnd,
+                Placements = [1]
+            }),
+            ActionId = firstPlaceAction.Id,
+            DefaultCommandId = raceCommand.Id
+        });
+        await _context.SaveChangesAsync();
+
+        var service = new DefaultCommandTriggerService(
+            _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+            Substitute.For<ILogger<DefaultCommandTriggerService>>(),
+            _featureRuntimeCoordinator);
+
+        var eventArgs = new CommandEventArgs { Command = "race", DisplayName = "Winner", Name = "winner" };
+
+        // Test 2nd place - should NOT fire
+        await service.TriggerDefaultCommandEventAsync("race", DefaultCommandEventTypes.RacingEnd, eventArgs, new Dictionary<string, string>
+        {
+            ["Placement"] = "2",
+            ["RacingMode"] = "GrandPrix"
+        });
+        await _actionService.DidNotReceiveWithAnyArgs().EnqueueAction(default!, default!);
+
+        // Test 1st place - SHOULD fire
+        await service.TriggerDefaultCommandEventAsync("race", DefaultCommandEventTypes.RacingEnd, eventArgs, new Dictionary<string, string>
+        {
+            ["Placement"] = "1",
+            ["RacingMode"] = "GrandPrix"
+        });
+        await _actionService.Received(1).EnqueueAction(
+            Arg.Is<System.Collections.Concurrent.ConcurrentDictionary<string, string>>(dict => dict["Placement"] == "1"),
+            Arg.Is<ActionType>(a => a.Id == firstPlaceAction.Id));
+    }
+
+    [Fact]
+    public void DefaultCommandTriggerConfiguration_MatchesVariables_ValidatesAllRacingFilters()
+    {
+        var config = new DefaultCommandTriggerConfiguration
+        {
+            DefaultCommandName = "race",
+            EventType = DefaultCommandEventTypes.RacingEnd,
+            Placements = [1, 2, 3],
+            RacingGameModes = ["DestructionDerby"],
+            RacingOutcomeFilter = "Survived",
+            MinKnockouts = 2
+        };
+
+        // Complete match
+        var matchingVars = new Dictionary<string, string>
+        {
+            ["Placement"] = "1",
+            ["RacingMode"] = "DestructionDerby",
+            ["IsTotaled"] = "False",
+            ["KnockoutCount"] = "3"
+        };
+        Assert.True(config.MatchesVariables(matchingVars));
+
+        // Wrong placement
+        var wrongPlace = new Dictionary<string, string>(matchingVars) { ["Placement"] = "4" };
+        Assert.False(config.MatchesVariables(wrongPlace));
+
+        // Wrong game mode
+        var wrongMode = new Dictionary<string, string>(matchingVars) { ["RacingMode"] = "GrandPrix" };
+        Assert.False(config.MatchesVariables(wrongMode));
+
+        // Totaled when requiring Survived
+        var totaled = new Dictionary<string, string>(matchingVars) { ["IsTotaled"] = "True" };
+        Assert.False(config.MatchesVariables(totaled));
+
+        // Not enough knockouts
+        var lowKOs = new Dictionary<string, string>(matchingVars) { ["KnockoutCount"] = "1" };
+        Assert.False(config.MatchesVariables(lowKOs));
+    }
 }

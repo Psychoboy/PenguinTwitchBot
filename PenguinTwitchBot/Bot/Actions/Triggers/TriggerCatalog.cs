@@ -664,6 +664,118 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "racing-win",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Racing - 1st Place (Win)",
+                Description = "Triggers when a racer finishes in 1st place in a Grand Prix or wins a Destruction Derby",
+                Icon = Icons.Material.Filled.EmojiEvents,
+                Color = Color.Warning,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "race",
+                DefaultCommandEventType = DefaultCommandEventTypes.RacingWin
+            },
+            new()
+            {
+                Id = "racing-podium",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Racing - Podium Finish (Top 3)",
+                Description = "Triggers when a racer finishes in 1st, 2nd, or 3rd place on the podium",
+                Icon = Icons.Material.Filled.WorkspacePremium,
+                Color = Color.Primary,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "race",
+                DefaultCommandEventType = DefaultCommandEventTypes.RacingPodium
+            },
+            new()
+            {
+                Id = "racing-end",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Racing - Racer Finished / Match Concluded",
+                Description = "Triggers for each racer upon crossing the finish line; supports placement, game mode, and outcome filters",
+                Icon = Icons.Material.Filled.SportsScore,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "race",
+                DefaultCommandEventType = DefaultCommandEventTypes.RacingEnd
+            },
+            new()
+            {
+                Id = "racing-derby-knockout",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Racing - Derby Knockout",
+                Description = "Triggers when a racer delivers a knockout blow that totals an opponent in Destruction Derby or Combat mode",
+                Icon = Icons.Material.Filled.LocalFireDepartment,
+                Color = Color.Error,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "race",
+                DefaultCommandEventType = DefaultCommandEventTypes.RacingDerbyKnockout
+            },
+            new()
+            {
+                Id = "racing-wreck",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Racing - Crash / Wreck",
+                Description = "Triggers when a racer spins out, crashes into obstacles, or gets wrecked",
+                Icon = Icons.Material.Filled.CarCrash,
+                Color = Color.Error,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "race",
+                DefaultCommandEventType = DefaultCommandEventTypes.RacingWreck
+            },
+            new()
+            {
+                Id = "racing-start",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Racing - Race Started (Green Flag)",
+                Description = "Triggers when the green flag drops and racers launch off the starting grid",
+                Icon = Icons.Material.Filled.PlayCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "race",
+                DefaultCommandEventType = DefaultCommandEventTypes.RacingStart
+            },
+            new()
+            {
+                Id = "racing-lobby-opened",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Racing - Lobby Opened",
+                Description = "Triggers when a new racing lobby opens for chatters to join via !race",
+                Icon = Icons.Material.Filled.GroupAdd,
+                Color = Color.Info,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "race",
+                DefaultCommandEventType = DefaultCommandEventTypes.RacingLobbyOpened
+            },
+            new()
+            {
+                Id = "racing-timetrial",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Racing - Time Trial Completed",
+                Description = "Triggers when a solo driver completes a time trial sprint",
+                Icon = Icons.Material.Filled.Timer,
+                Color = Color.Info,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "timetrial",
+                DefaultCommandEventType = DefaultCommandEventTypes.RacingTimeTrialComplete
+            },
+            new()
+            {
                 Id = "starship-boarding-opened",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "minigames",

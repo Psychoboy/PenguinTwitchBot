@@ -179,6 +179,78 @@
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., Gamble Jackpot Win" ReadOnly="true" />
 
+                    @if (IsRacingTrigger())
+                    {
+                        <MudPaper Outlined="true" Class="pa-3 mt-3">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">🏁 Racing Trigger Filters (Optional)</MudText>
+                            
+                            <MudSelect T="string" Label="Placement Filter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       Value="_racingPlacementPreset" ValueChanged="OnRacingPlacementPresetChanged" Class="mb-2"
+                                       HelperText="Filter when this trigger fires based on final placement.">
+                                <MudSelectItem Value="@("Any")">Any Placement (All Finishers)</MudSelectItem>
+                                <MudSelectItem Value="@("First")">1st Place Only (Winner)</MudSelectItem>
+                                <MudSelectItem Value="@("Second")">2nd Place Only</MudSelectItem>
+                                <MudSelectItem Value="@("Third")">3rd Place Only</MudSelectItem>
+                                <MudSelectItem Value="@("Podium")">Top 3 (Podium - 1st, 2nd, or 3rd)</MudSelectItem>
+                                <MudSelectItem Value="@("Top5")">Top 5 (1st through 5th)</MudSelectItem>
+                                <MudSelectItem Value="@("Participation")">4th Place or Worse (Participation)</MudSelectItem>
+                                <MudSelectItem Value="@("Custom")">Specific Custom Placements...</MudSelectItem>
+                            </MudSelect>
+
+                            @if (_racingPlacementPreset == "Custom")
+                            {
+                                <MudGrid Spacing="2" Class="mb-2">
+                                    <MudItem xs="12">
+                                        <MudSelect T="int" @bind-SelectedValues="_racingPlacements"
+                                                   Label="Specific Placements" MultiSelection="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                   HelperText="Select exact placements that will trigger this action">
+                                            @for (int i = 1; i <= 16; i++)
+                                            {
+                                                var place = i;
+                                                var suffix = place switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" };
+                                                <MudSelectItem T="int" Value="@place">@($"{place}{suffix} Place")</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudNumericField T="int?" @bind-Value="_racingMinPlacement" Label="Min Placement (>=)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="32" HelperText="e.g. 4 for 4th or worse" />
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudNumericField T="int?" @bind-Value="_racingMaxPlacement" Label="Max Placement (<=)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="32" HelperText="e.g. 3 for top 3" />
+                                    </MudItem>
+                                </MudGrid>
+                            }
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="6">
+                                    <MudSelect T="string" @bind-SelectedValues="_racingGameModes"
+                                               Label="Game Mode Filter" MultiSelection="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                               HelperText="Leave empty to trigger on all game modes">
+                                        <MudSelectItem T="string" Value="@("GrandPrix")">Grand Prix</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("DestructionDerby")">Destruction Derby</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("TimeTrial")">Time Trial</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudSelect T="string" @bind-Value="_racingOutcomeFilter"
+                                               Label="Outcome Status" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                               HelperText="Filter by vehicle outcome condition">
+                                        <MudSelectItem Value="@("Any")">Any Outcome</MudSelectItem>
+                                        <MudSelectItem Value="@("Survived")">Survived Only (Not Totaled)</MudSelectItem>
+                                        <MudSelectItem Value="@("Totaled")">Totaled / Eliminated Only</MudSelectItem>
+                                        <MudSelectItem Value="@("CleanRace")">Clean Race Only (0 Wrecks)</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                @if (_selectedEventType == DefaultCommandEventTypes.RacingDerbyKnockout || _racingGameModes.Contains("DestructionDerby"))
+                                {
+                                    <MudItem xs="12">
+                                        <MudNumericField T="int?" @bind-Value="_racingMinKnockouts" Label="Min Knockouts Required" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="20" HelperText="Only fire if racer scored at least this many knockouts" />
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudPaper>
+                    }
+
                     @if (!string.IsNullOrEmpty(_selectedEventType))
                     {
                         var vars = GetDefaultCommandVariablesSummary(_selectedEventType);
@@ -448,6 +520,15 @@
     private FishingTournamentCatchTriggerConfiguration _fishingTournamentCatchConfig = new();
     private string _triggerName = "";
 
+    // Racing Trigger Filters
+    private string _racingPlacementPreset = "Any";
+    private IReadOnlyCollection<int> _racingPlacements = new HashSet<int>();
+    private int? _racingMinPlacement;
+    private int? _racingMaxPlacement;
+    private IReadOnlyCollection<string> _racingGameModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private string _racingOutcomeFilter = "Any";
+    private int? _racingMinKnockouts;
+
     private IReadOnlyCollection<int> _fishCatchFishTypeIds = new HashSet<int>();
     private IReadOnlyCollection<string> _fishCatchCategories = new HashSet<string>();
     private IReadOnlyCollection<string> _fishCatchRarities = new HashSet<string>();
@@ -533,6 +614,32 @@
                     _selectedDefaultCommand ??= _defaultCommands.FirstOrDefault(c =>
                         string.Equals(c.CommandName, config.DefaultCommandName, StringComparison.OrdinalIgnoreCase));
                     _selectedItem = TriggerCatalog.FindItem(trigger.Type, config.DefaultCommandName, config.EventType);
+
+                    // Load Racing Filters
+                    _racingPlacements = new HashSet<int>(config.Placements ?? []);
+                    _racingMinPlacement = config.MinPlacement;
+                    _racingMaxPlacement = config.MaxPlacement;
+                    _racingGameModes = new HashSet<string>(config.RacingGameModes ?? [], StringComparer.OrdinalIgnoreCase);
+                    _racingOutcomeFilter = string.IsNullOrWhiteSpace(config.RacingOutcomeFilter) ? "Any" : config.RacingOutcomeFilter;
+                    _racingMinKnockouts = config.MinKnockouts;
+
+                    // Infer preset
+                    if (_racingPlacements.Count == 1 && _racingPlacements.Contains(1) && _racingMinPlacement == null && _racingMaxPlacement == null)
+                        _racingPlacementPreset = "First";
+                    else if (_racingPlacements.Count == 1 && _racingPlacements.Contains(2) && _racingMinPlacement == null && _racingMaxPlacement == null)
+                        _racingPlacementPreset = "Second";
+                    else if (_racingPlacements.Count == 1 && _racingPlacements.Contains(3) && _racingMinPlacement == null && _racingMaxPlacement == null)
+                        _racingPlacementPreset = "Third";
+                    else if (_racingPlacements.Count == 3 && _racingPlacements.All(p => p is >= 1 and <= 3) && _racingMinPlacement == null && _racingMaxPlacement == null)
+                        _racingPlacementPreset = "Podium";
+                    else if (_racingPlacements.Count == 5 && _racingPlacements.All(p => p is >= 1 and <= 5) && _racingMinPlacement == null && _racingMaxPlacement == null)
+                        _racingPlacementPreset = "Top5";
+                    else if (_racingMinPlacement == 4 && _racingPlacements.Count == 0 && _racingMaxPlacement == null)
+                        _racingPlacementPreset = "Participation";
+                    else if (_racingPlacements.Count > 0 || _racingMinPlacement.HasValue || _racingMaxPlacement.HasValue)
+                        _racingPlacementPreset = "Custom";
+                    else
+                        _racingPlacementPreset = "Any";
                 }
             }
             catch { }
@@ -647,6 +754,16 @@
             _selectedDefaultCommand = _defaultCommands.FirstOrDefault(c => string.Equals(c.CommandName, item.DefaultCommandName, StringComparison.OrdinalIgnoreCase));
             _selectedEventType = item.DefaultCommandEventType;
             UpdateDefaultCommandTriggerName();
+
+            if (IsRacingTrigger())
+            {
+                if (item.DefaultCommandEventType == DefaultCommandEventTypes.RacingWin)
+                    OnRacingPlacementPresetChanged("First");
+                else if (item.DefaultCommandEventType == DefaultCommandEventTypes.RacingPodium)
+                    OnRacingPlacementPresetChanged("Podium");
+                else
+                    OnRacingPlacementPresetChanged("Any");
+            }
         }
         else if (item.Type == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(item.TwitchEventName))
         {
@@ -825,7 +942,8 @@
     {
         var supportedCommandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel", "drop", "plinko", "balloon", "curl", "golf", "joinclaw"
+            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel", "drop", "plinko", "balloon", "curl", "golf", "joinclaw",
+            "race", "racing", "kart", "grandprix", "timetrial", "tt"
         };
 
         var supportedCommands = _defaultCommands
@@ -842,12 +960,69 @@
         return Task.FromResult(filtered);
     }
 
+    private bool IsRacingTrigger() =>
+        _selectedType == TriggerTypes.DefaultCommand &&
+        (_selectedDefaultCommand?.CommandName?.Equals("race", StringComparison.OrdinalIgnoreCase) == true ||
+         _selectedDefaultCommand?.CommandName?.Equals("racing", StringComparison.OrdinalIgnoreCase) == true ||
+         _selectedDefaultCommand?.CommandName?.Equals("timetrial", StringComparison.OrdinalIgnoreCase) == true ||
+         (!string.IsNullOrEmpty(_selectedEventType) && _selectedEventType.StartsWith("Racing.", StringComparison.OrdinalIgnoreCase)));
+
+    private void OnRacingPlacementPresetChanged(string preset)
+    {
+        _racingPlacementPreset = preset;
+        switch (preset)
+        {
+            case "First":
+                _racingPlacements = new HashSet<int> { 1 };
+                _racingMinPlacement = null;
+                _racingMaxPlacement = null;
+                break;
+            case "Second":
+                _racingPlacements = new HashSet<int> { 2 };
+                _racingMinPlacement = null;
+                _racingMaxPlacement = null;
+                break;
+            case "Third":
+                _racingPlacements = new HashSet<int> { 3 };
+                _racingMinPlacement = null;
+                _racingMaxPlacement = null;
+                break;
+            case "Podium":
+                _racingPlacements = new HashSet<int> { 1, 2, 3 };
+                _racingMinPlacement = null;
+                _racingMaxPlacement = null;
+                break;
+            case "Top5":
+                _racingPlacements = new HashSet<int> { 1, 2, 3, 4, 5 };
+                _racingMinPlacement = null;
+                _racingMaxPlacement = null;
+                break;
+            case "Participation":
+                _racingPlacements = new HashSet<int>();
+                _racingMinPlacement = 4;
+                _racingMaxPlacement = null;
+                break;
+            case "Any":
+                _racingPlacements = new HashSet<int>();
+                _racingMinPlacement = null;
+                _racingMaxPlacement = null;
+                break;
+            case "Custom":
+                break;
+        }
+    }
+
     private void OnDefaultCommandChanged(DefaultCommand? defaultCommand)
     {
         _selectedDefaultCommand = defaultCommand;
         _selectedEventType = "";
 
         UpdateDefaultCommandTriggerName();
+
+        if (IsRacingTrigger())
+        {
+            OnRacingPlacementPresetChanged("Any");
+        }
     }
 
     private void UpdateDefaultCommandTriggerName()
@@ -862,6 +1037,16 @@
     {
         _selectedEventType = eventType;
         UpdateDefaultCommandTriggerName();
+
+        if (IsRacingTrigger())
+        {
+            if (eventType == DefaultCommandEventTypes.RacingWin)
+                OnRacingPlacementPresetChanged("First");
+            else if (eventType == DefaultCommandEventTypes.RacingPodium)
+                OnRacingPlacementPresetChanged("Podium");
+            else if (_racingPlacementPreset == "First" || _racingPlacementPreset == "Podium")
+                OnRacingPlacementPresetChanged("Any");
+        }
     }
 
     private List<string> GetEventTypesForCommand(string commandName)
@@ -958,6 +1143,17 @@
                 DefaultCommandEventTypes.GolfLose,
                 DefaultCommandEventTypes.GolfEnd
             },
+            "race" or "racing" or "kart" or "grandprix" or "timetrial" or "tt" => new List<string>
+            {
+                DefaultCommandEventTypes.RacingWin,
+                DefaultCommandEventTypes.RacingPodium,
+                DefaultCommandEventTypes.RacingEnd,
+                DefaultCommandEventTypes.RacingDerbyKnockout,
+                DefaultCommandEventTypes.RacingWreck,
+                DefaultCommandEventTypes.RacingStart,
+                DefaultCommandEventTypes.RacingLobbyOpened,
+                DefaultCommandEventTypes.RacingTimeTrialComplete
+            },
             _ => new List<string>()
         };
     }
@@ -1017,6 +1213,14 @@
             DefaultCommandEventTypes.GolfBullseye => "Sunk in Cup / Hole-in-One",
             DefaultCommandEventTypes.GolfLose => "Off the Green (Miss)",
             DefaultCommandEventTypes.GolfEnd => "Round Ended (Session Closed)",
+            DefaultCommandEventTypes.RacingWin => "1st Place (Win)",
+            DefaultCommandEventTypes.RacingPodium => "Podium Finish (Top 3)",
+            DefaultCommandEventTypes.RacingEnd => "Racer Finished / Race Ended",
+            DefaultCommandEventTypes.RacingDerbyKnockout => "Derby Knockout",
+            DefaultCommandEventTypes.RacingWreck => "Crash / Wreck",
+            DefaultCommandEventTypes.RacingStart => "Race Started (Green Flag)",
+            DefaultCommandEventTypes.RacingLobbyOpened => "Lobby Opened",
+            DefaultCommandEventTypes.RacingTimeTrialComplete => "Time Trial Completed",
             _ => eventType
         };
     }
@@ -1065,6 +1269,16 @@
                 "%user%, %userid%, %Score%, %BaseScore%, %StrokeNumber%, %StrokePenalty%, %Power%, %IsHoleInOne%, %IsLipOut%, %DistanceFromCenter%, %Theme%, %Game%",
             DefaultCommandEventTypes.BalloonEnd or DefaultCommandEventTypes.CurlingEnd or DefaultCommandEventTypes.GolfEnd =>
                 "%user%, %TotalDrops%, %duration%, %theme%, %game%",
+            DefaultCommandEventTypes.RacingWin or DefaultCommandEventTypes.RacingPodium or DefaultCommandEventTypes.RacingEnd or DefaultCommandEventTypes.RacingWreck =>
+                "%user%, %userid%, %placement%, %laptime%, %wreckcount%, %knockoutcount%, %istotaled%, %pointsawarded%, %racingmode%, %theme%, %game%",
+            DefaultCommandEventTypes.RacingDerbyKnockout =>
+                "%user%, %userid%, %attacker%, %victim%, %knockoutcount%, %pointsawarded%, %racingmode%, %theme%, %game%",
+            DefaultCommandEventTypes.RacingStart =>
+                "%user%, %racercount%, %gamemode%, %tracktype%, %laps%, %theme%, %game%",
+            DefaultCommandEventTypes.RacingLobbyOpened =>
+                "%user%, %duration%, %gamemode%, %theme%, %game%",
+            DefaultCommandEventTypes.RacingTimeTrialComplete =>
+                "%user%, %userid%, %placement%, %laptime%, %wreckcount%, %racingmode%, %theme%, %game%",
             _ => ""
         };
     }
@@ -1154,11 +1368,23 @@
         else if (_selectedType == TriggerTypes.DefaultCommand && _selectedDefaultCommand != null)
         {
             defaultCommandIdRef = _selectedDefaultCommand.Id;
-            configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+            var defaultCmdConfig = new DefaultCommandTriggerConfiguration
             {
                 DefaultCommandName = _selectedDefaultCommand.CommandName,
                 EventType = _selectedEventType
-            });
+            };
+
+            if (IsRacingTrigger())
+            {
+                defaultCmdConfig.Placements = _racingPlacements.ToList();
+                defaultCmdConfig.MinPlacement = _racingMinPlacement;
+                defaultCmdConfig.MaxPlacement = _racingMaxPlacement;
+                defaultCmdConfig.RacingGameModes = _racingGameModes.ToList();
+                defaultCmdConfig.RacingOutcomeFilter = _racingOutcomeFilter;
+                defaultCmdConfig.MinKnockouts = _racingMinKnockouts;
+            }
+
+            configuration = System.Text.Json.JsonSerializer.Serialize(defaultCmdConfig);
         }
         else if (_selectedType == TriggerTypes.FishingTournamentCatch)
         {

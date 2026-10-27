@@ -92,7 +92,9 @@ namespace PenguinTwitchBot.Bot.Commands
                         var config = System.Text.Json.JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(
                             trigger.Configuration);
                         
-                        if (config != null && config.EventType.Equals(eventType, StringComparison.OrdinalIgnoreCase))
+                        if (config != null &&
+                            config.EventType.Equals(eventType, StringComparison.OrdinalIgnoreCase) &&
+                            config.MatchesVariables(additionalVariables))
                         {
                             matchingTriggers.Add(trigger);
                         }
