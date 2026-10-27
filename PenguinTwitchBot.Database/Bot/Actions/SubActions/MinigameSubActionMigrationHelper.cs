@@ -93,12 +93,12 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
 
                 SubActionType? upgraded = rawGame.ToLowerInvariant() switch
                 {
-                    "parachute" => new ParachuteStopSessionType { ClearQueue = true },
-                    "plinko" => new PlinkoStopSessionType { ClearQueue = true },
-                    "balloon" or "balloonascent" => new BalloonStopSessionType { ClearQueue = true },
-                    "curling" or "shuffleboard" => new CurlingStopSessionType { ClearQueue = true },
-                    "golf" or "chip" or "putt" => new GolfStopSessionType { ClearQueue = true },
-                    "racing" or "race" or "kart" => new RacingStopSessionType { ClearQueue = true },
+                    "parachute" => new ParachuteStopSessionType { ClearQueue = false },
+                    "plinko" => new PlinkoStopSessionType { ClearQueue = false },
+                    "balloon" or "balloonascent" => new BalloonStopSessionType { ClearQueue = false },
+                    "curling" or "shuffleboard" => new CurlingStopSessionType { ClearQueue = false },
+                    "golf" or "chip" or "putt" => new GolfStopSessionType { ClearQueue = false },
+                    "racing" or "race" or "kart" => new RacingStopSessionType { ClearQueue = false },
                     _ => null
                 };
 

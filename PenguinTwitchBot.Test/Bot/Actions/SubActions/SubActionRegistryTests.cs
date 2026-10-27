@@ -135,6 +135,20 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             Assert.Equal(expectedType, upgraded.SubActionTypes);
             Assert.Equal(99, upgraded.Id);
             Assert.Equal(1, upgraded.Index);
+
+            if (upgraded is PenguinTwitchBot.Database.Bot.Actions.SubActions.UI.ISubActionUIProvider provider &&
+                provider.GetValues().TryGetValue("ClearQueue", out var clearQueueValue))
+            {
+                Assert.Equal(false, clearQueueValue);
+            }
+        }
+
+        [Fact]
+        public void StopDropGameSessionType_SetValues_FallsBackToAllWhenGameTypeNotString()
+        {
+            var stopAll = new StopDropGameSessionType();
+            stopAll.SetValues(new System.Collections.Generic.Dictionary<string, object?> { ["GameType"] = null });
+            Assert.Equal("All", stopAll.GameType);
         }
     }
 }

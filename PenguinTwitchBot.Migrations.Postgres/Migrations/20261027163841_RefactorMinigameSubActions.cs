@@ -574,67 +574,68 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 INSERT INTO ""subactions_plinko_start_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId"")
                 SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 85, ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId""
                 FROM ""subactions_start_drop_game_session""
-                WHERE LOWER(""GameType"") = 'plinko';
+                WHERE LOWER(TRIM(""GameType"")) = 'plinko';
 
                 INSERT INTO ""subactions_balloon_start_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId"")
                 SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 87, ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId""
                 FROM ""subactions_start_drop_game_session""
-                WHERE LOWER(""GameType"") = 'balloon';
+                WHERE LOWER(TRIM(""GameType"")) = 'balloon';
 
                 INSERT INTO ""subactions_curling_start_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId"")
                 SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 89, ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId""
                 FROM ""subactions_start_drop_game_session""
-                WHERE LOWER(""GameType"") = 'curling';
+                WHERE LOWER(TRIM(""GameType"")) = 'curling';
 
                 INSERT INTO ""subactions_golf_start_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId"")
                 SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 91, ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId""
                 FROM ""subactions_start_drop_game_session""
-                WHERE LOWER(""GameType"") = 'golf';
+                WHERE LOWER(TRIM(""GameType"")) = 'golf';
 
                 INSERT INTO ""subactions_racing_start_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""GameMode"", ""TrackType"", ""TotalLaps"", ""DurationSeconds"", ""ThemeOverrideId"")
                 SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 93, ""ActionTypeId"", ""CatchActionTypeId"", '', '', '', ""DurationSeconds"", ""ThemeOverrideId""
                 FROM ""subactions_start_drop_game_session""
-                WHERE LOWER(""GameType"") = 'racing';
+                WHERE LOWER(TRIM(""GameType"")) = 'racing';
 
                 INSERT INTO ""subactions_parachute_start_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId"")
                 SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 83, ""ActionTypeId"", ""CatchActionTypeId"", ""DurationSeconds"", ""ThemeOverrideId""
                 FROM ""subactions_start_drop_game_session""
-                WHERE LOWER(""GameType"") NOT IN ('plinko', 'balloon', 'curling', 'golf', 'racing');
+                WHERE LOWER(TRIM(""GameType"")) = 'parachute';
 
-                DELETE FROM ""subactions_start_drop_game_session"";
+                DELETE FROM ""subactions_start_drop_game_session""
+                WHERE LOWER(TRIM(""GameType"")) IN ('parachute', 'plinko', 'balloon', 'curling', 'golf', 'racing');
 
                 INSERT INTO ""subactions_parachute_stop_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""ClearQueue"")
-                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 84, ""ActionTypeId"", ""CatchActionTypeId"", TRUE
+                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 84, ""ActionTypeId"", ""CatchActionTypeId"", FALSE
                 FROM ""subactions_stop_drop_game_session""
-                WHERE LOWER(""GameType"") = 'parachute';
+                WHERE LOWER(TRIM(""GameType"")) = 'parachute';
 
                 INSERT INTO ""subactions_plinko_stop_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""ClearQueue"")
-                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 86, ""ActionTypeId"", ""CatchActionTypeId"", TRUE
+                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 86, ""ActionTypeId"", ""CatchActionTypeId"", FALSE
                 FROM ""subactions_stop_drop_game_session""
-                WHERE LOWER(""GameType"") = 'plinko';
+                WHERE LOWER(TRIM(""GameType"")) = 'plinko';
 
                 INSERT INTO ""subactions_balloon_stop_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""ClearQueue"")
-                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 88, ""ActionTypeId"", ""CatchActionTypeId"", TRUE
+                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 88, ""ActionTypeId"", ""CatchActionTypeId"", FALSE
                 FROM ""subactions_stop_drop_game_session""
-                WHERE LOWER(""GameType"") = 'balloon';
+                WHERE LOWER(TRIM(""GameType"")) = 'balloon';
 
                 INSERT INTO ""subactions_curling_stop_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""ClearQueue"")
-                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 90, ""ActionTypeId"", ""CatchActionTypeId"", TRUE
+                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 90, ""ActionTypeId"", ""CatchActionTypeId"", FALSE
                 FROM ""subactions_stop_drop_game_session""
-                WHERE LOWER(""GameType"") = 'curling';
+                WHERE LOWER(TRIM(""GameType"")) = 'curling';
 
                 INSERT INTO ""subactions_golf_stop_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""ClearQueue"")
-                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 92, ""ActionTypeId"", ""CatchActionTypeId"", TRUE
+                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 92, ""ActionTypeId"", ""CatchActionTypeId"", FALSE
                 FROM ""subactions_stop_drop_game_session""
-                WHERE LOWER(""GameType"") = 'golf';
+                WHERE LOWER(TRIM(""GameType"")) = 'golf';
 
                 INSERT INTO ""subactions_racing_stop_session"" (""Id"", ""Index"", ""Text"", ""Enabled"", ""SubActionTypes"", ""ActionTypeId"", ""CatchActionTypeId"", ""ClearQueue"")
-                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 94, ""ActionTypeId"", ""CatchActionTypeId"", TRUE
+                SELECT ""Id"", ""Index"", ""Text"", ""Enabled"", 94, ""ActionTypeId"", ""CatchActionTypeId"", FALSE
                 FROM ""subactions_stop_drop_game_session""
-                WHERE LOWER(""GameType"") = 'racing';
+                WHERE LOWER(TRIM(""GameType"")) = 'racing';
 
                 DELETE FROM ""subactions_stop_drop_game_session""
-                WHERE LOWER(""GameType"") IN ('parachute', 'plinko', 'balloon', 'curling', 'golf', 'racing');
+                WHERE LOWER(TRIM(""GameType"")) IN ('parachute', 'plinko', 'balloon', 'curling', 'golf', 'racing');
             ");
         }
 

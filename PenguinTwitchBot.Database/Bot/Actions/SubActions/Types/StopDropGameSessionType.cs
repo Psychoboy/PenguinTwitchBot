@@ -61,7 +61,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(GameType), out var gameType)) GameType = gameType as string ?? "Parachute";
+            if (values.TryGetValue(nameof(GameType), out var gameType)) GameType = gameType as string ?? "All";
             if (values.TryGetValue(nameof(Enabled), out var enabled)) Enabled = enabled as bool? ?? true;
         }
 
