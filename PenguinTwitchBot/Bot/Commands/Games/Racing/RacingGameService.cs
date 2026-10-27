@@ -873,6 +873,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5)
             };
 
+            int gridPosition;
             lock (_racerLock)
             {
                 var activeSession = GetCurrentSession();
@@ -922,6 +923,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
                 dropRegistry.RegisterDrop(record);
                 _lobbyRacers.Add(record);
+                gridPosition = _lobbyRacers.Count;
             }
 
             _sessionManager.RecordUserDrop(eventArgs.UserId);
@@ -929,7 +931,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             var updatePayload = JsonSerializer.Serialize(new
             {
                 type = "race_grid_update",
-                racerCount = _lobbyRacers.Count,
+                racerCount = gridPosition,
                 maxRacers = rSettings.MaxLobbyRacers,
                 newRacer = new
                 {
@@ -938,7 +940,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     displayName = record.DisplayName,
                     userColor = record.UserColor,
                     emoteUrl = record.Theme.DefaultDropletImageUrl,
-                    gridPosition = _lobbyRacers.Count
+                    gridPosition = gridPosition
                 }
             }, _jsonOptions);
 
@@ -1143,7 +1145,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                         await ServiceBackbone.SendChatMessage(winMsg);
                     }
                 }
-                else if (placement <= 3)
+
+                if (placement <= 3)
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("race", DefaultCommandEventTypes.RacingPodium, record.EventArgs, actionVars);
                 }
@@ -1166,15 +1169,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             var settings = await settingsService.GetSettingsAsync();
             var rSettings = settings.Racing;
 
+            bool isRaceRunning;
             lock (_racerLock)
             {
                 _activeRaceDropRecords[record.DropToken] = record;
+                isRaceRunning = _isRaceRunning;
             }
 
             var placement = record.RacePlacement ?? 1;
             var lapTime = record.LapTimeSeconds ?? 0.0;
             var wreckCount = record.WreckCount ?? 0;
-            var isTimeTrial = string.Equals(record.RacingMode, "TimeTrial", StringComparison.OrdinalIgnoreCase);
+            var isTimeTrial = string.Equals(record.RacingMode, "TimeTrial", StringComparison.OrdinalIgnoreCase) && !isRaceRunning;
 
             if (isTimeTrial)
             {
@@ -1327,21 +1332,31 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                         // Launch next preliminary heat after 6-second intermission
                         _ = Task.Run(async () =>
                         {
-                            await Task.Delay(6000);
-                            if (!_isRaceRunning || _activeTournament == null) return;
-                            List<PendingDropRecord> nextHeat;
-                            int nextNum;
-                            lock (_racerLock)
+                            try
                             {
-                                nextHeat = _activeTournament.Heats[_activeTournament.CurrentHeatIndex];
-                                nextNum = _activeTournament.CurrentHeatIndex + 1;
+                                await Task.Delay(6000);
+                                List<PendingDropRecord> nextHeat;
+                                int nextNum;
+                                int advancePerHeat;
+                                lock (_racerLock)
+                                {
+                                    if (!_isRaceRunning || _activeTournament != tournament) return;
+                                    nextHeat = tournament.Heats[tournament.CurrentHeatIndex];
+                                    nextNum = tournament.CurrentHeatIndex + 1;
+                                    advancePerHeat = tournament.AdvancePerHeat;
+                                }
+                                var nextHeatTitle = _currentSessionGameMode == RacingGameMode.DestructionDerby
+                                    ? $"Demolition Derby Heat {nextNum} of {totalHeats} (Top {advancePerHeat} Survivors Advance)"
+                                    : (_currentSessionGameMode == RacingGameMode.Elimination
+                                        ? $"Elimination Heat {nextNum} of {totalHeats} (Top {advancePerHeat} Advance)"
+                                        : $"Heat {nextNum} of {totalHeats} (Top {advancePerHeat} Advance)");
+                                await LaunchHeatAsync(nextHeat, nextHeatTitle, nextNum, totalHeats, isFinal: false);
                             }
-                            var nextHeatTitle = _currentSessionGameMode == RacingGameMode.DestructionDerby
-                                ? $"Demolition Derby Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Survivors Advance)"
-                                : (_currentSessionGameMode == RacingGameMode.Elimination
-                                    ? $"Elimination Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Advance)"
-                                    : $"Heat {nextNum} of {totalHeats} (Top {_activeTournament.AdvancePerHeat} Advance)");
-                            await LaunchHeatAsync(nextHeat, nextHeatTitle, nextNum, totalHeats, isFinal: false);
+                            catch (Exception ex)
+                            {
+                                logger.LogError(ex, "Failed to launch next tournament heat");
+                                await StopSessionAsync("HeatTimeout");
+                            }
                         });
                     }
                     else
@@ -1349,42 +1364,50 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                         // Launch Championship Final after 6-second intermission
                         _ = Task.Run(async () =>
                         {
-                            await Task.Delay(6000);
-                            if (!_isRaceRunning || _activeTournament == null) return;
-
-                            List<PendingDropRecord> finalRacers = [];
-                            lock (_racerLock)
+                            try
                             {
-                                _activeTournament.IsChampionshipFinal = true;
-                                foreach (var finalist in _activeTournament.QualifiedFinalists)
+                                await Task.Delay(6000);
+                                List<PendingDropRecord> finalRacers = [];
+                                lock (_racerLock)
                                 {
-                                    var newDropToken = Guid.NewGuid().ToString("N");
-                                    var newRecord = new PendingDropRecord
+                                    if (!_isRaceRunning || _activeTournament != tournament) return;
+                                    tournament.IsChampionshipFinal = true;
+                                    foreach (var finalist in tournament.QualifiedFinalists)
                                     {
-                                        DropToken = newDropToken,
-                                        GameType = DropGameType.Racing,
-                                        Username = finalist.Username,
-                                        DisplayName = finalist.DisplayName,
-                                        UserId = finalist.UserId,
-                                        UserColor = finalist.UserColor,
-                                        Theme = finalist.Theme,
-                                        EventArgs = finalist.EventArgs,
-                                        CreatedAtUtc = DateTime.UtcNow,
-                                        EarliestCompletionUtc = DateTime.UtcNow,
-                                        ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10)
-                                    };
-                                    dropRegistry.RegisterDrop(newRecord);
-                                    finalRacers.Add(newRecord);
+                                        var newDropToken = Guid.NewGuid().ToString("N");
+                                        var newRecord = new PendingDropRecord
+                                        {
+                                            DropToken = newDropToken,
+                                            GameType = DropGameType.Racing,
+                                            Username = finalist.Username,
+                                            DisplayName = finalist.DisplayName,
+                                            UserId = finalist.UserId,
+                                            UserColor = finalist.UserColor,
+                                            Theme = finalist.Theme,
+                                            EventArgs = finalist.EventArgs,
+                                            RacingMode = _currentSessionGameMode.ToString(),
+                                            CreatedAtUtc = DateTime.UtcNow,
+                                            EarliestCompletionUtc = DateTime.UtcNow,
+                                            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10)
+                                        };
+                                        dropRegistry.RegisterDrop(newRecord);
+                                        finalRacers.Add(newRecord);
+                                    }
+                                    tournament.FinalFinishedTokens = [.. finalRacers.Select(f => f.DropToken)];
                                 }
-                                _activeTournament.FinalFinishedTokens = [.. finalRacers.Select(f => f.DropToken)];
-                            }
 
-                            var finalTitle = _currentSessionGameMode == RacingGameMode.DestructionDerby
-                                ? "🏆 Demolition Championship Final"
-                                : (_currentSessionGameMode == RacingGameMode.Elimination
-                                    ? "🏆 Elimination Championship Final"
-                                    : "🏆 Championship Final");
-                            await LaunchHeatAsync(finalRacers, finalTitle, totalHeats + 1, totalHeats, isFinal: true);
+                                var finalTitle = _currentSessionGameMode == RacingGameMode.DestructionDerby
+                                    ? "🏆 Demolition Championship Final"
+                                    : (_currentSessionGameMode == RacingGameMode.Elimination
+                                        ? "🏆 Elimination Championship Final"
+                                        : "🏆 Championship Final");
+                                await LaunchHeatAsync(finalRacers, finalTitle, totalHeats + 1, totalHeats, isFinal: true);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogError(ex, "Failed to launch championship final");
+                                await StopSessionAsync("HeatTimeout");
+                            }
                         });
                     }
                 }

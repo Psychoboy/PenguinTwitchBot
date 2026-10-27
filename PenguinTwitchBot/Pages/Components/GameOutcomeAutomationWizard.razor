@@ -142,7 +142,7 @@
         _outcomes.Any(item => item.DefaultCommandEventType == _selectedEventType) &&
         (_createNewAction
                         ? !string.IsNullOrWhiteSpace(_newActionName) &&
-                            (!_addPointsSubAction || (!string.IsNullOrWhiteSpace(_pointTypeName) && TryEvaluateAmount(out _))) &&
+                            (!_addPointsSubAction || (!string.IsNullOrWhiteSpace(_pointTypeName) && TryEvaluateAmount(out _) && IsAmountTokenSupported())) &&
                             (!_addMessageSubAction || !string.IsNullOrWhiteSpace(_messageTemplate))
             : _selectedActionId.HasValue);
 
@@ -282,12 +282,23 @@
         return PenguinTwitchBot.Bot.Actions.SubActions.VariableReplacer.ReplaceVariables(_messageTemplate, sampleVariables);
     }
 
+    private bool IsAmountTokenSupported()
+    {
+        if (_amountExpression.Contains("%PointsAwarded%", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetOutcomeVariables().Any(v => string.Equals(v.Name, "PointsAwarded", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return true;
+    }
+
     private bool TryEvaluateAmount(out long amount)
     {
         amount = 0;
         var sampleVariables = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["Score"] = "100",
+            ["PointsAwarded"] = "50",
             ["User"] = "PreviewViewer",
             ["UserId"] = "preview-user"
         };
@@ -304,9 +315,15 @@
     private string GetAmountPreview()
     {
         if (!_addPointsSubAction) return string.Empty;
+        if (!IsAmountTokenSupported())
+        {
+            _previewError = true;
+            return "%PointsAwarded% is not supported for this outcome.";
+        }
         _previewError = !TryEvaluateAmount(out var amount);
         if (_previewError) return "Enter a valid whole-number formula; amount must be positive except Set may be zero.";
-        return $"Preview at Score = 100: {_operation} {amount:N0} {(_pointTypeName.Length == 0 ? "points" : _pointTypeName)}.";
+        var tokenLabel = _amountExpression.Contains("%PointsAwarded%", StringComparison.OrdinalIgnoreCase) ? "PointsAwarded = 50" : "Score = 100";
+        return $"Preview at {tokenLabel}: {_operation} {amount:N0} {(_pointTypeName.Length == 0 ? "points" : _pointTypeName)}.";
     }
 
     private async Task Save()

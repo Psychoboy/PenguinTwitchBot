@@ -181,67 +181,78 @@
 
                     @if (IsRacingTrigger())
                     {
+                        var supportsPlacement = _selectedEventType is DefaultCommandEventTypes.RacingEnd or DefaultCommandEventTypes.RacingWin or DefaultCommandEventTypes.RacingPodium;
+                        var supportsOutcome = _selectedEventType is DefaultCommandEventTypes.RacingEnd or DefaultCommandEventTypes.RacingWin or DefaultCommandEventTypes.RacingPodium or DefaultCommandEventTypes.RacingWreck or DefaultCommandEventTypes.RacingTimeTrialComplete;
+                        var supportsKnockouts = _selectedEventType == DefaultCommandEventTypes.RacingDerbyKnockout || (_selectedEventType == DefaultCommandEventTypes.RacingEnd && _racingGameModes.Contains("DestructionDerby"));
+
                         <MudPaper Outlined="true" Class="pa-3 mt-3">
                             <MudText Typo="Typo.subtitle2" Class="mb-2">🏁 Racing Trigger Filters (Optional)</MudText>
                             
-                            <MudSelect T="string" Label="Placement Filter" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                       Value="_racingPlacementPreset" ValueChanged="OnRacingPlacementPresetChanged" Class="mb-2"
-                                       HelperText="Filter when this trigger fires based on final placement.">
-                                <MudSelectItem Value="@("Any")">Any Placement (All Finishers)</MudSelectItem>
-                                <MudSelectItem Value="@("First")">1st Place Only (Winner)</MudSelectItem>
-                                <MudSelectItem Value="@("Second")">2nd Place Only</MudSelectItem>
-                                <MudSelectItem Value="@("Third")">3rd Place Only</MudSelectItem>
-                                <MudSelectItem Value="@("Podium")">Top 3 (Podium - 1st, 2nd, or 3rd)</MudSelectItem>
-                                <MudSelectItem Value="@("Top5")">Top 5 (1st through 5th)</MudSelectItem>
-                                <MudSelectItem Value="@("Participation")">4th Place or Worse (Participation)</MudSelectItem>
-                                <MudSelectItem Value="@("Custom")">Specific Custom Placements...</MudSelectItem>
-                            </MudSelect>
-
-                            @if (_racingPlacementPreset == "Custom")
+                            @if (supportsPlacement)
                             {
-                                <MudGrid Spacing="2" Class="mb-2">
-                                    <MudItem xs="12">
-                                        <MudSelect T="int" @bind-SelectedValues="_racingPlacements"
-                                                   Label="Specific Placements" MultiSelection="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                   HelperText="Select exact placements that will trigger this action">
-                                            @for (int i = 1; i <= 16; i++)
-                                            {
-                                                var place = i;
-                                                var suffix = place switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" };
-                                                <MudSelectItem T="int" Value="@place">@($"{place}{suffix} Place")</MudSelectItem>
-                                            }
-                                        </MudSelect>
-                                    </MudItem>
-                                    <MudItem xs="6">
-                                        <MudNumericField T="int?" @bind-Value="_racingMinPlacement" Label="Min Placement (>=)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="32" HelperText="e.g. 4 for 4th or worse" />
-                                    </MudItem>
-                                    <MudItem xs="6">
-                                        <MudNumericField T="int?" @bind-Value="_racingMaxPlacement" Label="Max Placement (<=)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="32" HelperText="e.g. 3 for top 3" />
-                                    </MudItem>
-                                </MudGrid>
+                                <MudSelect T="string" Label="Placement Filter" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                           Value="_racingPlacementPreset" ValueChanged="OnRacingPlacementPresetChanged" Class="mb-2"
+                                           HelperText="Filter when this trigger fires based on final placement.">
+                                    <MudSelectItem Value="@("Any")">Any Placement (All Finishers)</MudSelectItem>
+                                    <MudSelectItem Value="@("First")">1st Place Only (Winner)</MudSelectItem>
+                                    <MudSelectItem Value="@("Second")">2nd Place Only</MudSelectItem>
+                                    <MudSelectItem Value="@("Third")">3rd Place Only</MudSelectItem>
+                                    <MudSelectItem Value="@("Podium")">Top 3 (Podium - 1st, 2nd, or 3rd)</MudSelectItem>
+                                    <MudSelectItem Value="@("Top5")">Top 5 (1st through 5th)</MudSelectItem>
+                                    <MudSelectItem Value="@("Participation")">4th Place or Worse (Participation)</MudSelectItem>
+                                    <MudSelectItem Value="@("Custom")">Specific Custom Placements...</MudSelectItem>
+                                </MudSelect>
+
+                                @if (_racingPlacementPreset == "Custom")
+                                {
+                                    <MudGrid Spacing="2" Class="mb-2">
+                                        <MudItem xs="12">
+                                            <MudSelect T="int" @bind-SelectedValues="_racingPlacements"
+                                                       Label="Specific Placements" MultiSelection="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                       HelperText="Select exact placements that will trigger this action">
+                                                @for (int i = 1; i <= 16; i++)
+                                                {
+                                                    var place = i;
+                                                    var suffix = place switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" };
+                                                    <MudSelectItem T="int" Value="@place">@($"{place}{suffix} Place")</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="6">
+                                            <MudNumericField T="int?" @bind-Value="_racingMinPlacement" Label="Min Placement (>=)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="32" HelperText="e.g. 4 for 4th or worse" />
+                                        </MudItem>
+                                        <MudItem xs="6">
+                                            <MudNumericField T="int?" @bind-Value="_racingMaxPlacement" Label="Max Placement (<=)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="32" HelperText="e.g. 3 for top 3" />
+                                        </MudItem>
+                                    </MudGrid>
+                                }
                             }
 
                             <MudGrid Spacing="2">
-                                <MudItem xs="12" sm="6">
+                                <MudItem xs="12" sm="@(supportsOutcome ? 6 : 12)">
                                     <MudSelect T="string" @bind-SelectedValues="_racingGameModes"
                                                Label="Game Mode Filter" MultiSelection="true" Variant="Variant.Outlined" Margin="Margin.Dense"
                                                HelperText="Leave empty to trigger on all game modes">
                                         <MudSelectItem T="string" Value="@("GrandPrix")">Grand Prix</MudSelectItem>
                                         <MudSelectItem T="string" Value="@("DestructionDerby")">Destruction Derby</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("Elimination")">Elimination</MudSelectItem>
                                         <MudSelectItem T="string" Value="@("TimeTrial")">Time Trial</MudSelectItem>
                                     </MudSelect>
                                 </MudItem>
-                                <MudItem xs="12" sm="6">
-                                    <MudSelect T="string" @bind-Value="_racingOutcomeFilter"
-                                               Label="Outcome Status" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                               HelperText="Filter by vehicle outcome condition">
-                                        <MudSelectItem Value="@("Any")">Any Outcome</MudSelectItem>
-                                        <MudSelectItem Value="@("Survived")">Survived Only (Not Totaled)</MudSelectItem>
-                                        <MudSelectItem Value="@("Totaled")">Totaled / Eliminated Only</MudSelectItem>
-                                        <MudSelectItem Value="@("CleanRace")">Clean Race Only (0 Wrecks)</MudSelectItem>
-                                    </MudSelect>
-                                </MudItem>
-                                @if (_selectedEventType == DefaultCommandEventTypes.RacingDerbyKnockout || _racingGameModes.Contains("DestructionDerby"))
+                                @if (supportsOutcome)
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudSelect T="string" @bind-Value="_racingOutcomeFilter"
+                                                   Label="Outcome Status" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                   HelperText="Filter by vehicle outcome condition">
+                                            <MudSelectItem Value="@("Any")">Any Outcome</MudSelectItem>
+                                            <MudSelectItem Value="@("Survived")">Survived Only (Not Totaled)</MudSelectItem>
+                                            <MudSelectItem Value="@("Totaled")">Totaled / Eliminated Only</MudSelectItem>
+                                            <MudSelectItem Value="@("CleanRace")">Clean Race Only (0 Wrecks)</MudSelectItem>
+                                        </MudSelect>
+                                    </MudItem>
+                                }
+                                @if (supportsKnockouts)
                                 {
                                     <MudItem xs="12">
                                         <MudNumericField T="int?" @bind-Value="_racingMinKnockouts" Label="Min Knockouts Required" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="20" HelperText="Only fire if racer scored at least this many knockouts" />
@@ -1143,7 +1154,7 @@
                 DefaultCommandEventTypes.GolfLose,
                 DefaultCommandEventTypes.GolfEnd
             },
-            "race" or "racing" or "kart" or "grandprix" or "timetrial" or "tt" => new List<string>
+            "race" => new List<string>
             {
                 DefaultCommandEventTypes.RacingWin,
                 DefaultCommandEventTypes.RacingPodium,
@@ -1151,7 +1162,10 @@
                 DefaultCommandEventTypes.RacingDerbyKnockout,
                 DefaultCommandEventTypes.RacingWreck,
                 DefaultCommandEventTypes.RacingStart,
-                DefaultCommandEventTypes.RacingLobbyOpened,
+                DefaultCommandEventTypes.RacingLobbyOpened
+            },
+            "timetrial" => new List<string>
+            {
                 DefaultCommandEventTypes.RacingTimeTrialComplete
             },
             _ => new List<string>()

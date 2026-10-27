@@ -39,6 +39,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
 
         /// <summary>
         /// Evaluates whether this trigger configuration matches the execution context variables.
+        /// When a filter is actively configured, the required context variable must be present and valid.
         /// </summary>
         public bool MatchesVariables(IReadOnlyDictionary<string, string>? variables)
         {
@@ -47,29 +48,20 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
             // 1. Placement filter
             if (Placements != null && Placements.Count > 0)
             {
-                if (variables.TryGetValue("Placement", out var placementStr) && int.TryParse(placementStr, out var placement))
-                {
-                    if (!Placements.Contains(placement))
-                        return false;
-                }
+                if (!variables.TryGetValue("Placement", out var placementStr) || !int.TryParse(placementStr, out var placement) || !Placements.Contains(placement))
+                    return false;
             }
 
             if (MinPlacement.HasValue && MinPlacement.Value > 0)
             {
-                if (variables.TryGetValue("Placement", out var placementStr) && int.TryParse(placementStr, out var placement))
-                {
-                    if (placement < MinPlacement.Value)
-                        return false;
-                }
+                if (!variables.TryGetValue("Placement", out var placementStr) || !int.TryParse(placementStr, out var placement) || placement < MinPlacement.Value)
+                    return false;
             }
 
             if (MaxPlacement.HasValue && MaxPlacement.Value > 0)
             {
-                if (variables.TryGetValue("Placement", out var placementStr) && int.TryParse(placementStr, out var placement))
-                {
-                    if (placement > MaxPlacement.Value)
-                        return false;
-                }
+                if (!variables.TryGetValue("Placement", out var placementStr) || !int.TryParse(placementStr, out var placement) || placement > MaxPlacement.Value)
+                    return false;
             }
 
             // 2. Racing Game Mode filter
@@ -81,11 +73,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
                     activeMode = mode;
                 }
 
-                if (!string.IsNullOrWhiteSpace(activeMode))
-                {
-                    if (!RacingGameModes.Any(m => string.Equals(m, activeMode, StringComparison.OrdinalIgnoreCase)))
-                        return false;
-                }
+                if (string.IsNullOrWhiteSpace(activeMode) || !RacingGameModes.Any(m => string.Equals(m, activeMode, StringComparison.OrdinalIgnoreCase)))
+                    return false;
             }
 
             // 3. Racing Outcome condition
@@ -93,39 +82,40 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
             {
                 if (string.Equals(RacingOutcomeFilter, "Survived", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (variables.TryGetValue("IsTotaled", out var isTotaledStr) && bool.TryParse(isTotaledStr, out var isTotaled) && isTotaled)
+                    if (!variables.TryGetValue("IsTotaled", out var isTotaledStr) || !bool.TryParse(isTotaledStr, out var isTotaled) || isTotaled)
                         return false;
                 }
                 else if (string.Equals(RacingOutcomeFilter, "Totaled", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (variables.TryGetValue("IsTotaled", out var isTotaledStr) && bool.TryParse(isTotaledStr, out var isTotaled) && !isTotaled)
+                    if (!variables.TryGetValue("IsTotaled", out var isTotaledStr) || !bool.TryParse(isTotaledStr, out var isTotaled) || !isTotaled)
                         return false;
                 }
                 else if (string.Equals(RacingOutcomeFilter, "CleanRace", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (variables.TryGetValue("WreckCount", out var wreckStr) && int.TryParse(wreckStr, out var wrecks) && wrecks > 0)
+                    if (!variables.TryGetValue("WreckCount", out var wreckStr) || !int.TryParse(wreckStr, out var wrecks) || wrecks > 0)
                         return false;
                 }
                 else if (string.Equals(RacingOutcomeFilter, "FirstPlace", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (variables.TryGetValue("Placement", out var pStr) && int.TryParse(pStr, out var p) && p != 1)
+                    if (!variables.TryGetValue("Placement", out var pStr) || !int.TryParse(pStr, out var p) || p != 1)
                         return false;
                 }
                 else if (string.Equals(RacingOutcomeFilter, "Podium", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (variables.TryGetValue("Placement", out var pStr) && int.TryParse(pStr, out var p) && p > 3)
+                    if (!variables.TryGetValue("Placement", out var pStr) || !int.TryParse(pStr, out var p) || p > 3)
                         return false;
+                }
+                else
+                {
+                    return false;
                 }
             }
 
             // 4. Knockout count filter
             if (MinKnockouts.HasValue && MinKnockouts.Value > 0)
             {
-                if (variables.TryGetValue("KnockoutCount", out var koStr) && int.TryParse(koStr, out var knockouts))
-                {
-                    if (knockouts < MinKnockouts.Value)
-                        return false;
-                }
+                if (!variables.TryGetValue("KnockoutCount", out var koStr) || !int.TryParse(koStr, out var knockouts) || knockouts < MinKnockouts.Value)
+                    return false;
             }
 
             return true;
