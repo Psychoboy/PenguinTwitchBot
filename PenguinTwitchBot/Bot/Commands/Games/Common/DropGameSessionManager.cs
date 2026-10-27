@@ -14,6 +14,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         public string? TriggeredBy { get; init; }
         public DateTime EnqueuedAtUtc { get; init; } = DateTime.UtcNow;
         public TaskCompletionSource<DropGameSessionDto>? CompletionSource { get; init; }
+        public object? CustomData { get; init; }
     }
 
     public sealed class DropGameSessionState
@@ -83,7 +84,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             };
         }
 
-        public QueuedSessionRequest EnqueueSession(int? durationSeconds, string? themeOverrideId, string? triggeredBy, TaskCompletionSource<DropGameSessionDto>? completionSource = null)
+        public QueuedSessionRequest EnqueueSession(
+            int? durationSeconds,
+            string? themeOverrideId,
+            string? triggeredBy,
+            TaskCompletionSource<DropGameSessionDto>? completionSource = null,
+            object? customData = null)
         {
             var item = new QueuedSessionRequest
             {
@@ -91,7 +97,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 ThemeOverrideId = themeOverrideId,
                 TriggeredBy = triggeredBy,
                 EnqueuedAtUtc = DateTime.UtcNow,
-                CompletionSource = completionSource
+                CompletionSource = completionSource,
+                CustomData = customData
             };
             _sessionQueue.Enqueue(item);
             return item;

@@ -890,6 +890,66 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Equal(0, service.GetQueuedSessionCount());
             Assert.Null(service.GetCurrentSession());
         }
+
+        [Fact]
+        public async Task ProcessNextQueuedSessionAsync_ReplaysOverrides_WhenLaunchingQueuedSession()
+        {
+            using var service = CreateService();
+
+            await service.StartRaceLobbyAsync(60, triggeredBy: "Streamer");
+
+            // Enqueue derby session with custom track and laps
+            await service.StartRaceLobbyAsync(
+                30,
+                triggeredBy: "Mod",
+                gameModeOverride: RacingGameMode.DestructionDerby,
+                trackTypeOverride: RacingTrackType.DerbyBowl,
+                lapsOverride: 4);
+
+            Assert.Equal(1, service.GetQueuedSessionCount());
+
+            // Stop current session, which kicks off ProcessNextQueuedSessionAsync
+            await service.StopSessionAsync("Finished");
+
+            // Wait for 3-second delay plus buffer
+            await Task.Delay(3300);
+
+            _webSocketMessenger.Verify(x => x.AddToQueue(
+                WsTopics.Racing,
+                It.Is<string>(json =>
+                    json.Contains("race_lobby_start") &&
+                    json.Contains("DestructionDerby") &&
+                    json.Contains("DerbyBowl") &&
+                    json.Contains("\"totalLaps\":4"))),
+                Times.Once);
+
+            var activeSession = service.GetCurrentSession();
+            Assert.NotNull(activeSession);
+            Assert.True(activeSession.IsActive);
+        }
+
+        [Fact]
+        public async Task ClearSessionQueueAsync_DuringStartupDelay_CancelsPendingLaunch()
+        {
+            using var service = CreateService();
+
+            await service.StartRaceLobbyAsync(60, triggeredBy: "Streamer");
+            await service.StartRaceLobbyAsync(30, triggeredBy: "Mod");
+            Assert.Equal(1, service.GetQueuedSessionCount());
+
+            // Stop session to trigger ProcessNextQueuedSessionAsync
+            await service.StopSessionAsync("Finished");
+
+            // Cancel the queue during the 3-second delay
+            await Task.Delay(500);
+            await service.ClearSessionQueueAsync();
+
+            // Wait until after the 3-second delay would have elapsed
+            await Task.Delay(3000);
+
+            // No new race should have started
+            Assert.Null(service.GetCurrentSession());
+        }
     }
 }
 
