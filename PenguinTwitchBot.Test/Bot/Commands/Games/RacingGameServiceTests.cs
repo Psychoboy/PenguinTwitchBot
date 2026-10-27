@@ -322,6 +322,18 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             _serviceBackbone.Verify(x => x.SendChatMessage(
                 It.Is<string>(msg => msg.Contains("Race Complete! Results:") && msg.Contains("🥇 1st:") && msg.Contains("🥈 2nd:"))),
                 Times.Once);
+
+            // Verify RacingComplete match event was dispatched
+            _defaultCommandTriggerService.Verify(x => x.TriggerDefaultCommandEventAsync(
+                "race",
+                DefaultCommandEventTypes.RacingComplete,
+                It.IsAny<CommandEventArgs>(),
+                It.Is<Dictionary<string, string>>(dict =>
+                    dict["Winner"] == racers[0].DisplayName &&
+                    dict["First"] == racers[0].DisplayName &&
+                    dict["Second"] == racers[1].DisplayName &&
+                    dict["RacerCount"] == "2")),
+                Times.Once);
         }
 
         [Fact]
@@ -827,6 +839,56 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                     json.Contains("DestructionDerby") &&
                     json.Contains("DerbyBowl"))),
                 Times.Once);
+        }
+
+        [Fact]
+        public async Task StartRaceLobbyAsync_WhenSessionActive_QueuesSession()
+        {
+            using var service = CreateService();
+
+            var firstSession = await service.StartRaceLobbyAsync(60, triggeredBy: "Streamer");
+            Assert.NotNull(firstSession);
+            Assert.True(firstSession.IsActive);
+            Assert.False(firstSession.IsQueued);
+
+            var secondSession = await service.StartRaceLobbyAsync(45, triggeredBy: "Viewer");
+            Assert.NotNull(secondSession);
+            Assert.False(secondSession.IsActive);
+            Assert.True(secondSession.IsQueued);
+            Assert.Equal(1, secondSession.QueuePosition);
+            Assert.Equal(1, service.GetQueuedSessionCount());
+
+            await service.ClearSessionQueueAsync();
+            Assert.Equal(0, service.GetQueuedSessionCount());
+        }
+
+        [Fact]
+        public async Task OnCommand_RaceStop_ClearsQueueAndStopsSession()
+        {
+            using var service = CreateService();
+
+            _commandHandler.Setup(x => x.GetCommand("race"))
+                .Returns(new Command(new BaseCommandProperties { CommandName = "race" }, service));
+
+            await service.StartRaceLobbyAsync(60, triggeredBy: "Streamer");
+            await service.StartRaceLobbyAsync(45, triggeredBy: "Viewer");
+            Assert.Equal(1, service.GetQueuedSessionCount());
+
+            var stopArgs = new CommandEventArgs
+            {
+                Command = "race",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "streamer",
+                DisplayName = "Streamer",
+                UserId = "streamer-1",
+                IsBroadcaster = true
+            };
+
+            await service.OnCommand(this, stopArgs);
+
+            Assert.Equal(0, service.GetQueuedSessionCount());
+            Assert.Null(service.GetCurrentSession());
         }
     }
 }

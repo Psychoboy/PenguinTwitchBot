@@ -525,6 +525,25 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.True(raceEndVars.ContainsKey("PointsAwarded"));
             Assert.True(raceEndVars.ContainsKey("Score"));
             Assert.True(raceEndVars.ContainsKey("Placement"));
+
+            // Race complete event
+            var raceCompleteVars = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Name = "Race Match Concluded",
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "race",
+                    EventType = DefaultCommandEventTypes.RacingComplete
+                })
+            }, raceCompleteVars);
+
+            Assert.True(raceCompleteVars.ContainsKey("Winner"));
+            Assert.True(raceCompleteVars.ContainsKey("ResultsSummary"));
+            Assert.True(raceCompleteVars.ContainsKey("RacerCount"));
+            Assert.True(raceCompleteVars.ContainsKey("GameMode"));
+            Assert.True(raceCompleteVars.ContainsKey("Theme"));
         }
     }
 }

@@ -54,6 +54,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         private readonly HashSet<string> _soloTimeTrialTokens = [];
         private bool _singleRaceAnnounced = false;
         private CancellationTokenSource? _heatWatchdogCts;
+        private string? _currentSessionThemeName;
 
         public sealed record RacerFinalResult(
             string Username,
@@ -137,6 +138,47 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             return Task.CompletedTask;
         }
 
+        private async Task ProcessNextQueuedSessionAsync()
+        {
+            QueuedSessionRequest? next = null;
+            await _sessionManager.SessionLock.WaitAsync();
+            try
+            {
+                bool isBusy;
+                lock (_racerLock)
+                {
+                    isBusy = _isRaceRunning || _sessionManager.HasActiveTimedSession();
+                }
+                if (isBusy) return;
+
+                if (_sessionManager.TryDequeueNextQueuedSession(out var req))
+                {
+                    next = req;
+                }
+            }
+            finally
+            {
+                _sessionManager.SessionLock.Release();
+            }
+
+            if (next != null)
+            {
+                try
+                {
+                    await Task.Delay(3000);
+                    logger.LogInformation("Starting queued Racing session ({Duration}s, triggered by {User})",
+                        next.DurationSeconds, next.TriggeredBy ?? "Queue");
+                    var dto = await StartRaceLobbyAsync(next.DurationSeconds, next.ThemeOverrideId, next.TriggeredBy);
+                    next.CompletionSource?.TrySetResult(dto);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to start queued Racing session");
+                    next.CompletionSource?.TrySetException(ex);
+                }
+            }
+        }
+
         public async Task<DropGameSessionDto> StartRaceLobbyAsync(
             int? lobbyDurationSeconds = null,
             string? themeOverrideId = null,
@@ -155,6 +197,47 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
                 var duration = Math.Clamp(lobbyDurationSeconds ?? rSettings.LobbyDurationSeconds, 15, 180);
 
+                bool isBusy;
+                lock (_racerLock)
+                {
+                    isBusy = _isRaceRunning || _sessionManager.HasActiveTimedSession();
+                }
+
+                if (isBusy)
+                {
+                    _sessionManager.EnqueueSession(duration, themeOverrideId, triggeredBy);
+                    var queuePosition = _sessionManager.QueuedCount;
+
+                    logger.LogInformation("Enqueued Racing session for {Duration}s (Triggered by {User}) behind active race. Queue position: {Position}",
+                        duration, triggeredBy ?? "System", queuePosition);
+
+                    if (rSettings.AnnounceSessionStatusInChat)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await ServiceBackbone.SendChatMessage($"⏳ Racing lobby has been queued behind active race (Queue position: #{queuePosition})!");
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogDebug(ex, "Failed to send chat announcement for queued racing session");
+                            }
+                        });
+                    }
+
+                    return new DropGameSessionDto
+                    {
+                        GameType = "racing",
+                        IsActive = false,
+                        IsQueued = true,
+                        QueuePosition = queuePosition,
+                        TotalDurationSeconds = duration,
+                        RemainingSeconds = duration,
+                        TotalDrops = 0
+                    };
+                }
+
                 lock (_racerLock)
                 {
                     _lobbyRacers.Clear();
@@ -167,12 +250,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _singleRaceResults.Clear();
                     _activeRaceDropRecords.Clear();
                     _singleRaceAnnounced = false;
+                    _currentSessionThemeName = null;
                     _heatWatchdogCts?.Cancel();
                     _heatWatchdogCts?.Dispose();
                     _heatWatchdogCts = null;
                 }
 
                 var theme = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(settings, themeOverrideId, rSettings.ActiveThemeId, emoteService, dropRegistry);
+                _currentSessionThemeName = theme.Name;
                 var soundBundle = DropGameMediaResolver.ResolveRacingSoundBundle(rSettings, theme, GetMediaUploadService());
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(rSettings);
 
@@ -665,6 +750,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         public async Task<DropGameSessionDto?> StopSessionAsync(string? triggeredBy = null)
         {
             await _sessionManager.SessionLock.WaitAsync();
+            DropGameSessionDto? dto = null;
             try
             {
                 var session = _sessionManager.ExchangeStopSession();
@@ -682,6 +768,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     _singleRaceResults.Clear();
                     _activeRaceDropRecords.Clear();
                     _singleRaceAnnounced = false;
+                    _currentSessionThemeName = null;
                     _heatWatchdogCts?.Cancel();
                     _heatWatchdogCts?.Dispose();
                     _heatWatchdogCts = null;
@@ -705,7 +792,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     ? new DateTimeOffset(session.StartedAtUtc).ToUnixTimeMilliseconds()
                     : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-                var dto = new DropGameSessionDto
+                dto = new DropGameSessionDto
                 {
                     GameType = "racing",
                     IsActive = false,
@@ -747,13 +834,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                         await ServiceBackbone.SendChatMessage(endMsg);
                     }
                 }
-
-                return dto;
             }
             finally
             {
                 _sessionManager.SessionLock.Release();
             }
+
+            if (dto != null && !string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+            {
+                _ = Task.Run(ProcessNextQueuedSessionAsync);
+            }
+
+            return dto;
         }
 
         public async Task<string> TriggerJoinRaceAsync(
@@ -1075,6 +1167,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             // Bonus points for knockouts in Derby / Combat Racing
             var koBonus = (record.KnockoutCount ?? 0) * rSettings.DerbyKnockoutPoints;
             pointsAwarded += koBonus;
+            record.Score = pointsAwarded;
 
             if (pointsAwarded > 0 && _pointsSystem != null)
             {
@@ -1094,7 +1187,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 ["DisplayName"] = record.DisplayName,
                 ["UserId"] = record.UserId,
                 ["Placement"] = placement.ToString(CultureInfo.InvariantCulture),
-                ["Score"] = record.Score.ToString(CultureInfo.InvariantCulture),
+                ["Score"] = pointsAwarded.ToString(CultureInfo.InvariantCulture),
                 ["PointsAwarded"] = pointsAwarded.ToString(CultureInfo.InvariantCulture),
                 ["LapTime"] = lapTime.ToString("F2", CultureInfo.InvariantCulture),
                 ["WreckCount"] = wreckCount.ToString(CultureInfo.InvariantCulture),
@@ -1124,6 +1217,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     {
                         ["Attacker"] = record.DisplayName,
                         ["Victim"] = victimStr,
+                        ["Score"] = koBonus.ToString(CultureInfo.InvariantCulture),
                         ["PointsAwarded"] = koBonus.ToString(CultureInfo.InvariantCulture)
                     };
 
@@ -1263,6 +1357,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 if (raceFinished)
                 {
                     await AnnounceRaceResultsAsync(resultsSnapshot, isTournamentFinal: false, rSettings);
+                    _ = Task.Run(ProcessNextQueuedSessionAsync);
                 }
                 return;
             }
@@ -1449,6 +1544,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 if (finalFinished)
                 {
                     await AnnounceRaceResultsAsync(resultsSnapshot, isTournamentFinal: true, rSettings);
+                    _ = Task.Run(ProcessNextQueuedSessionAsync);
                 }
             }
         }
@@ -1458,16 +1554,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             bool isTournamentFinal,
             RacingGameSettings rSettings)
         {
-            if (!rSettings.AnnounceSessionStatusInChat || results.Count == 0) return;
+            if (results.Count == 0) return;
 
             var isDerby = _currentSessionGameMode == RacingGameMode.DestructionDerby;
-            var template = isDerby
-                ? rSettings.Messages.DerbyFinalComplete
-                : (isTournamentFinal ? rSettings.Messages.ChampionshipFinalComplete : rSettings.Messages.RaceComplete);
-            var fallback = isDerby
-                ? RacingMessageSettings.DefaultDerbyFinalComplete
-                : (isTournamentFinal ? RacingMessageSettings.DefaultChampionshipFinalComplete : RacingMessageSettings.DefaultRaceComplete);
-
             var first = results.Count > 0 ? results[0] : null;
             var second = results.Count > 1 ? results[1] : null;
             var third = results.Count > 2 ? results[2] : null;
@@ -1497,6 +1586,56 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             }
 
             var resultsSummary = string.Join(" • ", entries);
+
+            // Fire RacingComplete trigger when the entire race match finishes
+            var matchVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Winner"] = first?.DisplayName ?? "",
+                ["WinnerUsername"] = first?.Username ?? "",
+                ["First"] = first?.DisplayName ?? "",
+                ["Second"] = second?.DisplayName ?? "",
+                ["Third"] = third?.DisplayName ?? "",
+                ["WinnerLapTime"] = first != null ? first.LapTimeSeconds.ToString("F2", CultureInfo.InvariantCulture) : "0.00",
+                ["ResultsSummary"] = resultsSummary,
+                ["RacerCount"] = results.Count.ToString(CultureInfo.InvariantCulture),
+                ["GameMode"] = _currentSessionGameMode.ToString(),
+                ["TrackType"] = _currentSessionTrackType.ToString(),
+                ["Theme"] = _currentSessionThemeName ?? "Racing",
+                ["Game"] = "Racing",
+                ["IsTournamentFinal"] = isTournamentFinal ? "True" : "False",
+                ["TotalKnockouts"] = results.Sum(r => r.KnockoutCount).ToString(CultureInfo.InvariantCulture),
+                ["User"] = first?.Username ?? "System",
+                ["DisplayName"] = first?.DisplayName ?? "System"
+            };
+
+            var triggerEventArgs = new CommandEventArgs
+            {
+                Command = "race",
+                Name = first?.Username ?? "System",
+                DisplayName = first?.DisplayName ?? "System"
+            };
+
+            try
+            {
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "race",
+                    DefaultCommandEventTypes.RacingComplete,
+                    triggerEventArgs,
+                    matchVariables);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to fire RacingComplete trigger");
+            }
+
+            if (!rSettings.AnnounceSessionStatusInChat) return;
+
+            var template = isDerby
+                ? rSettings.Messages.DerbyFinalComplete
+                : (isTournamentFinal ? rSettings.Messages.ChampionshipFinalComplete : rSettings.Messages.RaceComplete);
+            var fallback = isDerby
+                ? RacingMessageSettings.DefaultDerbyFinalComplete
+                : (isTournamentFinal ? RacingMessageSettings.DefaultChampionshipFinalComplete : RacingMessageSettings.DefaultRaceComplete);
 
             var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -1574,6 +1713,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
                 if (e.IsModOrHigher() && (firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("cancel", StringComparison.OrdinalIgnoreCase)))
                 {
+                    await ClearSessionQueueAsync();
                     await StopSessionAsync(triggeredBy: e.DisplayName);
                     return;
                 }
