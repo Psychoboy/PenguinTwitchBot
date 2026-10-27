@@ -353,7 +353,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             }
 
             var speedScale = Math.Max(0.2, rSettings.BaseSpeed);
-            var calculatedSeconds = (heatLaps * 60.0) * (0.5 / speedScale);
+            var baseDuration = isDerby ? 120.0 : (heatLaps * 60.0);
+            var calculatedSeconds = baseDuration * (0.5 / speedScale);
             var watchdogDuration = TimeSpan.FromSeconds(Math.Max(90, (int)Math.Ceiling(calculatedSeconds)));
             _ = Task.Run(async () =>
             {

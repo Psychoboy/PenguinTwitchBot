@@ -433,14 +433,18 @@
         const list = [];
         if (density <= 0) return list;
         const count = Math.min(16, density);
+        const isDerby = currentSettings.gameMode === 'DestructionDerby';
         for (let i = 0; i < count; i++) {
             const t = 0.08 + (i + 0.5) / count * 0.84 + (Math.random() * 0.04 - 0.02);
             let types = ['oil', 'cone', 'boost', 'cone'];
-            if (currentSettings.enableItemPickups) {
+            if (isDerby) {
+                // Demolition Derby hazards: NO shields! Boosts, oil slicks, repair wrenches, bombs, and spikes
+                types = ['boost', 'oil', 'wrench', 'bomb', 'spike', 'wrench'];
+            } else if (currentSettings.enableItemPickups) {
                 types = ['oil', 'cone', 'boost', 'wrench', 'cone', 'shield'];
             }
             const type = types[i % types.length];
-            const laneOffset = (Math.random() * 2 - 1) * (currentSettings.trackThickness * 0.32);
+            const laneOffset = (Math.random() * 2 - 1) * (currentSettings.trackThickness * (isDerby ? 0.38 : 0.32));
             list.push({
                 t: t % 1.0,
                 type: type,
@@ -637,19 +641,29 @@
         ctx.globalAlpha = (currentSettings.trackAlpha || 0.55) * overlayAlpha;
 
         // 1. Road Surface (themed or custom track texture)
+        const trackImgUrl = currentTheme && (currentTheme.racingTrackImageUrl || currentTheme.RacingTrackImageUrl);
+        const customTrack = getImage(trackImgUrl);
+
         ctx.beginPath();
         points.forEach((p, idx) => {
             if (idx === 0) ctx.moveTo(p.x, p.y);
             else ctx.lineTo(p.x, p.y);
         });
         ctx.lineWidth = thickness;
-        ctx.strokeStyle = trackStyle.surfaceColor;
+        let surfaceStyle = trackStyle.surfaceColor;
+        if (customTrack && customTrack.complete && customTrack.naturalWidth > 0) {
+            try {
+                const pattern = ctx.createPattern(customTrack, 'repeat');
+                if (pattern) surfaceStyle = pattern;
+            } catch (_) { }
+        }
+        ctx.strokeStyle = surfaceStyle;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.stroke();
 
         // 1b. Themed Inner Road Glow (e.g. frost sheen, neon glow, evergreen tint)
-        if (trackStyle.innerGlow) {
+        if (trackStyle.innerGlow && (!customTrack || !customTrack.complete || customTrack.naturalWidth === 0)) {
             ctx.beginPath();
             points.forEach((p, idx) => {
                 if (idx === 0) ctx.moveTo(p.x, p.y);
@@ -929,6 +943,34 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('🛡️', 0, 1);
+            } else if (h.type === 'bomb') {
+                // Explosive TNT / Bomb Barrel (Derby Mode)
+                ctx.fillStyle = '#D50000';
+                ctx.shadowColor = '#FF3D00';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(0, 0, 11, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('💣', 0, 1);
+            } else if (h.type === 'spike') {
+                // Caltrop / Spike Trap (Derby Mode)
+                ctx.fillStyle = '#37474F';
+                ctx.shadowColor = '#FF5252';
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#FF5252';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('⚠️', 0, 1);
             }
 
             ctx.restore();
@@ -951,7 +993,8 @@
 
         ctx.save();
         ctx.translate(vx, vy);
-        ctx.rotate(pt.angle + racer.spinAngle + racer.driftAngle + (racer.steerAngle || 0));
+        const headingAngle = pt.angle + (racer.dir === -1 ? Math.PI : 0);
+        ctx.rotate(headingAngle + racer.spinAngle + racer.driftAngle + (racer.steerAngle || 0));
 
         const chassisLen = 34;
         const chassisWid = 20;
@@ -1802,7 +1845,7 @@
             }
         }
 
-        const maxLaneOffset = (currentSettings.trackThickness || 44) * 0.35;
+        const maxLaneOffset = (currentSettings.trackThickness || 44) * (currentSettings.gameMode === 'DestructionDerby' ? 0.44 : 0.35);
 
         // Update flying detached vehicle parts (bumpers, spoilers, wheels)
         for (let i = detachedParts.length - 1; i >= 0; i--) {
@@ -1858,6 +1901,25 @@
                 }
                 reportRacerCompletion(champion, champion.placement);
                 playSound('win');
+            }
+        }
+
+        // Destruction Derby Standoff Prevention: Maintain opposing traffic flow
+        if (currentSettings.gameMode === 'DestructionDerby' && activeRacers.length > 1) {
+            const aliveRacers = activeRacers.filter(r => !r.isTotaled && !r.finished);
+            if (aliveRacers.length > 1) {
+                const firstDir = aliveRacers[0].dir || 1;
+                const allSameDir = aliveRacers.every(x => (x.dir || 1) === firstDir);
+                if (allSameDir) {
+                    // Standoff detected: invert direction of half the surviving cars!
+                    for (let k = 0; k < aliveRacers.length; k += 2) {
+                        const flipper = aliveRacers[k];
+                        flipper.dir = -firstDir;
+                        flipper.driftAngle = (Math.random() < 0.5 ? 0.35 : -0.35);
+                        flipper.laneChangeTimer = 0.4;
+                        playSound('screech');
+                    }
+                }
             }
         }
 
@@ -1923,102 +1985,177 @@
                 }
             }
 
-            // 2. Autonomous Lane Switching & Proactive Collision Avoidance
+            // 2. Autonomous Lane Switching & Proactive Collision Avoidance / Derby Targeting
             if (!r.isWrecked && !r.isTotaled && !r.isBoosting) {
+                const isDerby = currentSettings.gameMode === 'DestructionDerby';
                 const rPt = getTrackPoint(r.progress, currentSettings.trackType, currentSettings.stripPosition);
                 const rx = rPt.x + rPt.normalX * r.laneOffset;
                 const ry = rPt.y + rPt.normalY * r.laneOffset;
                 let isAvoiding = false;
 
-                // Periodically reconsider preferred racing line across track
-                r.laneChangeTimer = (r.laneChangeTimer || 0) - dtSec;
-                if (r.laneChangeTimer <= 0) {
-                    r.laneChangeTimer = 2.5 + Math.random() * 3.0;
-                    const possibleOffsets = [-maxLaneOffset * 0.7, -maxLaneOffset * 0.35, 0, maxLaneOffset * 0.35, maxLaneOffset * 0.7];
-                    const randomPref = possibleOffsets[Math.floor(Math.random() * possibleOffsets.length)];
-                    r.targetLaneOffset = pickSafestClearLane(i, randomPref, maxLaneOffset);
-                }
+                if (isDerby) {
+                    // DEMOLITION DERBY: Aggressive Opponent Targeting AI
+                    let targetOpponent = null;
+                    let minOpponentDist = Infinity;
 
-                // Check other cars: proactive avoidance of cars ahead AND side-by-side spacing in curves
-                for (let j = 0; j < activeRacers.length; j++) {
-                    if (i === j) continue;
-                    const other = activeRacers[j];
-                    if (other.finished || other.isTotaled) continue;
+                    for (let j = 0; j < activeRacers.length; j++) {
+                        if (i === j) continue;
+                        const other = activeRacers[j];
+                        if (other.finished || other.isTotaled) continue;
 
-                    const oPt = getTrackPoint(other.progress, currentSettings.trackType, currentSettings.stripPosition);
-                    const ox = oPt.x + oPt.normalX * other.laneOffset;
-                    const oy = oPt.y + oPt.normalY * other.laneOffset;
-                    const dist2D = Math.hypot(rx - ox, ry - oy);
+                        const oPt = getTrackPoint(other.progress, currentSettings.trackType, currentSettings.stripPosition);
+                        const ox = oPt.x + oPt.normalX * other.laneOffset;
+                        const oy = oPt.y + oPt.normalY * other.laneOffset;
+                        const dist2D = Math.hypot(rx - ox, ry - oy);
 
-                    let distAhead = other.progress - r.progress;
-                    if (distAhead < -0.5) distAhead += 1.0;
-                    else if (distAhead > 0.5) distAhead -= 1.0;
-
-                    // Close proximity danger (covers curves, corners, and straight convergence)
-                    if (dist2D < 34) {
-                        const isAggressive = (r.shieldTimer || 0) > 0 || (currentSettings.gameMode === 'DestructionDerby' && (r.hp || 100) > 75 && Math.random() < 0.2);
-                        if (!isAggressive) {
-                            // If trailing or side-by-side, ease off slightly to yield space in turn/pack
-                            if (distAhead > -0.005) {
-                                speed *= 0.93;
-                            }
-                            // Steer laterally away towards open space
-                            const repulse = (other.laneOffset >= r.laneOffset) ? -maxLaneOffset * 0.75 : maxLaneOffset * 0.75;
-                            const safeLane = pickSafestClearLane(i, repulse, maxLaneOffset);
-                            if (Math.abs(safeLane - r.laneOffset) > 2) {
-                                r.targetLaneOffset = safeLane;
-                                r.laneChangeTimer = 0.8;
-                                isAvoiding = true;
-                            }
+                        if (dist2D < minOpponentDist) {
+                            minOpponentDist = dist2D;
+                            targetOpponent = other;
                         }
-                    } else if (distAhead > 0.008 && distAhead < 0.05 && dist2D < 48) {
-                        // Car ahead on our line: look for safe passing lane
-                        if (Math.abs(other.laneOffset - r.laneOffset) < 16) {
-                            const prefAvoid = (other.laneOffset >= 0) ? -maxLaneOffset * 0.7 : maxLaneOffset * 0.7;
-                            const safeLane = pickSafestClearLane(i, prefAvoid, maxLaneOffset);
-                            if (Math.abs(safeLane - r.laneOffset) > 3) {
-                                r.targetLaneOffset = safeLane;
-                                r.laneChangeTimer = 1.0;
-                                isAvoiding = true;
-                            } else {
-                                speed *= 0.94;
+                    }
+
+                    // Seek repair wrench if injured
+                    let soughtPickup = false;
+                    if (currentSettings.enableDebris && trackHazards.length > 0) {
+                        const curNorm = ((r.progress % 1.0) + 1.0) % 1.0;
+                        for (const h of trackHazards) {
+                            if (!h.active) continue;
+                            let hDist = Math.abs(h.t - curNorm);
+                            if (hDist > 0.5) hDist = 1.0 - hDist;
+                            if (hDist < 0.045) {
+                                if (h.type === 'wrench' && (r.hp || 100) < 75) {
+                                    r.targetLaneOffset = h.laneOffset;
+                                    r.laneChangeTimer = 0.6;
+                                    soughtPickup = true;
+                                    break;
+                                }
                             }
                         }
                     }
-                }
 
-                // Hazard avoidance & Item seeking
-                if (currentSettings.enableDebris && trackHazards.length > 0) {
-                    const curNorm = ((r.progress % 1.0) + 1.0) % 1.0;
-                    for (const h of trackHazards) {
-                        if (!h.active) continue;
-                        let hDist = h.t - curNorm;
-                        if (hDist < 0) hDist += 1.0;
+                    if (!soughtPickup) {
+                        if (targetOpponent && minOpponentDist < 180) {
+                            // Intercept target: steer directly into opponent's lane to ram!
+                            r.targetLaneOffset = targetOpponent.laneOffset;
+                            r.laneChangeTimer = 0.35;
+                            // Pursuit acceleration: speed up when hunting down an opponent!
+                            const isSameDir = (r.dir || 1) === (targetOpponent.dir || 1);
+                            if (minOpponentDist < 90) {
+                                speed *= (isSameDir ? 1.35 : 1.25);
+                            }
+                        } else {
+                            // Roam aggressively across lanes to sweep track width
+                            r.laneChangeTimer = (r.laneChangeTimer || 0) - dtSec;
+                            if (r.laneChangeTimer <= 0) {
+                                r.laneChangeTimer = 0.8 + Math.random() * 1.2;
+                                r.targetLaneOffset = (Math.random() * 2 - 1) * maxLaneOffset * 0.85;
+                            }
+                        }
 
-                        if (hDist > 0.008 && hDist < 0.045) {
-                            if (h.type === 'wrench' && (r.hp || 100) < 85) {
-                                r.targetLaneOffset = pickSafestClearLane(i, h.laneOffset, maxLaneOffset);
-                                r.laneChangeTimer = 0.8;
-                                break;
-                            } else if (h.type === 'shield' && (r.shieldTimer || 0) <= 0) {
-                                r.targetLaneOffset = pickSafestClearLane(i, h.laneOffset, maxLaneOffset);
-                                r.laneChangeTimer = 0.8;
-                                break;
-                            } else if ((h.type === 'oil' || h.type === 'cone') && Math.abs(h.laneOffset - r.laneOffset) < 14) {
-                                const swerveDir = (h.laneOffset >= 0) ? -maxLaneOffset * 0.75 : maxLaneOffset * 0.75;
-                                r.targetLaneOffset = pickSafestClearLane(i, swerveDir, maxLaneOffset);
-                                r.laneChangeTimer = 0.8;
-                                break;
+                        // Periodically allow roaming cars to flip direction if hunting
+                        r.uTurnTimer = (r.uTurnTimer || (5 + Math.random() * 5)) - dtSec;
+                        if (r.uTurnTimer <= 0) {
+                            r.uTurnTimer = 6 + Math.random() * 6;
+                            if (Math.random() < 0.4) {
+                                r.dir = -(r.dir || 1);
+                                r.driftAngle = (Math.random() < 0.5 ? 0.3 : -0.3);
+                                playSound('screech');
                             }
                         }
                     }
-                }
 
-                // Smoothly steer towards targetLaneOffset with dynamic evasion rate
-                if (r.targetLaneOffset != null) {
-                    const steerRate = (isAvoiding ? 5.2 : 2.8) * dtSec;
-                    r.laneOffset += (r.targetLaneOffset - r.laneOffset) * steerRate;
-                    r.steerAngle = Math.max(-0.15, Math.min(0.15, (r.targetLaneOffset - r.laneOffset) * 0.015));
+                    if (r.targetLaneOffset != null) {
+                        const steerRate = 4.8 * dtSec;
+                        r.laneOffset += (r.targetLaneOffset - r.laneOffset) * steerRate;
+                        r.steerAngle = Math.max(-0.2, Math.min(0.2, (r.targetLaneOffset - r.laneOffset) * 0.02));
+                    }
+                } else {
+                    // Standard Racing: Proactive collision avoidance & safe passing
+                    r.laneChangeTimer = (r.laneChangeTimer || 0) - dtSec;
+                    if (r.laneChangeTimer <= 0) {
+                        r.laneChangeTimer = 2.5 + Math.random() * 3.0;
+                        const possibleOffsets = [-maxLaneOffset * 0.7, -maxLaneOffset * 0.35, 0, maxLaneOffset * 0.35, maxLaneOffset * 0.7];
+                        const randomPref = possibleOffsets[Math.floor(Math.random() * possibleOffsets.length)];
+                        r.targetLaneOffset = pickSafestClearLane(i, randomPref, maxLaneOffset);
+                    }
+
+                    // Check other cars: proactive avoidance of cars ahead AND side-by-side spacing in curves
+                    for (let j = 0; j < activeRacers.length; j++) {
+                        if (i === j) continue;
+                        const other = activeRacers[j];
+                        if (other.finished || other.isTotaled) continue;
+
+                        const oPt = getTrackPoint(other.progress, currentSettings.trackType, currentSettings.stripPosition);
+                        const ox = oPt.x + oPt.normalX * other.laneOffset;
+                        const oy = oPt.y + oPt.normalY * other.laneOffset;
+                        const dist2D = Math.hypot(rx - ox, ry - oy);
+
+                        let distAhead = other.progress - r.progress;
+                        if (distAhead < -0.5) distAhead += 1.0;
+                        else if (distAhead > 0.5) distAhead -= 1.0;
+
+                        // Close proximity danger (covers curves, corners, and straight convergence)
+                        if (dist2D < 34) {
+                            const isAggressive = (r.shieldTimer || 0) > 0;
+                            if (!isAggressive) {
+                                if (distAhead > -0.005) {
+                                    speed *= 0.93;
+                                }
+                                const repulse = (other.laneOffset >= r.laneOffset) ? -maxLaneOffset * 0.75 : maxLaneOffset * 0.75;
+                                const safeLane = pickSafestClearLane(i, repulse, maxLaneOffset);
+                                if (Math.abs(safeLane - r.laneOffset) > 2) {
+                                    r.targetLaneOffset = safeLane;
+                                    r.laneChangeTimer = 0.8;
+                                    isAvoiding = true;
+                                }
+                            }
+                        } else if (distAhead > 0.008 && distAhead < 0.05 && dist2D < 48) {
+                            if (Math.abs(other.laneOffset - r.laneOffset) < 16) {
+                                const prefAvoid = (other.laneOffset >= 0) ? -maxLaneOffset * 0.7 : maxLaneOffset * 0.7;
+                                const safeLane = pickSafestClearLane(i, prefAvoid, maxLaneOffset);
+                                if (Math.abs(safeLane - r.laneOffset) > 3) {
+                                    r.targetLaneOffset = safeLane;
+                                    r.laneChangeTimer = 1.0;
+                                    isAvoiding = true;
+                                } else {
+                                    speed *= 0.94;
+                                }
+                            }
+                        }
+                    }
+
+                    // Hazard avoidance & Item seeking
+                    if (currentSettings.enableDebris && trackHazards.length > 0) {
+                        const curNorm = ((r.progress % 1.0) + 1.0) % 1.0;
+                        for (const h of trackHazards) {
+                            if (!h.active) continue;
+                            let hDist = h.t - curNorm;
+                            if (hDist < 0) hDist += 1.0;
+
+                            if (hDist > 0.008 && hDist < 0.045) {
+                                if (h.type === 'wrench' && (r.hp || 100) < 85) {
+                                    r.targetLaneOffset = pickSafestClearLane(i, h.laneOffset, maxLaneOffset);
+                                    r.laneChangeTimer = 0.8;
+                                    break;
+                                } else if (h.type === 'shield' && (r.shieldTimer || 0) <= 0) {
+                                    r.targetLaneOffset = pickSafestClearLane(i, h.laneOffset, maxLaneOffset);
+                                    r.laneChangeTimer = 0.8;
+                                    break;
+                                } else if ((h.type === 'oil' || h.type === 'cone') && Math.abs(h.laneOffset - r.laneOffset) < 14) {
+                                    const swerveDir = (h.laneOffset >= 0) ? -maxLaneOffset * 0.75 : maxLaneOffset * 0.75;
+                                    r.targetLaneOffset = pickSafestClearLane(i, swerveDir, maxLaneOffset);
+                                    r.laneChangeTimer = 0.8;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (r.targetLaneOffset != null) {
+                        const steerRate = (isAvoiding ? 5.2 : 2.8) * dtSec;
+                        r.laneOffset += (r.targetLaneOffset - r.laneOffset) * steerRate;
+                        r.steerAngle = Math.max(-0.15, Math.min(0.15, (r.targetLaneOffset - r.laneOffset) * 0.015));
+                    }
                 }
             } else if (r.steerAngle) {
                 r.steerAngle *= Math.max(0, 1 - dtSec * 6);
@@ -2059,24 +2196,29 @@
             }
 
             // 4. Car-to-Car Bumping & Combat Collisions
-            if (currentSettings.enableCollisions && !r.isWrecked && !r.isTotaled) {
+            if (currentSettings.enableCollisions && !r.isTotaled) {
                 const isCombat = currentSettings.enableVehicleDamage || currentSettings.gameMode === 'DestructionDerby';
-                const rPt = getTrackPoint(r.progress, currentSettings.trackType, currentSettings.stripPosition);
-                const rx = rPt.x + rPt.normalX * r.laneOffset;
-                const ry = rPt.y + rPt.normalY * r.laneOffset;
+                if (!isCombat && r.isWrecked) {
+                    // Non-combat pure racing skips collision during wreck spinout
+                } else {
+                    const rPt = getTrackPoint(r.progress, currentSettings.trackType, currentSettings.stripPosition);
+                    const rx = rPt.x + rPt.normalX * r.laneOffset;
+                    const ry = rPt.y + rPt.normalY * r.laneOffset;
 
-                for (let j = i + 1; j < activeRacers.length; j++) {
-                    const other = activeRacers[j];
-                    if (other.finished || other.isWrecked || other.isTotaled) continue;
+                    for (let j = i + 1; j < activeRacers.length; j++) {
+                        const other = activeRacers[j];
+                        if (other.finished || other.isTotaled) continue;
+                        if (!isCombat && other.isWrecked) continue;
 
-                    const oPt = getTrackPoint(other.progress, currentSettings.trackType, currentSettings.stripPosition);
-                    const ox = oPt.x + oPt.normalX * other.laneOffset;
-                    const oy = oPt.y + oPt.normalY * other.laneOffset;
+                        const oPt = getTrackPoint(other.progress, currentSettings.trackType, currentSettings.stripPosition);
+                        const ox = oPt.x + oPt.normalX * other.laneOffset;
+                        const oy = oPt.y + oPt.normalY * other.laneOffset;
 
-                    // Physical 2D distance between vehicles (true chassis contact)
-                    const dist2D = Math.hypot(rx - ox, ry - oy);
+                        // Physical 2D distance between vehicles (true chassis contact)
+                        const dist2D = Math.hypot(rx - ox, ry - oy);
+                        const hitThreshold = isCombat ? 27 : 21;
 
-                    if (dist2D < 21) {
+                        if (dist2D < hitThreshold) {
                         // Deflection push: bounce lanes apart
                         const push = (r.laneOffset <= other.laneOffset) ? -8 : 8;
                         r.laneOffset = Math.max(-maxLaneOffset, Math.min(maxLaneOffset, r.laneOffset + push));
@@ -2085,8 +2227,8 @@
                         // Retain deflected lanes so cars do not immediately snap back into collision
                         r.targetLaneOffset = r.laneOffset;
                         other.targetLaneOffset = other.laneOffset;
-                        r.laneChangeTimer = 1.2;
-                        other.laneChangeTimer = 1.2;
+                        r.laneChangeTimer = (currentSettings.gameMode === 'DestructionDerby') ? 0.35 : 1.2;
+                        other.laneChangeTimer = (currentSettings.gameMode === 'DestructionDerby') ? 0.35 : 1.2;
 
                         // Momentary speed friction separating the cars along track
                         speed *= 0.92;
@@ -2099,8 +2241,9 @@
                         const canDamage = isCombat && (r.hitCooldown || 0) <= 0 && (other.hitCooldown || 0) <= 0;
 
                         if (canDamage) {
-                            r.hitCooldown = 0.85;
-                            other.hitCooldown = 0.85;
+                            const cd = (currentSettings.gameMode === 'DestructionDerby') ? 0.7 : 0.85;
+                            r.hitCooldown = cd;
+                            other.hitCooldown = cd;
 
                             playSound('bump');
 
@@ -2112,27 +2255,39 @@
                                 // Impact sparks at midpoint
                                 const midX = (rx + ox) / 2;
                                 const midY = (ry + oy) / 2;
-                                for (let sp = 0; sp < 6; sp++) {
+                                const isHeadOn = (r.dir || 1) !== (other.dir || 1);
+                                const sparkCount = isHeadOn ? 12 : 6;
+                                for (let sp = 0; sp < sparkCount; sp++) {
                                     particles.push({
                                         x: midX,
                                         y: midY,
-                                        vx: (Math.random() - 0.5) * 60,
-                                        vy: (Math.random() - 0.5) * 60,
+                                        vx: (Math.random() - 0.5) * (isHeadOn ? 100 : 60),
+                                        vy: (Math.random() - 0.5) * (isHeadOn ? 100 : 60),
                                         alpha: 1.0,
-                                        size: 2.5,
-                                        color: Math.random() < 0.5 ? '#FFD166' : '#FF9100'
+                                        size: isHeadOn ? 3.2 : 2.5,
+                                        color: Math.random() < 0.5 ? '#FFD166' : '#FF5252'
                                     });
                                 }
 
                                 const rHasShield = (r.shieldTimer || 0) > 0;
                                 const oHasShield = (other.shieldTimer || 0) > 0;
 
-                                // Calibrated discrete impact damage (5 to 9 base HP per collision)
-                                let dmgToR = (5 + Math.random() * 4) * mult;
-                                let dmgToOther = (5 + Math.random() * 4) * mult;
+                                // Calibrated discrete impact damage (balanced for prolonged multi-hit demolition battles)
+                                const baseDmg = (currentSettings.gameMode === 'DestructionDerby') ? (6 + Math.random() * 5) : (4 + Math.random() * 3);
+                                let dmgToR = baseDmg * mult;
+                                let dmgToOther = baseDmg * mult;
 
-                                if (r.isBoosting) dmgToOther *= 1.5;
-                                if (other.isBoosting) dmgToR *= 1.5;
+                                if (isHeadOn) {
+                                    dmgToR *= 1.4;
+                                    dmgToOther *= 1.4;
+                                }
+
+                                // Vulnerable spinning cars take extra damage when struck!
+                                if (r.isWrecked) dmgToR *= 1.2;
+                                if (other.isWrecked) dmgToOther *= 1.2;
+
+                                if (r.isBoosting) dmgToOther *= 1.3;
+                                if (other.isBoosting) dmgToR *= 1.3;
 
                                 if (rHasShield) {
                                     dmgToR = 0;
@@ -2146,8 +2301,11 @@
                                 r.hp = Math.max(0, (r.hp ?? (currentSettings.startingHealth || 100)) - dmgToR);
                                 other.hp = Math.max(0, (other.hp ?? (currentSettings.startingHealth || 100)) - dmgToOther);
 
-                                checkPartLoss(r, rx, ry, rPt.angle);
-                                checkPartLoss(other, ox, oy, oPt.angle);
+                                const rAngle = rPt.angle + (r.dir === -1 ? Math.PI : 0);
+                                const oAngle = oPt.angle + (other.dir === -1 ? Math.PI : 0);
+
+                                checkPartLoss(r, rx, ry, rAngle);
+                                checkPartLoss(other, ox, oy, oAngle);
 
                                 // Check if other got totaled
                                 if (other.hp <= 0 && !other.isTotaled) {
@@ -2165,9 +2323,9 @@
                                         timer: 3.5,
                                         color: '#FF3D00'
                                     };
-                                    spawnDetachedPart(ox, oy, oPt.angle, 'bumper', '#1e232a');
-                                    spawnDetachedPart(ox, oy, oPt.angle + Math.PI, 'spoiler', '#1e232a');
-                                    spawnDetachedPart(ox, oy, oPt.angle + Math.PI / 2, 'wheel', '#111315');
+                                    spawnDetachedPart(ox, oy, oAngle, 'bumper', '#1e232a');
+                                    spawnDetachedPart(ox, oy, oAngle + Math.PI, 'spoiler', '#1e232a');
+                                    spawnDetachedPart(ox, oy, oAngle + Math.PI / 2, 'wheel', '#111315');
                                 }
 
                                 // Check if r got totaled
@@ -2186,9 +2344,9 @@
                                         timer: 3.5,
                                         color: '#FF3D00'
                                     };
-                                    spawnDetachedPart(rx, ry, rPt.angle, 'bumper', '#1e232a');
-                                    spawnDetachedPart(rx, ry, rPt.angle + Math.PI, 'spoiler', '#1e232a');
-                                    spawnDetachedPart(rx, ry, rPt.angle + Math.PI / 2, 'wheel', '#111315');
+                                    spawnDetachedPart(rx, ry, rAngle, 'bumper', '#1e232a');
+                                    spawnDetachedPart(rx, ry, rAngle + Math.PI, 'spoiler', '#1e232a');
+                                    spawnDetachedPart(rx, ry, rAngle + Math.PI / 2, 'wheel', '#111315');
                                     break;
                                 }
                             } else if (!isCombat) {
@@ -2198,7 +2356,8 @@
                         }
                     }
                 }
-                if (r.driftAngle) {
+            }
+            if (r.driftAngle) {
                     r.driftAngle *= Math.max(0, 1 - dtSec * 6);
                 }
 
@@ -2207,8 +2366,9 @@
                 const rPt = getTrackPoint(r.progress, currentSettings.trackType, currentSettings.stripPosition);
                 const rx = rPt.x + rPt.normalX * r.laneOffset;
                 const ry = rPt.y + rPt.normalY * r.laneOffset;
-                const frontX = rx + Math.cos(rPt.angle) * 14;
-                const frontY = ry + Math.sin(rPt.angle) * 14;
+                const rAngle = rPt.angle + (r.dir === -1 ? Math.PI : 0);
+                const frontX = rx + Math.cos(rAngle) * 14;
+                const frontY = ry + Math.sin(rAngle) * 14;
 
                 const curNorm = ((r.progress % 1.0) + 1.0) % 1.0;
 
@@ -2236,6 +2396,66 @@
                             r.wreckTimer = 1.4;
                             r.wrecks = (r.wrecks || 0) + 1;
                             playSound('screech');
+                        } else if (h.type === 'bomb') {
+                            // Explosive TNT / Bomb Barrel in Derby mode
+                            const bombDmg = 10 + Math.random() * 5;
+                            r.hp = Math.max(0, (r.hp ?? 100) - bombDmg);
+                            r.isWrecked = true;
+                            r.wreckTimer = 1.2;
+                            r.wrecks = (r.wrecks || 0) + 1;
+                            playSound('screech');
+                            checkPartLoss(r, rx, ry, rAngle);
+                            for (let sp = 0; sp < 12; sp++) {
+                                particles.push({
+                                    x: rx,
+                                    y: ry,
+                                    vx: (Math.random() - 0.5) * 90,
+                                    vy: (Math.random() - 0.5) * 90,
+                                    alpha: 1.0,
+                                    size: 3.5,
+                                    color: Math.random() < 0.5 ? '#FF3D00' : '#FFD166'
+                                });
+                            }
+                            if (r.hp <= 0 && !r.isTotaled) {
+                                r.isTotaled = true;
+                                r.finished = true;
+                                r.lapTime = raceElapsedTime / 1000;
+                                r.placement = nextBackPlacement--;
+                                finishedRacers.push(r);
+                                reportRacerCompletion(r, r.placement);
+                                eliminationBanner = {
+                                    text: `💥 ${r.displayName || r.username} BLOWN UP by a bomb!`,
+                                    timer: 3.5,
+                                    color: '#FF3D00'
+                                };
+                                spawnDetachedPart(rx, ry, rAngle, 'bumper', '#1e232a');
+                                spawnDetachedPart(rx, ry, rAngle + Math.PI, 'spoiler', '#1e232a');
+                                spawnDetachedPart(rx, ry, rAngle + Math.PI / 2, 'wheel', '#111315');
+                            }
+                        } else if (h.type === 'spike') {
+                            // Spike Trap in Derby mode
+                            const spikeDmg = 6 + Math.random() * 4;
+                            r.hp = Math.max(0, (r.hp ?? 100) - spikeDmg);
+                            r.wrecks = (r.wrecks || 0) + 1;
+                            r.driftAngle = Math.random() < 0.5 ? 0.3 : -0.3;
+                            playSound('bump');
+                            checkPartLoss(r, rx, ry, rAngle);
+                            if (r.hp <= 0 && !r.isTotaled) {
+                                r.isTotaled = true;
+                                r.finished = true;
+                                r.lapTime = raceElapsedTime / 1000;
+                                r.placement = nextBackPlacement--;
+                                finishedRacers.push(r);
+                                reportRacerCompletion(r, r.placement);
+                                eliminationBanner = {
+                                    text: `💥 ${r.displayName || r.username} SHREDDED by spikes!`,
+                                    timer: 3.5,
+                                    color: '#FF3D00'
+                                };
+                                spawnDetachedPart(rx, ry, rAngle, 'bumper', '#1e232a');
+                                spawnDetachedPart(rx, ry, rAngle + Math.PI, 'spoiler', '#1e232a');
+                                spawnDetachedPart(rx, ry, rAngle + Math.PI / 2, 'wheel', '#111315');
+                            }
                         } else if (h.type === 'cone') {
                             r.progress -= 0.005;
                             r.wrecks = (r.wrecks || 0) + 1;
@@ -2288,20 +2508,20 @@
 
             // Move racer along spline and check race finish (after avoidance, drafting, bumping, and hazard hits)
             if (!r.finished && !r.isTotaled) {
-                r.progress += (speed * dtSec);
+                r.progress += (r.dir || 1) * (speed * dtSec);
 
                 // Themed tire spray & skid particles
                 if (!r.isEliminated) {
                     const pt = getTrackPoint(r.progress, currentSettings.trackType, currentSettings.stripPosition);
-                    const carAngle = pt.angle + r.spinAngle + r.driftAngle + (r.steerAngle || 0);
+                    const carAngle = pt.angle + (r.dir === -1 ? Math.PI : 0) + r.spinAngle + r.driftAngle + (r.steerAngle || 0);
                     const isHighActivity = r.isBoosting || r.isDrafting || r.isWrecked || Math.abs(r.driftAngle) > 0.04;
                     if (isHighActivity ? Math.random() < 0.5 : Math.random() < 0.1) {
                         spawnTireSpray(r, pt, carAngle, (currentTheme && currentTheme.seasonPreset) || 'spring');
                     }
                 }
 
-                // Check lap completion and race finish
-                if (r.progress >= totalLaps) {
+                // Check lap completion and race finish (Destruction Derby is Last-Car-Standing, not lap-limited!)
+                if (currentSettings.gameMode !== 'DestructionDerby' && r.progress >= totalLaps) {
                     r.finished = true;
                     r.lapTime = raceElapsedTime / 1000;
                     r.placement = nextFrontPlacement++;
@@ -2613,37 +2833,45 @@
 
             // Populate racers if provided
             if (msg.racers && msg.racers.length > 0) {
-                activeRacers = msg.racers.map((r, idx) => ({
-                    dropToken: r.dropToken,
-                    username: r.username,
-                    displayName: r.displayName,
-                    userColor: r.userColor,
-                    emoteUrl: r.emoteUrl,
-                    progress: -0.015 * Math.floor(idx / 2),
-                    laneOffset: (idx % 2 === 0) ? -8 : 8,
-                    targetLaneOffset: (idx % 2 === 0) ? -8 : 8,
-                    laneChangeTimer: 1.5 + Math.random() * 2.5,
-                    steerAngle: 0,
-                    driftAngle: 0,
-                    spinAngle: 0,
-                    finished: false,
-                    wrecks: 0,
-                    seed: Math.random() * 200,
-                    targetLane: 0,
-                    draftCharge: 0,
-                    isBoosting: false,
-                    boostTimer: 0,
-                    hp: currentSettings.startingHealth || 100,
-                    maxHp: currentSettings.startingHealth || 100,
-                    isTotaled: false,
-                    kills: 0,
-                    shieldTimer: 0,
-                    hitCooldown: 0,
-                    lostFrontBumper: false,
-                    lostSpoiler: false,
-                    lostWheel: false,
-                    killerToken: null
-                }));
+                const isDerby = (msg.gameMode || currentSettings.gameMode) === 'DestructionDerby';
+                const totalRacers = msg.racers.length;
+                activeRacers = msg.racers.map((r, idx) => {
+                    const dir = isDerby ? (idx % 2 === 0 ? 1 : -1) : 1;
+                    const startProg = isDerby ? (idx / totalRacers) : (-0.015 * Math.floor(idx / 2));
+                    const initialLane = (idx % 2 === 0) ? -8 : 8;
+                    return {
+                        dropToken: r.dropToken,
+                        username: r.username,
+                        displayName: r.displayName,
+                        userColor: r.userColor,
+                        emoteUrl: r.emoteUrl,
+                        progress: startProg,
+                        dir: dir,
+                        laneOffset: initialLane,
+                        targetLaneOffset: initialLane,
+                        laneChangeTimer: isDerby ? (0.6 + Math.random() * 0.8) : (1.5 + Math.random() * 2.5),
+                        steerAngle: 0,
+                        driftAngle: 0,
+                        spinAngle: 0,
+                        finished: false,
+                        wrecks: 0,
+                        seed: Math.random() * 200,
+                        targetLane: 0,
+                        draftCharge: 0,
+                        isBoosting: false,
+                        boostTimer: 0,
+                        hp: currentSettings.startingHealth || 100,
+                        maxHp: currentSettings.startingHealth || 100,
+                        isTotaled: false,
+                        kills: 0,
+                        shieldTimer: 0,
+                        hitCooldown: 0,
+                        lostFrontBumper: false,
+                        lostSpoiler: false,
+                        lostWheel: false,
+                        killerToken: null
+                    };
+                });
             }
 
             finishedRacers = [];
