@@ -197,5 +197,33 @@ public class MinigameSessionSubActionHandlerTests
             "summer",
             true);
     }
+
+    [Fact]
+    public async Task StopDropGameSessionHandler_WhenGameTypeNull_StopsAllMinigames()
+    {
+        var parachute = Substitute.For<IParachuteDropService>();
+        var plinko = Substitute.For<IPlinkoDropService>();
+        var balloon = Substitute.For<IBalloonAscentService>();
+        var curling = Substitute.For<ICurlingGameService>();
+        var golf = Substitute.For<IGolfGameService>();
+        var racing = Substitute.For<IRacingGameService>();
+        var handler = new StopDropGameSessionHandler(parachute, plinko, balloon, curling, golf, racing);
+        var vars = new ConcurrentDictionary<string, string> { ["User"] = "Moderator" };
+
+        await handler.ExecuteAsync(new StopDropGameSessionType { GameType = null! }, vars);
+
+        await parachute.Received(1).ClearSessionQueueAsync();
+        await parachute.Received(1).StopSessionAsync("Moderator");
+        await plinko.Received(1).ClearSessionQueueAsync();
+        await plinko.Received(1).StopSessionAsync("Moderator");
+        await balloon.Received(1).ClearSessionQueueAsync();
+        await balloon.Received(1).StopSessionAsync("Moderator");
+        await curling.Received(1).ClearSessionQueueAsync();
+        await curling.Received(1).StopSessionAsync("Moderator");
+        await golf.Received(1).ClearSessionQueueAsync();
+        await golf.Received(1).StopSessionAsync("Moderator");
+        await racing.Received(1).ClearSessionQueueAsync();
+        await racing.Received(1).StopSessionAsync("Moderator");
+    }
 }
 

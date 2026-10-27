@@ -4,7 +4,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
         displayName: "Stop All Minigame Sessions",
-        description: "Stops active timed sessions and clears queues across all overlay minigames (or a specific game)",
+        description: "Stops active timed sessions and clears queues across Parachute, Plinko, Balloon, Curling, Golf, and Racing (or a selected game)",
         icon: "mdi-timer-stop",
         color: "Warning",
         category: SubActionCategories.Minigames,

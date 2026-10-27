@@ -111,6 +111,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             Assert.Equal(42, upgraded.Id);
             Assert.Equal(3, upgraded.Index);
             Assert.True(upgraded.Enabled);
+
+            var provider = Assert.IsAssignableFrom<PenguinTwitchBot.Database.Bot.Actions.SubActions.UI.ISubActionUIProvider>(upgraded);
+            var values = provider.GetValues();
+            Assert.Equal("90", values["DurationSeconds"]);
+            Assert.Equal("neon", values["ThemeOverrideId"]);
         }
 
         [Theory]
