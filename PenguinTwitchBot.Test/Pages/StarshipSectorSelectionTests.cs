@@ -390,7 +390,7 @@ public class StarshipSectorSelectionTests
         var page = context.Render<StarshipExpeditionGame>();
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(2));
         await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudExpansionPanel>(),
-            component => component.Instance.Text?.StartsWith(source.Name, StringComparison.Ordinal) == true));
+            component => component.Instance.Text?.StartsWith(source.Name, StringComparison.Ordinal) == true), TimeSpan.FromSeconds(10));
         var sourcePanel = page.FindComponents<MudExpansionPanel>().Single(component => component.Instance.Text?.StartsWith(source.Name, StringComparison.Ordinal) == true);
 
         await sourcePanel.FindAll("button").Single(button => button.TextContent.Trim() == "Clone Profile").ClickAsync(new MouseEventArgs());

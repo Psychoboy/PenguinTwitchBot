@@ -519,6 +519,10 @@
         try
         {
             await SettingsService.SaveSettingsAsync(_settings);
+            if (!_settings.Racing.GameEnabled)
+            {
+                await RacingGameService.ClearSessionQueueAsync();
+            }
             Snackbar.Add("Racing Minigame settings saved!", Severity.Success);
             return true;
         }

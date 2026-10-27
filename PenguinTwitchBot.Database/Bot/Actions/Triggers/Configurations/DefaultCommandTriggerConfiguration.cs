@@ -222,6 +222,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string RacingDerbyKnockout = "Racing.DerbyKnockout";
         public const string RacingEnd = "Racing.End";
         public const string RacingEnded = "Racing.End";
+        public const string RacingComplete = "Racing.Complete";
+        public const string RacingCompleted = "Racing.Complete";
         public const string RacingTimeTrialComplete = "Racing.TimeTrialComplete";
 
         // Starship Expedition events

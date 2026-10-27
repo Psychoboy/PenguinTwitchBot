@@ -692,14 +692,28 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "racing-complete",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Racing - Race Match Concluded (Final Results)",
+                Description = "Triggers once when the entire race or championship final concludes, providing podium results, winner, and match stats",
+                Icon = Icons.Material.Filled.SportsScore,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "race",
+                DefaultCommandEventType = DefaultCommandEventTypes.RacingComplete
+            },
+            new()
+            {
                 Id = "racing-end",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "minigames",
                 CategoryName = "Minigames",
-                DisplayName = "Racing - Racer Finished / Match Concluded",
-                Description = "Triggers for each racer upon crossing the finish line; supports placement, game mode, and outcome filters",
-                Icon = Icons.Material.Filled.SportsScore,
-                Color = Color.Success,
+                DisplayName = "Racing - Racer Finished (Individual Finish)",
+                Description = "Triggers for each individual racer as they cross the finish line; supports placement, game mode, and outcome filters",
+                Icon = Icons.Material.Filled.Flag,
+                Color = Color.Info,
                 FeatureKey = FeatureKeys.DropGames,
                 DefaultCommandName = "race",
                 DefaultCommandEventType = DefaultCommandEventTypes.RacingEnd

@@ -656,6 +656,23 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("RacingMode", "Racing game mode", source, category, "TimeTrial");
             variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
         }
+        else if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.RacingComplete, StringComparison.OrdinalIgnoreCase) ||
+                                       eventType.Equals(DefaultCommandEventTypes.RacingCompleted, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("Winner", "Winner display name", source, category, "SpeedyPenguin");
+            variables.SetVariable("WinnerUsername", "Winner username", source, category, "speedypenguin");
+            variables.SetVariable("First", "1st place finisher display name", source, category, "SpeedyPenguin");
+            variables.SetVariable("Second", "2nd place finisher display name", source, category, "DriftKing");
+            variables.SetVariable("Third", "3rd place finisher display name", source, category, "TurboToad");
+            variables.SetVariable("WinnerLapTime", "Winning lap or race time in seconds", source, category, "23.45");
+            variables.SetVariable("ResultsSummary", "Summary text of top podium finishers", source, category, "🥇 1st: SpeedyPenguin • 🥈 2nd: DriftKing • 🥉 3rd: TurboToad");
+            variables.SetVariable("RacerCount", "Total number of racers in the match", source, category, "8");
+            variables.SetVariable("GameMode", "Racing game mode", source, category, "GrandPrix");
+            variables.SetVariable("TrackType", "Track circuit type", source, category, "Perimeter");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+            variables.SetVariable("IsTournamentFinal", "True if this was a championship final match", source, category, "False");
+            variables.SetVariable("TotalKnockouts", "Total knockouts recorded across all racers", source, category, "0");
+        }
         else
         {
             variables.SetVariable("Placement", "Final race placement (1 for 1st, 2 for 2nd, etc.)", source, category, "1");

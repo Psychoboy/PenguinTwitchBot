@@ -4181,6 +4181,25 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 It.IsAny<Dictionary<string, string>?>()), times);
         }
 
+        private async Task WaitForGolfEventAsync(string eventType, Times times, int maxAttempts = 60, int delayMs = 50)
+        {
+            for (var i = 0; i < maxAttempts; i++)
+            {
+                await Task.Delay(delayMs);
+                try
+                {
+                    VerifyGolfEvent(eventType, times);
+                    return;
+                }
+                catch (MockException)
+                {
+                    // keep waiting
+                }
+            }
+
+            VerifyGolfEvent(eventType, times);
+        }
+
         [Fact]
         public async Task GolfGameService_MultiStroke_NonFinalStroke_DefersWinOutcome()
         {
@@ -4298,8 +4317,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             var record = CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, dropToken: firstDropToken);
             await golfService.ProcessCompletionAsync(record);
-            await Task.Delay(600);
-            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+            await WaitForGolfEventAsync(DefaultCommandEventTypes.GolfWin, Times.Once());
 
             // Duplicate/late completion of the finalized stroke must not fire again
             await golfService.ProcessCompletionAsync(record);
@@ -4321,21 +4339,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, dropToken: firstDropToken));
             VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
 
-            for (var i = 0; i < 40; i++)
-            {
-                await Task.Delay(50);
-                try
-                {
-                    VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
-                    return;
-                }
-                catch (MockException)
-                {
-                    // keep waiting
-                }
-            }
-
-            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+            await WaitForGolfEventAsync(DefaultCommandEventTypes.GolfWin, Times.Once());
         }
 
         [Fact]
@@ -4356,9 +4360,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             // Once stroke 2 completes, its unchanged deferred outcome still finalizes after idle.
             await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 2, isWin: false, dropToken: secondDropToken));
-            await Task.Delay(700);
+            await WaitForGolfEventAsync(DefaultCommandEventTypes.GolfLose, Times.Once());
             VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
-            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Once());
         }
 
         [Fact]

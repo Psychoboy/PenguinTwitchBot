@@ -1156,6 +1156,7 @@
             },
             "race" => new List<string>
             {
+                DefaultCommandEventTypes.RacingComplete,
                 DefaultCommandEventTypes.RacingWin,
                 DefaultCommandEventTypes.RacingPodium,
                 DefaultCommandEventTypes.RacingEnd,
@@ -1227,9 +1228,10 @@
             DefaultCommandEventTypes.GolfBullseye => "Sunk in Cup / Hole-in-One",
             DefaultCommandEventTypes.GolfLose => "Off the Green (Miss)",
             DefaultCommandEventTypes.GolfEnd => "Round Ended (Session Closed)",
+            DefaultCommandEventTypes.RacingComplete => "Race Match Concluded (Final Results)",
             DefaultCommandEventTypes.RacingWin => "1st Place (Win)",
             DefaultCommandEventTypes.RacingPodium => "Podium Finish (Top 3)",
-            DefaultCommandEventTypes.RacingEnd => "Racer Finished / Race Ended",
+            DefaultCommandEventTypes.RacingEnd => "Racer Finished (Individual Finish)",
             DefaultCommandEventTypes.RacingDerbyKnockout => "Derby Knockout",
             DefaultCommandEventTypes.RacingWreck => "Crash / Wreck",
             DefaultCommandEventTypes.RacingStart => "Race Started (Green Flag)",
@@ -1283,6 +1285,8 @@
                 "%user%, %userid%, %Score%, %BaseScore%, %StrokeNumber%, %StrokePenalty%, %Power%, %IsHoleInOne%, %IsLipOut%, %DistanceFromCenter%, %Theme%, %Game%",
             DefaultCommandEventTypes.BalloonEnd or DefaultCommandEventTypes.CurlingEnd or DefaultCommandEventTypes.GolfEnd =>
                 "%user%, %TotalDrops%, %duration%, %theme%, %game%",
+            DefaultCommandEventTypes.RacingComplete =>
+                "%winner%, %first%, %second%, %third%, %winnerlaptime%, %resultssummary%, %racercount%, %gamemode%, %tracktype%, %theme%, %istournamentfinal%, %totalknockouts%, %game%",
             DefaultCommandEventTypes.RacingWin or DefaultCommandEventTypes.RacingPodium or DefaultCommandEventTypes.RacingEnd or DefaultCommandEventTypes.RacingWreck =>
                 "%user%, %userid%, %placement%, %laptime%, %wreckcount%, %knockoutcount%, %istotaled%, %pointsawarded%, %racingmode%, %theme%, %game%",
             DefaultCommandEventTypes.RacingDerbyKnockout =>

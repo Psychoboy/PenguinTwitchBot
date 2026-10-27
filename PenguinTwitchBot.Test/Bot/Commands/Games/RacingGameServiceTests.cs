@@ -322,6 +322,18 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             _serviceBackbone.Verify(x => x.SendChatMessage(
                 It.Is<string>(msg => msg.Contains("Race Complete! Results:") && msg.Contains("🥇 1st:") && msg.Contains("🥈 2nd:"))),
                 Times.Once);
+
+            // Verify RacingComplete match event was dispatched
+            _defaultCommandTriggerService.Verify(x => x.TriggerDefaultCommandEventAsync(
+                "race",
+                DefaultCommandEventTypes.RacingComplete,
+                It.IsAny<CommandEventArgs>(),
+                It.Is<Dictionary<string, string>>(dict =>
+                    dict["Winner"] == racers[0].DisplayName &&
+                    dict["First"] == racers[0].DisplayName &&
+                    dict["Second"] == racers[1].DisplayName &&
+                    dict["RacerCount"] == "2")),
+                Times.Once);
         }
 
         [Fact]
@@ -827,6 +839,159 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                     json.Contains("DestructionDerby") &&
                     json.Contains("DerbyBowl"))),
                 Times.Once);
+        }
+
+        [Fact]
+        public async Task StartRaceLobbyAsync_WhenSessionActive_QueuesSession()
+        {
+            using var service = CreateService();
+
+            var firstSession = await service.StartRaceLobbyAsync(60, triggeredBy: "Streamer");
+            Assert.NotNull(firstSession);
+            Assert.True(firstSession.IsActive);
+            Assert.False(firstSession.IsQueued);
+
+            var secondSession = await service.StartRaceLobbyAsync(45, triggeredBy: "Viewer");
+            Assert.NotNull(secondSession);
+            Assert.False(secondSession.IsActive);
+            Assert.True(secondSession.IsQueued);
+            Assert.Equal(1, secondSession.QueuePosition);
+            Assert.Equal(1, service.GetQueuedSessionCount());
+
+            await service.ClearSessionQueueAsync();
+            Assert.Equal(0, service.GetQueuedSessionCount());
+        }
+
+        [Fact]
+        public async Task OnCommand_RaceStop_ClearsQueueAndStopsSession()
+        {
+            using var service = CreateService();
+
+            _commandHandler.Setup(x => x.GetCommand("race"))
+                .Returns(new Command(new BaseCommandProperties { CommandName = "race" }, service));
+
+            await service.StartRaceLobbyAsync(60, triggeredBy: "Streamer");
+            await service.StartRaceLobbyAsync(45, triggeredBy: "Viewer");
+            Assert.Equal(1, service.GetQueuedSessionCount());
+
+            var stopArgs = new CommandEventArgs
+            {
+                Command = "race",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "streamer",
+                DisplayName = "Streamer",
+                UserId = "streamer-1",
+                IsBroadcaster = true
+            };
+
+            await service.OnCommand(this, stopArgs);
+
+            Assert.Equal(0, service.GetQueuedSessionCount());
+            Assert.Null(service.GetCurrentSession());
+        }
+
+        [Fact]
+        public async Task ProcessNextQueuedSessionAsync_ReplaysOverrides_WhenLaunchingQueuedSession()
+        {
+            using var service = CreateService();
+            service.QueuedSessionStartupDelay = TimeSpan.FromMilliseconds(50);
+
+            await service.StartRaceLobbyAsync(60, triggeredBy: "Streamer");
+
+            var tcs = new TaskCompletionSource<DropGameSessionDto>();
+            // Enqueue derby session with custom track and laps
+            await service.StartRaceLobbyInternalAsync(
+                30,
+                triggeredBy: "Mod",
+                gameModeOverride: RacingGameMode.DestructionDerby,
+                trackTypeOverride: RacingTrackType.DerbyBowl,
+                lapsOverride: 4,
+                completionSource: tcs);
+
+            Assert.Equal(1, service.GetQueuedSessionCount());
+
+            // Stop current session, which kicks off ProcessNextQueuedSessionAsync
+            await service.StopSessionAsync("Finished");
+
+            // Await the completion signal from the queued launch
+            var activeSession = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.NotNull(activeSession);
+            Assert.True(activeSession.IsActive);
+
+            _webSocketMessenger.Verify(x => x.AddToQueue(
+                WsTopics.Racing,
+                It.Is<string>(json =>
+                    json.Contains("race_lobby_start") &&
+                    json.Contains("DestructionDerby") &&
+                    json.Contains("DerbyBowl") &&
+                    json.Contains("\"totalLaps\":4"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task ClearSessionQueueAsync_DuringStartupDelay_CancelsPendingLaunch()
+        {
+            using var service = CreateService();
+            service.QueuedSessionStartupDelay = TimeSpan.FromMilliseconds(200);
+
+            await service.StartRaceLobbyAsync(60, triggeredBy: "Streamer");
+            var tcs = new TaskCompletionSource<DropGameSessionDto>();
+            await service.StartRaceLobbyInternalAsync(30, triggeredBy: "Mod", completionSource: tcs);
+            Assert.Equal(1, service.GetQueuedSessionCount());
+
+            // Stop session to trigger ProcessNextQueuedSessionAsync
+            await service.StopSessionAsync("Finished");
+
+            // Synchronize until the request has been dequeued and is reserving the startup window
+            for (var i = 0; i < 50 && !service.HasPendingQueuedLaunch; i++)
+            {
+                await Task.Delay(10);
+            }
+            Assert.True(service.HasPendingQueuedLaunch);
+
+            // Cancel the queue during the startup delay
+            await service.ClearSessionQueueAsync();
+
+            // The queued launch must be canceled
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => tcs.Task.WaitAsync(TimeSpan.FromSeconds(2)));
+
+            // Bounded polling verifies no new race is active
+            for (var i = 0; i < 20; i++)
+            {
+                Assert.Null(service.GetCurrentSession());
+                await Task.Delay(15);
+            }
+        }
+
+        [Fact]
+        public async Task StartRaceLobbyAsync_DuringQueuedLaunchReservation_EnqueuesIncomingSession()
+        {
+            using var service = CreateService();
+            service.QueuedSessionStartupDelay = TimeSpan.FromMilliseconds(300);
+
+            await service.StartRaceLobbyAsync(60, triggeredBy: "Streamer");
+            var queuedTcs = new TaskCompletionSource<DropGameSessionDto>();
+            await service.StartRaceLobbyInternalAsync(30, triggeredBy: "Mod", completionSource: queuedTcs);
+
+            // Stop active session to begin reservation for queued session
+            await service.StopSessionAsync("Finished");
+
+            for (var i = 0; i < 50 && !service.HasPendingQueuedLaunch; i++)
+            {
+                await Task.Delay(10);
+            }
+            Assert.True(service.HasPendingQueuedLaunch);
+
+            // New incoming request arrives while queued session is reserved during startup delay
+            var incoming = await service.StartRaceLobbyAsync(45, triggeredBy: "Viewer");
+            Assert.True(incoming.IsQueued);
+            Assert.Equal(1, incoming.QueuePosition);
+
+            // The reserved queued session starts first
+            var startedQueued = await queuedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(startedQueued.IsActive);
+            Assert.Equal(30, startedQueued.TotalDurationSeconds);
         }
     }
 }
