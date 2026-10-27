@@ -25,11 +25,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.ActionType", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("ConcurrentAction")
                         .HasColumnType("boolean");
@@ -62,14 +60,15 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType", b =>
                 {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
 
-                    b.Property<int?>("ActionTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("ActionTypeId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int?>("CatchActionTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("CatchActionTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
@@ -97,17 +96,15 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Actions.Triggers.TriggerType", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<Guid?>("ActionId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int?>("ActionId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("CommandId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("CommandId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Configuration")
                         .IsRequired()
@@ -116,21 +113,21 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("DefaultCommandId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("DefaultCommandId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
-                    b.Property<int?>("KeywordId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("KeywordId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("TimerGroupId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("TimerGroupId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer");
@@ -147,11 +144,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.AliasModel", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("AliasName")
                         .IsRequired()
@@ -168,11 +163,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.AutoShoutout", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("AdditionalPrompt")
                         .IsRequired()
@@ -204,11 +197,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.BannedSong", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("BannedAt")
                         .HasColumnType("timestamp with time zone");
@@ -243,11 +234,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.BannedViewer", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Reason")
                         .IsRequired()
@@ -267,11 +256,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Commands.ActionCommand", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .IsRequired()
@@ -303,8 +290,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("PointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("PointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("SayCooldown")
                         .HasColumnType("boolean");
@@ -343,11 +330,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Commands.ActionKeyword", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .IsRequired()
@@ -385,8 +370,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("PointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("PointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Response")
                         .IsRequired()
@@ -429,11 +414,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("AudioFile")
                         .IsRequired()
@@ -469,8 +452,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("PointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("PointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("SayCooldown")
                         .HasColumnType("boolean");
@@ -509,11 +492,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Commands.CurrentCooldowns", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("CommandName")
                         .IsRequired()
@@ -543,11 +524,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Commands.DefaultCommand", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .IsRequired()
@@ -590,8 +569,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("PointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("PointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("SayCooldown")
                         .HasColumnType("boolean");
@@ -630,11 +609,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Commands.ExternalCommands", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .IsRequired()
@@ -666,8 +643,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("PointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("PointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("SayCooldown")
                         .HasColumnType("boolean");
@@ -706,11 +683,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Commands.KeywordType", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .IsRequired()
@@ -748,8 +723,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("PointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("PointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Response")
                         .IsRequired()
@@ -792,11 +767,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Counter", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Amount")
                         .HasColumnType("integer");
@@ -842,11 +815,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.DeathCounter", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Amount")
                         .HasColumnType("integer");
@@ -864,11 +835,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.DiscordEventMap", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<decimal>("DiscordEventId")
                         .HasColumnType("numeric(20,0)");
@@ -884,17 +853,15 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishCatch", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CaughtAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("FishTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("FishTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("GoldEarned")
                         .HasColumnType("integer");
@@ -935,19 +902,17 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishCategory", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<int>("FishTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("FishTypeId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -958,11 +923,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishType", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("BaseGold")
                         .HasColumnType("integer");
@@ -991,11 +954,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingGold", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("TotalGold")
                         .HasColumnType("integer");
@@ -1018,11 +979,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingRepairEvent", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<double>("DurabilityAfter")
                         .HasColumnType("double precision");
@@ -1060,11 +1019,11 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<DateTime>("RepairedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("ShopItemId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("ShopItemId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("UserBoostId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("UserBoostId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -1092,11 +1051,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingSettings", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("BoostMode")
                         .HasColumnType("boolean");
@@ -1150,11 +1107,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingShopItem", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<double>("BoostAmount")
                         .HasColumnType("double precision");
@@ -1213,8 +1168,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<int?>("TargetFishTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("TargetFishTypeId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -1225,11 +1180,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingSnapEvent", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("LostItemCount")
                         .HasColumnType("integer");
@@ -1271,11 +1224,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournament", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("AutoScheduleCron")
                         .IsRequired()
@@ -1298,8 +1249,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<long?>("EntryFeeAmount")
                         .HasColumnType("bigint");
 
-                    b.Property<int?>("EntryFeePointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("EntryFeePointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1330,23 +1281,21 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentCatch", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CaughtAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("FishCatchId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("FishCatchId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("FishTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("FishTypeId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("FishingTournamentId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("FishingTournamentId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("GoldEarned")
                         .HasColumnType("integer");
@@ -1382,40 +1331,36 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentEligibleCategory", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<int>("FishingTournamentId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("FishingTournamentId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("FishingTournamentId");
 
-                    b.ToTable("FishingTournamentEligibleCategory");
+                    b.ToTable("FishingTournamentEligibleCategories");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentFishType", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<Guid>("FishTypeId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("FishTypeId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("FishingTournamentId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("FishingTournamentId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -1430,11 +1375,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentRewardRule", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
@@ -1442,8 +1385,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int?>("EntryFeePercentage")
                         .HasColumnType("integer");
 
-                    b.Property<int>("FishingTournamentId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("FishingTournamentId")
+                        .HasColumnType("uuid");
 
                     b.Property<long?>("GoldAmount")
                         .HasColumnType("bigint");
@@ -1451,8 +1394,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("Placement")
                         .HasColumnType("integer");
 
-                    b.Property<int>("PointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("PointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<long>("Points")
                         .HasColumnType("bigint");
@@ -1463,8 +1406,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("ScoreCategory")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("TargetFishTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("TargetFishTypeId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -1486,11 +1429,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.UserFishingBoost", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<double?>("CurrentDurability")
                         .HasColumnType("double precision");
@@ -1504,8 +1445,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("RemainingUses")
                         .HasColumnType("integer");
 
-                    b.Property<int>("ShopItemId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("ShopItemId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -1523,11 +1464,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Games.GameSetting", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("GameName")
                         .IsRequired()
@@ -1597,11 +1536,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Games.StarshipExpeditionHistoryRow", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("CompletedLegs")
                         .HasColumnType("integer");
@@ -1716,11 +1653,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Giveaway.GiveawayEntry", b =>
                 {
-                    b.Property<long>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Tickets")
                         .HasColumnType("integer");
@@ -1743,11 +1678,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Giveaway.GiveawayExclusion", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ExpireDateTime")
                         .HasColumnType("timestamp with time zone");
@@ -1766,11 +1699,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Giveaway.GiveawayWinner", b =>
                 {
-                    b.Property<long>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ClaimedBy")
                         .IsRequired()
@@ -1805,11 +1736,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.GlobalVariable", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1862,11 +1791,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.KnownBot", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -1926,11 +1853,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.MusicPlaylist", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1943,11 +1868,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Obs.OBSConnection", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2012,11 +1935,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Overlay.OverlayLayout", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("CanvasHeight")
                         .HasColumnType("integer");
@@ -2042,11 +1963,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Overlay.OverlayWidget", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("CustomSettings")
                         .HasColumnType("text");
@@ -2060,8 +1979,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<bool>("IsLocked")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("OverlayLayoutId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("OverlayLayoutId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("WidgetType")
                         .IsRequired()
@@ -2089,11 +2008,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Points.PointCommand", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .IsRequired()
@@ -2128,8 +2045,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("integer");
 
-                    b.Property<int>("PointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("PointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("SayCooldown")
                         .HasColumnType("boolean");
@@ -2168,11 +2085,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Points.PointType", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -2206,17 +2121,15 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Points.UserPoints", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("Banned")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("PointTypeId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("PointTypeId")
+                        .HasColumnType("uuid");
 
                     b.Property<long>("Points")
                         .HasColumnType("bigint");
@@ -2245,11 +2158,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Queues.QueueConfiguration", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2280,11 +2191,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.QuoteType", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -2308,11 +2217,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.RaidHistoryEntry", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
@@ -2361,11 +2268,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.RegisteredVoice", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("LanguageCode")
                         .HasColumnType("text");
@@ -2404,11 +2309,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Setting", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("DataType")
                         .HasColumnType("integer");
@@ -2440,17 +2343,15 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Song", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<TimeSpan>("Duration")
                         .HasColumnType("interval");
 
-                    b.Property<int>("MusicPlaylistId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("MusicPlaylistId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("RequestedBy")
                         .IsRequired()
@@ -2473,11 +2374,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.SongCooldown", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2510,8 +2409,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.SongRequestViewItem", b =>
                 {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
 
                     b.Property<TimeSpan>("Duration")
                         .HasColumnType("interval");
@@ -2535,11 +2435,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.SubscriptionHistory", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("LastSub")
                         .HasColumnType("timestamp with time zone");
@@ -2561,11 +2459,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Themes.UserThemePreference", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("IsDarkMode")
                         .HasColumnType("boolean");
@@ -2593,11 +2489,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Timers.TimerGroup", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("Active")
                         .HasColumnType("boolean");
@@ -2637,11 +2531,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.UserRegisteredVoice", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("LanguageCode")
                         .HasColumnType("text");
@@ -2667,11 +2559,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Viewer", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
@@ -2755,11 +2645,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.ViewerMessageCount", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<long>("MessageCount")
                         .HasColumnType("bigint");
@@ -2789,11 +2677,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.ViewerTime", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<long>("Time")
                         .HasColumnType("bigint");
@@ -2823,11 +2709,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Wheel.Wheel", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -2844,11 +2728,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Wheel.WheelProperty", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("BackgroundColor")
                         .HasColumnType("text");
@@ -2866,8 +2748,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<float>("Weight")
                         .HasColumnType("real");
 
-                    b.Property<int>("WheelId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("WheelId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -2878,11 +2760,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.WordFilter", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("BanReason")
                         .IsRequired()
@@ -3137,12 +3017,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
-                    b.Property<int?>("ActionId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ActionName")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid?>("ActionId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("ElevatedCommand")
                         .HasColumnType("boolean");
@@ -3210,8 +3086,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("ShopItemId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("ShopItemId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ShopItemName")
                         .IsRequired()
@@ -3327,8 +3203,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
-                    b.Property<int>("TournamentId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("TournamentId")
+                        .HasColumnType("uuid");
 
                     b.ToTable("subactions_fishingtournamentend", (string)null);
                 });
@@ -3340,8 +3216,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<bool>("CloneFromTemplate")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("TournamentId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("TournamentId")
+                        .HasColumnType("uuid");
 
                     b.ToTable("subactions_fishingtournamentstart", (string)null);
                 });
@@ -3367,12 +3243,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
-                    b.Property<int?>("ActionId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ActionName")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid?>("ActionId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ViewerScope")
                         .IsRequired()
@@ -3549,8 +3421,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Url")
                         .IsRequired()
@@ -3571,8 +3443,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.ToTable("subactions_obs_setcolorsourcecolor", (string)null);
                 });
@@ -3589,8 +3461,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.ToTable("subactions_obs_setimagesourcefile", (string)null);
                 });
@@ -3607,8 +3479,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.ToTable("subactions_obs_setmediasourcefile", (string)null);
                 });
@@ -3625,8 +3497,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.ToTable("subactions_obs_setmediastate", (string)null);
                 });
@@ -3642,8 +3514,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("SceneName")
                         .IsRequired()
@@ -3656,8 +3528,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("SceneName")
                         .IsRequired()
@@ -3674,8 +3546,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("TrackEnabled")
                         .HasColumnType("boolean");
@@ -3697,8 +3569,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("SourceName")
                         .IsRequired()
@@ -3718,8 +3590,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<bool>("Muted")
                         .HasColumnType("boolean");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.ToTable("subactions_obs_setinputmute", (string)null);
                 });
@@ -3728,8 +3600,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("SceneName")
                         .IsRequired()
@@ -3753,8 +3625,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("TextContent")
                         .IsRequired()
@@ -3771,8 +3643,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("OBSConnectionId")
+                        .HasColumnType("uuid");
 
                     b.ToTable("subactions_obs_triggerhotkey", (string)null);
                 });
@@ -4408,12 +4280,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean");
 
-                    b.Property<int?>("TimerGroupId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("TimerGroupName")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid?>("TimerGroupId")
+                        .HasColumnType("uuid");
 
                     b.ToTable("subactions_timergroupsetenabled", (string)null);
                 });
