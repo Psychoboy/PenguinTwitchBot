@@ -55,7 +55,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         private bool _singleRaceAnnounced = false;
         private CancellationTokenSource? _heatWatchdogCts;
         private CancellationTokenSource? _queuedLaunchCts;
+        private QueuedSessionRequest? _pendingQueuedLaunch;
         private string? _currentSessionThemeName;
+
+        internal TimeSpan QueuedSessionStartupDelay { get; set; } = TimeSpan.FromSeconds(3);
+
+        internal bool HasPendingQueuedLaunch
+        {
+            get
+            {
+                lock (_racerLock) return _pendingQueuedLaunch != null;
+            }
+        }
 
         private sealed record QueuedRacingSessionOverrides(
             RacingGameMode? GameMode,
@@ -119,6 +130,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 dropRegistry.SetSessionActive(DropGameType.Racing, false);
                 lock (_racerLock)
                 {
+                    _pendingQueuedLaunch = null;
                     _queuedLaunchCts?.Cancel();
                     _queuedLaunchCts?.Dispose();
                     _queuedLaunchCts = null;
@@ -150,10 +162,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             _sessionManager.RemoveQueuedSessions();
             lock (_racerLock)
             {
+                _pendingQueuedLaunch = null;
                 if (_queuedLaunchCts != null)
                 {
                     _queuedLaunchCts.Cancel();
-                    _queuedLaunchCts.Dispose();
                     _queuedLaunchCts = null;
                 }
             }
@@ -170,7 +182,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 bool isBusy;
                 lock (_racerLock)
                 {
-                    isBusy = _isRaceRunning || _sessionManager.HasActiveTimedSession();
+                    isBusy = _isRaceRunning || _sessionManager.HasActiveTimedSession() || _pendingQueuedLaunch != null;
                 }
                 if (isBusy) return;
 
@@ -179,8 +191,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     next = req;
                     lock (_racerLock)
                     {
+                        _pendingQueuedLaunch = req;
                         _queuedLaunchCts?.Cancel();
-                        _queuedLaunchCts?.Dispose();
                         _queuedLaunchCts = new CancellationTokenSource();
                         cts = _queuedLaunchCts;
                     }
@@ -193,10 +205,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
             if (next != null && cts != null)
             {
+                var token = cts.Token;
                 try
                 {
-                    await Task.Delay(3000, cts.Token);
-                    if (cts.IsCancellationRequested)
+                    await Task.Delay(QueuedSessionStartupDelay, token);
+                    if (token.IsCancellationRequested)
                     {
                         next.CompletionSource?.TrySetCanceled();
                         return;
@@ -206,13 +219,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     logger.LogInformation("Starting queued Racing session ({Duration}s, triggered by {User})",
                         next.DurationSeconds, next.TriggeredBy ?? "Queue");
 
-                    var dto = await StartRaceLobbyAsync(
+                    var dto = await StartRaceLobbyInternalAsync(
                         next.DurationSeconds,
                         next.ThemeOverrideId,
                         next.TriggeredBy,
                         overrides?.GameMode,
                         overrides?.TrackType,
-                        overrides?.Laps);
+                        overrides?.Laps,
+                        isQueuedLaunch: true);
                     next.CompletionSource?.TrySetResult(dto);
                 }
                 catch (OperationCanceledException)
@@ -229,23 +243,46 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 {
                     lock (_racerLock)
                     {
+                        if (ReferenceEquals(_pendingQueuedLaunch, next))
+                        {
+                            _pendingQueuedLaunch = null;
+                        }
                         if (ReferenceEquals(_queuedLaunchCts, cts))
                         {
                             _queuedLaunchCts = null;
-                            cts.Dispose();
                         }
                     }
+                    cts.Dispose();
                 }
             }
         }
 
-        public async Task<DropGameSessionDto> StartRaceLobbyAsync(
+        public Task<DropGameSessionDto> StartRaceLobbyAsync(
             int? lobbyDurationSeconds = null,
             string? themeOverrideId = null,
             string? triggeredBy = null,
             RacingGameMode? gameModeOverride = null,
             RacingTrackType? trackTypeOverride = null,
             int? lapsOverride = null)
+            => StartRaceLobbyInternalAsync(
+                lobbyDurationSeconds,
+                themeOverrideId,
+                triggeredBy,
+                gameModeOverride,
+                trackTypeOverride,
+                lapsOverride,
+                completionSource: null,
+                isQueuedLaunch: false);
+
+        internal async Task<DropGameSessionDto> StartRaceLobbyInternalAsync(
+            int? lobbyDurationSeconds = null,
+            string? themeOverrideId = null,
+            string? triggeredBy = null,
+            RacingGameMode? gameModeOverride = null,
+            RacingTrackType? trackTypeOverride = null,
+            int? lapsOverride = null,
+            TaskCompletionSource<DropGameSessionDto>? completionSource = null,
+            bool isQueuedLaunch = false)
         {
             await _sessionManager.SessionLock.WaitAsync();
             try
@@ -260,7 +297,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                 bool isBusy;
                 lock (_racerLock)
                 {
-                    isBusy = _isRaceRunning || _sessionManager.HasActiveTimedSession();
+                    isBusy = _isRaceRunning || _sessionManager.HasActiveTimedSession() || (!isQueuedLaunch && _pendingQueuedLaunch != null);
                 }
 
                 if (isBusy)
@@ -268,7 +305,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     var overrides = (gameModeOverride != null || trackTypeOverride != null || lapsOverride != null)
                         ? new QueuedRacingSessionOverrides(gameModeOverride, trackTypeOverride, lapsOverride)
                         : null;
-                    _sessionManager.EnqueueSession(duration, themeOverrideId, triggeredBy, customData: overrides);
+                    _sessionManager.EnqueueSession(duration, themeOverrideId, triggeredBy, completionSource, customData: overrides);
                     var queuePosition = _sessionManager.QueuedCount;
 
                     logger.LogInformation("Enqueued Racing session for {Duration}s (Triggered by {User}) behind active race. Queue position: {Position}",
@@ -303,6 +340,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
                 lock (_racerLock)
                 {
+                    if (isQueuedLaunch)
+                    {
+                        _pendingQueuedLaunch = null;
+                    }
                     _lobbyRacers.Clear();
                     _isRaceRunning = false;
                     _currentSessionGameMode = gameModeOverride ?? rSettings.DefaultGameMode;
@@ -1790,6 +1831,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         {
             lock (_racerLock)
             {
+                _pendingQueuedLaunch = null;
                 _heatWatchdogCts?.Cancel();
                 _heatWatchdogCts?.Dispose();
                 _heatWatchdogCts = null;
