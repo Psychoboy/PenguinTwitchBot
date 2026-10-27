@@ -35,41 +35,50 @@ A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 10. Cross
 ## Features
 
 ### Chat & Viewer Engagement
-- **Custom Commands** - Create, edit, and manage chat commands with cooldowns, aliases, and per-user/global limits
-- **Loyalty Points** - Viewers automatically earn points for watching; points are used as currency across features
-- **Ticket System** - A separate currency used for games and raffles
+- **Custom & Default Commands** - Create, edit, and manage chat commands with cooldowns, aliases, rank permissions, and per-user/global limits
+- **Multi-Currency Loyalty Points** - Configure multiple custom point currencies (e.g., Points, Coins, Tickets) earned passively by watching, via Twitch events (subs, cheers, raids), or through `!claim` attendance bonuses
+- **Outgoing Raid Rewards** - Track and automatically reward viewers who stay and participate in outgoing raids to other channels
 - **Quote System** - Save and recall memorable quotes from chat
-- **Shoutout System** - Automated and manual shoutouts for raiders and friends
-- **Raid Tracker** - Tracks incoming raids and raider history
-- **Last Seen** - Tracks when viewers were last active in chat
-- **Death Counters & Daily Counters** - Stream counters manageable from chat or the dashboard
+- **Shoutout System** - Automated and manual shoutouts (`!so`) for raiders and VIPs with clip playback and optional AI-generated intros
+- **Raid Tracker** - Tracks incoming raids, raider history, and triggers custom raid actions
+- **Last Seen & Viewer Profiles** - Detailed viewer profiles, watch time, chat history, and moderation utilities
+- **Death Counters & Custom Counters** - Stream counters manageable from chat, sub-actions, or the dashboard with live overlay widgets
 - **Top Lists** - Display top viewers by points, watch time, and more
-- **Auto Timers** - Send periodic messages to chat on a schedule
+- **Auto Timers** - Timer groups that run actions or send periodic messages to chat on a schedule
 - **Markov Chain Chat** - AI-style chat generation based on your channel's chat history
-- **Blacklist / Moderation** - Word and phrase blacklisting with configurable actions
+- **Blacklist / Moderation** - Word, phrase, and regex blacklisting with interactive filter testing and configurable timeout penalties
 
-### Games & Gambling
-- **Fishing Game** - A full-featured fishing minigame with an inventory system, a shop, a leaderboard, multiple fish tiers, and analytics
-- **Duels** - Viewer-vs-viewer point duels
-- **Roulette** - Bet your points on roulette
-- **Gamble** - Classic point gambling
-- **Heist** - Cooperative group heist game
-- **Slots** - Slot machine game
-- **Steal** - Steal points from other viewers
-- **Raffles** - Configurable SubAction-based raffles with custom start, join, end, winner count, and total award flows
-- **Giveaways** - Run giveaways for your community
-- **Wheel Spin** - Spin a configurable prize wheel
-- **Defuse** - A bomb-defusing minigame
-- **Free For All (FFA)** - Everyone-against-everyone game mode
+### Actions, Triggers & Automation Engine
+- **Multi-Trigger Workflows** - Bind actions to Twitch EventSub events (Follows, Subs, Resubs, Gift Subs, Raids, Cheers/Bits, Channel Point Redemptions, Hype Trains, Ad Breaks), Chat Commands, Keywords, Timers, Hotkeys, Fishing events, and Minigame Outcomes
+- **Rich Sub-Action Pipeline** - Execute steps sequentially or concurrently: send/reply in chat, manage viewer points (`ManagePoints`, `CheckPoints`, `GiftPoints`), branch with `Logic: If/Else`, loop with `ForEachViewer`, control OBS Studio via WebSocket, play audio/TTS, trigger overlay alerts/fireworks, manage stream timers, call external HTTP APIs, write files, or query OpenAI
+- **One-Click Game Outcome Automations** - Built-in setup wizard on every minigame page to attach point payouts, chat announcements, or custom actions to Win, Bullseye, Podium, Knockout, Lose, or Match Concluded triggers with advanced trigger filters
+- **Context-Aware Variable Inspector** - Interactive **Available Variables** drawer in the action editor with click-to-copy `%Variable%` tokens, `$math(...)` expression evaluation, and dedicated **Catch SubActions** error handling (`%ActionErrorMessage%`)
+
+### Stream Overlay Minigames
+- **Parachute Drop (`!drop`, `!droplets`, `!rockets`)** - 60 FPS canvas skydiving game with wind drift, mid-air nudging droplets, canopy-burning sky rockets, and landing accuracy scoring
+- **Plinko Bounce (`!plinko`)** - Physics pegboard drop game with customizable prize/multiplier buckets, peg bounciness, and horizontal deflection
+- **Balloon Ascent (`!balloon`, `!hazards`)** - Rising balloon accuracy game where viewers float toward a sky arch while dodging droplets, heavy anvils, wind gusts, and popping darts
+- **Curling / Shuffleboard (`!curl`)** - Non-intrusive screen-edge sheet where viewers slide stones or pucks across Slick, Normal, or Heavy Frost ice with stone-on-stone collisions and house ring scoring
+- **Golf — Chip & Putt (`!golf`, `!ball`)** - Screen-edge golf minigame featuring Wedge, Iron, and Putter trajectories, water hazards, sand bunkers, cup lip-outs, hole-in-one celebrations, and multi-stroke play
+- **Racing & Destruction Derby (`!race`, `!timetrial`)** - Perimeter ring, edge oval, figure-8, drag strip, and Derby Bowl crash arena racing supporting Grand Prix, Last Kart Elimination, Destruction Derby (kart HP, sparks/smoke/fire, knockouts), automatic multi-heat tournament brackets, session queueing, and solo hot-lap time trials
+- **Starship Expedition (`!sj`, `!sv`, `!starship`)** - Cooperative long-form space voyage where viewers board the crew, manage shared ship Hull & Supplies, visit space stations, and vote on branching multi-step narrative events with custom event/sector editors and rarity reward profiles
+- **UFO Claw Machine (`!joinclaw`)** - Arcade mechanical claw machine overlay for drawing prizes from weighted prize sets or selecting random viewers with suspense feints and reveal triggers
+- **Seasonal Themes & 60 FPS Emotes** - Six built-in seasonal themes (Spring, Summer, Fall, Winter, Halloween, Christmas), custom theme media/audio uploads, and automatic Twitch, 7TV, BTTV, and FFZ animated emote resolution
+
+### Chat Games & Gambling
+- **Fishing Game** - Full-featured fishing RPG with rod/bait/trap shop, item durability & repair, rarity tiers, live overlay tournaments, and economy balance simulator
+- **Duels, Gamble, Roulette, Slots, Steal, Defuse, Heist, & Free For All (`!ffa`)** - Classic interactive chat games wagering channel points
+- **Raffles & Giveaways** - Configurable SubAction-based raffles and ticket giveaways
+- **Wheel Spin** - Interactive spinning prize wheels and viewer name wheels (`!join`)
 
 ### Media & Integrations
-- **Song Requests** - YouTube-based song request queue; viewers can request songs with points
-- **Text-to-Speech (TTS)** - Read chat messages or channel point redemptions aloud
-- **OBS Integration** - Connect to OBS for scene control and alerts
+- **Song Requests & Multi-Playlist Player** - YouTube-based song request queue (`!sr`), playlist pooling, banned song filters, and song cooldowns
+- **Text-to-Speech (TTS)** - Read chat messages, alerts, or channel point redemptions aloud with per-user assigned voices
+- **OBS Studio WebSocket Integration** - Switch scenes, toggle sources/filters, mute audio, update text/browser sources, and trigger hotkeys
 - **Discord Integration** *(optional)* - Go-live announcements, live member role assignment, and chat bridge
 - **Weather Commands** *(optional)* - `!weather` command powered by WeatherAPI.com
-- **AI Chat Responses** *(optional)* - OpenAI-powered chat responses and automated shoutouts
-- **Channel Point Redeems** - Handle Twitch channel point redemptions with custom actions
+- **AI Chat Responses** *(optional)* - OpenAI-powered chat responses, sub-actions, and automated shoutouts
+- **Channel Point Redeems** - Create, enable/pause, and bind Twitch Channel Point rewards directly to bot Actions
 - **Clip Tracking** - Automatically downloads and plays back Twitch clips using `yt-dlp` (bundled)
 
 ---
@@ -283,19 +292,19 @@ Enables the `!say` command and Actions to read messages aloud using Google Cloud
 
 ## Web Dashboard
 
-The bot includes a web-based dashboard accessible at `http://localhost:5000` (default). From the dashboard you can:
+The bot includes a web-based dashboard accessible at `http://localhost:5000` (default) with contextual **Help (`?`)** guides on every page. From the dashboard you can:
 
-- View and manage chat commands
-- Monitor viewer loyalty points and tickets
-- Manage the fishing game (items, shop, leaderboards)
-- Configure auto timers, shoutouts, and alerts
-- View chat history and metrics
-- Manage the song request queue
-- Configure channel point redeems
-- Run and manage giveaways
-- View and manage clips
-- Configure Discord, TTS, and other integrations
-- Access administrative tools
+- Design multi-widget stream layouts in the visual drag-and-drop **Overlay Editor** (`/overlay/editor`)
+- Build and test automated workflows in **Manage Actions** (`/actions/manage`) with triggers, sub-actions, queues, and execution history
+- Configure and test **Stream Overlay Minigames** (Parachute Drop, Plinko Bounce, Balloon Ascent, Curling, Golf, Racing & Destruction Derby, Starship Expedition, UFO Claw, and Wheel Spin) and **Seasonal Themes**
+- Set up one-click **Outcome Automations** for minigame wins, bullseyes, podiums, knockouts, and completions
+- View and manage default, custom, action, audio, and external chat commands and aliases
+- Configure multiple viewer point currencies, passive earning rates, loyalty bonuses, and outgoing raid rewards
+- Manage the fishing game (fish catalog, shop items, image processing, tournaments, and balance analysis)
+- Configure auto timers, auto-shoutouts, stream timers, and counters
+- Manage the YouTube song request player, multi-playlist pools, banned songs, and cooldowns
+- Configure Twitch Channel Point rewards, OBS WebSocket connections, Discord, TTS voices, and OpenAI integrations
+- Run database backups, inspect action validation health checks, and manage application updates & live logs
 
 ---
 
@@ -326,21 +335,31 @@ To add any of these in OBS:
 
 ### Available Overlays
 
-| Overlay | URL | Description |
-|---------|-----|-------------|
-| **Alerts** | `http://localhost:5000/alerts.html` | Displays follow, sub, raid, cheer, and channel point redemption alerts with images, sounds, and text animations. |
-| **Clips** | `http://localhost:5000/clips.html` | Plays back Twitch clips downloaded by the bot. Shows the clip video along with the clipper's name and game info. |
-| **Fishing** | `http://localhost:5000/fishing.html` | Shows a real-time fishing game overlay - displays catch notifications, fish details, and leaderboard updates as viewers fish in chat. |
-| **Wheel Spin** | `http://localhost:5000/wheel.html` | Renders the interactive prize wheel. Animates and displays the result whenever a wheel spin is triggered. |
+You can combine multiple widgets into a single browser source using the **Overlay Editor** (`/overlay/editor`), or add individual widget pages directly:
 
-### Recommended OBS Settings per Source
+> **Overlay Security Key:** When overlay security is enabled, copy the URL using the **Copy URL** / **Open Overlay** button in the dashboard so the `?key=YOUR_OVERLAY_KEY` query parameter is included automatically. Interactive overlays (such as minigames and UFO Claw) require this key to report completion results back to the bot.
 
-| Overlay | Width | Height | Notes |
-|---------|-------|--------|-------|
-| Alerts | 1920 | 1080 | Transparent background - place on top of other sources. |
-| Clips | 1920 | 1080 | Has its own background; layer accordingly. |
-| Fishing | 1920 | 1080 | Transparent background - place on top of other sources. |
-| Wheel Spin | 800 | 800 | Resize to taste; no transparency by default. |
+| Overlay | URL | Recommended Size | Description |
+|---------|-----|------------------|-------------|
+| **Unified Overlay Compositor** | `http://localhost:5000/overlay.html?layout=Default&key=...` | `1920×1080` (or canvas size) | Renders all widgets positioned in your **Overlay Editor** layout over a shared WebSocket connection. |
+| **Alerts** | `http://localhost:5000/alerts.html` | `1920×1080` | Displays follow, sub, raid, cheer, and custom action alerts with images, video, sounds, text animations, and emote walls. |
+| **Fireworks** | `http://localhost:5000/fireworks.html` | `1920×1080` | Launches customizable particle firework bursts over your stream when triggered by actions. |
+| **Clips** | `http://localhost:5000/clips.html` | `1920×1080` | Plays back downloaded Twitch clips with clipper and game info. |
+| **Stream Chat** | `http://localhost:5000/chat.html` | `400×600` | Renders live Twitch chat with badges and Twitch/7TV/BTTV/FFZ emotes in vertical or horizontal ticker mode. |
+| **Stream Timer** | `http://localhost:5000/timer.html` | `420×160` | Synchronized countdown/countup timer controlled from the dashboard or timer sub-actions. |
+| **Counters** | `http://localhost:5000/counter.html` | `400×160` | Live on-screen display for death counters and custom named counters. |
+| **Fishing** | `http://localhost:5000/fishing.html` | `500×300` (or `1920×1080`) | Real-time fishing catch notifications, fish artwork, rarity badges, and XP progress. |
+| **Fishing Tournaments** | `http://localhost:5000/fishing-tournaments.html` | `620×380` | Live tournament leaderboard and countdown timer during active fishing tournaments. |
+| **Wheel Spin** | `http://localhost:5000/wheel.html` | `1920×1080` | Interactive spinning prize wheel and viewer name wheel. |
+| **UFO Claw Machine** | `http://localhost:5000/ufo.html` | `1920×1080` | Arcade mechanical claw machine for prize set draws and viewer draws (`!joinclaw`). |
+| **Parachute Drop** | `http://localhost:5000/parachute.html` | `1920×1080` | Parachute Drop minigame (`!drop`, `!droplets`, `!rockets`). |
+| **Plinko Bounce** | `http://localhost:5000/plinko.html` | `1920×1080` | Plinko Bounce pegboard minigame (`!plinko`). |
+| **Balloon Ascent** | `http://localhost:5000/balloon.html` | `1920×1080` | Balloon Ascent sky-arch minigame (`!balloon`, `!hazards`). |
+| **Curling / Shuffleboard** | `http://localhost:5000/curling.html` | `1920×1080` | Edge-strip Curling & Shuffleboard minigame (`!curl`). |
+| **Golf (Chip & Putt)** | `http://localhost:5000/golf.html` | `1920×1080` | Edge-strip Golf Chip & Putt minigame (`!golf`, `!ball`). |
+| **Racing & Destruction Derby** | `http://localhost:5000/racing.html` | `1920×1080` | Perimeter/edge/arena Racing & Destruction Derby minigame (`!race`, `!timetrial`). |
+| **Starship Status** | `http://localhost:5000/starship-status.html` | `520×180` | Compact Starship Expedition status panel showing ship, sector, hull/supplies, crew, and next-event countdown. |
+| **Starship Event** | `http://localhost:5000/starship-event.html` | `620×360` | Starship Expedition boarding, branching crew vote options (`!sv`), live vote bars, and outcome stories. |
 
 ---
 
@@ -466,10 +485,14 @@ dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r osx-arm64 
 
 | Project | Description |
 |---------|-------------|
-| `PenguinTwitchBot/` | Main bot and web dashboard |
-| `PenguinTwitchBot.Setup/` | First-time setup wizard |
+| `PenguinTwitchBot/` | Main bot service, Blazor Server web dashboard, and HTML5/Canvas stream overlays |
+| `PenguinTwitchBot.Database/` | EF Core database context, entities, repositories, and action/sub-action/trigger models |
+| `PenguinTwitchBot.Migrations.Sqlite/` | EF Core migrations for SQLite |
 | `PenguinTwitchBot.Migrations.Postgres/` | EF Core migrations for PostgreSQL |
-| `PenguinTwitchBot.Test/` | Unit tests |
+| `PenguinTwitchBot.TwitchApi/` | Twitch Helix API, EventSub WebSocket, and IRC client library |
+| `PenguinTwitchBot.Setup/` | First-time browser-based setup wizard |
+| `PenguinTwitchBot.Updater/` & `PenguinTwitchBot.Updater.Bootstrap/` | Self-updater and bootstrap utilities |
+| `PenguinTwitchBot.Test/` & `PenguinTwitchBot.TwitchApi.Test/` | Unit and integration test suites |
 
 ### Running Tests
 

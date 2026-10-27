@@ -35,7 +35,8 @@ namespace PenguinTwitchBot.Database.Bot.Models.Overlay
             new("balloon",   "Balloon Ascent", "/balloon.html",   1920, 1080),
             new("curling",   "Curling & Shuffleboard", "/curling.html", 1920, 1080),
             new("golf",      "Golf (Chip & Putt)",     "/golf.html",    1920, 1080),
-                new("starship-status", "Starship Expedition Status", "/starship-status.html", 520, 180),
+            new("racing",    "Racing Minigame",        "/racing.html",  1920, 1080),
+            new("starship-status", "Starship Expedition Status", "/starship-status.html", 520, 180),
                 new("starship-event",  "Starship Expedition Event",  "/starship-event.html", 620, 360),
         ];
 

@@ -1,6 +1,6 @@
 # Overlay Widget Catalog & Trigger Guide
 
-PenguinTwitchBot includes eight specialized overlay widgets designed for streaming interaction, visual effects, and automated alerts. Each widget communicates with the bot via real-time WebSocket topics on `/ws`.
+PenguinTwitchBot includes specialized overlay widgets designed for streaming interaction, visual effects, interactive minigames, and automated alerts. Each widget communicates with the bot via real-time WebSocket topics on `/ws` and can be placed on a unified `/overlay.html` layout in the **Overlay Editor** or used as a standalone OBS Browser Source.
 
 ---
 
@@ -136,8 +136,51 @@ A synchronized countdown or countup timer widget.
     - `OverlayTimerRemoveTime`
 - **Features**:
   - Subscribes to the `overlay` WebSocket topic for real-time synchronization.
-  - Formats: Auto, `hh:mm:ss`, or `mm:ss`.
+  - Formats: Auto, `hh:mm:ss`, `mm:ss`, or `ss`.
   - Prefix / Suffix labels (e.g. `"SUBATHON: "` or `" REMAINING"`).
   - Option to show tenths of a second.
   - Visibility toggles: Hide when stopped, or hide when timer reaches zero.
   - Fully customizable typography, colors, shadows, borders, and letter spacing.
+
+---
+
+### 9. Counters (`counter`)
+
+Displays one or more live counters (such as a game Death Counter or custom named counters) on your stream overlay.
+
+- **How It Is Triggered**:
+  - Updates automatically whenever a counter is modified via `!death`, custom counter commands, or the `MultiCounter` sub-action.
+- **Features**:
+  - Supports both vertical (column) and horizontal (row) badge layouts.
+  - Configurable per-counter custom labels, prefixes, suffixes, and colors.
+
+---
+
+### 10. UFO Claw Machine (`ufoclaw`, standalone `/ufo.html`)
+
+An arcade mechanical claw machine overlay for drawing prizes from custom sets or picking random viewers (`!joinclaw`).
+
+- **How It Is Triggered**:
+  - Controlled from [UFO Claw](/games/ufoclaw) or via the **UFO Claw Control** sub-action (`Show`, `Hide`, `Grab`, `Open`, `Close`, `Reset`).
+  - Fires the **UFO Claw - Result** trigger once the claw retracts and reveals the winning ball.
+
+---
+
+### 11. Stream Drop & Track Minigames (`parachute`, `plinko`, `balloon`, `curling`, `golf`, `racing`)
+
+Physics-driven 60 FPS canvas minigame widgets that can be embedded in a unified layout or loaded as standalone `1920x1080` browser sources:
+- **Parachute Drop** (`/parachute.html`): Viewers drop from the sky (`!drop`) toward a target platform while dodging or riding `!droplets` and `!rockets`.
+- **Plinko Bounce** (`/plinko.html`): Viewers drop tokens (`!plinko`) through a customizable pegboard into prize buckets.
+- **Balloon Ascent** (`/balloon.html`): Viewers float upward (`!balloon`) toward a sky arch while surviving `!hazards`.
+- **Curling & Shuffleboard** (`/curling.html`): Viewers slide stones (`!curl`) along any screen edge with sweeping physics and stone-on-stone collisions.
+- **Golf — Chip & Putt** (`/golf.html`): Viewers chip and putt golf balls (`!golf`, `!ball`) across fairways, bunkers, and water hazards into the cup.
+- **Racing & Destruction Derby** (`/racing.html`): Viewers race karts or battle in a demolition derby (`!race`, `!timetrial`) around the screen perimeter, edge ovals, figure-8 tracks, drag strips, or the Derby Bowl.
+
+---
+
+### 12. Starship Expedition (`starship-status` & `starship-event`)
+
+Cooperative crew voyage widgets controlled from [Starship Expedition](/games/starship):
+- **Starship Status** (`/starship-status.html`, default `520x180`): Displays the ship, current sector, hull/supplies, crew count, and next-event countdown.
+- **Starship Event** (`/starship-event.html`, default `620x360`): Displays boarding calls, branching crew vote options (`!sv 1`–`4`), live vote bars, and story outcomes.
+
