@@ -1,0 +1,158 @@
+@using MudBlazor
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+
+@if (string.IsNullOrEmpty(SelectedMinigameGroup))
+{
+    <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Minigames</b> — Select a minigame to configure:</MudText>
+    <div style="max-height: 450px; overflow-y: auto;">
+        <MudList T="string">
+            @foreach (var group in MinigameGroupDefinitions)
+            {
+                <MudListItem Value="@group.GroupKey"
+                             OnClick="@(() => SelectGroup(group.GroupKey))"
+                             Class="@($"py-3 {group.CssClass}")">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Style="width: 100%;">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@group.Icon" Color="@group.Color" />
+                            <div>
+                                <MudText Typo="Typo.body1"><b>@group.Title</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@group.Description</MudText>
+                            </div>
+                        </MudStack>
+                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" />
+                    </MudStack>
+                </MudListItem>
+                <MudDivider />
+            }
+        </MudList>
+    </div>
+}
+else if (SelectedMinigameGroup == MinigameGroups.UfoClaw)
+{
+    <MudText Typo="Typo.subtitle1" Class="mb-2"><b>@SelectedMinigameGroup Actions</b> — Select an operation:</MudText>
+    <div style="max-height: 450px; overflow-y: auto;">
+        <MudList T="string">
+            @foreach (var preset in UfoClawOperationPresets)
+            {
+                <MudListItem Value="@preset.Operation"
+                             OnClick="@(() => SelectUfoClawPreset(preset.Operation))"
+                             Class="@($"py-3 subaction-ufoclawcontrol subaction-ufoclaw-{preset.Operation}")">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@preset.Icon" Color="@preset.Color" />
+                        <div>
+                            <MudText Typo="Typo.body1"><b>@preset.Title</b></MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@preset.Description</MudText>
+                        </div>
+                    </MudStack>
+                </MudListItem>
+                <MudDivider />
+            }
+        </MudList>
+    </div>
+}
+else
+{
+    <MudText Typo="Typo.subtitle1" Class="mb-2"><b>@SelectedMinigameGroup Actions</b> — Select a sub-action:</MudText>
+    <div style="max-height: 450px; overflow-y: auto;">
+        <MudList T="SubActionTypes">
+            @foreach (var type in GetSubActionsForGroup(SelectedMinigameGroup))
+            {
+                <MudListItem Value="@type"
+                             OnClick="@(() => OnSubActionTypeSelected.InvokeAsync(type))"
+                             Class="@($"py-3 subaction-{type.ToString().ToLower()}")">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@GetIcon(type)" Color="@GetColor(type)" />
+                        <div>
+                            <MudText Typo="Typo.body1"><b>@GetDisplayName(type)</b></MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@GetDescription(type)</MudText>
+                        </div>
+                    </MudStack>
+                </MudListItem>
+                <MudDivider />
+            }
+        </MudList>
+    </div>
+}
+
+@code {
+    [Parameter] public string? SelectedMinigameGroup { get; set; }
+    [Parameter] public EventCallback<string?> SelectedMinigameGroupChanged { get; set; }
+    [Parameter] public EventCallback<SubActionTypes> OnSubActionTypeSelected { get; set; }
+    [Parameter] public EventCallback<SubActionType> OnSubActionInstanceSelected { get; set; }
+    [Parameter] public Func<SubActionTypes, string>? IconResolver { get; set; }
+    [Parameter] public Func<SubActionTypes, Color>? ColorResolver { get; set; }
+
+    public record MinigameGroupInfo(string GroupKey, string Title, string Description, string Icon, Color Color, string CssClass);
+    public record UfoClawPresetInfo(string Operation, string Title, string Description, string Icon, Color Color);
+
+    public static readonly IReadOnlyList<MinigameGroupInfo> MinigameGroupDefinitions =
+    [
+        new(MinigameGroups.Parachute, "Parachute Drop (!drop)", "Drop players, spawn droplets, fire sky rockets, or start/stop timed sessions", Icons.Material.Filled.Paragliding, Color.Primary, "minigame-group-parachute"),
+        new(MinigameGroups.Plinko, "Plinko Bounce (!plinko)", "Drop Plinko chips through the pegboard or start/stop timed sessions", Icons.Material.Filled.Apps, Color.Secondary, "minigame-group-plinko"),
+        new(MinigameGroups.Balloon, "Balloon Ascent (!balloon)", "Launch viewer balloons, spawn sky hazards, or start/stop timed sessions", Icons.Material.Filled.Air, Color.Info, "minigame-group-balloon"),
+        new(MinigameGroups.Curling, "Curling / Shuffleboard (!curl)", "Throw curling stones down the ice sheet or start/stop timed sessions", Icons.Material.Filled.SportsHockey, Color.Primary, "minigame-group-curling"),
+        new(MinigameGroups.Golf, "Golf — Chip & Putt (!golf)", "Take golf shots onto the green or start/stop timed sessions", Icons.Material.Filled.GolfCourse, Color.Success, "minigame-group-golf"),
+        new(MinigameGroups.Racing, "Racing & Destruction Derby (!race)", "Join race or solo time trial, open race lobbies (Grand Prix, Elimination, Derby), or stop sessions", Icons.Material.Filled.SportsMotorsports, Color.Warning, "minigame-group-racing"),
+        new(MinigameGroups.Starship, "Starship Expedition (!expedition)", "Start/stop cooperative starship voyages or show overlay status/event widgets", Icons.Material.Filled.RocketLaunch, Color.Tertiary, "minigame-group-starship"),
+        new(MinigameGroups.UfoClaw, "UFO Claw Machine (!claw)", "Trigger claw grabs, open/close viewer queues, show/hide overlay, or reset winners", Icons.Material.Filled.PrecisionManufacturing, Color.Info, "minigame-group-ufoclaw"),
+        new(MinigameGroups.AllMinigames, "All Minigames (Global Control)", "Stop all active overlay minigame sessions and clear session queues at once", Icons.Material.Filled.StopCircle, Color.Error, "minigame-group-all")
+    ];
+
+    public static readonly IReadOnlyList<UfoClawPresetInfo> UfoClawOperationPresets =
+    [
+        new("grab", "Grab from Current Pool", "Trigger the UFO claw to grab a random prize or viewer from the active pool", Icons.Material.Filled.PanTool, Color.Success),
+        new("open", "Open Viewer Entries", "Open the UFO claw entry queue for viewers to join", Icons.Material.Filled.LockOpen, Color.Primary),
+        new("close", "Close Viewer Entries", "Close the UFO claw entry queue to new viewers", Icons.Material.Filled.Lock, Color.Warning),
+        new("show", "Show Overlay Pool", "Display a specific prize set or viewer entry pool on the overlay", Icons.Material.Filled.Visibility, Color.Info),
+        new("hide", "Hide Overlay", "Hide the UFO claw machine from the overlay", Icons.Material.Filled.VisibilityOff, Color.Default),
+        new("reset", "Reset Removed Winners", "Restore previously grabbed items/winners back into the pool", Icons.Material.Filled.RestartAlt, Color.Secondary)
+    ];
+
+    private async Task SelectGroup(string groupKey)
+    {
+        SelectedMinigameGroup = groupKey;
+        await SelectedMinigameGroupChanged.InvokeAsync(groupKey);
+    }
+
+    private async Task SelectUfoClawPreset(string operation)
+    {
+        var instance = new UfoClawControlType { Operation = operation };
+        await OnSubActionInstanceSelected.InvokeAsync(instance);
+    }
+
+    private static IEnumerable<SubActionTypes> GetSubActionsForGroup(string groupKey)
+    {
+        return SubActionRegistry.Metadata.Values
+            .Where(m => m.Category == SubActionCategories.Minigames && !m.IsHiddenFromPicker && m.MinigameGroup == groupKey)
+            .OrderBy(m => GetSortOrder(m.EnumValue))
+            .ThenBy(m => m.DisplayName)
+            .Select(m => m.EnumValue);
+    }
+
+    private static int GetSortOrder(SubActionTypes type) => type switch
+    {
+        SubActionTypes.ParachuteDrop or SubActionTypes.PlinkoDrop or SubActionTypes.BalloonAscent
+            or SubActionTypes.CurlingSlide or SubActionTypes.GolfPutt or SubActionTypes.RacingJoin => 0,
+        SubActionTypes.ParachuteDroplets or SubActionTypes.ParachuteRockets or SubActionTypes.BalloonHazards => 1,
+        SubActionTypes.ParachuteStartSession or SubActionTypes.PlinkoStartSession or SubActionTypes.BalloonStartSession
+            or SubActionTypes.CurlingStartSession or SubActionTypes.GolfStartSession or SubActionTypes.RacingStartSession
+            or SubActionTypes.StarshipStartExpedition => 2,
+        SubActionTypes.ParachuteStopSession or SubActionTypes.PlinkoStopSession or SubActionTypes.BalloonStopSession
+            or SubActionTypes.CurlingStopSession or SubActionTypes.GolfStopSession or SubActionTypes.RacingStopSession
+            or SubActionTypes.StarshipStopExpedition or SubActionTypes.StopDropGameSession => 3,
+        _ => 4
+    };
+
+    private string GetDisplayName(SubActionTypes type)
+        => SubActionRegistry.GetMetadata(type)?.DisplayName ?? type.ToString();
+
+    private string GetDescription(SubActionTypes type)
+        => SubActionRegistry.GetMetadata(type)?.Description ?? "";
+
+    private string GetIcon(SubActionTypes type)
+        => IconResolver != null ? IconResolver(type) : Icons.Material.Filled.SportsEsports;
+
+    private Color GetColor(SubActionTypes type)
+        => ColorResolver != null ? ColorResolver(type) : Color.Primary;
+}

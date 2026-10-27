@@ -33,7 +33,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "SubAction with type StopDropGameSession is not of StopDropGameSessionType class");
             }
 
-            var resolvedGame = VariableReplacer.ReplaceVariables(sessionSubAction.GameType ?? "Parachute", variables).Trim();
+            var resolvedGame = VariableReplacer.ReplaceVariables(sessionSubAction.GameType ?? "All", variables).Trim();
+            if (string.IsNullOrEmpty(resolvedGame))
+            {
+                resolvedGame = "All";
+            }
             var triggeredBy = variables.TryGetValue("User", out var u) && !string.IsNullOrWhiteSpace(u) ? u : "SubAction";
 
             if (resolvedGame.Equals("All", StringComparison.OrdinalIgnoreCase))

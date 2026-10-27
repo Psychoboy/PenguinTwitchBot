@@ -3,11 +3,13 @@ using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
-        displayName: "Start Drop Game Session",
+        displayName: "Start Minigame Session (Legacy)",
         description: "Starts a timed round/session for Parachute, Plinko, Balloon Ascent, Curling, Golf, or Racing",
         icon: "mdi-timer-play",
         color: "Success",
         category: SubActionCategories.Minigames,
+        minigameGroup: MinigameGroups.AllMinigames,
+        isHiddenFromPicker: true,
         tableName: "subactions_start_drop_game_session")]
     public class StartDropGameSessionType : SubActionType, ISubActionUIProvider
     {
@@ -17,7 +19,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         }
 
         /// <summary>
-        /// Minigame to start: "Parachute", "Plinko", "Balloon", "Curling", "Golf", or "Racing".
+        /// Minigame to start: "Parachute", "Plinko", "Balloon", "Curling", "Golf", "Racing", "RacingGrandPrix", "RacingElimination", or "RacingDerby".
         /// </summary>
         public string GameType { get; set; } = "Parachute";
 
@@ -48,7 +50,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                         new SelectOption { Value = "Balloon", Name = "Balloon Ascent (!balloon)" },
                         new SelectOption { Value = "Curling", Name = "Curling / Shuffleboard (!curl)" },
                         new SelectOption { Value = "Golf", Name = "Golf Chip & Putt (!golf)" },
-                        new SelectOption { Value = "Racing", Name = "Racing (!race)" }
+                        new SelectOption { Value = "Racing", Name = "Racing (!race - Default Mode)" },
+                        new SelectOption { Value = "RacingGrandPrix", Name = "Racing - Grand Prix (!race)" },
+                        new SelectOption { Value = "RacingElimination", Name = "Racing - Elimination (!race elimination)" },
+                        new SelectOption { Value = "RacingDerby", Name = "Racing - Destruction Derby (!race derby)" }
                     ]
                 },
                 new()

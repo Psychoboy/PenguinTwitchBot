@@ -55,7 +55,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
                     Icon = attribute.Icon,
                     Color = attribute.Color,
                     TableName = attribute.TableName,
-                    Category = category
+                    Category = category,
+                    MinigameGroup = attribute.MinigameGroup ?? InferMinigameGroup(enumValue),
+                    IsHiddenFromPicker = attribute.IsHiddenFromPicker
                 };
             }
 
@@ -152,10 +154,48 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
                     or SubActionTypes.StopDropGameSession or SubActionTypes.ParachuteRockets
                     or SubActionTypes.BalloonAscent or SubActionTypes.BalloonHazards
                     or SubActionTypes.CurlingSlide or SubActionTypes.GolfPutt
-                    or SubActionTypes.StarshipShowStatus
+                    or SubActionTypes.StarshipShowStatus or SubActionTypes.StarshipShowEvent
+                    or SubActionTypes.StarshipStartExpedition or SubActionTypes.StarshipStopExpedition
+                    or SubActionTypes.UfoClawControl
+                    or SubActionTypes.ParachuteStartSession or SubActionTypes.ParachuteStopSession
+                    or SubActionTypes.PlinkoStartSession or SubActionTypes.PlinkoStopSession
+                    or SubActionTypes.BalloonStartSession or SubActionTypes.BalloonStopSession
+                    or SubActionTypes.CurlingStartSession or SubActionTypes.CurlingStopSession
+                    or SubActionTypes.GolfStartSession or SubActionTypes.GolfStopSession
+                    or SubActionTypes.RacingStartSession or SubActionTypes.RacingStopSession
+                    or SubActionTypes.RacingJoin
                     => SubActionCategories.Minigames,
 
                 _ => SubActionCategories.General
+            };
+        }
+
+        private static string? InferMinigameGroup(SubActionTypes type)
+        {
+            return type switch
+            {
+                SubActionTypes.ParachuteDrop or SubActionTypes.ParachuteDroplets or SubActionTypes.ParachuteRockets
+                    or SubActionTypes.ParachuteStartSession or SubActionTypes.ParachuteStopSession
+                    => MinigameGroups.Parachute,
+                SubActionTypes.PlinkoDrop or SubActionTypes.PlinkoStartSession or SubActionTypes.PlinkoStopSession
+                    => MinigameGroups.Plinko,
+                SubActionTypes.BalloonAscent or SubActionTypes.BalloonHazards
+                    or SubActionTypes.BalloonStartSession or SubActionTypes.BalloonStopSession
+                    => MinigameGroups.Balloon,
+                SubActionTypes.CurlingSlide or SubActionTypes.CurlingStartSession or SubActionTypes.CurlingStopSession
+                    => MinigameGroups.Curling,
+                SubActionTypes.GolfPutt or SubActionTypes.GolfStartSession or SubActionTypes.GolfStopSession
+                    => MinigameGroups.Golf,
+                SubActionTypes.RacingJoin or SubActionTypes.RacingStartSession or SubActionTypes.RacingStopSession
+                    => MinigameGroups.Racing,
+                SubActionTypes.StarshipStartExpedition or SubActionTypes.StarshipStopExpedition
+                    or SubActionTypes.StarshipShowStatus or SubActionTypes.StarshipShowEvent
+                    => MinigameGroups.Starship,
+                SubActionTypes.UfoClawControl
+                    => MinigameGroups.UfoClaw,
+                SubActionTypes.StopDropGameSession or SubActionTypes.StartDropGameSession
+                    => MinigameGroups.AllMinigames,
+                _ => null
             };
         }
     }
@@ -170,5 +210,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
         public string Color { get; init; } = string.Empty;
         public string TableName { get; init; } = string.Empty;
         public string Category { get; init; } = string.Empty;
+        public string? MinigameGroup { get; init; }
+        public bool IsHiddenFromPicker { get; init; }
     }
 }

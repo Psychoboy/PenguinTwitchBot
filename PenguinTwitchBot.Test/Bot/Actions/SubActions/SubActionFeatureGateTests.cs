@@ -52,6 +52,32 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             Assert.True(result);
         }
+
+        [Theory]
+        [InlineData(SubActionTypes.ParachuteStartSession)]
+        [InlineData(SubActionTypes.ParachuteStopSession)]
+        [InlineData(SubActionTypes.PlinkoStartSession)]
+        [InlineData(SubActionTypes.PlinkoStopSession)]
+        [InlineData(SubActionTypes.BalloonStartSession)]
+        [InlineData(SubActionTypes.BalloonStopSession)]
+        [InlineData(SubActionTypes.CurlingStartSession)]
+        [InlineData(SubActionTypes.CurlingStopSession)]
+        [InlineData(SubActionTypes.GolfStartSession)]
+        [InlineData(SubActionTypes.GolfStopSession)]
+        [InlineData(SubActionTypes.RacingStartSession)]
+        [InlineData(SubActionTypes.RacingStopSession)]
+        [InlineData(SubActionTypes.RacingJoin)]
+        public void IsAvailable_MinigameSessionSubActions_RespectDropGamesFeature(SubActionTypes type)
+        {
+            var coordinator = Substitute.For<IFeatureRuntimeCoordinator>();
+            coordinator.HasFeature(FeatureKeys.DropGames).Returns(true);
+            coordinator.IsEnabled(FeatureKeys.DropGames).Returns(false);
+
+            Assert.False(SubActionFeatureGate.IsAvailable(type, coordinator));
+
+            coordinator.IsEnabled(FeatureKeys.DropGames).Returns(true);
+            Assert.True(SubActionFeatureGate.IsAvailable(type, coordinator));
+        }
     }
 }
 

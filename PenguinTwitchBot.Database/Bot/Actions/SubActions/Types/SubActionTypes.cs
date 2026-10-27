@@ -84,6 +84,19 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         StarshipShowEvent,
         StarshipStartExpedition,
         StarshipStopExpedition,
-        UfoClawControl
+        UfoClawControl,
+        ParachuteStartSession,
+        ParachuteStopSession,
+        PlinkoStartSession,
+        PlinkoStopSession,
+        BalloonStartSession,
+        BalloonStopSession,
+        CurlingStartSession,
+        CurlingStopSession,
+        GolfStartSession,
+        GolfStopSession,
+        RacingStartSession,
+        RacingStopSession,
+        RacingJoin
     }
 }

@@ -19,18 +19,26 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 
         public async Task<ActionType?> GetByIdWithDetailsAsync(int id)
         {
-            return await _context.Actions
+            var action = await _context.Actions
                 .AsNoTracking()
                 .Include(a => a.SubActions)
                 .Include(a => a.CatchSubActions)
                 .Include(a => a.Triggers)
                 .AsSplitQuery()
                 .FirstOrDefaultAsync(a => a.Id == id);
+
+            if (action != null)
+            {
+                MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.SubActions);
+                MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.CatchSubActions);
+            }
+
+            return action;
         }
 
         public async Task<List<ActionType>> GetAllWithDetailsAsync()
         {
-            return await _context.Actions
+            var actions = await _context.Actions
                 .AsNoTracking()
                 .Include(a => a.SubActions)
                 .Include(a => a.CatchSubActions)
@@ -38,12 +46,23 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .AsSplitQuery()
                 .OrderBy(a => a.Name)
                 .ToListAsync();
+
+            foreach (var action in actions)
+            {
+                MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.SubActions);
+                MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.CatchSubActions);
+            }
+
+            return actions;
         }
 
         public async Task<ActionType> CreateActionAsync(ActionType action)
         {
             action.SubActions ??= [];
             action.CatchSubActions ??= [];
+
+            MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.SubActions);
+            MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.CatchSubActions);
 
             var allIncomingSubActions = GetAllTopLevelSubActions(action);
 
@@ -96,6 +115,9 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 
             action.SubActions ??= [];
             action.CatchSubActions ??= [];
+
+            MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.SubActions);
+            MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.CatchSubActions);
 
             // Handle SubActions: Remove deleted, Add new, Update existing
             // Track the next available ID to prevent duplicate ID assignments in the same operation
@@ -274,7 +296,15 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 else
                 {
                     var existingSubAction = existingSubActions.FirstOrDefault(s => s.Id == subAction.Id);
-                    if (existingSubAction != null)
+                    if (existingSubAction != null && existingSubAction.GetType() != subAction.GetType())
+                    {
+                        existingSubActions.Remove(existingSubAction);
+                        _context.Entry(existingSubAction).State = EntityState.Deleted;
+                        nextAvailableId++;
+                        subAction.Id = nextAvailableId;
+                        existingSubActions.Add(subAction);
+                    }
+                    else if (existingSubAction != null)
                     {
                         _context.Entry(existingSubAction).CurrentValues.SetValues(subAction);
 
@@ -454,6 +484,9 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 
                 foreach (var record in records)
                 {
+                    MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(record.SubActions);
+                    MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(record.CatchSubActions);
+
                     // Recursively remove all ExecuteAction subactions and collect them for second pass
                     RemoveAndCollectExecuteActions(record.SubActions, record, executeActionSubActions);
                     RemoveAndCollectExecuteActions(record.CatchSubActions, record, executeActionSubActions);

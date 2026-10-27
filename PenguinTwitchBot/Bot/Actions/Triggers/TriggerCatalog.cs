@@ -50,7 +50,7 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             new(
                 Id: "minigames",
                 Name: "Minigames",
-                Description: "Parachute drop, plinko bounce, defuse, wheel spin, and bank heist",
+                Description: "Parachute drop, plinko, balloon, curling, golf, racing, starship, UFO claw, defuse, wheel spin, and heist",
                 Icon: Icons.Material.Filled.SportsEsports,
                 Color: Color.Success,
                 Order: 2

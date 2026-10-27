@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -3000,6 +3000,31 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_balloon_hazards", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.BalloonStartSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("DurationSeconds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_balloon_start_session", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.BalloonStopSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("ClearQueue")
+                        .HasColumnType("boolean");
+
+                    b.ToTable("subactions_balloon_stop_session", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.BreakType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3063,6 +3088,31 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.ToTable("subactions_curling_slide", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.CurlingStartSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("DurationSeconds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_curling_start_session", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.CurlingStopSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("ClearQueue")
+                        .HasColumnType("boolean");
+
+                    b.ToTable("subactions_curling_stop_session", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.CurrentTimeType", b =>
@@ -3389,6 +3439,31 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.ToTable("subactions_golf_putt", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.GolfStartSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("DurationSeconds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_golf_start_session", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.GolfStopSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("ClearQueue")
+                        .HasColumnType("boolean");
+
+                    b.ToTable("subactions_golf_stop_session", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.LogicIfElseType", b =>
@@ -3887,6 +3962,31 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_parachute_rockets", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ParachuteStartSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("DurationSeconds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_parachute_start_session", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ParachuteStopSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("ClearQueue")
+                        .HasColumnType("boolean");
+
+                    b.ToTable("subactions_parachute_stop_session", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PlaySoundType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3917,6 +4017,31 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_plinko_drop", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PlinkoStartSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("DurationSeconds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_plinko_start_session", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PlinkoStopSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("ClearQueue")
+                        .HasColumnType("boolean");
+
+                    b.ToTable("subactions_plinko_stop_session", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PointCommandType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3935,6 +4060,66 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("boolean");
 
                     b.ToTable("subactions_pointcommand", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.RacingJoinType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("EmoteOrImage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EntryMode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_racing_join", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.RacingStartSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("DurationSeconds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("GameMode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TotalLaps")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TrackType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_racing_start_session", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.RacingStopSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("ClearQueue")
+                        .HasColumnType("boolean");
+
+                    b.ToTable("subactions_racing_stop_session", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.RaffleEndType", b =>
@@ -4159,6 +4344,22 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.StarshipStartExpeditionType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("LegCount")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MaxEventIntervalMinutes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MinEventIntervalMinutes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Seed")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.ToTable("subactions_starship_start_expedition", (string)null);
                 });

@@ -57,19 +57,27 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
                 .Property(l => l.TrueSubActions)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, jsonOptions),
-                    v => string.IsNullOrWhiteSpace(v) 
-                        ? new List<SubActionType>() 
-                        : JsonSerializer.Deserialize<List<SubActionType>>(v, jsonOptions) ?? new List<SubActionType>())
+                    v => DeserializeAndUpgradeNestedSubActions(v, jsonOptions))
                 .Metadata.SetValueComparer(valueComparer);
 
             modelBuilder.Entity<LogicIfElseType>()
                 .Property(l => l.FalseSubActions)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, jsonOptions),
-                    v => string.IsNullOrWhiteSpace(v) 
-                        ? new List<SubActionType>() 
-                        : JsonSerializer.Deserialize<List<SubActionType>>(v, jsonOptions) ?? new List<SubActionType>())
+                    v => DeserializeAndUpgradeNestedSubActions(v, jsonOptions))
                 .Metadata.SetValueComparer(valueComparer);
+        }
+
+        private static List<SubActionType> DeserializeAndUpgradeNestedSubActions(string? json, JsonSerializerOptions jsonOptions)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new List<SubActionType>();
+            }
+
+            var list = JsonSerializer.Deserialize<List<SubActionType>>(json, jsonOptions) ?? new List<SubActionType>();
+            MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(list);
+            return list;
         }
 
         private static void ConfigureSubActionType(ModelBuilder modelBuilder, SubActionMetadata metadata)

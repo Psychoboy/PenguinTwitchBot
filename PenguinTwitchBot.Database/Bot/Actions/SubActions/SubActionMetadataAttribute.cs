@@ -13,6 +13,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
         public string Color { get; }
         public string TableName { get; }
         public string Category { get; }
+        public string? MinigameGroup { get; }
+        public bool IsHiddenFromPicker { get; }
 
         public SubActionMetadataAttribute(
             string displayName, 
@@ -20,7 +22,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
             string icon = "mdi-cog", 
             string color = "Primary",
             string? tableName = null,
-            string category = SubActionCategories.General)
+            string category = SubActionCategories.General,
+            string? minigameGroup = null,
+            bool isHiddenFromPicker = false)
         {
             DisplayName = displayName;
             Description = description;
@@ -28,6 +32,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
             Color = color;
             TableName = tableName ?? $"SubActions_{displayName.Replace(" ", "")}";
             Category = category;
+            MinigameGroup = minigameGroup;
+            IsHiddenFromPicker = isHiddenFromPicker;
         }
     }
 }

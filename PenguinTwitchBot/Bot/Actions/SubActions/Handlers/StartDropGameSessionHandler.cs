@@ -35,13 +35,34 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var resolvedGame = VariableReplacer.ReplaceVariables(sessionSubAction.GameType ?? "Parachute", variables).Trim();
+            RacingGameMode? racingModeOverride = null;
+            RacingTrackType? racingTrackOverride = null;
+
+            if (resolvedGame.Equals("RacingDerby", StringComparison.OrdinalIgnoreCase) ||
+                resolvedGame.Equals("DestructionDerby", StringComparison.OrdinalIgnoreCase) ||
+                resolvedGame.Equals("Derby", StringComparison.OrdinalIgnoreCase))
+            {
+                racingModeOverride = RacingGameMode.DestructionDerby;
+                racingTrackOverride = RacingTrackType.DerbyBowl;
+            }
+            else if (resolvedGame.Equals("RacingElimination", StringComparison.OrdinalIgnoreCase) ||
+                     resolvedGame.Equals("Elimination", StringComparison.OrdinalIgnoreCase))
+            {
+                racingModeOverride = RacingGameMode.Elimination;
+            }
+            else if (resolvedGame.Equals("RacingGrandPrix", StringComparison.OrdinalIgnoreCase) ||
+                     resolvedGame.Equals("GrandPrix", StringComparison.OrdinalIgnoreCase))
+            {
+                racingModeOverride = RacingGameMode.GrandPrix;
+            }
+
             var gameType = resolvedGame switch
             {
                 var g when g.Equals("Plinko", StringComparison.OrdinalIgnoreCase) => DropGameType.Plinko,
                 var g when g.Equals("Balloon", StringComparison.OrdinalIgnoreCase) || g.Equals("BalloonAscent", StringComparison.OrdinalIgnoreCase) => DropGameType.Balloon,
                 var g when g.Equals("Curling", StringComparison.OrdinalIgnoreCase) || g.Equals("Shuffleboard", StringComparison.OrdinalIgnoreCase) => DropGameType.Curling,
                 var g when g.Equals("Golf", StringComparison.OrdinalIgnoreCase) || g.Equals("Chip", StringComparison.OrdinalIgnoreCase) || g.Equals("Putt", StringComparison.OrdinalIgnoreCase) => DropGameType.Golf,
-                var g when g.Equals("Racing", StringComparison.OrdinalIgnoreCase) || g.Equals("Race", StringComparison.OrdinalIgnoreCase) || g.Equals("Kart", StringComparison.OrdinalIgnoreCase) => DropGameType.Racing,
+                var g when g.Equals("Racing", StringComparison.OrdinalIgnoreCase) || g.Equals("Race", StringComparison.OrdinalIgnoreCase) || g.Equals("Kart", StringComparison.OrdinalIgnoreCase) || racingModeOverride.HasValue => DropGameType.Racing,
                 _ => DropGameType.Parachute
             };
 
@@ -74,7 +95,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
             else if (gameType == DropGameType.Racing && racingGameService != null)
             {
-                await racingGameService.StartRaceLobbyAsync(durationSeconds, resolvedTheme, triggeredBy);
+                if (racingModeOverride.HasValue || racingTrackOverride.HasValue)
+                {
+                    await racingGameService.StartRaceLobbyAsync(durationSeconds, resolvedTheme, triggeredBy, racingModeOverride, racingTrackOverride);
+                }
+                else
+                {
+                    await racingGameService.StartRaceLobbyAsync(durationSeconds, resolvedTheme, triggeredBy);
+                }
             }
             else
             {

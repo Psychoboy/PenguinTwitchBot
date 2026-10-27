@@ -10,8 +10,20 @@ Add these sub-actions inside any custom Action (for example, triggered by a Chan
 
 | Sub-Action | Description |
 | :--- | :--- |
-| **Start Drop Game Session** | Opens a timed overlay round (or queues it if a round is already active) for **Parachute Drop**, **Plinko Bounce**, **Balloon Ascent**, **Curling / Shuffleboard**, **Golf (Chip & Putt)**, or **Racing (`!race`)**. Supports custom duration and seasonal theme overrides. |
-| **Stop Drop Game Session** | Immediately ends the active round and clears any queued sessions for the selected minigame. |
+| **Start Parachute Session** | Opens a timed Parachute Drop round (or queues it if a round is already active) with optional duration and seasonal theme overrides. |
+| **Stop Parachute Session** | Ends the active Parachute Drop round immediately and optionally clears any queued Parachute sessions (`ClearQueue`). |
+| **Start Plinko Session** | Opens a timed Plinko Bounce round (or queues it if a round is already active) with optional duration and seasonal theme overrides. |
+| **Stop Plinko Session** | Ends the active Plinko Bounce round immediately and optionally clears any queued Plinko sessions (`ClearQueue`). |
+| **Start Balloon Session** | Opens a timed Balloon Ascent round (or queues it if a round is already active) with optional duration and seasonal theme overrides. |
+| **Stop Balloon Session** | Ends the active Balloon Ascent round immediately and optionally clears any queued Balloon sessions (`ClearQueue`). |
+| **Start Curling Session** | Opens a timed Curling / Shuffleboard round (or queues it if a round is already active) with optional duration and seasonal theme overrides. |
+| **Stop Curling Session** | Ends the active Curling / Shuffleboard round immediately and optionally clears any queued Curling sessions (`ClearQueue`). |
+| **Start Golf Session** | Opens a timed Golf (Chip & Putt) round (or queues it if a round is already active) with optional duration and seasonal theme overrides. |
+| **Stop Golf Session** | Ends the active Golf (Chip & Putt) round immediately and optionally clears any queued Golf sessions (`ClearQueue`). |
+| **Start Race Lobby** | Opens a Racing or Destruction Derby lobby (or queues it if a race is already active) with optional overrides for game mode (`GrandPrix`, `Elimination`, `DestructionDerby`), track layout, total laps, lobby countdown duration, and theme. |
+| **Stop Race Session** | Ends the active race or lobby immediately and optionally clears any queued race sessions (`ClearQueue`). |
+| **Join Race / Solo Time Trial** | Enters `%User%` (or a custom username) into the open race lobby or triggers a solo time trial (`Auto`, `Lobby`, or `Solo`) with optional vehicle decal emote/image and theme overrides. |
+| **Stop All Minigame Sessions** | Immediately ends active rounds and clears session queues across all overlay minigames (or a selected minigame). |
 | **Parachute Drop** | Spawns a parachutist for `%User%` (or a custom username) with an optional emote/image override and seasonal theme override. |
 | **Parachute Droplets** | Spawns interactive falling droplets (`1`–`25`) on the Parachute overlay that nudge parachutists mid-air. |
 | **Parachute Sky Rockets** | Fires interactive fireworks rockets (`1`–`10`, `Targeted`, `Random`, or `Barrage`) into the sky that knock back parachutists or burn their canopy (`CanopyKillChance`) into free-fall. |

@@ -71,28 +71,39 @@
             }
             else if (_currentStep == WizardStep.SelectSubAction && _selectedCategory != null)
             {
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
-                    <MudIcon Icon="@_selectedCategory.Icon" Color="@_selectedCategory.Color" />
-                    <MudText Typo="Typo.h6">@_selectedCategory.Name Actions</MudText>
-                </MudStack>
-                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Select @(StartsWithVowelSound(_selectedCategory.Name) ? "an" : "a") @_selectedCategory.Name action type</MudText>
-                <div style="max-height: 400px; overflow-y: auto;">
-                    <MudList T="string">
-                        @foreach (var type in GetCategorySubActionTypes(_selectedCategory))
-                        {
-                            <MudListItem T="string" class="@($"subaction-item {(_selectedCategory.Id == "obs" ? "subaction-obs-type " : "")}subaction-{type.ToString().ToLower()}")" OnClick="@(() => SelectType(type))">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                    <MudIcon Icon="@GetIconForType(type)" Color="@GetColorForType(type)" />
-                                    <MudStack Spacing="0">
-                                        <MudText Typo="Typo.body1"><b>@GetCategoryDisplayName(type, _selectedCategory)</b></MudText>
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@GetDescription(type)</MudText>
+                @if (_selectedCategory.Id == "minigames")
+                {
+                    <MinigameSubActionSelector @bind-SelectedMinigameGroup="_selectedMinigameGroup"
+                                               OnSubActionTypeSelected="SelectType"
+                                               OnSubActionInstanceSelected="SelectInstance"
+                                               IconResolver="GetIconForType"
+                                               ColorResolver="GetColorForType" />
+                }
+                else
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
+                        <MudIcon Icon="@_selectedCategory.Icon" Color="@_selectedCategory.Color" />
+                        <MudText Typo="Typo.h6">@_selectedCategory.Name Actions</MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Select @(StartsWithVowelSound(_selectedCategory.Name) ? "an" : "a") @_selectedCategory.Name action type</MudText>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <MudList T="string">
+                            @foreach (var type in GetCategorySubActionTypes(_selectedCategory))
+                            {
+                                <MudListItem T="string" class="@($"subaction-item {(_selectedCategory.Id == "obs" ? "subaction-obs-type " : "")}subaction-{type.ToString().ToLower()}")" OnClick="@(() => SelectType(type))">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@GetIconForType(type)" Color="@GetColorForType(type)" />
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.body1"><b>@GetCategoryDisplayName(type, _selectedCategory)</b></MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@GetDescription(type)</MudText>
+                                        </MudStack>
                                     </MudStack>
-                                </MudStack>
-                            </MudListItem>
-                            <MudDivider />
-                        }
-                    </MudList>
-                </div>
+                                </MudListItem>
+                                <MudDivider />
+                            }
+                        </MudList>
+                    </div>
+                }
             }
             else if (_currentStep == WizardStep.Configure)
             {
@@ -295,7 +306,7 @@
         new(
             Id: "minigames",
             Name: SubActionCategories.Minigames,
-            Description: "Parachute Drop, Plinko Bounce, droplets, and timed game rounds",
+            Description: "Parachute, Plinko, Balloon, Curling, Golf, Racing, Starship, UFO Claw, and timed game sessions",
             Icon: Icons.Material.Filled.SportsEsports,
             Color: Color.Success,
             Order: 11
@@ -312,6 +323,7 @@
     private WizardStep _currentStep = WizardStep.SelectCategory;
     private WizardStep _previousStep = WizardStep.SelectCategory;
     private SubActionCategoryInfo? _selectedCategory;
+    private string? _selectedMinigameGroup;
     private SubActionTypes _selectedType = SubActionTypes.None;
     private string _searchText = "";
     private string? _validationError;
@@ -324,11 +336,12 @@
     {
         if (IsEditMode && ExistingSubAction != null)
         {
-            _selectedType = ExistingSubAction.SubActionTypes;
+            var upgraded = MinigameSubActionMigrationHelper.UpgradeLegacySubAction(ExistingSubAction);
+            _selectedType = upgraded.SubActionTypes;
             _currentStep = WizardStep.Configure;
-            _currentSubAction = ExistingSubAction;
+            _currentSubAction = upgraded;
             
-            if (ExistingSubAction is ISubActionUIProvider uiProvider)
+            if (upgraded is ISubActionUIProvider uiProvider)
             {
                 _fieldValues = uiProvider.GetValues();
             }
@@ -406,7 +419,7 @@
             .Where(t =>
             {
                 var metadata = SubActionRegistry.GetMetadata(t);
-                return metadata != null && metadata.Category == category.Name;
+                return metadata != null && !metadata.IsHiddenFromPicker && metadata.Category == category.Name;
             })
             .Where(IsTypeAvailable)
             .OrderBy(t => GetCategoryDisplayName(t, category))
@@ -426,11 +439,12 @@
             .Where(t =>
             {
                 var metadata = SubActionRegistry.GetMetadata(t);
-                if (metadata == null) return false;
+                if (metadata == null || metadata.IsHiddenFromPicker) return false;
 
                 return metadata.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                        metadata.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                       metadata.Category.Contains(query, StringComparison.OrdinalIgnoreCase);
+                       metadata.Category.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                       (metadata.MinigameGroup != null && metadata.MinigameGroup.Contains(query, StringComparison.OrdinalIgnoreCase));
             })
             .OrderBy(t => SubActionRegistry.GetMetadata(t)?.DisplayName)
             .ToList();
@@ -474,6 +488,7 @@
     private void SelectCategory(SubActionCategoryInfo category)
     {
         _selectedCategory = category;
+        _selectedMinigameGroup = null;
         _previousStep = _currentStep;
         _currentStep = WizardStep.SelectSubAction;
     }
@@ -497,6 +512,18 @@
         if (_currentSubAction is OpenAiType)
         {
             EnsureOpenAiModelsLoaded();
+        }
+    }
+
+    private void SelectInstance(SubActionType instance)
+    {
+        _selectedType = instance.SubActionTypes;
+        _previousStep = _currentStep;
+        _currentStep = WizardStep.Configure;
+        _currentSubAction = instance;
+        if (_currentSubAction is ISubActionUIProvider uiProvider)
+        {
+            _fieldValues = uiProvider.GetValues();
         }
     }
 
@@ -548,7 +575,14 @@
         }
         else if (_currentStep == WizardStep.SelectSubAction)
         {
-            _currentStep = WizardStep.SelectCategory;
+            if (_selectedCategory?.Id == "minigames" && !string.IsNullOrEmpty(_selectedMinigameGroup))
+            {
+                _selectedMinigameGroup = null;
+            }
+            else
+            {
+                _currentStep = WizardStep.SelectCategory;
+            }
         }
     }
 
@@ -1051,6 +1085,11 @@
             "mdi-balloon" => Icons.Material.Filled.Celebration,
             "mdi-hockey-puck" => Icons.Material.Filled.SportsHockey,
             "mdi-golf" => Icons.Material.Filled.GolfCourse,
+            "mdi-car-sports" => Icons.Material.Filled.SportsMotorsports,
+            "mdi-parachute" => Icons.Material.Filled.Paragliding,
+            "mdi-ufo" => Icons.Material.Filled.PrecisionManufacturing,
+            "mdi-timer-play" => Icons.Material.Filled.PlayCircle,
+            "mdi-timer-stop" => Icons.Material.Filled.StopCircle,
             "mdi-auto-fix" => Icons.Material.Filled.AutoFixHigh,
             "mdi-magic-staff" => Icons.Material.Filled.AutoAwesome,
 

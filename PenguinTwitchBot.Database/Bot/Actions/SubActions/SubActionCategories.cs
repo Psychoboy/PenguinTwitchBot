@@ -15,5 +15,18 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
         public const string Minigames = "Minigames";
         public const string General = "General";
     }
+
+    public static class MinigameGroups
+    {
+        public const string Parachute = "Parachute Drop";
+        public const string Plinko = "Plinko Bounce";
+        public const string Balloon = "Balloon Ascent";
+        public const string Curling = "Curling / Shuffleboard";
+        public const string Golf = "Golf (Chip & Putt)";
+        public const string Racing = "Racing & Destruction Derby";
+        public const string Starship = "Starship Expedition";
+        public const string UfoClaw = "UFO Claw Machine";
+        public const string AllMinigames = "All Minigames";
+    }
 }
 

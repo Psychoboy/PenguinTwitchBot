@@ -57,10 +57,10 @@ Racing is **off by default**. Turn on **Enable Racing** at the top of `/games/ra
 
 ## Session Queueing
 
-Just like Parachute Drop and Plinko, **Racing sessions automatically queue** if a new race session is triggered (via `Start Drop Game Session` sub-action, `!race start`, or `!race derby`) while a lobby or race is already in progress:
+Just like Parachute Drop and Plinko, **Racing sessions automatically queue** if a new race session is triggered (via the `Start Race Lobby` sub-action, `!race start`, or `!race derby`) while a lobby or race is already in progress:
 - Queued sessions preserve their requested lobby duration, theme override, game mode, track layout, and lap count.
 - Once the active race (or tournament final) finishes and completes its podium celebration, the next queued race lobby opens automatically.
-- Stopping a race via `!race stop`, `!race cancel`, the dashboard **Force Stop** button, or the `Stop Drop Game Session` sub-action clears all queued sessions and ends the active race immediately.
+- Stopping a race via `!race stop`, `!race cancel`, or the dashboard **Force Stop** button clears all queued sessions and ends the active race immediately. Running the `Stop Race Session` sub-action ends the active race immediately and optionally clears queued race sessions based on its **Clear Queued Sessions** (`ClearQueue`) setting.
 
 ---
 

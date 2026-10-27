@@ -45,8 +45,8 @@ Sub-actions are the modular building blocks executed when an action fires:
 - **Manage Points**: Add, Remove, Set, or Add Active for a selected point type (`ManagePoints`). Add/Remove/Set target the triggering user by default; Add Active follows the points system's active-viewer policy. Amounts support variables such as `%Score%` and formulas such as `$math(%Score% * 2)$`. Remove leaves balances unchanged when the viewer has insufficient points; balances cannot become negative.
 - **Check & Gift Points**: Read a viewer's point balance into variables (`CheckPoints`) or transfer points between viewers (`GiftPoints`).
 - **Game Outcome Automations**: **Set Up Automation** on any minigame page creates a normal editable action and attaches it to the selected default-command outcome trigger. Add multiple `ManagePoints` sub-actions for multiple currencies, or edit the action anytime in [Manage Actions](/actions/manage).
-- **Stream Drop Minigames**:
-  - **Start / Stop Drop Game Session**: Start (or queue) and stop rounds for **Parachute Drop**, **Plinko Bounce**, **Balloon Ascent**, **Curling / Shuffleboard**, **Golf (Chip & Putt)**, and **Racing (`!race`)**.
+- **Stream Overlay Minigames**:
+  - **Dedicated Session & Lobby Sub-Actions**: Start (or queue) and stop rounds per game via **Start Parachute Session** / **Stop Parachute Session**, **Start Plinko Session** / **Stop Plinko Session**, **Start Balloon Session** / **Stop Balloon Session**, **Start Curling Session** / **Stop Curling Session**, **Start Golf Session** / **Stop Golf Session**, **Start Race Lobby** / **Stop Race Session** (with mode, track, and lap overrides), or **Stop All Minigame Sessions**.
   - **Parachute Drop**, **Parachute Droplets**, & **Parachute Sky Rockets**: Spawn parachutists, nudging droplets, or canopy-burning fireworks rockets.
   - **Plinko Drop**: Drop Plinko tokens for viewers.
   - **Balloon Ascent** & **Balloon Hazards**: Launch rising balloons or spawn sky hazards (droplets, anvils, wind gusts, sharp darts).

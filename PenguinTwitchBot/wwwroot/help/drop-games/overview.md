@@ -28,7 +28,7 @@ All drop games share a unified, clean HUD system:
 To keep chat engaged without collisions between different games:
 - **Concurrent Play**: Parachute Drop, Plinko Bounce, Balloon Ascent, Curling, Golf, and Racing can run concurrently on stream without interfering with each other.
 - **Sequential Queuing**: If a viewer, moderator, or sub-action starts a new round of a minigame while one is already active, the new request cleanly enqueues behind it (preserving its duration, theme, and mode overrides). As soon as the active round concludes, the next queued session begins automatically. Each game manages its queue independently without cross-game blocking.
-- **Stop & Clear Queue**: Running `<command> stop` (e.g., `!drop stop`, `!plinko stop`, `!balloon stop`, `!curl stop`, `!golf stop`, `!race stop`), clicking **Force Stop** in the dashboard, or running the **Stop Drop Game Session** sub-action immediately stops the active session and clears any queued sessions for that game.
+- **Stop & Clear Queue**: Running `<command> stop` (e.g., `!drop stop`, `!plinko stop`, `!balloon stop`, `!curl stop`, `!golf stop`, `!race stop`), clicking **Force Stop** in the dashboard, or running **Stop All Minigame Sessions** immediately stops the active session and clears any queued sessions. You can also stop an individual game using its dedicated sub-action (**Stop Parachute Session**, **Stop Plinko Session**, **Stop Balloon Session**, **Stop Curling Session**, **Stop Golf Session**, or **Stop Race Session**), where clearing queued sessions is controlled by the sub-action's `ClearQueue` setting.
 
 ## Tamper-Proof Security
 

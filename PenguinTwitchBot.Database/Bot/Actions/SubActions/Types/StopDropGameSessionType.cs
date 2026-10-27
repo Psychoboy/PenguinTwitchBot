@@ -3,11 +3,12 @@ using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
-        displayName: "Stop Drop Game Session",
-        description: "Stops an active timed round/session for Parachute, Plinko, Balloon Ascent, Curling, Golf, or Racing immediately",
+        displayName: "Stop All Minigame Sessions",
+        description: "Stops active timed sessions and clears queues across Parachute, Plinko, Balloon, Curling, Golf, and Racing (or a selected game)",
         icon: "mdi-timer-stop",
         color: "Warning",
         category: SubActionCategories.Minigames,
+        minigameGroup: MinigameGroups.AllMinigames,
         tableName: "subactions_stop_drop_game_session")]
     public class StopDropGameSessionType : SubActionType, ISubActionUIProvider
     {
@@ -17,9 +18,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         }
 
         /// <summary>
-        /// Minigame to stop: "Parachute", "Plinko", "Balloon", "Curling", "Golf", "Racing", or "All".
+        /// Minigame to stop: "All", "Parachute", "Plinko", "Balloon", "Curling", "Golf", or "Racing".
         /// </summary>
-        public string GameType { get; set; } = "Parachute";
+        public string GameType { get; set; } = "All";
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
@@ -39,7 +40,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                         new SelectOption { Value = "Curling", Name = "Curling / Shuffleboard (!curl)" },
                         new SelectOption { Value = "Golf", Name = "Golf Chip & Putt (!golf)" },
                         new SelectOption { Value = "Racing", Name = "Racing (!race)" },
-                        new SelectOption { Value = "All", Name = "All Drop Games" }
+                        new SelectOption { Value = "All", Name = "All Minigames" }
                     ]
                 },
                 new()
@@ -60,7 +61,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(GameType), out var gameType)) GameType = gameType as string ?? "Parachute";
+            if (values.TryGetValue(nameof(GameType), out var gameType)) GameType = gameType as string ?? "All";
             if (values.TryGetValue(nameof(Enabled), out var enabled)) Enabled = enabled as bool? ?? true;
         }
 
