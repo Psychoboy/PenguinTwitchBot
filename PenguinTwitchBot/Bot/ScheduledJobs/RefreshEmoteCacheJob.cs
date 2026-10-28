@@ -10,9 +10,8 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
         {
             try
             {
-                // Populates the shared cache so the first page or overlay that needs emotes doesn't wait on the upstream APIs.
-                var emotes = await emoteService.GetEmotesAsync();
-                logger.LogDebug("Emote cache warmed with {Count} emotes.", emotes.Count);
+                var emotes = await emoteService.RefreshEmotesAsync();
+                logger.LogInformation("Emote cache refreshed with {Count} emotes.", emotes.Count);
             }
             catch (Exception ex)
             {

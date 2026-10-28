@@ -10,6 +10,7 @@
 @inject IChatHistoryRetentionSettingsService ChatHistoryRetentionSettings
 @inject IIpLogRetentionSettingsService IpLogRetentionSettings
 @inject IScheduledJobSettingsService ScheduledJobSettings
+@inject IEmoteService EmoteService
 @inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -353,6 +354,12 @@
                                         <td><MudTextField @bind-Value="_validationSanityCheckCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
                                         <td><MudText Color="Color.Secondary">-</MudText></td>
                                     </tr>
+                                    <tr>
+                                        <td><b>Refresh Emote Cache</b></td>
+                                        <td><MudSwitch @bind-Value="_refreshEmoteCacheEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_refreshEmoteCacheCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudText Color="Color.Secondary">-</MudText></td>
+                                    </tr>
                                 </tbody>
                             </MudSimpleTable>
 
@@ -382,6 +389,7 @@
                                                 <MudSelectItem Value="@IScheduledJobSettingsService.PostScheduleJobName">Post Schedule</MudSelectItem>
                                                 <MudSelectItem Value="@IScheduledJobSettingsService.UpdatePostedScheduleJobName">Update Posted Schedule</MudSelectItem>
                                                 <MudSelectItem Value="@IScheduledJobSettingsService.ValidationSanityCheckJobName">Validation Sanity Check</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.RefreshEmoteCacheJobName">Refresh Emote Cache</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
                                         <MudItem xs="12" md="6">
@@ -468,12 +476,20 @@
                             </MudPaper>
 
                             <div>
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.Save"
-                                           OnClick="SaveScheduledJobsAsync"
-                                           Disabled="_saving">
-                                    Save Scheduled Job Settings
-                                </MudButton>
+                                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Save"
+                                               OnClick="SaveScheduledJobsAsync"
+                                               Disabled="_saving">
+                                        Save Scheduled Job Settings
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                               StartIcon="@Icons.Material.Filled.Refresh"
+                                               OnClick="RefreshEmoteCacheNowAsync"
+                                               Disabled="_emoteRefreshInProgress">
+                                        @(_emoteRefreshInProgress ? "Refreshing Emotes..." : "Refresh Emote Cache Now")
+                                    </MudButton>
+                                </MudStack>
                             </div>
                         </MudStack>
                     </MudPaper>
@@ -517,6 +533,9 @@
     private string _updatePostedScheduleCron = DefaultUpdatePostedScheduleCron;
     private bool _validationSanityCheckEnabled = true;
     private string _validationSanityCheckCron = DefaultValidationSanityCheckCron;
+    private bool _refreshEmoteCacheEnabled = true;
+    private string _refreshEmoteCacheCron = DefaultRefreshEmoteCacheCron;
+    private bool _emoteRefreshInProgress;
 
     private int _ttsCleanupMaxAgeHours = 1;
     private int _clipsCleanupMaxAgeDays = 30;
@@ -533,6 +552,7 @@
     private const string DefaultPostScheduleCron = "0 0 9 ? * MON";
     private const string DefaultUpdatePostedScheduleCron = "0 0 10 * * ?";
     private const string DefaultValidationSanityCheckCron = "0 0 5 * * ?";
+    private const string DefaultRefreshEmoteCacheCron = "0 0 3 * * ?";
 
     private const string CronBuilderPatternEveryNMinutes = "every-n-minutes";
     private const string CronBuilderPatternHourly = "hourly";
@@ -639,6 +659,9 @@
         _validationSanityCheckEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.ValidationSanityCheckJobName, true);
         _validationSanityCheckCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.ValidationSanityCheckJobName, DefaultValidationSanityCheckCron);
 
+        _refreshEmoteCacheEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.RefreshEmoteCacheJobName, true);
+        _refreshEmoteCacheCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.RefreshEmoteCacheJobName, DefaultRefreshEmoteCacheCron);
+
         _ttsCleanupMaxAgeHours = await ScheduledJobSettings.GetTtsCleanupMaxAgeHoursAsync(1);
         _clipsCleanupMaxAgeDays = await ScheduledJobSettings.GetClipsCleanupMaxAgeDaysAsync(30);
         _ipLogMonthsToKeep = await IpLogRetentionSettings.GetIpLogMonthsToKeepAsync(6);
@@ -661,6 +684,7 @@
             _postScheduleCron = _postScheduleCron.Trim();
             _updatePostedScheduleCron = _updatePostedScheduleCron.Trim();
             _validationSanityCheckCron = _validationSanityCheckCron.Trim();
+            _refreshEmoteCacheCron = _refreshEmoteCacheCron.Trim();
 
             if (!ValidateCronSetting("Trigger Backup", _backupCron) ||
                 !ValidateCronSetting("Cleanup Clips", _cleanupClipsCron) ||
@@ -671,7 +695,8 @@
                 !ValidateCronSetting("Update Discord Events", _updateDiscordEventsCron) ||
                 !ValidateCronSetting("Post Schedule", _postScheduleCron) ||
                 !ValidateCronSetting("Update Posted Schedule", _updatePostedScheduleCron) ||
-                !ValidateCronSetting("Validation Sanity Check", _validationSanityCheckCron))
+                !ValidateCronSetting("Validation Sanity Check", _validationSanityCheckCron) ||
+                !ValidateCronSetting("Refresh Emote Cache", _refreshEmoteCacheCron))
             {
                 return;
             }
@@ -710,6 +735,9 @@
 
             await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.ValidationSanityCheckJobName, _validationSanityCheckEnabled);
             await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.ValidationSanityCheckJobName, _validationSanityCheckCron);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.RefreshEmoteCacheJobName, _refreshEmoteCacheEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.RefreshEmoteCacheJobName, _refreshEmoteCacheCron);
 
             Snackbar.Add("Scheduled job settings saved successfully. Restart the bot to apply changes.", Severity.Success);
         }
@@ -845,6 +873,7 @@
             IScheduledJobSettingsService.PostScheduleJobName => _postScheduleCron,
             IScheduledJobSettingsService.UpdatePostedScheduleJobName => _updatePostedScheduleCron,
             IScheduledJobSettingsService.ValidationSanityCheckJobName => _validationSanityCheckCron,
+            IScheduledJobSettingsService.RefreshEmoteCacheJobName => _refreshEmoteCacheCron,
             _ => DefaultCleanupChatLogsCron
         };
     }
@@ -996,6 +1025,9 @@
             case IScheduledJobSettingsService.ValidationSanityCheckJobName:
                 _validationSanityCheckCron = generatedCron;
                 break;
+            case IScheduledJobSettingsService.RefreshEmoteCacheJobName:
+                _refreshEmoteCacheCron = generatedCron;
+                break;
             default:
                 Snackbar.Add("Please choose a target job.", Severity.Warning);
                 return;
@@ -1013,5 +1045,23 @@
         }
 
         return true;
+    }
+
+    private async Task RefreshEmoteCacheNowAsync()
+    {
+        _emoteRefreshInProgress = true;
+        try
+        {
+            var emotes = await EmoteService.RefreshEmotesAsync();
+            Snackbar.Add($"Emote cache refreshed with {emotes.Count} emotes.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Emote cache refresh failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _emoteRefreshInProgress = false;
+        }
     }
 }

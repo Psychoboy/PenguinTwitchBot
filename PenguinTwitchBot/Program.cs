@@ -993,8 +993,7 @@ try
             [IScheduledJobSettingsService.PostScheduleJobName] = "0 0 9 ? * MON",
             [IScheduledJobSettingsService.UpdatePostedScheduleJobName] = "0 0 10 * * ?",
             [IScheduledJobSettingsService.ValidationSanityCheckJobName] = "0 0 5 * * ?",
-            // The emote cache lives 30 minutes, so refresh slightly more often than that.
-            [IScheduledJobSettingsService.RefreshEmoteCacheJobName] = "0 0/25 * * * ?"
+            [IScheduledJobSettingsService.RefreshEmoteCacheJobName] = "0 0 3 * * ?"
         };
 
         foreach (var kvp in defaultCronByJob)
