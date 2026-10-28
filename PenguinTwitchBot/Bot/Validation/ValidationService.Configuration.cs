@@ -545,7 +545,7 @@ namespace PenguinTwitchBot.Bot.Validation
             IUnitOfWork db)
         {
             var validIds = pointTypes.Select(p => p.Id).ToHashSet();
-            var settings = await db.GameSettings.GetAsync(x => x.SettingName == "PointTypeId");
+            var settings = await db.GameSettings.GetAsync(x => x.SettingName == "pointtypeid");
 
             foreach (var setting in settings)
             {
