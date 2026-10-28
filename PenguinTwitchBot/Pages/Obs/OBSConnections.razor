@@ -90,7 +90,7 @@
                             @if (context.LastConnected.HasValue)
                             {
                                 <MudText Typo="Typo.body2">
-                                    @context.LastConnected.Value.ToLocalTime().ToString("g")
+                                    <ToLocal DateTime="context.LastConnected.Value" Format="m/d/yyyy h:MM TT" />
                                 </MudText>
                             }
                             else

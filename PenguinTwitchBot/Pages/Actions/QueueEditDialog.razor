@@ -42,8 +42,8 @@
             @if (!IsNew)
             {
                 <MudText Typo="Typo.caption" Class="mt-4">
-                    <strong>Created:</strong> @Queue.CreatedAt.ToString("g")<br />
-                    <strong>Last Updated:</strong> @Queue.UpdatedAt.ToString("g")
+                    <strong>Created:</strong> <ToLocal DateTime="Queue.CreatedAt" Format="m/d/yyyy h:MM TT" /><br />
+                    <strong>Last Updated:</strong> <ToLocal DateTime="Queue.UpdatedAt" Format="m/d/yyyy h:MM TT" />
                 </MudText>
             }
         </MudForm>

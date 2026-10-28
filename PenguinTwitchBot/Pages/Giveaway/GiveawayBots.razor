@@ -45,7 +45,7 @@
                                     <MudText>Never</MudText>
                                 } else
                                 {
-                                    <MudText>@context.ExpireDateTime.Value.ToShortDateString()</MudText>
+                                    <MudText><ToLocal DateTime="context.ExpireDateTime.Value" Format="m/d/yyyy" /></MudText>
                                 }
 
                             </MudTd>

@@ -43,20 +43,20 @@
 
             <MudItem xs="12" sm="4">
                 <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Queued At</MudText>
-                <MudText Typo="Typo.body2">@Log.EnqueuedAt.ToLocalTime().ToString("g")</MudText>
+                <MudText Typo="Typo.body2"><ToLocal DateTime="Log.EnqueuedAt" Format="m/d/yyyy h:MM TT" /></MudText>
             </MudItem>
 
             <MudItem xs="12" sm="4">
                 <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Started At</MudText>
                 <MudText Typo="Typo.body2">
-                    @(Log.StartedAt.HasValue ? Log.StartedAt.Value.ToLocalTime().ToString("g") : "Not started")
+                    @if (Log.StartedAt.HasValue) { <ToLocal DateTime="Log.StartedAt.Value" Format="m/d/yyyy h:MM TT" /> } else { <text>Not started</text> }
                 </MudText>
             </MudItem>
 
             <MudItem xs="12" sm="4">
                 <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Completed At</MudText>
                 <MudText Typo="Typo.body2">
-                    @(Log.CompletedAt.HasValue ? Log.CompletedAt.Value.ToLocalTime().ToString("g") : "Not completed")
+                    @if (Log.CompletedAt.HasValue) { <ToLocal DateTime="Log.CompletedAt.Value" Format="m/d/yyyy h:MM TT" /> } else { <text>Not completed</text> }
                 </MudText>
             </MudItem>
 
@@ -156,10 +156,10 @@
 
                                     <MudItem xs="12">
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                            Started: @subAction.StartedAt.ToLocalTime().ToString("HH:mm:ss.fff")
+                                            Started: <ToLocal DateTime="subAction.StartedAt" Format="HH:MM:ss.l" />
                                             @if (subAction.CompletedAt.HasValue)
                                             {
-                                                <text> | Completed: @subAction.CompletedAt.Value.ToLocalTime().ToString("HH:mm:ss.fff")</text>
+                                                <text> | Completed: <ToLocal DateTime="subAction.CompletedAt.Value" Format="HH:MM:ss.l" /></text>
                                             }
                                         </MudText>
                                     </MudItem>

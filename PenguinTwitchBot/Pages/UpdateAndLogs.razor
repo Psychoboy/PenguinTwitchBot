@@ -131,7 +131,7 @@
                                                     <MudText Typo="Typo.subtitle2" Style="@(isSelected ? "font-weight: 700;" : "")">@rel.TagName</MudText>
                                                     @if (rel.PublishedAt.HasValue)
                                                     {
-                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@rel.PublishedAt.Value.ToString("MMM d, yyyy")</MudText>
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary"><ToLocal DateTime="rel.PublishedAt.Value.UtcDateTime" Format="mmm d, yyyy" /></MudText>
                                                     }
                                                 </div>
                                                 <div style="display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap;">
@@ -193,7 +193,7 @@
                                         @if (_selectedRelease.PublishedAt.HasValue)
                                         {
                                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                Published on @_selectedRelease.PublishedAt.Value.ToString("MMMM d, yyyy h:mm tt UTC")
+                                                Published on <ToLocal DateTime="_selectedRelease.PublishedAt.Value.UtcDateTime" Format="mmmm d, yyyy h:MM TT" />
                                             </MudText>
                                         }
                                     </div>

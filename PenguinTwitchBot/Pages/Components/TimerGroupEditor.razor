@@ -86,12 +86,10 @@
             @if (!IsNewTimerGroup)
             {
                 <MudItem xs="12" md="6">
-                    <MudTextField Value="@TimerGroup.LastRun.ToString("g")" Label="Last Run" 
-                                  Variant="Variant.Outlined" ReadOnly="true" />
+                    <MudField Label="Last Run" Variant="Variant.Outlined"><ToLocal DateTime="TimerGroup.LastRun" Format="m/d/yyyy h:MM TT" /></MudField>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField Value="@TimerGroup.NextRun.ToString("g")" Label="Next Run" 
-                                  Variant="Variant.Outlined" ReadOnly="true" />
+                    <MudField Label="Next Run" Variant="Variant.Outlined"><ToLocal DateTime="TimerGroup.NextRun" Format="m/d/yyyy h:MM TT" /></MudField>
                 </MudItem>
             }
 

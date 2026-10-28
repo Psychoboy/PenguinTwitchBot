@@ -93,7 +93,7 @@
                                                 <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@item.RelativePath</MudChip>
                                                 @if (item.ExportedAt.HasValue)
                                                 {
-                                                    <MudChip T="string" Size="Size.Small" Color="Color.Default">@item.ExportedAt.Value.ToLocalTime().ToString("g")</MudChip>
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Default"><ToLocal DateTime="item.ExportedAt.Value" Format="m/d/yyyy h:MM TT" /></MudChip>
                                                 }
                                             </MudStack>
                                         </MudStack>
@@ -116,7 +116,7 @@
             else
             {
                 <MudAlert Severity="Severity.Info" Dense="true">
-                    Loaded @_importedPackage.Actions.Count action(s) from @_sourceLabel, exported on @_importedPackage.ExportedAt.ToLocalTime().ToString("g").
+                    Loaded @_importedPackage.Actions.Count action(s) from @_sourceLabel, exported on <ToLocal DateTime="_importedPackage.ExportedAt" Format="m/d/yyyy h:MM TT" />.
                 </MudAlert>
 
                 <MudPaper Outlined="true" Class="pa-3">

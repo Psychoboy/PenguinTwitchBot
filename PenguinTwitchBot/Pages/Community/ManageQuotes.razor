@@ -115,7 +115,7 @@
                                 <MudTd DataLabel="Created On">
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                         <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
-                                        <MudText>@context.CreatedOn.ToShortDateString()</MudText>
+                                        <MudText><ToLocal DateTime="context.CreatedOn" Format="m/d/yyyy" /></MudText>
                                     </MudStack>
                                 </MudTd>
                                 <MudTd DataLabel="Actions" Style="text-align: right;">

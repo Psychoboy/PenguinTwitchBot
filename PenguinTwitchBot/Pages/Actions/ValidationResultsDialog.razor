@@ -107,7 +107,7 @@
                 }
 
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    Validation completed at @_result.ValidationDate.ToLocalTime().ToString("g")
+                    Validation completed at <ToLocal DateTime="_result.ValidationDate" Format="m/d/yyyy h:MM TT" />
                 </MudText>
             </MudStack>
         }
