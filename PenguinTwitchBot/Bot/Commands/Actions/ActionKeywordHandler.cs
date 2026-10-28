@@ -141,8 +141,8 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                     var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                     var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
 
-                    var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
-                         TriggerTypes.Keyword,
+                    var actions = await actionManagement.GetActionsByKeywordIdEnabledAsync(
+                        keyword.Id,
                         keyword.CommandName);
 
                     if (actions.Count == 0)

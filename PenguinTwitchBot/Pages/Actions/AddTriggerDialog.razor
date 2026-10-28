@@ -1357,17 +1357,14 @@
         Guid? timerGroupIdRef = null;
         Guid? defaultCommandIdRef = null;
 
-        // Build configuration JSON based on trigger type
+        // Command, keyword and timer triggers need no configuration: they are linked by their id columns.
+        // Build configuration JSON for the types that carry settings
         if (_selectedType == TriggerTypes.Command && _selectedCommandId.HasValue)
         {
             var command = _commands.FirstOrDefault(c => c.Id == _selectedCommandId);
             if (command != null)
             {
                 commandIdRef = command.Id;
-                configuration = System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    CommandId = command.Id
-                });
             }
         }
         else if (_selectedType == TriggerTypes.Keyword && _selectedKeywordId.HasValue)
@@ -1376,19 +1373,11 @@
             if (keyword != null)
             {
                 keywordIdRef = keyword.Id;
-                configuration = System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    KeywordId = keyword.Id
-                });
             }
         }
         else if (_selectedType == TriggerTypes.Timer && _selectedTimerGroup != null && _selectedTimerGroup.Id != Guid.Empty)
         {
             timerGroupIdRef = _selectedTimerGroup.Id;
-            configuration = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                TimerGroupId = _selectedTimerGroup.Id
-            });
         }
         else if (_selectedType == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(_selectedTwitchEvent))
         {

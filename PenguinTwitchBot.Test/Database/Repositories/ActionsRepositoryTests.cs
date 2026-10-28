@@ -4,6 +4,7 @@ using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Repository.Repositories;
 
 namespace PenguinTwitchBot.Test.Database.Repositories
@@ -315,6 +316,113 @@ namespace PenguinTwitchBot.Test.Database.Repositories
             await _context.SaveChangesAsync();
 
             var result = await _repository.GetActionsByTriggerTypeAndNameAsync(TriggerTypes.Command, "!test");
+            Assert.Empty(result);
+        }
+
+        #endregion
+
+        #region GetActionsByCommandIdAsync / GetActionsByKeywordIdAsync
+
+        private async Task<(Guid ActionId, TriggerType Trigger)> AddActionWithTriggerAsync(
+            string actionName, TriggerTypes type, string triggerName, Guid? commandId = null, Guid? keywordId = null, bool enabled = true)
+        {
+            var actionId = Guid.CreateVersion7();
+            var trigger = new TriggerType
+            {
+                Id = Guid.CreateVersion7(),
+                Name = triggerName,
+                Type = type,
+                Enabled = enabled,
+                ActionId = actionId,
+                CommandId = commandId,
+                KeywordId = keywordId
+            };
+            _context.Actions.Add(new ActionType { Id = actionId, Name = actionName, Triggers = [trigger] });
+            await _context.SaveChangesAsync();
+            return (actionId, trigger);
+        }
+
+        private async Task<Guid> AddCommandAsync(string name)
+        {
+            var command = new ActionCommand { Id = Guid.CreateVersion7(), CommandName = name };
+            _context.ActionCommands.Add(command);
+            await _context.SaveChangesAsync();
+            return command.Id;
+        }
+
+        private async Task<Guid> AddKeywordAsync(string pattern)
+        {
+            var keyword = new ActionKeyword { Id = Guid.CreateVersion7(), CommandName = pattern };
+            _context.ActionKeywords.Add(keyword);
+            await _context.SaveChangesAsync();
+            return keyword.Id;
+        }
+
+        [Fact]
+        public async Task GetActionsByCommandIdAsync_MatchesById_EvenWhenTriggerNameIsStale()
+        {
+            var commandId = await AddCommandAsync("renamed");
+            await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "!oldname", commandId: commandId);
+
+            var result = await _repository.GetActionsByCommandIdAsync(commandId, "!renamed");
+
+            Assert.Single(result);
+            Assert.Equal("Action1", result[0].Name);
+        }
+
+        [Fact]
+        public async Task GetActionsByCommandIdAsync_DoesNotMatchOtherCommand_WithTheSameName()
+        {
+            var commandId = await AddCommandAsync("first");
+            var otherCommandId = await AddCommandAsync("second");
+            await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "!shared", commandId: otherCommandId);
+
+            var result = await _repository.GetActionsByCommandIdAsync(commandId, "!shared");
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task GetActionsByCommandIdAsync_FallsBackToName_ForTriggersWithoutAnId()
+        {
+            var commandId = await AddCommandAsync("legacy");
+            await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "!legacy");
+
+            var result = await _repository.GetActionsByCommandIdAsync(commandId, "!legacy");
+
+            Assert.Single(result);
+        }
+
+        [Fact]
+        public async Task GetActionsByCommandIdAsync_ExcludesDisabledTriggers()
+        {
+            var commandId = await AddCommandAsync("off");
+            await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "!off", commandId: commandId, enabled: false);
+
+            var result = await _repository.GetActionsByCommandIdAsync(commandId, "!off");
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task GetActionsByKeywordIdAsync_MatchesById_EvenWhenTriggerNameIsStale()
+        {
+            var keywordId = await AddKeywordAsync("hello");
+            await AddActionWithTriggerAsync("Action1", TriggerTypes.Keyword, "hi", keywordId: keywordId);
+
+            var result = await _repository.GetActionsByKeywordIdAsync(keywordId, "hello");
+
+            Assert.Single(result);
+        }
+
+        [Fact]
+        public async Task GetActionsByKeywordIdAsync_DoesNotMatchCommandTriggers()
+        {
+            var keywordId = await AddKeywordAsync("hello");
+            await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "hello");
+
+            var result = await _repository.GetActionsByKeywordIdAsync(keywordId, "hello");
+
             Assert.Empty(result);
         }
 

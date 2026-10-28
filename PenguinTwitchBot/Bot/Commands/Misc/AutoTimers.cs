@@ -90,8 +90,8 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 
             if (!oldName.Equals(newName, StringComparison.OrdinalIgnoreCase))
             {
-                // Name has changed - update trigger configurations
-                await UpdateTriggerConfigurationsForRenamedTimerGroup(group.Id, oldName, newName);
+                // Name has changed - keep the trigger names in step
+                await RenameTriggersForTimerGroup(group.Id, newName);
             }
         }
 
@@ -326,12 +326,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                     Type = TriggerTypes.Timer,
                     ActionId = actionId,
                     Enabled = true,
-                    TimerGroupId = timerGroupId, // Populate reference column for efficient querying
-                    Configuration = System.Text.Json.JsonSerializer.Serialize(new
-                    {
-                        TimerGroupId = timerGroupId,
-                        TimerGroupName = timerGroup.Name
-                    })
+                    TimerGroupId = timerGroupId
                 };
 
                 await db.Triggers.AddAsync(trigger);
@@ -353,74 +348,19 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         }
 
         /// <summary>
-        /// Updates trigger configurations for all triggers associated with a timer group when its name changes.
-        /// Uses the old timer group name to reliably find triggers instead of string matching on TimerGroupId.
+        /// Triggers are named after their timer group, so a rename must carry over to them.
         /// </summary>
-        private async Task UpdateTriggerConfigurationsForRenamedTimerGroup(Guid timerGroupId, string oldTimerGroupName, string newTimerGroupName)
+        private async Task RenameTriggersForTimerGroup(Guid timerGroupId, string newTimerGroupName)
         {
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-                // Load all timer triggers
-                var timerTriggers = await db.Triggers.GetByTypeAsync(TriggerTypes.Timer);
-
-                var updatedCount = 0;
-                foreach (var trigger in timerTriggers)
-                {
-                    try
-                    {
-                        var changed = false;
-
-                        // Triggers are named after their timer group, so a rename must carry over.
-                        if (trigger.TimerGroupId == timerGroupId && trigger.Name != newTimerGroupName)
-                        {
-                            trigger.Name = newTimerGroupName;
-                            changed = true;
-                        }
-
-                        var config = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(trigger.Configuration);
-                        if (config != null && config.TryGetValue("TimerGroupName", out var timerGroupNameElement))
-                        {
-                            var timerGroupName = timerGroupNameElement.GetString();
-                            if (timerGroupName == oldTimerGroupName)
-                            {
-                                // Update the configuration with the new name
-                                var updatedConfig = new
-                                {
-                                    TimerGroupId = timerGroupId,
-                                    TimerGroupName = newTimerGroupName
-                                };
-                                trigger.Configuration = System.Text.Json.JsonSerializer.Serialize(updatedConfig);
-
-                                // Update the reference column as well
-                                trigger.TimerGroupId = timerGroupId;
-                                changed = true;
-                            }
-                        }
-
-                        if (changed)
-                        {
-                            updatedCount++;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to update trigger configuration for trigger {TriggerId}", trigger.Id);
-                    }
-                }
-
-                if (updatedCount > 0)
-                {
-                    await db.SaveChangesAsync();
-                    _logger.LogInformation("Updated {Count} trigger configurations for renamed timer group from '{OldName}' to '{NewName}'", 
-                        updatedCount, oldTimerGroupName, newTimerGroupName);
-                }
+                await db.Triggers.RenameByReferenceAsync(TriggerTypes.Timer, timerGroupId, newTimerGroupName);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to update trigger configurations for timer group {TimerGroupId}", timerGroupId);
+                _logger.LogError(ex, "Failed to rename triggers for timer group {TimerGroupId}", timerGroupId);
             }
         }
 

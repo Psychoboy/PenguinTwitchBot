@@ -17,5 +17,7 @@ namespace PenguinTwitchBot.Database.Repository
         Task<List<TriggerType>> GetByCommandIdAsync(Guid commandId);
         Task<List<TriggerType>> GetByDefaultCommandIdAsync(Guid defaultCommandId);
         Task<List<TriggerType>> GetByKeywordIdAsync(Guid keywordId);
+        /// <summary>Renames every trigger of the given type that points at the command, keyword or timer group.</summary>
+        Task RenameByReferenceAsync(TriggerTypes type, Guid referenceId, string newName);
     }
 }

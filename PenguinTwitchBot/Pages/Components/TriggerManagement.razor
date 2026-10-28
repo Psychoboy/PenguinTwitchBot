@@ -10,6 +10,8 @@
 @inject MudBlazor.ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService
+@inject PenguinTwitchBot.Bot.Commands.IActionCommandService ActionCommandService
+@inject PenguinTwitchBot.Bot.Commands.IActionKeywordService ActionKeywordService
 @inject PenguinTwitchBot.Bot.Validation.IValidationService ValidationService
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
@@ -78,7 +80,7 @@
                         {
                             <MudStack Spacing="0">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudLink Href="@($"/actions/commands?commandId={context.CommandId}")">@context.Name</MudLink>
+                                    <MudLink Href="@($"/actions/commands?commandId={context.CommandId}")">@GetCommandDisplayName(context)</MudLink>
                                     @if (isFeatureDisabled)
                                     {
                                         <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
@@ -91,7 +93,7 @@
                         {
                             <MudStack Spacing="0">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudLink Href="@($"/actions/keywords?keywordId={context.KeywordId}")">@context.Name</MudLink>
+                                    <MudLink Href="@($"/actions/keywords?keywordId={context.KeywordId}")">@GetKeywordDisplayName(context)</MudLink>
                                     @if (isFeatureDisabled)
                                     {
                                         <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
@@ -216,6 +218,8 @@
     public bool ReadOnly { get; set; } = false;
 
     private Dictionary<Guid, string> _timerGroupNames = new();
+    private Dictionary<Guid, string> _commandNames = new();
+    private Dictionary<Guid, string> _keywordNames = new();
     private Dictionary<Guid, bool> _defaultCommandFeatureDisabled = new();
     private Dictionary<Guid, string> _defaultCommandFeatureNames = new();
     private Guid? _previousActionId;
@@ -231,13 +235,32 @@
         }
         else
         {
-            await LoadTimerGroupNames();
+            await LoadReferenceNames();
             await LoadDefaultCommandFeatureStates();
         }
     }
 
-    private async Task LoadTimerGroupNames()
+    private async Task LoadReferenceNames()
     {
+        _commandNames.Clear();
+        _keywordNames.Clear();
+
+        if (ActionTriggers.Any(t => t.Type == TriggerTypes.Command && t.CommandId.HasValue))
+        {
+            foreach (var command in await ActionCommandService.GetAllAsync())
+            {
+                _commandNames[command.Id] = command.CommandName;
+            }
+        }
+
+        if (ActionTriggers.Any(t => t.Type == TriggerTypes.Keyword && t.KeywordId.HasValue))
+        {
+            foreach (var keyword in await ActionKeywordService.GetAllAsync())
+            {
+                _keywordNames[keyword.Id] = keyword.CommandName;
+            }
+        }
+
         _timerGroupNames.Clear();
         var timerTriggers = ActionTriggers.Where(t => t.Type == TriggerTypes.Timer && GetTimerGroupId(t).HasValue).ToList();
         if (timerTriggers.Count == 0)
@@ -312,6 +335,12 @@
         return null;
     }
 
+    private string GetCommandDisplayName(TriggerType trigger) =>
+        trigger.CommandId is { } id && _commandNames.TryGetValue(id, out var name) ? $"!{name}" : trigger.Name;
+
+    private string GetKeywordDisplayName(TriggerType trigger) =>
+        trigger.KeywordId is { } id && _keywordNames.TryGetValue(id, out var name) ? name : trigger.Name;
+
     private string GetTimerGroupDisplayName(TriggerType trigger)
     {
         var timerGroupId = GetTimerGroupId(trigger);
@@ -329,7 +358,7 @@
             var triggers = await ActionService.GetTriggersForActionAsync(ActionId.Value);
             ActionTriggers = triggers;
             await ActionTriggersChanged.InvokeAsync(ActionTriggers);
-            await LoadTimerGroupNames();
+            await LoadReferenceNames();
             await LoadDefaultCommandFeatureStates();
         }
     }
@@ -360,69 +389,18 @@
                 TriggerTypes triggerType = data.TriggerType;
                 string configuration = data.Configuration;
 
-                // Create a new trigger
+                // Create a new trigger; command, keyword and timer triggers are linked through their id columns
                 var newTrigger = new TriggerType
                 {
                     Name = triggerName,
                     Type = triggerType,
                     Configuration = configuration,
-                    Enabled = true
+                    Enabled = true,
+                    CommandId = data.CommandId,
+                    KeywordId = data.KeywordId,
+                    TimerGroupId = data.TimerGroupId,
+                    DefaultCommandId = data.DefaultCommandId
                 };
-
-                // Populate reference columns based on trigger type for efficient querying
-                if (triggerType == TriggerTypes.Command && !string.IsNullOrEmpty(configuration))
-                {
-                    try
-                    {
-                        var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
-                        if (config.TryGetProperty("CommandId", out var commandIdElement) && commandIdElement.TryGetGuid(out var commandGuid))
-                        {
-                            newTrigger.CommandId = commandGuid;
-                        }
-                    }
-                    catch { /* Ignore JSON parsing errors */ }
-                }
-                else if (triggerType == TriggerTypes.Keyword && !string.IsNullOrEmpty(configuration))
-                {
-                    try
-                    {
-                        var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
-                        if (config.TryGetProperty("KeywordId", out var keywordIdElement) && keywordIdElement.TryGetGuid(out var keywordGuid))
-                        {
-                            newTrigger.KeywordId = keywordGuid;
-                        }
-                    }
-                    catch { /* Ignore JSON parsing errors */ }
-                }
-                else if (triggerType == TriggerTypes.Timer && !string.IsNullOrEmpty(configuration))
-                {
-                    try
-                    {
-                        var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
-                        if (config.TryGetProperty("TimerGroupId", out var timerGroupIdElement) && timerGroupIdElement.TryGetGuid(out var timerGroupGuid))
-                        {
-                            newTrigger.TimerGroupId = timerGroupGuid;
-                        }
-                    }
-                    catch { /* Ignore JSON parsing errors */ }
-                }
-                else if (triggerType == TriggerTypes.DefaultCommand && !string.IsNullOrEmpty(configuration))
-                {
-                    try
-                    {
-                        var config = System.Text.Json.JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(configuration);
-                        if (config != null && !string.IsNullOrEmpty(config.DefaultCommandName))
-                        {
-                            // Look up the default command by name to get the ID
-                            var defaultCommand = await CommandHandler.GetDefaultCommandByDefaultCommandName(config.DefaultCommandName);
-                            if (defaultCommand != null && defaultCommand.Id != Guid.Empty)
-                            {
-                                newTrigger.DefaultCommandId = defaultCommand.Id;
-                            }
-                        }
-                    }
-                    catch { /* Ignore JSON parsing errors */ }
-                }
 
                 // If we have an ActionId, save the trigger immediately
                 // Otherwise, just add to local list and it will be saved when the action is created
@@ -431,7 +409,7 @@
                     newTrigger.ActionId = ActionId.Value;
                     var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);
                     ActionTriggers.Add(createdTrigger);
-                    await LoadTimerGroupNames();
+                    await LoadReferenceNames();
                     await LoadDefaultCommandFeatureStates();
                     Snackbar.Add($"Trigger '{triggerName}' added successfully", Severity.Success);
                 }
@@ -439,7 +417,7 @@
                 {
                     // For new actions, just add to the list - will be saved with the action
                     ActionTriggers.Add(newTrigger);
-                    await LoadTimerGroupNames();
+                    await LoadReferenceNames();
                     await LoadDefaultCommandFeatureStates();
                     Snackbar.Add($"Trigger '{triggerName}' added (will be saved with action)", Severity.Success);
                 }
@@ -507,7 +485,7 @@
             }
 
             await ActionTriggersChanged.InvokeAsync(ActionTriggers);
-            await LoadTimerGroupNames();
+            await LoadReferenceNames();
             await LoadDefaultCommandFeatureStates();
             Snackbar.Add($"Trigger '{GetFriendlyTriggerName(trigger)}' updated successfully", Severity.Success);
         }

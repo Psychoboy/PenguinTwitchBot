@@ -147,9 +147,9 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
             "Validation Status Guide",
             Icons.Material.Filled.BugReport,
             [
-                ("Health Checks", Icons.Material.Filled.FactCheck, "validation/overview.md"),
-                ("Action Integrity Rules", Icons.Material.Filled.Rule, "validation/rules.md"),
-                ("Diagnostics & Repair", Icons.Material.Filled.BuildCircle, "validation/repair.md")
+                ("Overview", Icons.Material.Filled.FactCheck, "validation/overview.md"),
+                ("What Gets Checked", Icons.Material.Filled.Rule, "validation/rules.md"),
+                ("Fixing Issues", Icons.Material.Filled.BuildCircle, "validation/repair.md")
             ]
         ),
         ["voices"] = (

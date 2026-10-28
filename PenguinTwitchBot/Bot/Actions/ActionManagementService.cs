@@ -131,6 +131,53 @@ namespace PenguinTwitchBot.Bot.Actions
             return actions.Where(a => a.Enabled).ToList();
         }
 
+        public async Task<List<ActionType>> GetActionsByCommandIdEnabledAsync(Guid commandId, string legacyTriggerName) =>
+            (await GetActionsAsync(
+                repository => repository.GetActionsByCommandIdAsync(commandId, legacyTriggerName),
+                $"command {commandId}")).Where(a => a.Enabled).ToList();
+
+        public async Task<List<ActionType>> GetActionsByKeywordIdEnabledAsync(Guid keywordId, string legacyTriggerName) =>
+            (await GetActionsByKeywordIdAsync(keywordId, legacyTriggerName)).Where(a => a.Enabled).ToList();
+
+        public Task<List<ActionType>> GetActionsByKeywordIdAsync(Guid keywordId, string legacyTriggerName) =>
+            GetActionsAsync(
+                repository => repository.GetActionsByKeywordIdAsync(keywordId, legacyTriggerName),
+                $"keyword {keywordId}");
+
+        private async Task<List<ActionType>> GetActionsAsync(
+            Func<IActionsRepository, Task<List<ActionType>>> query,
+            string description)
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            try
+            {
+                var actions = await query(unitOfWork.Actions);
+
+                // Ensure SubActions are ordered by Index
+                foreach (var action in actions)
+                {
+                    action.SubActions = action.SubActions.OrderBy(s => s.Index).ToList();
+                    action.CatchSubActions = action.CatchSubActions.OrderBy(s => s.Index).ToList();
+                }
+
+                return actions;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting actions for {Description}", description);
+                throw;
+            }
+        }
+
+        public async Task RenameTriggersAsync(TriggerTypes triggerType, Guid referenceId, string newName)
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await unitOfWork.Triggers.RenameByReferenceAsync(triggerType, referenceId, newName);
+        }
+
         public async Task<List<TriggerType>> GetTriggersForActionAsync(Guid actionId)
         {
             using var scope = _serviceScopeFactory.CreateScope();
