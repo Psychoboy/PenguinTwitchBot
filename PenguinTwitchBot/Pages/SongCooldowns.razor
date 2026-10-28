@@ -126,7 +126,7 @@
                             @GetTimeRemaining(context.CooldownExpiresAt)
                         </MudChip>
                     </MudTd>
-                    <MudTd DataLabel="Expires At">@context.CooldownExpiresAt.ToLocalTime().ToString("g")</MudTd>
+                    <MudTd DataLabel="Expires At"><ToLocal DateTime="context.CooldownExpiresAt" Format="m/d/yyyy h:MM TT" /></MudTd>
                     <MudTd DataLabel="Added By">@context.AddedBy</MudTd>
                     <MudTd DataLabel="Actions">
                         <MudTooltip Text="Clear cooldown">

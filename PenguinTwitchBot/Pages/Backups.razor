@@ -95,7 +95,7 @@
                         var manifest = GetOrLoadManifest(context);
                     }
                     <MudTd DataLabel="File Name">@context.Name</MudTd>
-                    <MudTd DataLabel="Creation Time">@context.CreationTime.ToString("yyyy-MM-dd HH:mm")</MudTd>
+                    <MudTd DataLabel="Creation Time"><ToLocal DateTime="context.CreationTime" Format="yyyy-mm-dd HH:MM" /></MudTd>
                     <MudTd DataLabel="Size">@FormatBytes(context.Length)</MudTd>
                     <MudTd DataLabel="Format">
                         @if (manifest != null)

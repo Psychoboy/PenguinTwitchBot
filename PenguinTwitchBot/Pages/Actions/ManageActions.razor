@@ -318,7 +318,7 @@
                                             <MudTd DataLabel="State">
                                                 <MudChip T="string" Size="Size.Small" Color="@GetExecutionStateColor(context.State)">@context.State</MudChip>
                                             </MudTd>
-                                            <MudTd DataLabel="Queued">@context.EnqueuedAt.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudTd>
+                                            <MudTd DataLabel="Queued"><ToLocal DateTime="context.EnqueuedAt" Format="mm/dd HH:MM:ss" /></MudTd>
                                             <MudTd DataLabel="Duration">@(context.TotalTime.HasValue ? FormatDuration(context.TotalTime.Value) : "-")</MudTd>
                                             <MudTd DataLabel="Error">
                                                 @if (string.IsNullOrWhiteSpace(context.ErrorMessage))

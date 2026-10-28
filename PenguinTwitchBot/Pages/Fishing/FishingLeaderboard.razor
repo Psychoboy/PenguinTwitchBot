@@ -137,7 +137,7 @@
                                 <MudTd DataLabel="Caught At">
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                         <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
-                                        <MudText>@fishCatch.CaughtAt.ToLocalTime().ToString("g")</MudText>
+                                        <MudText><ToLocal DateTime="fishCatch.CaughtAt" Format="m/d/yyyy h:MM TT" /></MudText>
                                     </MudStack>
                                 </MudTd>
                             </RowTemplate>
@@ -284,7 +284,7 @@
                                         <MudTd DataLabel="Caught At">
                                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                                 <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
-                                                <MudText>@fishCatch.CaughtAt.ToLocalTime().ToString("g")</MudText>
+                                                <MudText><ToLocal DateTime="fishCatch.CaughtAt" Format="m/d/yyyy h:MM TT" /></MudText>
                                             </MudStack>
                                         </MudTd>
                                     </RowTemplate>
@@ -533,7 +533,7 @@
                                         <MudTd DataLabel="Caught At">
                                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                                 <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
-                                                <MudText>@fishCatch.CaughtAt.ToLocalTime().ToString("g")</MudText>
+                                                <MudText><ToLocal DateTime="fishCatch.CaughtAt" Format="m/d/yyyy h:MM TT" /></MudText>
                                             </MudStack>
                                         </MudTd>
                                     </RowTemplate>
@@ -686,7 +686,7 @@
                                                                 @userBest.GoldEarned gold
                                                             </MudText>
                                                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                                @userBest.CaughtAt.ToLocalTime().ToString("g")
+                                                                <ToLocal DateTime="userBest.CaughtAt" Format="m/d/yyyy h:MM TT" />
                                                             </MudText>
                                                         </MudStack>
                                                     }

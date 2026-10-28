@@ -110,7 +110,7 @@
                         @(context.TotalIncomingRaids > 0 ? (context.TotalIncomingRaidViewers / context.TotalIncomingRaids).ToString("N0") : "0")
                     </MudTd>
                     <MudTd DataLabel="Last In.">
-                        @context.LastIncomingRaid.ToString("yyyy-MM-dd")
+                        <ToLocal DateTime="context.LastIncomingRaid" Format="yyyy-mm-dd" />
                     </MudTd>
                     <MudTd DataLabel="Outgoing">
                         <strong>@context.TotalOutgoingRaids</strong>
@@ -119,7 +119,7 @@
                         @(context.TotalOutgoingRaids > 0 ? (context.TotalOutGoingRaidViewers / context.TotalOutgoingRaids).ToString("N0") : "0")
                     </MudTd>
                     <MudTd DataLabel="Last Out.">
-                        @context.LastOutgoingRaid.ToString("yyyy-MM-dd")
+                        <ToLocal DateTime="context.LastOutgoingRaid" Format="yyyy-mm-dd" />
                     </MudTd>
                     <MudTd DataLabel="Actions">
                         <MudStack Row="true" Spacing="1">

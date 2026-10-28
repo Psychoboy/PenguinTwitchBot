@@ -19,11 +19,11 @@
                     </MudItem>
                     <MudItem xs="6" sm="3">
                         <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Started</MudText>
-                        <MudText Typo="Typo.body2">@HistoryRow.StartedAtUtc.ToLocalTime().ToString("g")</MudText>
+                        <MudText Typo="Typo.body2"><ToLocal DateTime="HistoryRow.StartedAtUtc" Format="m/d/yyyy h:MM TT" /></MudText>
                     </MudItem>
                     <MudItem xs="6" sm="3">
                         <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Ended</MudText>
-                        <MudText Typo="Typo.body2">@(HistoryRow.EndedAtUtc?.ToLocalTime().ToString("g") ?? "In Progress")</MudText>
+                        <MudText Typo="Typo.body2">@if (HistoryRow.EndedAtUtc.HasValue) { <ToLocal DateTime="HistoryRow.EndedAtUtc.Value" Format="m/d/yyyy h:MM TT" /> } else { <text>In Progress</text> }</MudText>
                     </MudItem>
                     <MudItem xs="6" sm="3">
                         <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Legs</MudText>
@@ -114,7 +114,7 @@
                             <RowTemplate>
                                 <MudTd DataLabel="Crew Member">@context.DisplayName (@context.UserName)</MudTd>
                                 <MudTd DataLabel="Enrolled">@context.EnrollmentMethod</MudTd>
-                                <MudTd DataLabel="Joined">@context.JoinedAtUtc.ToLocalTime().ToString("t")</MudTd>
+                                <MudTd DataLabel="Joined"><ToLocal DateTime="context.JoinedAtUtc.UtcDateTime" Format="h:MM TT" /></MudTd>
                                 <MudTd DataLabel="Banked Payouts">
                                     @{
                                         var memberPayouts = Snapshot.BankedPayouts

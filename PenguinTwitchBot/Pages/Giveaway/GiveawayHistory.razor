@@ -45,7 +45,7 @@
                 <RowTemplate>
                     <MudTd DataLabel="Name">@context.Username</MudTd>
                     <MudTd DataLabel="Prize">@context.Prize</MudTd>
-                    <MudTd DataLabel="Date">@context.WinningDate.ToShortDateString()</MudTd>
+                    <MudTd DataLabel="Date"><ToLocal DateTime="context.WinningDate" Format="m/d/yyyy" /></MudTd>
                     <MudTd DataLabel="Tier">@context.PrizeTier</MudTd>
                     @if (isVisible)
                     {
@@ -62,7 +62,7 @@
                 <RowEditingTemplate>
                     <MudTd DataLabel="Name">@context.Username</MudTd>
                     <MudTd DataLabel="Prize"><MudTextField @bind-Value="context.Prize" /></MudTd>
-                    <MudTd DataLabel="Date">@context.WinningDate.ToShortDateString()</MudTd>
+                    <MudTd DataLabel="Date"><ToLocal DateTime="context.WinningDate" Format="m/d/yyyy" /></MudTd>
                     <MudTd DataLabel="Tier"><MudTextField @bind-Value="context.PrizeTier" /></MudTd>
                     <MudTd DataLabel="Email"><MudTextField InputType="@inputType" @bind-Value="context.Email" /></MudTd>
                     <MudTd DataLabel="ClaimedBy"><MudTextField InputType="@inputType" @bind-Value="context.ClaimedBy" /></MudTd>

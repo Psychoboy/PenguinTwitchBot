@@ -426,7 +426,7 @@
                             }
                         </MudTd>
                         <MudTd DataLabel="Purchased">
-                            <MudText Typo="Typo.caption">@boost.PurchasedAt.ToString("yyyy-MM-dd")</MudText>
+                            <MudText Typo="Typo.caption"><ToLocal DateTime="boost.PurchasedAt" Format="yyyy-mm-dd" /></MudText>
                         </MudTd>
                         <MudTd DataLabel="Actions">
                             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">

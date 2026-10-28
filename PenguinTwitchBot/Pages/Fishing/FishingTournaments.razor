@@ -355,10 +355,20 @@
         StateHasChanged();
     }
 
-    private static string FormatDate(DateTime? value)
+    private static RenderFragment FormatDate(DateTime? value) => builder =>
     {
-        return value?.ToLocalTime().ToString("g") ?? "-";
-    }
+        if (value.HasValue)
+        {
+            builder.OpenComponent<ToLocal>(0);
+            builder.AddAttribute(1, nameof(ToLocal.DateTime), value.Value);
+            builder.AddAttribute(2, nameof(ToLocal.Format), "m/d/yyyy h:MM TT");
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddContent(3, "-");
+        }
+    };
 
     private static string FormatRewardRule(FishingTournamentRewardRule rewardRule)
     {

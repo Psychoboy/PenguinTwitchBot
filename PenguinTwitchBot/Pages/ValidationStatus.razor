@@ -26,7 +26,7 @@
                     @if (_lastResult != null)
                     {
                         <MudText Typo="Typo.body1">
-                            @_lastResult.ValidationDate.ToLocalTime().ToString("g")
+                            <ToLocal DateTime="_lastResult.ValidationDate" Format="m/d/yyyy h:MM TT" />
                         </MudText>
                     }
                     else

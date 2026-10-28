@@ -132,7 +132,7 @@
                                             <MudText Typo="Typo.body2" Class="text-truncate" Style="font-weight: 500;">@file.FileName</MudText>
                                         </MudTooltip>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
-                                            @FormatBytes(file.SizeBytes) &bull; @file.LastModified.ToLocalTime().ToString("MMM d, yyyy")
+                                            @FormatBytes(file.SizeBytes) &bull; <ToLocal DateTime="file.LastModified" Format="mmm d, yyyy" />
                                         </MudText>
                                     </MudCardContent>
                                     <MudCardActions Class="pa-1 justify-space-between" Style="border-top: 1px solid var(--mud-palette-lines-default);">
@@ -221,7 +221,7 @@
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">@file.RelativeUrl</MudText>
                                     </td>
                                     <td>@FormatBytes(file.SizeBytes)</td>
-                                    <td>@file.LastModified.ToLocalTime().ToString("MMM d, yyyy")</td>
+                                    <td><ToLocal DateTime="file.LastModified" Format="mmm d, yyyy" /></td>
                                     <td style="text-align: right;">
                                         <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center">
                                             @if (file.IsAudio)

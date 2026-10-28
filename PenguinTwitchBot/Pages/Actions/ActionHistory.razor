@@ -140,12 +140,12 @@
                     </MudChip>
                 </MudTd>
                 <MudTd DataLabel="Queued At">
-                    <MudText Typo="Typo.body2">@context.EnqueuedAt.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudText>
+                    <MudText Typo="Typo.body2"><ToLocal DateTime="context.EnqueuedAt" Format="mm/dd HH:MM:ss" /></MudText>
                 </MudTd>
                 <MudTd DataLabel="Started At">
                     @if (context.StartedAt.HasValue)
                     {
-                        <MudText Typo="Typo.body2">@context.StartedAt.Value.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudText>
+                        <MudText Typo="Typo.body2"><ToLocal DateTime="context.StartedAt.Value" Format="mm/dd HH:MM:ss" /></MudText>
                     }
                     else
                     {
@@ -155,7 +155,7 @@
                 <MudTd DataLabel="Ended At">
                     @if (context.CompletedAt.HasValue)
                     {
-                        <MudText Typo="Typo.body2">@context.CompletedAt.Value.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudText>
+                        <MudText Typo="Typo.body2"><ToLocal DateTime="context.CompletedAt.Value" Format="mm/dd HH:MM:ss" /></MudText>
                     }
                     else
                     {
