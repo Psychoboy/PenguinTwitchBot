@@ -1064,7 +1064,7 @@
                     triggers.Add(new TriggerType
                     {
                         Id = Guid.CreateVersion7(),
-                        Name = $"TimerGroup_{timerGroup.Id}",
+                        Name = timerGroup.Name,
                         Type = TriggerTypes.Timer,
                         Configuration = JsonSerializer.Serialize(new { TimerGroupId = timerGroup.Id }),
                         Enabled = trigger.Enabled,

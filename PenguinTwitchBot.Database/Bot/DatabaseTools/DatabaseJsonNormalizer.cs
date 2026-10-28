@@ -144,6 +144,25 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                 {
                     await context.SaveChangesAsync();
                 }
+
+                // 4. Timer triggers used to be named "TimerGroup_{id}"; name them after their group instead.
+                var legacyTimerTriggers = await context.Triggers
+                    .Where(t => t.Type == Bot.Models.Actions.Triggers.TriggerTypes.Timer
+                        && t.TimerGroupId != null
+                        && t.Name.StartsWith("TimerGroup_"))
+                    .ToListAsync();
+                if (legacyTimerTriggers.Count > 0)
+                {
+                    var groupNames = await context.TimerGroups.ToDictionaryAsync(g => g.Id, g => g.Name);
+                    foreach (var trigger in legacyTimerTriggers)
+                    {
+                        if (groupNames.TryGetValue(trigger.TimerGroupId!.Value, out var groupName) && !string.IsNullOrWhiteSpace(groupName))
+                        {
+                            trigger.Name = groupName;
+                        }
+                    }
+                    await context.SaveChangesAsync();
+                }
             }
             catch (Exception ex)
             {

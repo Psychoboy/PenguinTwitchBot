@@ -48,11 +48,11 @@
                 <RowTemplate>
                     @{ var isFeatureDisabled = IsDisabledByFeature(context); }
                     <MudTd DataLabel="Trigger Name">
-                        @if (context.Type == TriggerTypes.Timer && context.Name.StartsWith("TimerGroup_"))
+                        @if (context.Type == TriggerTypes.Timer)
                         {
                             <MudStack Spacing="0">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudText>@GetTimerGroupDisplayName(context.Name)</MudText>
+                                    <MudText>@GetTimerGroupDisplayName(context)</MudText>
                                     @if (isFeatureDisabled)
                                     {
                                         <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
@@ -239,7 +239,7 @@
     private async Task LoadTimerGroupNames()
     {
         _timerGroupNames.Clear();
-        var timerTriggers = ActionTriggers.Where(t => t.Type == TriggerTypes.Timer && t.Name.StartsWith("TimerGroup_")).ToList();
+        var timerTriggers = ActionTriggers.Where(t => t.Type == TriggerTypes.Timer && GetTimerGroupId(t).HasValue).ToList();
         if (timerTriggers.Count == 0)
         {
             return;
@@ -247,7 +247,7 @@
         var timerGroups = await TimersService.GetTimerGroupsAsync();
         foreach (var trigger in timerTriggers)
         {
-            var timerGroupId = ExtractTimerGroupId(trigger.Name);
+            var timerGroupId = GetTimerGroupId(trigger);
             if (timerGroupId.HasValue && !_timerGroupNames.ContainsKey(timerGroupId.Value))
             {
                 var timerGroup = timerGroups.FirstOrDefault(tg => tg.Id == timerGroupId.Value);
@@ -296,27 +296,30 @@
         }
     }
 
-    private Guid? ExtractTimerGroupId(string triggerName)
+    private static Guid? GetTimerGroupId(TriggerType trigger)
     {
-        if (triggerName.StartsWith("TimerGroup_"))
+        if (trigger.TimerGroupId.HasValue)
         {
-            var idPart = triggerName.Substring("TimerGroup_".Length);
-            if (Guid.TryParse(idPart, out var id))
-            {
-                return id;
-            }
+            return trigger.TimerGroupId;
+        }
+
+        // Triggers created before names matched the group still carry the id in "TimerGroup_{id}".
+        const string legacyPrefix = "TimerGroup_";
+        if (trigger.Name.StartsWith(legacyPrefix) && Guid.TryParse(trigger.Name.AsSpan(legacyPrefix.Length), out var id))
+        {
+            return id;
         }
         return null;
     }
 
-    private string GetTimerGroupDisplayName(string triggerName)
+    private string GetTimerGroupDisplayName(TriggerType trigger)
     {
-        var timerGroupId = ExtractTimerGroupId(triggerName);
+        var timerGroupId = GetTimerGroupId(trigger);
         if (timerGroupId.HasValue && _timerGroupNames.TryGetValue(timerGroupId.Value, out var name))
         {
             return name;
         }
-        return triggerName;
+        return trigger.Name;
     }
 
     private async Task LoadTriggers()

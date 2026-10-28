@@ -315,15 +315,14 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 return;
             }
 
-            var triggerName = $"TimerGroup_{timerGroupId}";
             var triggers = await db.Triggers.GetTriggersForActionAsync(actionId);
-            var existingTrigger = triggers.FirstOrDefault(t => t.Name == triggerName);
+            var existingTrigger = triggers.FirstOrDefault(t => t.Type == TriggerTypes.Timer && t.TimerGroupId == timerGroupId);
 
             if (existingTrigger == null)
             {
                 var trigger = new TriggerType
                 {
-                    Name = triggerName,
+                    Name = timerGroup.Name,
                     Type = TriggerTypes.Timer,
                     ActionId = actionId,
                     Enabled = true,
@@ -344,9 +343,8 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var triggerName = $"TimerGroup_{timerGroupId}";
             var triggers = await db.Triggers.GetTriggersForActionAsync(actionId);
-            var trigger = triggers.FirstOrDefault(t => t.Name == triggerName);
+            var trigger = triggers.FirstOrDefault(t => t.Type == TriggerTypes.Timer && t.TimerGroupId == timerGroupId);
 
             if (trigger != null)
             {
@@ -373,11 +371,17 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 {
                     try
                     {
-                        var config = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(trigger.Configuration);
-                        if (config == null) continue;
+                        var changed = false;
 
-                        // Check if this trigger references the old timer group name
-                        if (config.TryGetValue("TimerGroupName", out var timerGroupNameElement))
+                        // Triggers are named after their timer group, so a rename must carry over.
+                        if (trigger.TimerGroupId == timerGroupId && trigger.Name != newTimerGroupName)
+                        {
+                            trigger.Name = newTimerGroupName;
+                            changed = true;
+                        }
+
+                        var config = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(trigger.Configuration);
+                        if (config != null && config.TryGetValue("TimerGroupName", out var timerGroupNameElement))
                         {
                             var timerGroupName = timerGroupNameElement.GetString();
                             if (timerGroupName == oldTimerGroupName)
@@ -392,9 +396,13 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 
                                 // Update the reference column as well
                                 trigger.TimerGroupId = timerGroupId;
-
-                                updatedCount++;
+                                changed = true;
                             }
+                        }
+
+                        if (changed)
+                        {
+                            updatedCount++;
                         }
                     }
                     catch (Exception ex)

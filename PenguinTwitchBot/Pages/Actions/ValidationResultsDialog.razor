@@ -31,79 +31,31 @@
                         Found <strong>@_result.ErrorCount error(s)</strong> and <strong>@_result.WarningCount warning(s)</strong>
                     </MudAlert>
 
-                    <MudExpansionPanels MultiExpansion="true">
-                        @if (_result.Issues.Any(i => i.EntityType == "Trigger"))
-                        {
-                            <MudExpansionPanel Text="Trigger Issues" isexpanded="true">
-                                <MudSimpleTable Dense="true" Hover="true">
-                                    <thead>
-                                        <tr>
-                                            <th>Severity</th>
-                                            <th>Trigger Name</th>
-                                            <th>Issue</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var issue in _result.Issues.Where(i => i.EntityType == "Trigger"))
-                                        {
-                                            <tr>
-                                                <td>
-                                                    @if (issue.Severity == ValidationSeverity.Error)
-                                                    {
-                                                        <MudBadge Color="Color.Error" Dot="false" Content="@("Error")" />
-                                                    }
-                                                    else
-                                                    {
-                                                        <MudBadge Color="Color.Warning" Dot="false" Content="@("Warning")" />
-                                                    }
-                                                </td>
-                                                <td>@issue.EntityName</td>
-                                                <td>@issue.Message</td>
-                                                <td>@(issue.RelatedActionName ?? "N/A")</td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </MudSimpleTable>
-                            </MudExpansionPanel>
-                        }
+                    <MudSimpleTable Dense="true" Hover="true">
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Item</th>
+                                <th>Issue</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var issue in _result.Issues.Where(i => !i.Ignored && i.Severity != ValidationSeverity.Info).OrderBy(i => i.Severity))
+                            {
+                                <tr>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="@(issue.Severity == ValidationSeverity.Error ? Color.Error : Color.Warning)">@issue.Severity</MudChip>
+                                    </td>
+                                    <td>@issue.EntityName</td>
+                                    <td>@issue.Message</td>
+                                    <td>@(issue.RelatedActionName ?? "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
 
-                        @if (_result.Issues.Any(i => i.EntityType == "SubAction"))
-                        {
-                            <MudExpansionPanel Text="SubAction Issues" isexpanded="true">
-                                <MudSimpleTable Dense="true" Hover="true">
-                                    <thead>
-                                        <tr>
-                                            <th>Severity</th>
-                                            <th>SubAction Type</th>
-                                            <th>Issue</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var issue in _result.Issues.Where(i => i.EntityType == "SubAction"))
-                                        {
-                                            <tr>
-                                                <td>
-                                                    @if (issue.Severity == ValidationSeverity.Error)
-                                                    {
-                                                        <MudBadge Color="Color.Error" Dot="false" Content="@("Error")" />
-                                                    }
-                                                    else
-                                                    {
-                                                        <MudBadge Color="Color.Warning" Dot="false" Content="@("Warning")" />
-                                                    }
-                                                </td>
-                                                <td>@issue.EntityName</td>
-                                                <td>@issue.Message</td>
-                                                <td>@(issue.RelatedActionName ?? "N/A")</td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </MudSimpleTable>
-                            </MudExpansionPanel>
-                        }
-                    </MudExpansionPanels>
+                    <MudLink Href="/validation-status">Open Validation Status for details and fix suggestions</MudLink>
                 }
 
                 <MudText Typo="Typo.caption" Color="Color.Secondary">

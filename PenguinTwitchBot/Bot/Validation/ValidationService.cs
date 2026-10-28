@@ -9,7 +9,7 @@ using System.Text.Json;
 
 namespace PenguinTwitchBot.Bot.Validation
 {
-    public class ValidationService : IValidationService
+    public partial class ValidationService : IValidationService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<ValidationService> _logger;
@@ -34,12 +34,28 @@ namespace PenguinTwitchBot.Bot.Validation
             var subActionResult = await ValidateSubActionsAsync();
             var commandResult = await ValidateCommandsAsync();
             var keywordResult = await ValidateKeywordsAsync();
+            var configurationResult = await ValidateConfigurationAsync();
 
             result.Issues.AddRange(actionResult.Issues);
             result.Issues.AddRange(triggerResult.Issues);
             result.Issues.AddRange(subActionResult.Issues);
             result.Issues.AddRange(commandResult.Issues);
             result.Issues.AddRange(keywordResult.Issues);
+            result.Issues.AddRange(configurationResult.Issues);
+
+            foreach (var partial in new[] { actionResult, triggerResult, subActionResult, commandResult, keywordResult, configurationResult })
+            {
+                foreach (var (name, count) in partial.Stats)
+                {
+                    result.Stats[name] = count;
+                }
+            }
+
+            var ignoredKeys = await GetIgnoredIssueKeysAsync();
+            foreach (var issue in result.Issues.Where(i => ignoredKeys.Contains(i.Key)))
+            {
+                issue.Ignored = true;
+            }
 
             _logger.LogInformation(
                 "Validation completed. Found {ErrorCount} errors and {WarningCount} warnings",
@@ -64,21 +80,10 @@ namespace PenguinTwitchBot.Bot.Validation
 
             var allActions = await db.Actions.GetAllWithDetailsAsync();
             _logger.LogDebug("Validating {ActionCount} actions", allActions.Count);
+            result.Stats["Actions"] = allActions.Count;
 
             // Track action names to check for duplicates
             var actionNameCounts = new Dictionary<string, List<Guid>>(StringComparer.OrdinalIgnoreCase);
-
-            // Build set of action IDs that are called by other actions via ExecuteAction subactions.
-            // These are "triggered" indirectly and should not be flagged as having no triggers.
-            var calledByExecuteAction = new HashSet<Guid>();
-            foreach (var a in allActions)
-            {
-                foreach (var ea in GetAllExecuteActionSubActions(a.SubActions ?? []))
-                {
-                    if (ea.ActionId.HasValue && ea.ActionId.Value != Guid.Empty)
-                        calledByExecuteAction.Add(ea.ActionId.Value);
-                }
-            }
 
             foreach (var action in allActions)
             {
@@ -117,21 +122,7 @@ namespace PenguinTwitchBot.Bot.Validation
                     });
                 }
 
-                // Warn about actions with no triggers (orphaned actions).
-                // Skip if this action is called by another action via ExecuteAction — that counts as a trigger.
-                if ((action.Triggers == null || action.Triggers.Count == 0) &&
-                    !(action.Id != Guid.Empty && calledByExecuteAction.Contains(action.Id)))
-                {
-                    result.Issues.Add(new ValidationIssue
-                    {
-                        IssueType = ValidationIssueType.ActionNoTriggers,
-                        Severity = ValidationSeverity.Warning,
-                        EntityType = "Action",
-                        EntityId = action.Id,
-                        EntityName = action.Name ?? "(unknown)",
-                        Message = $"Action '{action.Name}' has no triggers defined"
-                    });
-                }
+                // Actions without triggers are valid: they can run via the API, ExecuteAction or the test button.
 
                 // Warn about actions with no subactions
                 if (action.SubActions == null || action.SubActions.Count == 0)
@@ -320,6 +311,7 @@ namespace PenguinTwitchBot.Bot.Validation
             // Get all triggers
             var allTriggers = await db.Triggers.GetAllAsync();
             _logger.LogDebug("Validating {TriggerCount} triggers", allTriggers.Count);
+            result.Stats["Triggers"] = allTriggers.Count;
 
             // Get all timer groups and commands for validation - with full entities for name validation
             var timerGroups = await db.TimerGroups.GetAsync();
@@ -509,6 +501,7 @@ namespace PenguinTwitchBot.Bot.Validation
             // Get all actions with their subactions
             var allActions = await db.Actions.GetAllWithDetailsAsync();
             _logger.LogDebug("Validating subactions across {ActionCount} actions", allActions.Count);
+            result.Stats["Sub-actions"] = allActions.Sum(a => Flatten(a.SubActions).Count() + Flatten(a.CatchSubActions).Count());
 
             // Get all commands and actions for validation
             var commands = await db.ActionCommands.GetAsync();
@@ -1222,26 +1215,7 @@ namespace PenguinTwitchBot.Bot.Validation
             var hasReferenceColumn = trigger.TimerGroupId.HasValue;
             var hasConfigValue = configTimerGroupId.HasValue;
 
-            // Validate Timer trigger name format: should be "TimerGroup_{id}"
             var timerGroupIdToCheck = trigger.TimerGroupId ?? configTimerGroupId;
-            if (timerGroupIdToCheck.HasValue && !string.IsNullOrWhiteSpace(trigger.Name))
-            {
-                var expectedName = $"TimerGroup_{timerGroupIdToCheck.Value}";
-                if (!trigger.Name.Equals(expectedName, StringComparison.Ordinal))
-                {
-                    result.Issues.Add(new ValidationIssue
-                    {
-                        IssueType = ValidationIssueType.TriggerInvalidName,
-                        Severity = ValidationSeverity.Warning,
-                        EntityType = "Trigger",
-                        EntityId = trigger.Id,
-                        EntityName = trigger.Name,
-                        Message = $"Timer trigger '{trigger.Name}' has incorrect name format. Expected: '{expectedName}'",
-                        RelatedActionId = trigger.ActionId,
-                        RelatedActionName = trigger.Action?.Name
-                    });
-                }
-            }
 
             // Check if both are missing
             if (!hasReferenceColumn && !hasConfigValue)
@@ -1785,6 +1759,7 @@ namespace PenguinTwitchBot.Bot.Validation
             // Get all commands
             var commands = await db.ActionCommands.GetAsync();
             _logger.LogDebug("Validating {CommandCount} commands", commands.Count);
+            result.Stats["Commands"] = commands.Count;
 
             // Get all triggers to check which commands are referenced
             var allTriggers = await db.Triggers.GetAllAsync();
@@ -1815,7 +1790,7 @@ namespace PenguinTwitchBot.Bot.Validation
                     result.Issues.Add(new ValidationIssue
                     {
                         IssueType = ValidationIssueType.CommandNoTriggers,
-                        Severity = ValidationSeverity.Warning,
+                        Severity = ValidationSeverity.Info,
                         EntityType = "Command",
                         EntityId = command.Id,
                         EntityName = command.CommandName ?? "(unknown)",
@@ -1838,6 +1813,7 @@ namespace PenguinTwitchBot.Bot.Validation
             // Get all keywords
             var keywords = await db.ActionKeywords.GetAsync();
             _logger.LogDebug("Validating {KeywordCount} keywords", keywords.Count);
+            result.Stats["Keywords"] = keywords.Count;
 
             // Get all triggers to check which keywords are referenced
             var allTriggers = await db.Triggers.GetAllAsync();
@@ -1868,7 +1844,7 @@ namespace PenguinTwitchBot.Bot.Validation
                     result.Issues.Add(new ValidationIssue
                     {
                         IssueType = ValidationIssueType.KeywordNoTriggers,
-                        Severity = ValidationSeverity.Warning,
+                        Severity = ValidationSeverity.Info,
                         EntityType = "Keyword",
                         EntityId = keyword.Id,
                         EntityName = keyword.CommandName ?? "(unknown)",

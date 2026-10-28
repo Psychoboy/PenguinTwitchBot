@@ -947,10 +947,10 @@
     {
         _selectedTimerGroup = timerGroup;
 
-        // Auto-populate trigger name with timer group format
+        // Name the trigger after the timer group so it reads naturally in the trigger list
         if (timerGroup?.Id != null && timerGroup.Id != Guid.Empty)
         {
-            _triggerName = $"TimerGroup_{timerGroup.Id}";
+            _triggerName = timerGroup.Name;
         }
     }
 
