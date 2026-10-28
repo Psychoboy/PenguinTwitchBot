@@ -434,22 +434,6 @@ internal class Program
             OnPrepareResponse = ctx =>
             {
                 var path = ctx.Context.Request.Path.Value ?? string.Empty;
-                // Without a max-age, browsers and Cloudflare revalidate heavy media on every visit.
-                if (path.StartsWith("/lib/", StringComparison.OrdinalIgnoreCase))
-                {
-                    ctx.Context.Response.Headers.CacheControl = "public,max-age=86400";
-                }
-                else if (path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
-                {
-                    ctx.Context.Response.Headers.CacheControl = "public,max-age=3600";
-                }
                 if (path.StartsWith("/extension", StringComparison.OrdinalIgnoreCase) ||
                     path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ||
                     path.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||

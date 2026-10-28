@@ -8,7 +8,8 @@
 @inject ISnackbar Snackbar
 @inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @inject ICounterService CounterService
-@implements IDisposable
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 @if (!isLoaded)
 {
@@ -156,7 +157,7 @@ else
             }
         }
 
-        <MudGrid Spacing="3">
+        <div class="homepage-masonry" @ref="_masonryContainer">
             @foreach (var widget in layout.Widgets)
             {
                 if (!ShouldRenderWidget(widget))
@@ -164,11 +165,13 @@ else
                     continue;
                 }
 
-                <MudItem xs="12" sm="6" @key="widget.Id">
-                    <HomepageWidgetTile Widget="widget" IsStreamer="isStreamer" />
-                </MudItem>
+                <div class="homepage-masonry-item" @key="widget.Id">
+                    <div class="homepage-masonry-content">
+                        <HomepageWidgetTile Widget="widget" IsStreamer="isStreamer" />
+                    </div>
+                </div>
             }
-        </MudGrid>
+        </div>
     </MudContainer>
 }
 
@@ -182,6 +185,32 @@ else
     private string selectedWidgetType = HomepageWidgetCatalog.SongRequests;
     private List<string> _availableCounterNames = [];
     private bool _disposed;
+    private ElementReference _masonryContainer;
+    private IJSObjectReference? _masonryModule;
+    private bool _masonryReady;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_masonryReady || !isLoaded || _disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            _masonryModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/homepageMasonry.js");
+            await _masonryModule.InvokeVoidAsync("init", _masonryContainer);
+            _masonryReady = true;
+        }
+        catch (JSException)
+        {
+            // Falls back to the plain grid.
+        }
+        catch (InvalidOperationException)
+        {
+            // Circuit is not interactive yet.
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -317,9 +346,25 @@ else
         return true;
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _disposed = true;
         FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
+
+        if (_masonryModule != null)
+        {
+            try
+            {
+                if (_masonryReady)
+                {
+                    await _masonryModule.InvokeVoidAsync("dispose", _masonryContainer);
+                }
+                await _masonryModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is already gone, so there is nothing to clean up.
+            }
+        }
     }
 }

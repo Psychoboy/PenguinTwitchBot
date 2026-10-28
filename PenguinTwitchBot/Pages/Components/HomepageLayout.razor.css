@@ -1,0 +1,13 @@
+/* Plain grid until the masonry script runs (or if it can't), so tiles never overlap. */
+.homepage-masonry {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 540px), 1fr));
+    gap: 16px;
+    align-items: start;
+}
+
+/* Rows are small units and each tile spans as many as it needs; the span includes the vertical gap. */
+.homepage-masonry.is-masonry {
+    grid-auto-rows: 8px;
+    row-gap: 0;
+}
