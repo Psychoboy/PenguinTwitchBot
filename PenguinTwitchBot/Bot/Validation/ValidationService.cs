@@ -729,7 +729,6 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Check Points",
                             Message = "SubAction 'Check Points' has missing or empty TargetUser",
-                            Detail = "CheckPoints.TargetUser",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -782,7 +781,6 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Set Channel Point Enabled State",
                             Message = "SubAction 'Set Channel Point Enabled State' has missing or empty reward name",
-                            Detail = "ChannelPointSetEnabledState.Text",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -801,7 +799,6 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Set Channel Point Paused State",
                             Message = "SubAction 'Set Channel Point Paused State' has missing or empty reward name",
-                            Detail = "ChannelPointSetPausedState.Text",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -821,7 +818,6 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Play Sound",
                             Message = "SubAction 'Play Sound' has missing or empty file path",
-                            Detail = "PlaySound.File",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -893,7 +889,6 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "External API",
                             Message = "SubAction 'External API' has missing or empty URL",
-                            Detail = "ExternalApi.Url",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -908,7 +903,6 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "External API",
                             Message = $"SubAction 'External API' has potentially invalid URL format: {externalApi.Text}",
-                            Detail = "ExternalApi.Url",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1032,7 +1026,6 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Delay",
                             Message = "SubAction 'Delay' has missing or empty duration",
-                            Detail = "Delay.Duration",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1047,7 +1040,6 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Delay",
                             Message = "SubAction 'Delay' duration contains spaces",
-                            Detail = "Delay.Duration",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
