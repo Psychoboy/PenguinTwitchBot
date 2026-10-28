@@ -259,7 +259,7 @@
                 <MudPaper Elevation="2" Class="pa-4">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
                         <MudIcon Icon="@(wordFilter.Id == Guid.Empty ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
-                        <MudText Typo="Typo.h6">@(wordFilter.Id == Guid.Empty ? "Add Word Filter" : $"Edit Filter #{wordFilter.Id}")</MudText>
+                        <MudText Typo="Typo.h6">@(wordFilter.Id == Guid.Empty ? "Add Word Filter" : $"Edit Filter: {wordFilter.Phrase}")</MudText>
                     </MudStack>
 
                     <EditForm Model="@wordFilter" OnValidSubmit="OnSubmit">

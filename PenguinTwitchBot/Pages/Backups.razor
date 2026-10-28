@@ -100,11 +100,11 @@
                     <MudTd DataLabel="Format">
                         @if (manifest != null)
                         {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">v@manifest.FormatVersion</MudChip>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">v@(manifest.FormatVersion)</MudChip>
                         }
                         else
                         {
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Legacy / Unknown</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Warning">Legacy / Unsupported</MudText>
                         }
                     </MudTd>
                     <MudTd DataLabel="Migration ID">
@@ -131,7 +131,7 @@
                     </MudTd>
                     <MudTd DataLabel="Actions" Style="text-align: right;">
                         <MudStack Row="true" Style="justify-content: flex-end;" Spacing="1">
-                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" OnClick="() => RestoreBackup(context)" StartIcon="@Icons.Material.Filled.Restore">
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" Disabled="@(manifest == null)" OnClick="() => RestoreBackup(context)" StartIcon="@Icons.Material.Filled.Restore">
                                 Restore
                             </MudButton>
                             <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="() => DownloadBackup(context)" StartIcon="@Icons.Material.Filled.Download">
@@ -292,6 +292,12 @@
 
     private async Task RestoreBackup(FileInfo fileInfo)
     {
+        if (GetOrLoadManifest(fileInfo) == null)
+        {
+            Snackbar.Add("This backup is in a legacy or unsupported format and can't be restored.", Severity.Warning);
+            return;
+        }
+
         bool? result = await DialogService.ShowMessageBoxAsync(
             "Warning",
             "Are you sure you want to restore this database? Doing so will wipe current data!",

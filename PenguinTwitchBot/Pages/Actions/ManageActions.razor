@@ -13,6 +13,7 @@
 @inject NavigationManager NavigationManager
 @inject PenguinTwitchBot.Bot.Queues.IQueueManager QueueManager
 @inject PenguinTwitchBot.Bot.Actions.IAction ActionExecutor
+@inject PenguinTwitchBot.Pages.Components.SubActionReferenceNames ReferenceNames
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Manage Actions</PageTitle>
 
@@ -242,7 +243,7 @@
                         </MudPaper>
 
                         <!-- Triggers Section -->
-                        <TriggerManagement ActionId="_selectedAction.Id" 
+                        <TriggerManagement ActionId="@(_selectedAction.Id == Guid.Empty ? (Guid?)null : _selectedAction.Id)"
                                            ActionTriggers="_actionTriggers"
                                            ActionTriggersChanged="OnActionTriggersChanged" />
 
@@ -477,6 +478,9 @@
         try
         {
             _actions = await ActionService.GetAllActionsAsync();
+            // Names must be ready before any sub-action list renders, otherwise raw ids flash first.
+            ReferenceNames.Invalidate();
+            await ReferenceNames.LoadAsync();
             _groups = _actions.Select(a => a.Group).Where(g => !string.IsNullOrEmpty(g)).Distinct().OrderBy(g => g).ToList();
             FilterActions();
 
