@@ -6,12 +6,11 @@
 @using TwitchEventConfig = PenguinTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig
 @using PenguinTwitchBot.Pages.Actions
 @using System.Text.Json
+@using Microsoft.Extensions.DependencyInjection
 @inject IActionManagementService ActionService
 @inject MudBlazor.ISnackbar Snackbar
 @inject IDialogService DialogService
-@inject PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService
-@inject PenguinTwitchBot.Bot.Commands.IActionCommandService ActionCommandService
-@inject PenguinTwitchBot.Bot.Commands.IActionKeywordService ActionKeywordService
+@inject IServiceScopeFactory ServiceScopeFactory
 @inject PenguinTwitchBot.Bot.Validation.IValidationService ValidationService
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
@@ -244,10 +243,15 @@
     {
         _commandNames.Clear();
         _keywordNames.Clear();
+        _timerGroupNames.Clear();
+
+        await using var scope = ServiceScopeFactory.CreateAsyncScope();
+        var services = scope.ServiceProvider;
 
         if (ActionTriggers.Any(t => t.Type == TriggerTypes.Command && t.CommandId.HasValue))
         {
-            foreach (var command in await ActionCommandService.GetAllAsync())
+            var commandService = services.GetRequiredService<PenguinTwitchBot.Bot.Commands.IActionCommandService>();
+            foreach (var command in await commandService.GetAllAsync())
             {
                 _commandNames[command.Id] = command.CommandName;
             }
@@ -255,19 +259,20 @@
 
         if (ActionTriggers.Any(t => t.Type == TriggerTypes.Keyword && t.KeywordId.HasValue))
         {
-            foreach (var keyword in await ActionKeywordService.GetAllAsync())
+            var keywordService = services.GetRequiredService<PenguinTwitchBot.Bot.Commands.IActionKeywordService>();
+            foreach (var keyword in await keywordService.GetAllAsync())
             {
                 _keywordNames[keyword.Id] = keyword.CommandName;
             }
         }
 
-        _timerGroupNames.Clear();
         var timerTriggers = ActionTriggers.Where(t => t.Type == TriggerTypes.Timer && GetTimerGroupId(t).HasValue).ToList();
         if (timerTriggers.Count == 0)
         {
             return;
         }
-        var timerGroups = await TimersService.GetTimerGroupsAsync();
+        var timersService = services.GetRequiredService<PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers>();
+        var timerGroups = await timersService.GetTimerGroupsAsync();
         foreach (var trigger in timerTriggers)
         {
             var timerGroupId = GetTimerGroupId(trigger);
