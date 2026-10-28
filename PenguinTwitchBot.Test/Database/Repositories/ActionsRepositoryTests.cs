@@ -364,7 +364,7 @@ namespace PenguinTwitchBot.Test.Database.Repositories
             var commandId = await AddCommandAsync("renamed");
             await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "!oldname", commandId: commandId);
 
-            var result = await _repository.GetActionsByCommandIdAsync(commandId, "!renamed");
+            var result = await _repository.GetActionsByCommandIdAsync(commandId);
 
             Assert.Single(result);
             Assert.Equal("Action1", result[0].Name);
@@ -377,20 +377,20 @@ namespace PenguinTwitchBot.Test.Database.Repositories
             var otherCommandId = await AddCommandAsync("second");
             await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "!shared", commandId: otherCommandId);
 
-            var result = await _repository.GetActionsByCommandIdAsync(commandId, "!shared");
+            var result = await _repository.GetActionsByCommandIdAsync(commandId);
 
             Assert.Empty(result);
         }
 
         [Fact]
-        public async Task GetActionsByCommandIdAsync_FallsBackToName_ForTriggersWithoutAnId()
+        public async Task GetActionsByCommandIdAsync_DoesNotMatchTriggersWithoutAnId()
         {
             var commandId = await AddCommandAsync("legacy");
             await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "!legacy");
 
-            var result = await _repository.GetActionsByCommandIdAsync(commandId, "!legacy");
+            var result = await _repository.GetActionsByCommandIdAsync(commandId);
 
-            Assert.Single(result);
+            Assert.Empty(result);
         }
 
         [Fact]
@@ -399,7 +399,7 @@ namespace PenguinTwitchBot.Test.Database.Repositories
             var commandId = await AddCommandAsync("off");
             await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "!off", commandId: commandId, enabled: false);
 
-            var result = await _repository.GetActionsByCommandIdAsync(commandId, "!off");
+            var result = await _repository.GetActionsByCommandIdAsync(commandId);
 
             Assert.Empty(result);
         }
@@ -410,7 +410,7 @@ namespace PenguinTwitchBot.Test.Database.Repositories
             var keywordId = await AddKeywordAsync("hello");
             await AddActionWithTriggerAsync("Action1", TriggerTypes.Keyword, "hi", keywordId: keywordId);
 
-            var result = await _repository.GetActionsByKeywordIdAsync(keywordId, "hello");
+            var result = await _repository.GetActionsByKeywordIdAsync(keywordId);
 
             Assert.Single(result);
         }
@@ -421,7 +421,7 @@ namespace PenguinTwitchBot.Test.Database.Repositories
             var keywordId = await AddKeywordAsync("hello");
             await AddActionWithTriggerAsync("Action1", TriggerTypes.Command, "hello");
 
-            var result = await _repository.GetActionsByKeywordIdAsync(keywordId, "hello");
+            var result = await _repository.GetActionsByKeywordIdAsync(keywordId);
 
             Assert.Empty(result);
         }

@@ -131,17 +131,17 @@ namespace PenguinTwitchBot.Bot.Actions
             return actions.Where(a => a.Enabled).ToList();
         }
 
-        public async Task<List<ActionType>> GetActionsByCommandIdEnabledAsync(Guid commandId, string legacyTriggerName) =>
+        public async Task<List<ActionType>> GetActionsByCommandIdEnabledAsync(Guid commandId) =>
             (await GetActionsAsync(
-                repository => repository.GetActionsByCommandIdAsync(commandId, legacyTriggerName),
+                repository => repository.GetActionsByCommandIdAsync(commandId),
                 $"command {commandId}")).Where(a => a.Enabled).ToList();
 
-        public async Task<List<ActionType>> GetActionsByKeywordIdEnabledAsync(Guid keywordId, string legacyTriggerName) =>
-            (await GetActionsByKeywordIdAsync(keywordId, legacyTriggerName)).Where(a => a.Enabled).ToList();
+        public async Task<List<ActionType>> GetActionsByKeywordIdEnabledAsync(Guid keywordId) =>
+            (await GetActionsByKeywordIdAsync(keywordId)).Where(a => a.Enabled).ToList();
 
-        public Task<List<ActionType>> GetActionsByKeywordIdAsync(Guid keywordId, string legacyTriggerName) =>
+        public Task<List<ActionType>> GetActionsByKeywordIdAsync(Guid keywordId) =>
             GetActionsAsync(
-                repository => repository.GetActionsByKeywordIdAsync(keywordId, legacyTriggerName),
+                repository => repository.GetActionsByKeywordIdAsync(keywordId),
                 $"keyword {keywordId}");
 
         private async Task<List<ActionType>> GetActionsAsync(

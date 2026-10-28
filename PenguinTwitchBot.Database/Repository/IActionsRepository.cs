@@ -13,10 +13,10 @@ namespace PenguinTwitchBot.Database.Repository
         Task<ActionType> UpdateActionAsync(ActionType action);
         Task DeleteActionAsync(Guid id);
         Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName);
-        /// <summary>Actions with an enabled trigger for the command; triggers without a CommandId fall back to matching by name.</summary>
-        Task<List<ActionType>> GetActionsByCommandIdAsync(Guid commandId, string legacyTriggerName);
-        /// <summary>Actions with an enabled trigger for the keyword; triggers without a KeywordId fall back to matching by name.</summary>
-        Task<List<ActionType>> GetActionsByKeywordIdAsync(Guid keywordId, string legacyTriggerName);
+        /// <summary>Actions with an enabled trigger referencing the command ID.</summary>
+        Task<List<ActionType>> GetActionsByCommandIdAsync(Guid commandId);
+        /// <summary>Actions with an enabled trigger referencing the keyword ID.</summary>
+        Task<List<ActionType>> GetActionsByKeywordIdAsync(Guid keywordId);
         Task UpdateToggleCommandDisabledNamesForRenamedCommand(string oldCommandName, string newCommandName);
     }
 }

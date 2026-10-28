@@ -259,7 +259,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<ActionType>> GetActionsByCommandIdAsync(Guid commandId, string legacyTriggerName)
+        public async Task<List<ActionType>> GetActionsByCommandIdAsync(Guid commandId)
         {
             return await _context.Actions
                 .AsNoTracking()
@@ -270,12 +270,12 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .Where(a => a.Triggers.Any(t =>
                     t.Type == TriggerTypes.Command &&
                     t.Enabled &&
-                    (t.CommandId == commandId || (t.CommandId == null && t.Name == legacyTriggerName))))
+                    t.CommandId == commandId))
                 .OrderBy(a => a.Name)
                 .ToListAsync();
         }
 
-        public async Task<List<ActionType>> GetActionsByKeywordIdAsync(Guid keywordId, string legacyTriggerName)
+        public async Task<List<ActionType>> GetActionsByKeywordIdAsync(Guid keywordId)
         {
             return await _context.Actions
                 .AsNoTracking()
@@ -286,7 +286,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .Where(a => a.Triggers.Any(t =>
                     t.Type == TriggerTypes.Keyword &&
                     t.Enabled &&
-                    (t.KeywordId == keywordId || (t.KeywordId == null && t.Name == legacyTriggerName))))
+                    t.KeywordId == keywordId))
                 .OrderBy(a => a.Name)
                 .ToListAsync();
         }
