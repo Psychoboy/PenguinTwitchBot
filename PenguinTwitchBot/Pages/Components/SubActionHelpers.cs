@@ -6,7 +6,7 @@ namespace PenguinTwitchBot.Pages.Components
     {
         public static string GetSubActionDescription(SubActionType subAction, SubActionReferenceNames? names = null)
         {
-            string Name(Guid? id) => id is null || id == Guid.Empty ? "(none)" : names?.Resolve(id.Value) ?? id.Value.ToString();
+            string Name(SubActionReferenceKind kind, Guid? id) => id is null || id == Guid.Empty ? "(none)" : names?.Resolve(kind, id.Value) ?? id.Value.ToString();
 
             return subAction switch
             {
@@ -26,8 +26,8 @@ namespace PenguinTwitchBot.Pages.Components
                 ChannelPointSetPausedStateType cp => $"Channel Point: {cp.Text} {(cp.IsPaused ? "Paused" : "Unpaused")}",
                 TtsType tts => $"TTS: {(tts.Text?.Length > 50 ? tts.Text[..50] + "..." : tts.Text)}",
                 LogicIfElseType ifElse => $"If {ifElse.LeftValue} {ifElse.Operator} {ifElse.RightValue} (True: {ifElse.TrueSubActions.Count}, False: {ifElse.FalseSubActions.Count})",
-                ExecuteActionType exec => string.IsNullOrWhiteSpace(exec.Text) ? $"Execute Action: {Name(exec.ActionId)}" : $"Execute Action: {Name(exec.ActionId)} ({exec.Text})",
-                ForEachViewerType forEach => $"For Each Viewer: {Name(forEach.ActionId)}",
+                ExecuteActionType exec => string.IsNullOrWhiteSpace(exec.Text) ? $"Execute Action: {Name(SubActionReferenceKind.Action, exec.ActionId)}" : $"Execute Action: {Name(SubActionReferenceKind.Action, exec.ActionId)} ({exec.Text})",
+                ForEachViewerType forEach => $"For Each Viewer: {Name(SubActionReferenceKind.Action, forEach.ActionId)}",
                 BreakType => "Breaks from current Action",
                 DelayType delay => $"Delay: {delay.Duration}ms",
                 OverlayTimerStartType timerStart => $"Overlay Timer{(string.IsNullOrWhiteSpace(timerStart.TimerName) || timerStart.TimerName.Equals("Default", StringComparison.OrdinalIgnoreCase) ? "" : $" ({timerStart.TimerName})")}: start counting {timerStart.Direction}{(string.IsNullOrWhiteSpace(timerStart.StartTime) ? (timerStart.ResetOnStart ? " from zero" : "") : $" from {timerStart.StartTime}")}",
@@ -36,8 +36,8 @@ namespace PenguinTwitchBot.Pages.Components
                 OverlayTimerRemoveTimeType timerRemove => $"Overlay Timer{(string.IsNullOrWhiteSpace(timerRemove.TimerName) || timerRemove.TimerName.Equals("Default", StringComparison.OrdinalIgnoreCase) ? "" : $" ({timerRemove.TimerName})")}: remove {timerRemove.Amount}",
                 ExecuteDefaultCommandType execCmd => $"Execute Default Command: {execCmd.CommandName}",
                 ExecuteCommandType execCmd => string.IsNullOrWhiteSpace(execCmd.Text) ? $"Execute Command: {execCmd.CommandName}" : $"Execute Command: {execCmd.CommandName} ({execCmd.Text})",
-                FishingTournamentStartType tournamentStart => $"Fishing Tournament Start: {Name(tournamentStart.TournamentId)}",
-                FishingTournamentEndType tournamentEnd => $"Fishing Tournament End: {Name(tournamentEnd.TournamentId)}",
+                FishingTournamentStartType tournamentStart => $"Fishing Tournament Start: {Name(SubActionReferenceKind.Tournament, tournamentStart.TournamentId)}",
+                FishingTournamentEndType tournamentEnd => $"Fishing Tournament End: {Name(SubActionReferenceKind.Tournament, tournamentEnd.TournamentId)}",
                 FishingTournamentEligibleCatchType tournamentEligibleCatch => $"Fishing Tournament Eligible Catch {(tournamentEligibleCatch.Enabled ? "Enabled" : "Disabled")}",
                 FishingModifyType modify => modify.TargetType == FishingModifyTargetType.Fish
                     ? $"Modify Fish: {(string.IsNullOrWhiteSpace(modify.TargetFish) ? "None" : modify.TargetFish)}"
@@ -57,7 +57,7 @@ namespace PenguinTwitchBot.Pages.Components
                 ReplyToMessageType reply => $"Reply: {(reply.Text?.Length > 50 ? reply.Text[..50] + "..." : reply.Text)}",
                 SetVariableType setVar => $"Set Variable: {setVar.Text} = {setVar.Value}",
                 ToggleCommandDisabledType toggleCmd => $"Toggle Command: {toggleCmd.CommandName} {(toggleCmd.IsDisabled ? "Disabled" : "Enabled")}",
-                TimerGroupSetEnabledStateType timerGroup => $"Timer Group: {Name(timerGroup.TimerGroupId)} {(timerGroup.IsEnabled ? "Enabled" : "Disabled")}",
+                TimerGroupSetEnabledStateType timerGroup => $"Timer Group: {Name(SubActionReferenceKind.TimerGroup, timerGroup.TimerGroupId)} {(timerGroup.IsEnabled ? "Enabled" : "Disabled")}",
                 CheckPointsType checkPoints => $"Gets {checkPoints.PointTypeName} points for {checkPoints.TargetUser} Variables: %TargetPoints% and %TargetPointsFormatted%",
                 OpenAiType ai => $"OpenAI: {(ai.Text?.Length > 50 ? ai.Text[..50] + "..." : ai.Text)} ({ai.Model})",
                 ParachuteDropType pDrop => $"Parachute Drop: {pDrop.Username}{(string.IsNullOrWhiteSpace(pDrop.EmoteOrImage) ? "" : $" ({pDrop.EmoteOrImage})")}",

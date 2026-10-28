@@ -111,7 +111,6 @@
     {
         _pointTypes = (await PointsSystem.GetPointTypes()).ToList();
         _config = await RaidRewardSettings.GetConfigAsync();
-        _emotes = await EmoteService.GetEmotesAsync();
 
         _enabled = _config.Enabled;
         _pointsToAward = _config.PointsToAward;
@@ -123,6 +122,14 @@
         _postAnnouncement = _config.PostAnnouncement;
         _postReminders = _config.PostReminders;
         _selectedPointType = _pointTypes.FirstOrDefault(pt => pt.Id == _config.PointTypeId);
+    }
+
+    // The first emote fetch hits third-party APIs and can take a long time, so it must not block the page.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _emotes = await EmoteService.GetEmotesAsync();
+        StateHasChanged();
     }
 
     /// <summary>
