@@ -24,19 +24,8 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 }
 
                 var storeObject = StoreObjectIdentifier.Table(table, entityType.GetSchema());
-                var props = new List<IReadOnlyProperty>();
-                var pk = entityType.FindPrimaryKey();
-                if (pk != null)
-                {
-                    props.AddRange(pk.Properties);
-                }
-
-                foreach (var fk in entityType.GetForeignKeys())
-                {
-                    props.AddRange(fk.Properties);
-                }
-
-                foreach (var p in props)
+                // All Guid properties, not only keys: unconstrained references such as OBSConnectionId hold legacy ints too.
+                foreach (var p in entityType.GetProperties())
                 {
                     var clr = Nullable.GetUnderlyingType(p.ClrType) ?? p.ClrType;
                     if (clr == typeof(Guid) && p.GetColumnName(storeObject) is { } column)
