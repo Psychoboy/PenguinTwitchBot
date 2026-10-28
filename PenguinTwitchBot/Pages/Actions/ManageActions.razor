@@ -140,9 +140,13 @@
 
         <!-- Right Panel - Action Details -->
         <MudItem xs="12" md="8">
-            @if (_isLoading)
+            @if (_isLoading || _isLoadingAction)
             {
                 <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                    @if (_isLoadingAction)
+                    {
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-3" />
+                    }
                     <MudStack Spacing="3">
                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                             <MudSkeleton SkeletonType="SkeletonType.Text" Width="180px" Height="32px" />
@@ -360,6 +364,7 @@
     private List<TriggerType> _actionTriggers = new();
     private bool _isNewAction = false;
     private bool _isLoading = true;
+    private bool _isLoadingAction;
     private bool _isNavigating = false;
     private bool _skipNextNavigationPrompt = false;
     private Guid? _selectedActionIdInList;
@@ -583,10 +588,25 @@
         ActionType? actionToEdit = action;
         if (action.Id != Guid.Empty)
         {
-            actionToEdit = await ActionService.GetActionByIdAsync(action.Id);
+            // Flush a loading state first so the click gives immediate feedback.
+            _isLoadingAction = true;
+            _selectedActionIdInList = action.Id;
+            await InvokeAsync(StateHasChanged);
+            await Task.Yield();
+
+            try
+            {
+                actionToEdit = await ActionService.GetActionByIdAsync(action.Id);
+            }
+            finally
+            {
+                _isLoadingAction = false;
+            }
+
             if (actionToEdit == null)
             {
                 Snackbar.Add("Unable to load action details.", Severity.Error);
+                ResetActionsListSelectionVisual();
                 return;
             }
         }
