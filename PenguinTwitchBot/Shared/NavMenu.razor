@@ -118,11 +118,15 @@
                 <MudNavLink Icon="@Icons.Material.Filled.ViewList" Href="/actions/queues" Match="NavLinkMatch.Prefix">Queues</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.History" Href="/actions/history" Match="NavLinkMatch.Prefix">History</MudNavLink>
             </MudNavGroup>
-            <MudNavGroup Icon="@Icons.Material.Filled.Group" Title="Community" Expanded="@GetGroupExpanded("community", "community/viewers", "community/connected-viewers", "community/auto-shoutouts", "community/known-bots", "blacklist")">
+            <MudNavGroup Icon="@Icons.Material.Filled.Group" Title="Community" Expanded="@GetGroupExpanded("community", "community/viewers", "community/connected-viewers", "community/auto-shoutouts", "community/known-bots", "community/quotes", "blacklist")">
                 <MudNavLink Icon="@Icons.Material.Filled.People" Href="/community/viewers" Match="NavLinkMatch.Prefix">Viewers</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.ConnectWithoutContact" Href="/community/connected-viewers" Match="NavLinkMatch.Prefix">Connected Viewers</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Campaign" Href="/community/auto-shoutouts" Match="NavLinkMatch.Prefix">Auto Shoutouts</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.FmdBad" Href="/community/known-bots" Match="NavLinkMatch.Prefix">Known Bots</MudNavLink>
+                @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.QuoteSystem))
+                {
+                    <MudNavLink Icon="@Icons.Material.Filled.FormatQuote" Href="/community/quotes" Match="NavLinkMatch.Prefix">Manage Quotes</MudNavLink>
+                }
                 <MudNavLink Icon="@Icons.Material.Filled.Block" Href="/blacklist" Match="NavLinkMatch.Prefix">Blacklist</MudNavLink>
             </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.CardGiftcard" Title="Giveaways" Expanded="@GetGroupExpanded("giveaways", "giveaway", "wheelspin")">
@@ -385,6 +389,8 @@
             CreateQuickLink("Bot Settings", "/settings/app", Icons.Material.Filled.SettingsSuggest, "Configuration", "app settings"),
             CreateQuickLink("Themes", "/settings/themes", Icons.Material.Filled.Palette, "Configuration", "theme custom color dark light mode"),
             CreateQuickLink("Integrations", "/settings/integrations", Icons.Material.Filled.Extension, "Configuration"),
+            CreateQuickLink("Websocket Queues", "/settings/websockets", Icons.Material.Filled.Cable, "Configuration", "websocket overlay queue"),
+            CreateQuickLink("Raid Rewards", "/settings/raidrewards", Icons.Material.Filled.GroupAdd, "Configuration", "points rewards raid"),
             CreateQuickLink("Media Library", "/tools/media", Icons.Material.Filled.PhotoLibrary, "Configuration", "media images uploads files"),
             CreateQuickLink("Updates & Logs", "/settings/updates", Icons.Material.Filled.Update, "Configuration", "updates logs"),
             CreateQuickLink("Backups", "/backups", Icons.Material.Filled.Backup, "Configuration"),
@@ -393,13 +399,24 @@
             CreateQuickLink("Loyalty Bonuses", "/settings/loyalty-bonuses", Icons.Material.Filled.Loyalty, "Configuration", "points rewards"),
             CreateQuickLink("Point Settings", "/settings/points", Icons.Material.Filled.Money, "Configuration", "games points rewards"),
             CreateQuickLink("Game Settings", "/settings/games", Icons.Material.Filled.Games, "Configuration", "games points rewards"),
-            CreateQuickLink("OBS Connections", "/obs/connections", Icons.Material.Filled.Videocam, "Configuration", "obs")
+            CreateQuickLink("OBS Connections", "/obs/connections", Icons.Material.Filled.Videocam, "Configuration", "obs"),
+            CreateQuickLink("Home", "/", Icons.Material.Filled.Home, "Viewer Pages", "dashboard"),
+            CreateQuickLink("Commands (Viewer Page)", "/commands", Icons.Material.Filled.ChatBubble, "Viewer Pages", "chat commands list"),
+            CreateQuickLink("Audio Commands (Viewer Page)", "/acommands", Icons.Material.Filled.AudioFile, "Viewer Pages", "sounds"),
+            CreateQuickLink("Song Requests", "/songrequests", Icons.Material.Filled.QueueMusic, "Viewer Pages", "music queue"),
+            CreateQuickLink("Leaderboards", "/leaderboards", Icons.Material.Filled.Leaderboard, "Viewer Pages", "points top")
             
         };
 
-        if(FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias))
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.QuoteSystem))
         {
-            CreateQuickLink("Aliases", "/commands/aliases", Icons.Material.Filled.SwapHoriz, "Commands", "chat commands");
+            links.Add(CreateQuickLink("Quotes", "/quotes", Icons.Material.Filled.FormatQuote, "Viewer Pages", "quote"));
+            links.Add(CreateQuickLink("Manage Quotes", "/community/quotes", Icons.Material.Filled.FormatQuote, "Community", "quote edit delete add"));
+        }
+
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias))
+        {
+            links.Add(CreateQuickLink("Aliases", "/commands/aliases", Icons.Material.Filled.SwapHoriz, "Commands", "chat commands"));
         }
 
         if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
@@ -444,6 +461,11 @@
             links.Add(CreateQuickLink("Manage Fish & Shop", "/fishing/admin", Icons.Material.Filled.List, "Fishing Admin", "fishing shop"));
             links.Add(CreateQuickLink("Manage Images", "/fishing/imageprocessing", Icons.Material.Filled.List, "Fishing Admin", "fishing images"));
             links.Add(CreateQuickLink("Balance Analysis", "/fishing/balance-analysis", Icons.Material.Filled.Analytics, "Fishing Admin", "fishing balance"));
+            links.Add(CreateQuickLink("Fishing Leaderboard", "/fishing/leaderboard", Icons.Material.Filled.Leaderboard, "Fishing", "fishing top"));
+            links.Add(CreateQuickLink("Fishing Tournaments", "/fishing/tournaments", Icons.Material.Filled.EmojiEvents, "Fishing", "fishing tournament"));
+            links.Add(CreateQuickLink("Fishing Shop", "/fishing/shop", Icons.Material.Filled.ShoppingCart, "Fishing", "fishing store"));
+            links.Add(CreateQuickLink("Fishing Inventory", "/fishing/inventory", Icons.Material.Filled.Inventory, "Fishing", "fishing items"));
+            links.Add(CreateQuickLink("Fishing Help Guide", "/fishing/help", Icons.Material.Filled.Help, "Fishing", "fishing guide"));
         }
 
         return links;

@@ -36,17 +36,17 @@
                             <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
                         </ToolBarContent>
                         <HeaderContent>
-                            <MudTh>Id</MudTh>
+                            <MudTh>#</MudTh>
                             <MudTh>Quote</MudTh>
                             <MudTh>Game</MudTh>
                             <MudTh>Created By</MudTh>
                             <MudTh>Created On</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd DataLabel="Id">
+                            <MudTd DataLabel="Number">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                     <MudIcon Icon="@Icons.Material.Filled.Tag" Size="Size.Small" Color="Color.Info" />
-                                    <MudText><strong>@context.Id</strong></MudText>
+                                    <MudText><strong>#@(context.Number > 0 ? context.Number.ToString() : context.Id.ToString())</strong></MudText>
                                 </MudStack>
                             </MudTd>
                             <MudTd DataLabel="Quote">
@@ -125,7 +125,7 @@
 
         if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.QuoteSystem))
         {
-            items = (await QuoteSystem.GetQuotes()).OrderByDescending(x => x.Id).ToList();
+            items = (await QuoteSystem.GetQuotes()).OrderByDescending(x => x.Number > 0 ? x.Number : int.MaxValue).ToList();
         }
         else
         {
@@ -159,7 +159,7 @@
             return true;
         if (element.CreatedBy.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
-        if ($"{element.Id}".Contains(searchString))
+        if ($"{element.Number}".Contains(searchString) || $"{element.Id}".Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
         if (element.Game.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;

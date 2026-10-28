@@ -24,6 +24,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
             modelBuilder.Entity<SubActionType>()
                 .UseTpcMappingStrategy();
 
+            modelBuilder.Entity<SubActionType>()
+                .Property(s => s.Id)
+                .ValueGeneratedNever();
+
             // Automatically configure each concrete SubAction type from the registry
             foreach (var metadata in SubActionRegistry.Metadata.Values)
             {

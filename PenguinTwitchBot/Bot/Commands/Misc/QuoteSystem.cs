@@ -58,7 +58,8 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await QueryVisibleQuotes(db)
+            var numbers = await GetNumbersAsync(db);
+            var quotes = await QueryVisibleQuotes(db)
                 .Select(q => new FilteredQuoteType
                 {
                     Id = q.Id,
@@ -68,6 +69,61 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                     Quote = q.Quote,
                 })
                 .ToListAsync();
+            foreach (var quote in quotes)
+                quote.Number = numbers.GetValueOrDefault(quote.Id);
+            return quotes;
+        }
+
+        /// <summary>All quotes including those from banned users, for the management page.</summary>
+        public async Task<IEnumerable<FilteredQuoteType>> GetAllQuotesForManagement()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var numbers = await GetNumbersAsync(db);
+            var quotes = await db.Quotes.Find(_ => true)
+                .Select(q => new FilteredQuoteType
+                {
+                    Id = q.Id,
+                    CreatedOn = q.CreatedOn,
+                    CreatedBy = q.CreatedBy,
+                    Game = q.Game,
+                    Quote = q.Quote,
+                })
+                .ToListAsync();
+            foreach (var quote in quotes)
+                quote.Number = numbers.GetValueOrDefault(quote.Id);
+            return quotes;
+        }
+
+        public async Task<bool> UpdateQuote(Guid id, string quoteText, string game)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var quote = await db.Quotes.Find(x => x.Id == id).FirstOrDefaultAsync();
+            if (quote == null) return false;
+            quote.Quote = quoteText;
+            quote.Game = game;
+            db.Quotes.Update(quote);
+            await db.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> DeleteQuote(Guid id)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var quote = await db.Quotes.Find(x => x.Id == id).FirstOrDefaultAsync();
+            if (quote == null) return false;
+            db.Quotes.Remove(quote);
+            await db.SaveChangesAsync();
+            return true;
+        }
+
+        // Numbers are computed over every quote so hiding a banned user's quotes doesn't renumber the rest.
+        private static async Task<Dictionary<Guid, int>> GetNumbersAsync(IUnitOfWork db)
+        {
+            var ids = await db.Quotes.Find(_ => true).Select(x => x.Id).ToListAsync();
+            return QuoteNumbering.Build(ids);
         }
 
         private IQueryable<QuoteType> QueryVisibleQuotes(IUnitOfWork db)
@@ -84,26 +140,28 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         {
             if (e.Args.Count == 0)
             {
-                await ServiceBackbone.ResponseWithMessage(e, "you forgot to include the ID you want to delete.");
+                await ServiceBackbone.ResponseWithMessage(e, "you forgot to include the quote number you want to delete.");
                 throw new SkipCooldownException();
             }
-            if (Guid.TryParse(e.Args[0], out var id))
+            if (int.TryParse(e.Args[0].TrimStart('#'), out var number))
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var quote = await db.Quotes.Find(x => x.Id == id).FirstOrDefaultAsync();
+                var numbers = await GetNumbersAsync(db);
+                var match = numbers.Where(x => x.Value == number).Select(x => (Guid?)x.Key).FirstOrDefault();
+                var quote = match == null ? null : await db.Quotes.Find(x => x.Id == match.Value).FirstOrDefaultAsync();
                 if (quote == null)
                 {
-                    await ServiceBackbone.ResponseWithMessage(e, "couldn't find that id.");
+                    await ServiceBackbone.ResponseWithMessage(e, "couldn't find that quote number.");
                     throw new SkipCooldownException();
                 }
                 db.Quotes.Remove(quote);
                 await db.SaveChangesAsync();
-                await ServiceBackbone.ResponseWithMessage(e, $"Quote #{quote.Id} removed.");
+                await ServiceBackbone.ResponseWithMessage(e, $"Quote #{number} removed.");
             }
             else
             {
-                await ServiceBackbone.ResponseWithMessage(e, "couldn't figure out which id you meant.");
+                await ServiceBackbone.ResponseWithMessage(e, "couldn't figure out which quote number you meant.");
                 throw new SkipCooldownException();
             }
         }
@@ -125,11 +183,21 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 Quote = e.Arg
             };
             quote = await AddQuote(quote);
-            await ServiceBackbone.ResponseWithMessage(e, $"Quote #{quote.Id} added.");
+            await using var numberScope = _scopeFactory.CreateAsyncScope();
+            var numbers = await GetNumbersAsync(numberScope.ServiceProvider.GetRequiredService<IUnitOfWork>());
+            await ServiceBackbone.ResponseWithMessage(e, $"Quote #{numbers.GetValueOrDefault(quote.Id)} added.");
         }
 
         public async Task<QuoteType> AddQuote(QuoteType quote)
         {
+            if (quote.Id == Guid.Empty)
+            {
+                quote.Id = Guid.CreateVersion7();
+            }
+            if (quote.CreatedOn == DateTime.MinValue)
+            {
+                quote.CreatedOn = DateTime.UtcNow;
+            }
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.Quotes.Add(quote);
@@ -140,13 +208,35 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         public async Task SayQuote(string? searchParam)
         {
             FilteredQuoteType? quote = null;
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var numbers = await GetNumbersAsync(db);
 
-            if (quote == null && string.IsNullOrWhiteSpace(searchParam?.Trim()) == false)
+            var trimmed = searchParam?.Trim();
+            if (!string.IsNullOrWhiteSpace(trimmed))
             {
-                if (Guid.TryParse(searchParam.Trim(), out Guid quoteId))
+                // 1. Try numeric lookup (e.g., "!quote 5" or "!quote #5")
+                if (int.TryParse(trimmed.TrimStart('#'), out var quoteNum))
                 {
-                    await using var scope = _scopeFactory.CreateAsyncScope();
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var matchId = numbers.Where(x => x.Value == quoteNum).Select(x => (Guid?)x.Key).FirstOrDefault();
+                    if (matchId.HasValue)
+                    {
+                        quote = await QueryVisibleQuotes(db)
+                            .Where(x => x.Id == matchId.Value)
+                            .Select(x => new FilteredQuoteType
+                            {
+                                Id = x.Id,
+                                CreatedOn = x.CreatedOn,
+                                CreatedBy = x.CreatedBy,
+                                Game = x.Game,
+                                Quote = x.Quote,
+                            })
+                            .FirstOrDefaultAsync();
+                    }
+                }
+                // 2. Try Guid lookup if provided
+                else if (Guid.TryParse(trimmed, out var quoteId))
+                {
                     quote = await QueryVisibleQuotes(db)
                         .Where(x => x.Id == quoteId)
                         .Select(x => new FilteredQuoteType
@@ -159,37 +249,29 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                         })
                         .FirstOrDefaultAsync();
                 }
-                else
+
+                // 3. Fallback to text search across quote, game, or creator
+                if (quote == null && !int.TryParse(trimmed.TrimStart('#'), out _))
                 {
-                    _logger.LogWarning("Failed to parse args: {arg}", searchParam.Replace(Environment.NewLine, ""));
+                    var search = trimmed.ToLower();
+                    quote = (await QueryVisibleQuotes(db)
+                        .Where(x => x.CreatedBy.ToLower().Contains(search) || x.Game.ToLower().Contains(search) || x.Quote.ToLower().Contains(search))
+                        .Select(x => new FilteredQuoteType
+                        {
+                            Id = x.Id,
+                            CreatedOn = x.CreatedOn,
+                            CreatedBy = x.CreatedBy,
+                            Game = x.Game,
+                            Quote = x.Quote,
+                        })
+                        .ToListAsync())
+                        .RandomElementOrDefault();
                 }
             }
 
-
-            if (quote == null && !string.IsNullOrWhiteSpace(searchParam))
+            // 4. If no search param or search had no matches, pick random visible quote
+            if (quote == null && string.IsNullOrWhiteSpace(trimmed))
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var search = searchParam.ToLower();
-                quote = (await QueryVisibleQuotes(db)
-                    .Where(x => x.CreatedBy.ToLower().Contains(search) || x.Game.ToLower().Contains(search) || x.Quote.ToLower().Contains(search))
-                    .Select(x => new FilteredQuoteType
-                    {
-                        Id = x.Id,
-                        CreatedOn = x.CreatedOn,
-                        CreatedBy = x.CreatedBy,
-                        Game = x.Game,
-                        Quote = x.Quote,
-                    })
-                    .ToListAsync())
-                    .RandomElementOrDefault();
-            }
-
-
-            if (quote == null)
-            {
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 quote = (await QueryVisibleQuotes(db)
                     .Select(x => new FilteredQuoteType
                     {
@@ -202,9 +284,12 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                     .ToListAsync())
                     .RandomElementOrDefault();
             }
+
             if (quote != null)
             {
-                await ServiceBackbone.SendChatMessage($"Quote {quote.Id}: {quote.Quote} ({quote.Game}) ({quote.CreatedOn:yyyy-MM-dd}) Created By {quote.CreatedBy}");
+                quote.Number = numbers.GetValueOrDefault(quote.Id);
+                var numDisplay = quote.Number > 0 ? $"#{quote.Number}" : quote.Id.ToString();
+                await ServiceBackbone.SendChatMessage($"Quote {numDisplay}: {quote.Quote} ({quote.Game}) ({quote.CreatedOn:yyyy-MM-dd}) Created By {quote.CreatedBy}");
             }
         }
 

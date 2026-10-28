@@ -232,6 +232,7 @@ internal class Program
             var ttsCleanup = new JobKey(IScheduledJobSettingsService.TtsCleanupJobName);
             var updatePostedSchedulekey = new JobKey(IScheduledJobSettingsService.UpdatePostedScheduleJobName);
             var validationSanityCheckKey = new JobKey(IScheduledJobSettingsService.ValidationSanityCheckJobName);
+            var refreshEmoteCacheKey = new JobKey(IScheduledJobSettingsService.RefreshEmoteCacheJobName);
 
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.TriggerBackupJob>(opts => opts.WithIdentity(backupDbJobKey).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupClipsJob>(opts => opts.WithIdentity(cleanupClipsJobKey).StoreDurably());
@@ -243,6 +244,7 @@ internal class Program
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.TtsCleanupJob>(opts => opts.WithIdentity(ttsCleanup).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(updatePostedSchedulekey).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.ValidationSanityCheckJob>(opts => opts.WithIdentity(validationSanityCheckKey).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.RefreshEmoteCacheJob>(opts => opts.WithIdentity(refreshEmoteCacheKey).StoreDurably());
         });
         builder.Services.AddQuartzHostedService(
             q => q.WaitForJobsToComplete = true
@@ -990,7 +992,9 @@ try
             [IScheduledJobSettingsService.UpdateDiscordEventsJobName] = "0 0/5 * * * ?",
             [IScheduledJobSettingsService.PostScheduleJobName] = "0 0 9 ? * MON",
             [IScheduledJobSettingsService.UpdatePostedScheduleJobName] = "0 0 10 * * ?",
-            [IScheduledJobSettingsService.ValidationSanityCheckJobName] = "0 0 5 * * ?"
+            [IScheduledJobSettingsService.ValidationSanityCheckJobName] = "0 0 5 * * ?",
+            // The emote cache lives 30 minutes, so refresh slightly more often than that.
+            [IScheduledJobSettingsService.RefreshEmoteCacheJobName] = "0 0/25 * * * ?"
         };
 
         foreach (var kvp in defaultCronByJob)
@@ -1006,6 +1010,19 @@ try
             }
 
             await UpsertCronTriggerAsync(scheduler, new JobKey(kvp.Key), new TriggerKey($"{kvp.Key}-Trigger"), enabled, cronToUse);
+        }
+
+        // Warm the emote cache shortly after startup, once Twitch services have had time to connect.
+        var emoteJobKey = new JobKey(IScheduledJobSettingsService.RefreshEmoteCacheJobName);
+        if (await settings.GetJobEnabledAsync(IScheduledJobSettingsService.RefreshEmoteCacheJobName, true))
+        {
+            var startupTriggerKey = new TriggerKey($"{IScheduledJobSettingsService.RefreshEmoteCacheJobName}-Startup");
+            await scheduler.UnscheduleJob(startupTriggerKey);
+            await scheduler.ScheduleJob(TriggerBuilder.Create()
+                .WithIdentity(startupTriggerKey)
+                .ForJob(emoteJobKey)
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(15))
+                .Build());
         }
     }
 

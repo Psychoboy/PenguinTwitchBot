@@ -43,6 +43,17 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             return FromLegacyInt(legacyId.Value);
         }
 
+        /// <summary>True when the Guid is the deterministic mapping of a legacy positive integer id.</summary>
+        public static bool TryGetLegacyInt(Guid id, out long legacyId)
+        {
+            legacyId = 0;
+            var text = id.ToString();
+            const string prefix = "00000000-0000-7000-8000-";
+            return text.StartsWith(prefix, StringComparison.Ordinal)
+                && long.TryParse(text.AsSpan(prefix.Length), System.Globalization.NumberStyles.HexNumber, null, out legacyId)
+                && legacyId > 0;
+        }
+
         public static bool TryParseGuidOrLegacyInt(string? raw, out Guid result)
         {
             if (string.IsNullOrWhiteSpace(raw))
