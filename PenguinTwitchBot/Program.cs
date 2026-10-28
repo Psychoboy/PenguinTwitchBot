@@ -313,6 +313,7 @@ internal class Program
         builder.Services.AddScoped<IUserThemeService, UserThemeService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();
+        builder.Services.AddScoped<PenguinTwitchBot.Pages.Components.SubActionReferenceNames>();
         builder.Services.AddScoped<IBackupSettingsService, BackupSettingsService>();
         builder.Services.AddSingleton<IUpdateChannelSettingsService, UpdateChannelSettingsService>();
         builder.Services.AddSingleton<IChatHistoryRetentionSettingsService, ChatHistoryRetentionSettingsService>();

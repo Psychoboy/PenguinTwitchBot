@@ -6,6 +6,7 @@
 @inject MudBlazor.ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@inject SubActionReferenceNames ReferenceNames
 
 <MudPaper Class="pa-4 mb-4">
     <MudStack Spacing="2">
@@ -51,7 +52,7 @@
                                             <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
                                         }
                                     </MudStack>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction, ReferenceNames)</MudText>
                                 </MudStack>
                             </MudStack>
                             <MudStack Row="true" Spacing="1">
@@ -101,6 +102,8 @@
     public bool IsCatchSubAction { get; set; }
 
     private SubActionType? _selectedSubAction;
+
+    protected override Task OnInitializedAsync() => ReferenceNames.LoadAsync();
 
     private async Task OpenAvailableVariablesDialog()
     {

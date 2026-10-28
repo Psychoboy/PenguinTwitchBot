@@ -6,6 +6,7 @@
 @inject IDialogService DialogService
 @inject MudBlazor.ISnackbar Snackbar
 @inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@inject SubActionReferenceNames ReferenceNames
 
 <MudDialog>
     <DialogContent>
@@ -63,7 +64,7 @@
                                                         <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Disabled</MudChip>
                                                     }
                                                 </MudStack>
-                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction)</MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction, ReferenceNames)</MudText>
                                             </MudStack>
                                         </MudStack>
                                         <MudStack Row="true" Spacing="1">
@@ -133,7 +134,7 @@
                                                         <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Disabled</MudChip>
                                                     }
                                                 </MudStack>
-                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction)</MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction, ReferenceNames)</MudText>
                                             </MudStack>
                                         </MudStack>
                                         <MudStack Row="true" Spacing="1">
@@ -184,6 +185,8 @@
 
     [Parameter]
     public bool IsCatchSubAction { get; set; }
+
+    protected override Task OnInitializedAsync() => ReferenceNames.LoadAsync();
 
     private async Task OpenAvailableVariablesDialog()
     {
