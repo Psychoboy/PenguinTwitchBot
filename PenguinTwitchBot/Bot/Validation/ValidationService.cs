@@ -729,6 +729,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Check Points",
                             Message = "SubAction 'Check Points' has missing or empty TargetUser",
+                            Detail = "CheckPoints.TargetUser",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -781,6 +782,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Set Channel Point Enabled State",
                             Message = "SubAction 'Set Channel Point Enabled State' has missing or empty reward name",
+                            Detail = "ChannelPointSetEnabledState.Text",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -799,6 +801,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Set Channel Point Paused State",
                             Message = "SubAction 'Set Channel Point Paused State' has missing or empty reward name",
+                            Detail = "ChannelPointSetPausedState.Text",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -818,6 +821,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Play Sound",
                             Message = "SubAction 'Play Sound' has missing or empty file path",
+                            Detail = "PlaySound.File",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -837,6 +841,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Alert",
                             Message = "SubAction 'Alert' has missing or empty alert text",
+                            Detail = "Alert.Text",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -852,6 +857,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Alert",
                             Message = $"SubAction 'Alert' has invalid duration: {alert.Duration} (should be between 1 and 60 seconds)",
+                            Detail = "Alert.Duration",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -867,6 +873,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Alert",
                             Message = $"SubAction 'Alert' has invalid volume: {alert.Volume} (should be between 0 and 1)",
+                            Detail = "Alert.Volume",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -886,6 +893,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "External API",
                             Message = "SubAction 'External API' has missing or empty URL",
+                            Detail = "ExternalApi.Url",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -900,6 +908,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "External API",
                             Message = $"SubAction 'External API' has potentially invalid URL format: {externalApi.Text}",
+                            Detail = "ExternalApi.Url",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -919,6 +928,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Write File",
                             Message = "SubAction 'Write File' has missing or empty file path",
+                            Detail = "WriteFile.File",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -934,6 +944,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Write File",
                             Message = "SubAction 'Write File' has empty content (will write empty string to file)",
+                            Detail = "WriteFile.Text",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -953,6 +964,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Logic: If/Else",
                             Message = "SubAction 'Logic: If/Else' has missing or empty Left Value",
+                            Detail = "LogicIfElse.LeftValue",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -968,6 +980,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Logic: If/Else",
                             Message = "SubAction 'Logic: If/Else' has missing or empty Right Value",
+                            Detail = "LogicIfElse.RightValue",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1019,6 +1032,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Delay",
                             Message = "SubAction 'Delay' has missing or empty duration",
+                            Detail = "Delay.Duration",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1033,6 +1047,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Delay",
                             Message = "SubAction 'Delay' duration contains spaces",
+                            Detail = "Delay.Duration",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1052,6 +1067,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Set Variable",
                             Message = "SubAction 'Set Variable' has missing or empty variable name",
+                            Detail = "SetVariable.VariableName",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1067,6 +1083,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Set Variable",
                             Message = "SubAction 'Set Variable' has empty value (will set variable to empty string)",
+                            Detail = "SetVariable.Value",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1076,21 +1093,6 @@ namespace PenguinTwitchBot.Bot.Validation
                 // Validate ObsSetScene subactions
                 if (subAction is ObsSetSceneType obsSetScene)
                 {
-                    if (!obsSetScene.OBSConnectionId.HasValue || obsSetScene.OBSConnectionId.Value == Guid.Empty)
-                    {
-                        result.Issues.Add(new ValidationIssue
-                        {
-                            IssueType = ValidationIssueType.SubActionInvalidConfiguration,
-                            Severity = ValidationSeverity.Error,
-                            EntityType = "SubAction",
-                            EntityId = subAction.Id,
-                            EntityName = "OBS - Set Scene",
-                            Message = "SubAction 'OBS - Set Scene' has missing or invalid OBS Connection ID",
-                            RelatedActionId = parentActionId,
-                            RelatedActionName = parentActionName
-                        });
-                    }
-
                     if (string.IsNullOrWhiteSpace(obsSetScene.SceneName))
                     {
                         result.Issues.Add(new ValidationIssue
@@ -1101,6 +1103,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "OBS - Set Scene",
                             Message = "SubAction 'OBS - Set Scene' has missing or empty scene name",
+                            Detail = "ObsSetScene.SceneName",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1110,21 +1113,6 @@ namespace PenguinTwitchBot.Bot.Validation
                 // Validate ObsSetSceneFilterState subactions
                 if (subAction is ObsSetSceneFilterStateType obsSetFilter)
                 {
-                    if (!obsSetFilter.OBSConnectionId.HasValue || obsSetFilter.OBSConnectionId.Value == Guid.Empty)
-                    {
-                        result.Issues.Add(new ValidationIssue
-                        {
-                            IssueType = ValidationIssueType.SubActionInvalidConfiguration,
-                            Severity = ValidationSeverity.Error,
-                            EntityType = "SubAction",
-                            EntityId = subAction.Id,
-                            EntityName = "OBS - Set Scene Filter State",
-                            Message = "SubAction 'OBS - Set Scene Filter State' has missing or invalid OBS Connection ID",
-                            RelatedActionId = parentActionId,
-                            RelatedActionName = parentActionName
-                        });
-                    }
-
                     if (string.IsNullOrWhiteSpace(obsSetFilter.SceneName))
                     {
                         result.Issues.Add(new ValidationIssue
@@ -1135,6 +1123,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "OBS - Set Scene Filter State",
                             Message = "SubAction 'OBS - Set Scene Filter State' has missing or empty scene name",
+                            Detail = "ObsSetSceneFilterState.SceneName",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1150,6 +1139,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "OBS - Set Scene Filter State",
                             Message = "SubAction 'OBS - Set Scene Filter State' has missing or empty filter name",
+                            Detail = "ObsSetSceneFilterState.FilterName",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });

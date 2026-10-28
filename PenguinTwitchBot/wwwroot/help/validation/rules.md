@@ -27,7 +27,7 @@ Actions with no triggers are not reported.
 | Check | Severity | What it means |
 | :--- | :--- | :--- |
 | Orphaned trigger | Error | The trigger has no action, or its action no longer exists. |
-| Missing or broken reference | Error / Warning | A command, keyword or timer trigger does not point at an existing command, keyword or timer group. |
+| Missing or broken reference | Error | A command, keyword or timer trigger does not point at an existing command, keyword or timer group. |
 | Duplicate trigger | Warning | The same trigger was added to one action more than once. |
 | Invalid Twitch event configuration | Error | The event trigger is missing its event name or has unreadable settings. |
 
