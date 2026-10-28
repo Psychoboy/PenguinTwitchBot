@@ -169,17 +169,18 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         [Fact]
         public async Task SetPointType_ShouldSavePointType()
         {
-            var pointType = new PointType { Id = 1, Name = "Points" };
+            var pointTypeId = Guid.CreateVersion7();
+            var pointType = new PointType { Id = pointTypeId, Name = "Points" };
 
             await _twitchEventsBonus.SetPointType(pointType);
 
-            await _pointsSystem.Received(1).SetPointTypeForGame("TwitchEventBonus", 1);
+            await _pointsSystem.Received(1).SetPointTypeForGame("TwitchEventBonus", pointTypeId);
         }
 
         [Fact]
         public async Task GetPointType_ShouldReturnPointType()
         {
-            var pointType = new PointType { Id = 1, Name = "Points" };
+            var pointType = new PointType { Id = Guid.CreateVersion7(), Name = "Points" };
             _pointsSystem.GetPointTypeForGame("TwitchEventBonus").Returns(pointType);
 
             var result = await _twitchEventsBonus.GetPointType();

@@ -41,7 +41,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
             context.Playlists.Add(defaultPlaylist);
             context.SaveChanges();
 
-            context.Settings.Add(new Setting { Name = "LastSongList", DataType = Setting.DataTypeEnum.Int, IntSetting = defaultPlaylist.Id!.Value });
+            context.Settings.Add(new Setting { Name = "LastSongList", DataType = Setting.DataTypeEnum.String, StringSetting = defaultPlaylist.Id.ToString() });
             context.SaveChanges();
         }
 

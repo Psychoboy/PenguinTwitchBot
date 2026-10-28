@@ -46,13 +46,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_Fish_Throws_WhenFishNotFound()
         {
-            _fishingService.GetFishTypeById(99).Returns((FishType?)null);
+            var fishId = Guid.CreateVersion7();
+            _fishingService.GetFishTypeById(fishId).Returns((FishType?)null);
             _fishingService.GetAllFishTypes().Returns(new List<FishType>());
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.Fish,
-                TargetFish = "99"
+                TargetFish = fishId.ToString()
             };
             var variables = new ConcurrentDictionary<string, string>();
 
@@ -63,20 +64,21 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_Fish_ModifiesNameAndGold()
         {
+            var fishId = Guid.CreateVersion7();
             var fish = new FishType
             {
-                Id = 1,
+                Id = fishId,
                 Name = "Old Salmon",
                 BaseGold = 50,
                 Rarity = FishRarity.Rare,
                 Enabled = true
             };
-            _fishingService.GetFishTypeById(1).Returns(fish);
+            _fishingService.GetFishTypeById(fishId).Returns(fish);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.Fish,
-                TargetFish = "1",
+                TargetFish = fishId.ToString(),
                 NewName = "Grand Salmon",
                 NewGold = "80",
                 RarityMode = FishingModifyRarityMode.KeepCurrent,
@@ -111,21 +113,22 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             };
             _fishingService.GetSettings().Returns(settings);
 
+            var fishId = Guid.CreateVersion7();
             var fish = new FishType
             {
-                Id = 5,
+                Id = fishId,
                 Name = "Trout",
                 BaseGold = 150, // Epic
                 Rarity = FishRarity.Epic,
                 Enabled = true
             };
-            _fishingService.GetFishTypeById(5).Returns(fish);
+            _fishingService.GetFishTypeById(fishId).Returns(fish);
 
             // Increase gold to 250 (which exceeds Legendary threshold of 201)
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.Fish,
-                TargetFish = "5",
+                TargetFish = fishId.ToString(),
                 NewGold = "250",
                 RarityMode = FishingModifyRarityMode.AutoFromGold
             };
@@ -142,20 +145,21 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_Fish_ManualRarity_SetsExplicitRarity()
         {
+            var fishId = Guid.CreateVersion7();
             var fish = new FishType
             {
-                Id = 2,
+                Id = fishId,
                 Name = "Bass",
                 BaseGold = 20,
                 Rarity = FishRarity.Common,
                 Enabled = true
             };
-            _fishingService.GetFishTypeById(2).Returns(fish);
+            _fishingService.GetFishTypeById(fishId).Returns(fish);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.Fish,
-                TargetFish = "2",
+                TargetFish = fishId.ToString(),
                 RarityMode = FishingModifyRarityMode.Manual,
                 ManualRarity = FishRarity.Mythical
             };
@@ -171,19 +175,20 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_Fish_EnablesDisablesTogglesState()
         {
+            var fishId = Guid.CreateVersion7();
             var fish = new FishType
             {
-                Id = 3,
+                Id = fishId,
                 Name = "Cod",
                 Enabled = true
             };
-            _fishingService.GetFishTypeById(3).Returns(fish);
+            _fishingService.GetFishTypeById(fishId).Returns(fish);
 
             // Test Disable
             var disableAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.Fish,
-                TargetFish = "3",
+                TargetFish = fishId.ToString(),
                 EnabledState = ItemEnabledStateAction.Disable
             };
             await _handler.ExecuteAsync(disableAction, new ConcurrentDictionary<string, string>());
@@ -193,7 +198,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var toggleAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.Fish,
-                TargetFish = "3",
+                TargetFish = fishId.ToString(),
                 EnabledState = ItemEnabledStateAction.Toggle
             };
             await _handler.ExecuteAsync(toggleAction, new ConcurrentDictionary<string, string>());
@@ -203,7 +208,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var enableAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.Fish,
-                TargetFish = "3",
+                TargetFish = fishId.ToString(),
                 EnabledState = ItemEnabledStateAction.Enable
             };
             await _handler.ExecuteAsync(enableAction, new ConcurrentDictionary<string, string>());
@@ -213,15 +218,16 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_Fish_ResolvesTargetByNameOrVariable()
         {
+            var fishId = Guid.CreateVersion7();
             var fish = new FishType
             {
-                Id = 7,
+                Id = fishId,
                 Name = "Rainbow Trout",
                 BaseGold = 100,
                 Rarity = FishRarity.Rare,
                 Enabled = true
             };
-            _fishingService.GetFishTypeById(Arg.Any<int>()).Returns((FishType?)null);
+            _fishingService.GetFishTypeById(Arg.Any<Guid>()).Returns((FishType?)null);
             _fishingService.GetAllFishTypes().Returns(new List<FishType> { fish });
 
             var subAction = new FishingModifyType
@@ -262,13 +268,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_Throws_WhenShopItemNotFound()
         {
-            _fishingShopService.GetShopItemById(88).Returns((FishingShopItem?)null);
+            var shopItemId = Guid.CreateVersion7();
+            _fishingShopService.GetShopItemById(shopItemId).Returns((FishingShopItem?)null);
             _fishingShopService.GetAllShopItems().Returns(new List<FishingShopItem>());
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "88"
+                TargetShopItem = shopItemId.ToString()
             };
             var variables = new ConcurrentDictionary<string, string>();
 
@@ -279,20 +286,21 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_ModifiesNameCostDescriptionAndEnabled()
         {
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 12,
+                Id = shopItemId,
                 Name = "Basic Hook",
                 Cost = 100,
                 Description = "Standard hook",
                 Enabled = true
             };
-            _fishingShopService.GetShopItemById(12).Returns(item);
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "12",
+                TargetShopItem = shopItemId.ToString(),
                 NewName = "Golden Hook",
                 NewCost = "350",
                 NewDescription = "Hook plated with gold",
@@ -309,7 +317,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             await _fishingShopService.Received(1).UpdateShopItem(item);
             Assert.Equal("ShopItem", variables["modified_target_type"]);
-            Assert.Equal("12", variables["modified_shop_item_id"]);
+            Assert.Equal(shopItemId.ToString(), variables["modified_shop_item_id"]);
             Assert.Equal("Golden Hook", variables["modified_shop_item_name"]);
             Assert.Equal("350", variables["modified_shop_item_cost"]);
             Assert.Equal("false", variables["modified_shop_item_enabled"]);
@@ -318,14 +326,15 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_ResolvesTargetByNameOrVariable()
         {
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 15,
+                Id = shopItemId,
                 Name = "Pro Rod",
                 Cost = 500,
                 Enabled = true
             };
-            _fishingShopService.GetShopItemById(Arg.Any<int>()).Returns((FishingShopItem?)null);
+            _fishingShopService.GetShopItemById(Arg.Any<Guid>()).Returns((FishingShopItem?)null);
             _fishingShopService.GetAllShopItems().Returns(new List<FishingShopItem> { item });
 
             var subAction = new FishingModifyType
@@ -351,21 +360,22 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_ModifiesBoostTypeAndAmount()
         {
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 18,
+                Id = shopItemId,
                 Name = "Lucky Charm",
                 Cost = 200,
                 BoostType = FishingBoostType.GeneralRarityBoost,
                 BoostAmount = 0.05,
                 Enabled = true
             };
-            _fishingShopService.GetShopItemById(18).Returns(item);
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "18",
+                TargetShopItem = shopItemId.ToString(),
                 NewBoostType = FishingBoostType.StarBoost,
                 NewBoostAmount = "0.15"
             };
@@ -383,23 +393,25 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_ModifiesSpecificFishAndCategoryBoosts()
         {
-            var fish = new FishType { Id = 8, Name = "Salmon" };
+            var fishId = Guid.CreateVersion7();
+            var fish = new FishType { Id = fishId, Name = "Salmon" };
             _fishingService.GetAllFishTypes().Returns(new List<FishType> { fish });
 
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 25,
+                Id = shopItemId,
                 Name = "Salmon Bait",
                 BoostType = FishingBoostType.SpecificFishBoost,
                 TargetFishTypeId = null,
                 TargetCategory = null
             };
-            _fishingShopService.GetShopItemById(25).Returns(item);
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "25",
+                TargetShopItem = shopItemId.ToString(),
                 NewTargetFish = "Salmon",
                 NewTargetCategory = "Freshwater"
             };
@@ -407,7 +419,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             await _handler.ExecuteAsync(subAction, variables);
 
-            Assert.Equal(8, item.TargetFishTypeId);
+            Assert.Equal(fishId, item.TargetFishTypeId);
             Assert.Equal("Freshwater", item.TargetCategory);
             await _fishingShopService.Received(1).UpdateShopItem(item);
         }
@@ -415,20 +427,21 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_ModifiesEquipmentSlotMaxUsesAndAdminOnly()
         {
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 30,
+                Id = shopItemId,
                 Name = "Mythic Reel",
                 EquipmentSlot = null,
                 MaxUses = null,
                 IsAdminOnly = false
             };
-            _fishingShopService.GetShopItemById(30).Returns(item);
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "30",
+                TargetShopItem = shopItemId.ToString(),
                 NewEquipmentSlot = nameof(EquipmentSlot.Reel),
                 NewMaxUses = "25",
                 AdminOnlyState = ItemEnabledStateAction.Enable
@@ -449,20 +462,21 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_ClearsEquipmentSlotAndSetsUnlimitedUses()
         {
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 31,
+                Id = shopItemId,
                 Name = "Special Lure",
                 EquipmentSlot = EquipmentSlot.Lure,
                 MaxUses = 5,
                 IsAdminOnly = true
             };
-            _fishingShopService.GetShopItemById(31).Returns(item);
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "31",
+                TargetShopItem = shopItemId.ToString(),
                 NewEquipmentSlot = "None",
                 NewMaxUses = "unlimited",
                 AdminOnlyState = ItemEnabledStateAction.Disable
@@ -483,9 +497,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_UpdatesSecondaryAndTertiaryBoosts()
         {
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 32,
+                Id = shopItemId,
                 Name = "Tackle Box",
                 BoostType = FishingBoostType.GeneralRarityBoost,
                 BoostAmount = 0.05,
@@ -494,12 +509,12 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
                 BoostType3 = null,
                 BoostAmount3 = null
             };
-            _fishingShopService.GetShopItemById(32).Returns(item);
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "32",
+                TargetShopItem = shopItemId.ToString(),
                 NewBoostType2 = nameof(FishingBoostType.WeightBoost),
                 NewBoostAmount2 = "0.15",
                 NewBoostType3 = nameof(FishingBoostType.StarBoost),
@@ -523,9 +538,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_RemovesSecondaryAndTertiaryBoosts()
         {
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 33,
+                Id = shopItemId,
                 Name = "Grand Tackle Box",
                 BoostType = FishingBoostType.GeneralRarityBoost,
                 BoostAmount = 0.10,
@@ -534,12 +550,12 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
                 BoostType3 = FishingBoostType.StarBoost,
                 BoostAmount3 = 0.05
             };
-            _fishingShopService.GetShopItemById(33).Returns(item);
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "33",
+                TargetShopItem = shopItemId.ToString(),
                 NewBoostType2 = "None",
                 NewBoostType3 = "None"
             };
@@ -561,13 +577,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_Fish_Throws_WhenGoldInvalidNumeric()
         {
-            var fish = new FishType { Id = 1, Name = "Bass", BaseGold = 10 };
-            _fishingService.GetFishTypeById(1).Returns(fish);
+            var fishId = Guid.CreateVersion7();
+            var fish = new FishType { Id = fishId, Name = "Bass", BaseGold = 10 };
+            _fishingService.GetFishTypeById(fishId).Returns(fish);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.Fish,
-                TargetFish = "1",
+                TargetFish = fishId.ToString(),
                 NewGold = "invalid_number"
             };
 
@@ -578,13 +595,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_Throws_WhenCostInvalidNumeric()
         {
-            var item = new FishingShopItem { Id = 1, Name = "Hook", Cost = 50 };
-            _fishingShopService.GetShopItemById(1).Returns(item);
+            var shopItemId = Guid.CreateVersion7();
+            var item = new FishingShopItem { Id = shopItemId, Name = "Hook", Cost = 50 };
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "1",
+                TargetShopItem = shopItemId.ToString(),
                 NewCost = "abc"
             };
 
@@ -595,13 +613,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_Throws_WhenBoostAmountInvalidNumeric()
         {
-            var item = new FishingShopItem { Id = 1, Name = "Hook", BoostAmount = 0.05 };
-            _fishingShopService.GetShopItemById(1).Returns(item);
+            var shopItemId = Guid.CreateVersion7();
+            var item = new FishingShopItem { Id = shopItemId, Name = "Hook", BoostAmount = 0.05 };
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "1",
+                TargetShopItem = shopItemId.ToString(),
                 NewBoostAmount = "invalid_boost"
             };
 
@@ -612,13 +631,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_Throws_WhenBoostAmount2InvalidNumeric()
         {
-            var item = new FishingShopItem { Id = 1, Name = "Hook", BoostAmount = 0.05 };
-            _fishingShopService.GetShopItemById(1).Returns(item);
+            var shopItemId = Guid.CreateVersion7();
+            var item = new FishingShopItem { Id = shopItemId, Name = "Hook", BoostAmount = 0.05 };
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "1",
+                TargetShopItem = shopItemId.ToString(),
                 NewBoostAmount2 = "not_valid"
             };
 
@@ -629,13 +649,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_Throws_WhenBoostAmount3InvalidNumeric()
         {
-            var item = new FishingShopItem { Id = 1, Name = "Hook", BoostAmount = 0.05 };
-            _fishingShopService.GetShopItemById(1).Returns(item);
+            var shopItemId = Guid.CreateVersion7();
+            var item = new FishingShopItem { Id = shopItemId, Name = "Hook", BoostAmount = 0.05 };
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "1",
+                TargetShopItem = shopItemId.ToString(),
                 NewBoostAmount3 = "not_valid"
             };
 
@@ -646,15 +667,16 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_Throws_WhenTargetFishNotFound_NumericId()
         {
-            var item = new FishingShopItem { Id = 1, Name = "Special Lure" };
-            _fishingShopService.GetShopItemById(1).Returns(item);
-            _fishingService.GetAllFishTypes().Returns(new List<FishType> { new() { Id = 10, Name = "Trout" } });
+            var shopItemId = Guid.CreateVersion7();
+            var item = new FishingShopItem { Id = shopItemId, Name = "Special Lure" };
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
+            _fishingService.GetAllFishTypes().Returns(new List<FishType> { new() { Id = Guid.CreateVersion7(), Name = "Trout" } });
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "1",
-                NewTargetFish = "999"
+                TargetShopItem = shopItemId.ToString(),
+                NewTargetFish = Guid.CreateVersion7().ToString()
             };
 
             var ex = await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
@@ -665,14 +687,15 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_Throws_WhenTargetFishNotFound_Name()
         {
-            var item = new FishingShopItem { Id = 1, Name = "Special Lure" };
-            _fishingShopService.GetShopItemById(1).Returns(item);
-            _fishingService.GetAllFishTypes().Returns(new List<FishType> { new() { Id = 10, Name = "Trout" } });
+            var shopItemId = Guid.CreateVersion7();
+            var item = new FishingShopItem { Id = shopItemId, Name = "Special Lure" };
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
+            _fishingService.GetAllFishTypes().Returns(new List<FishType> { new() { Id = Guid.CreateVersion7(), Name = "Trout" } });
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "1",
+                TargetShopItem = shopItemId.ToString(),
                 NewTargetFish = "NonExistentFish"
             };
 
@@ -684,19 +707,20 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_Throws_WhenSpecificFishBoostMissingTargetFish()
         {
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 1,
+                Id = shopItemId,
                 Name = "Special Lure",
                 BoostType = FishingBoostType.SpecificFishBoost,
                 TargetFishTypeId = null
             };
-            _fishingShopService.GetShopItemById(1).Returns(item);
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "1"
+                TargetShopItem = shopItemId.ToString()
             };
 
             var ex = await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
@@ -707,19 +731,20 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ExecuteAsync_ShopItem_Throws_WhenSpecificCategoryBoostMissingTargetCategory()
         {
+            var shopItemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 1,
+                Id = shopItemId,
                 Name = "Ocean Lure",
                 BoostType = FishingBoostType.SpecificCategoryBoost,
                 TargetCategory = null
             };
-            _fishingShopService.GetShopItemById(1).Returns(item);
+            _fishingShopService.GetShopItemById(shopItemId).Returns(item);
 
             var subAction = new FishingModifyType
             {
                 TargetType = FishingModifyTargetType.ShopItem,
-                TargetShopItem = "1"
+                TargetShopItem = shopItemId.ToString()
             };
 
             var ex = await Assert.ThrowsAsync<SubActionUserFacingException>(() =>

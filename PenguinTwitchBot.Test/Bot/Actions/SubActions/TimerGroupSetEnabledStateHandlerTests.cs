@@ -13,17 +13,18 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task ValidType_SetsTimerGroupEnabled()
         {
+            var timerGroupId = Guid.CreateVersion7();
             var timerService = Substitute.For<IAutoTimers>();
-            timerService.GetTimerGroupAsync(Arg.Any<int>()).Returns(new TimerGroup { Id = 1, Name = "Ad Timers", Active = false });
-            timerService.UpdateNextRun(Arg.Any<TimerGroup>()).Returns(new TimerGroup { Id = 1, Name = "Ad Timers", Active = true });
+            timerService.GetTimerGroupAsync(timerGroupId).Returns(new TimerGroup { Id = timerGroupId, Name = "Ad Timers", Active = false });
+            timerService.UpdateNextRun(Arg.Any<TimerGroup>()).Returns(new TimerGroup { Id = timerGroupId, Name = "Ad Timers", Active = true });
             var handler = new TimerGroupSetEnabledStateHandler(timerService);
 
-            var type = new TimerGroupSetEnabledStateType { TimerGroupId = 1, IsEnabled = true };
+            var type = new TimerGroupSetEnabledStateType { TimerGroupId = timerGroupId, IsEnabled = true };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
-            await timerService.Received(1).GetTimerGroupAsync(1);
+            await timerService.Received(1).GetTimerGroupAsync(timerGroupId);
             await timerService.Received(1).UpdateNextRun(Arg.Any<TimerGroup>());
             await timerService.Received(1).UpdateTimerGroup(Arg.Is<TimerGroup>(t => t.Active == true));
         }

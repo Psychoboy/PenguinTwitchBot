@@ -16,7 +16,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var ttsService = Substitute.For<ITTSService>();
             var handler = new TtsHandler(ttsService);
 
-            var voice = new RegisteredVoice { Id = 1, Name = "Test Voice" };
+            var voice = new RegisteredVoice { Id = Guid.CreateVersion7(), Name = "Test Voice" };
             ttsService.GetRandomVoice().Returns(voice);
 
             var type = new TtsType { Text = "Hello World" };
@@ -94,7 +94,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var moderatorFilter = Substitute.For<PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService>();
             moderatorFilter.IsPermittedAsync("clean message").Returns(true);
 
-            var voice = new RegisteredVoice { Id = 1, Name = "Test Voice" };
+            var voice = new RegisteredVoice { Id = Guid.CreateVersion7(), Name = "Test Voice" };
             ttsService.GetRandomVoice().Returns(voice);
 
             var handler = new TtsHandler(ttsService, moderatorFilter);

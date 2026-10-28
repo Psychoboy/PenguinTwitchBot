@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -40,6 +40,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 name: "IX_FishingTournamentEligibleCategory_FishingTournamentId",
                 table: "FishingTournamentEligibleCategories",
                 newName: "IX_FishingTournamentEligibleCategories_FishingTournamentId");
+
+            MigrateAllIdsToUuidV7Helper.ExecutePreMigration(migrationBuilder);
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",

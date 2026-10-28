@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
 
@@ -11,7 +12,8 @@ public sealed class LeaderboardsLayoutService(IServiceScopeFactory scopeFactory)
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
-        WriteIndented = true
+        WriteIndented = true,
+        Converters = { new LegacyIntCompatibleNullableGuidJsonConverter() }
     };
 
     public async Task<LeaderboardsLayoutConfig?> GetLayoutAsync()

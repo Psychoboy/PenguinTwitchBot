@@ -116,8 +116,10 @@ namespace PenguinTwitchBot.Test.Bot.Ai
                 LastSeen = DateTime.UtcNow.AddMinutes(-10)
             };
 
+            var pointTypeId = Guid.CreateVersion7();
             _viewerFeature.GetViewerByUserName("alice").Returns(viewer);
-            _pointsSystem.GetUserPointsByUserId("user-123", 1).Returns(new UserPoints { Points = 5420 });
+            _pointsSystem.GetPointTypes().Returns([new PointType { Id = pointTypeId, Name = "Points" }]);
+            _pointsSystem.GetUserPointsByUserId("user-123", pointTypeId).Returns(new UserPoints { Points = 5420 });
 
             _unitOfWork.ViewerMessageCounts.GetUserMessageCountWithRankByUsername("alice")
                 .Returns(new ViewerMessageCountWithRank { Username = "alice", Ranking = 2, MessageCount = 1530 });

@@ -48,11 +48,11 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             };
 
             variableResolver.ResolveVariablesAsync(
-                Arg.Any<int?>(),
+                Arg.Any<Guid?>(),
                 Arg.Any<IEnumerable<PenguinTwitchBot.Database.Bot.Models.Actions.Triggers.TriggerType>?>(),
                 Arg.Any<IEnumerable<PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType>?>(),
                 Arg.Any<bool>(),
-                Arg.Any<HashSet<int>?>())
+                Arg.Any<HashSet<Guid>?>())
                 .Returns(Task.FromResult(variablesToReturn));
 
             _ctx.Services.AddSingleton(variableResolver);
@@ -67,7 +67,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var parameters = new DialogParameters<AvailableVariablesDialog>
             {
-                { x => x.ActionId, 1 },
+                { x => x.ActionId, Guid.CreateVersion7() },
                 { x => x.ActionName, "Test Action" }
             };
 

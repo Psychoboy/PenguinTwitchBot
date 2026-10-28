@@ -43,14 +43,22 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             GC.SuppressFinalize(this);
         }
 
+        private Guid _pointTypeId;
+        private Guid _fishTypeId;
+        private Guid _tournamentId;
+
         private async Task SeedAsync(FishingTournamentStatus status, params FishingTournamentRewardRule[] rules)
         {
-            _context.PointTypes.Add(new PointType { Id = 1, Name = "Coins" });
-            _context.FishTypes.Add(new FishType { Id = 1, Name = "Carp" });
+            _pointTypeId = Guid.CreateVersion7();
+            _fishTypeId = Guid.CreateVersion7();
+            _tournamentId = Guid.CreateVersion7();
+
+            _context.PointTypes.Add(new PointType { Id = _pointTypeId, Name = "Coins" });
+            _context.FishTypes.Add(new FishType { Id = _fishTypeId, Name = "Carp" });
 
             var tournament = new FishingTournament
             {
-                Id = 1,
+                Id = _tournamentId,
                 Name = "Reward Test",
                 Status = status,
                 PrimaryScoreCategory = FishingTournamentScoreCategory.Largest,
@@ -60,6 +68,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             foreach (var rule in rules)
             {
+                rule.PointTypeId = _pointTypeId;
                 tournament.RewardRules.Add(rule);
             }
 
@@ -68,10 +77,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             // Heaviest: bigfish (10kg). Most catches: smallfry (3 catches).
             var catches = new List<FishCatch>
             {
-                new() { Id = 1, UserId = "u1", Username = "bigfish", FishTypeId = 1, Weight = 10, GoldEarned = 5, CaughtAt = DateTime.UtcNow.AddMinutes(-30) },
-                new() { Id = 2, UserId = "u2", Username = "smallfry", FishTypeId = 1, Weight = 2, GoldEarned = 50, CaughtAt = DateTime.UtcNow.AddMinutes(-29) },
-                new() { Id = 3, UserId = "u2", Username = "smallfry", FishTypeId = 1, Weight = 3, GoldEarned = 10, CaughtAt = DateTime.UtcNow.AddMinutes(-28) },
-                new() { Id = 4, UserId = "u2", Username = "smallfry", FishTypeId = 1, Weight = 1, GoldEarned = 10, CaughtAt = DateTime.UtcNow.AddMinutes(-27) }
+                new() { Id = Guid.CreateVersion7(), UserId = "u1", Username = "bigfish", FishTypeId = _fishTypeId, Weight = 10, GoldEarned = 5, CaughtAt = DateTime.UtcNow.AddMinutes(-30) },
+                new() { Id = Guid.CreateVersion7(), UserId = "u2", Username = "smallfry", FishTypeId = _fishTypeId, Weight = 2, GoldEarned = 50, CaughtAt = DateTime.UtcNow.AddMinutes(-29) },
+                new() { Id = Guid.CreateVersion7(), UserId = "u2", Username = "smallfry", FishTypeId = _fishTypeId, Weight = 3, GoldEarned = 10, CaughtAt = DateTime.UtcNow.AddMinutes(-28) },
+                new() { Id = Guid.CreateVersion7(), UserId = "u2", Username = "smallfry", FishTypeId = _fishTypeId, Weight = 1, GoldEarned = 10, CaughtAt = DateTime.UtcNow.AddMinutes(-27) }
             };
 
             _context.FishCatches.AddRange(catches);
@@ -79,7 +88,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             {
                 _context.FishingTournamentCatches.Add(new FishingTournamentCatch
                 {
-                    FishingTournamentId = 1,
+                    Id = Guid.CreateVersion7(),
+                    FishingTournamentId = _tournamentId,
                     FishCatchId = fishCatch.Id,
                     UserId = fishCatch.UserId,
                     Username = fishCatch.Username,
@@ -97,37 +107,34 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ReturnsLeaderPerRule_UsingEachRulesOwnScoreCategory()
         {
-            await SeedAsync(
-                FishingTournamentStatus.Active,
-                new FishingTournamentRewardRule { Id = 10, Placement = 1, ScoreCategory = FishingTournamentScoreCategory.Largest, PointTypeId = 1, Points = 100 },
-                new FishingTournamentRewardRule { Id = 11, Placement = 1, ScoreCategory = FishingTournamentScoreCategory.MostCatches, PointTypeId = 1, Points = 50 });
+            var rule1 = new FishingTournamentRewardRule { Id = Guid.CreateVersion7(), Placement = 1, ScoreCategory = FishingTournamentScoreCategory.Largest, Points = 100 };
+            var rule2 = new FishingTournamentRewardRule { Id = Guid.CreateVersion7(), Placement = 1, ScoreCategory = FishingTournamentScoreCategory.MostCatches, Points = 50 };
+            await SeedAsync(FishingTournamentStatus.Active, rule1, rule2);
 
-            var result = await _fishingService.GetFishingTournamentRewardStandings(1);
+            var result = await _fishingService.GetFishingTournamentRewardStandings(_tournamentId);
 
-            Assert.Equal("bigfish", result[10].Username);
-            Assert.Equal("smallfry", result[11].Username);
+            Assert.Equal("bigfish", result[rule1.Id].Username);
+            Assert.Equal("smallfry", result[rule2.Id].Username);
         }
 
         [Fact]
         public async Task SecondPlaceRule_ReturnsRunnerUp()
         {
-            await SeedAsync(
-                FishingTournamentStatus.Active,
-                new FishingTournamentRewardRule { Id = 20, Placement = 2, ScoreCategory = FishingTournamentScoreCategory.Largest, PointTypeId = 1, Points = 25 });
+            var rule = new FishingTournamentRewardRule { Id = Guid.CreateVersion7(), Placement = 2, ScoreCategory = FishingTournamentScoreCategory.Largest, Points = 25 };
+            await SeedAsync(FishingTournamentStatus.Active, rule);
 
-            var result = await _fishingService.GetFishingTournamentRewardStandings(1);
+            var result = await _fishingService.GetFishingTournamentRewardStandings(_tournamentId);
 
-            Assert.Equal("smallfry", result[20].Username);
+            Assert.Equal("smallfry", result[rule.Id].Username);
         }
 
         [Fact]
         public async Task DisabledRules_AreExcluded()
         {
-            await SeedAsync(
-                FishingTournamentStatus.Active,
-                new FishingTournamentRewardRule { Id = 30, Placement = 1, ScoreCategory = FishingTournamentScoreCategory.Largest, PointTypeId = 1, Points = 100, Enabled = false });
+            var rule = new FishingTournamentRewardRule { Id = Guid.CreateVersion7(), Placement = 1, ScoreCategory = FishingTournamentScoreCategory.Largest, Points = 100, Enabled = false };
+            await SeedAsync(FishingTournamentStatus.Active, rule);
 
-            var result = await _fishingService.GetFishingTournamentRewardStandings(1);
+            var result = await _fishingService.GetFishingTournamentRewardStandings(_tournamentId);
 
             Assert.Empty(result);
         }
@@ -135,44 +142,45 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task CompletedTournament_StillResolvesWinners()
         {
-            await SeedAsync(
-                FishingTournamentStatus.Completed,
-                new FishingTournamentRewardRule { Id = 40, Placement = 1, ScoreCategory = FishingTournamentScoreCategory.Largest, PointTypeId = 1, Points = 100 });
+            var rule = new FishingTournamentRewardRule { Id = Guid.CreateVersion7(), Placement = 1, ScoreCategory = FishingTournamentScoreCategory.Largest, Points = 100 };
+            await SeedAsync(FishingTournamentStatus.Completed, rule);
 
-            var result = await _fishingService.GetFishingTournamentRewardStandings(1);
+            var result = await _fishingService.GetFishingTournamentRewardStandings(_tournamentId);
 
-            Assert.Equal("bigfish", result[40].Username);
+            Assert.Equal("bigfish", result[rule.Id].Username);
         }
 
         [Fact]
         public async Task PlacementDeeperThanEntrantCount_FallsBackToLastEntrant()
         {
-            await SeedAsync(
-                FishingTournamentStatus.Active,
-                new FishingTournamentRewardRule { Id = 50, Placement = 5, ScoreCategory = FishingTournamentScoreCategory.Largest, PointTypeId = 1, Points = 10 });
+            var rule = new FishingTournamentRewardRule { Id = Guid.CreateVersion7(), Placement = 5, ScoreCategory = FishingTournamentScoreCategory.Largest, Points = 10 };
+            await SeedAsync(FishingTournamentStatus.Active, rule);
 
-            var result = await _fishingService.GetFishingTournamentRewardStandings(1);
+            var result = await _fishingService.GetFishingTournamentRewardStandings(_tournamentId);
 
             // Matches settlement's Take(Placement).LastOrDefault(): with fewer entrants than the
             // placement, the lowest-ranked entrant holds the reward.
-            Assert.Equal("smallfry", result[50].Username);
+            Assert.Equal("smallfry", result[rule.Id].Username);
         }
 
         [Fact]
         public async Task NoCatches_ReturnsEmpty()
         {
-            _context.PointTypes.Add(new PointType { Id = 1, Name = "Coins" });
+            var pointTypeId = Guid.CreateVersion7();
+            var tournamentId = Guid.CreateVersion7();
+            var ruleId = Guid.CreateVersion7();
+            _context.PointTypes.Add(new PointType { Id = pointTypeId, Name = "Coins" });
             _context.FishingTournaments.Add(new FishingTournament
             {
-                Id = 1,
+                Id = tournamentId,
                 Name = "Empty",
                 Status = FishingTournamentStatus.Active,
                 StartsAtUtc = DateTime.UtcNow.AddHours(-1),
-                RewardRules = { new FishingTournamentRewardRule { Id = 60, Placement = 1, PointTypeId = 1, Points = 10 } }
+                RewardRules = { new FishingTournamentRewardRule { Id = ruleId, Placement = 1, PointTypeId = pointTypeId, Points = 10 } }
             });
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.GetFishingTournamentRewardStandings(1);
+            var result = await _fishingService.GetFishingTournamentRewardStandings(tournamentId);
 
             Assert.Empty(result);
         }

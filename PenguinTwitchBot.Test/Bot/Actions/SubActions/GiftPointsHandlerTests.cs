@@ -21,21 +21,22 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             var handler = new GiftPointsHandler(logger, pointsSystem, viewerFeature);
 
-            var pointType = new PointType { Id = 1, Name = "Gold" };
+            var pointTypeId = Guid.CreateVersion7();
+            var pointType = new PointType { Id = pointTypeId, Name = "Gold" };
             var fromViewer = new Viewer { UserId = "1", Username = "fromuser" };
             var toViewer = new Viewer { UserId = "2", Username = "touser" };
 
             pointsSystem.GetPointTypeByName("Gold").Returns(pointType);
             viewerFeature.GetViewerByUserName("fromuser").Returns(fromViewer);
             viewerFeature.GetViewerByUserName("touser").Returns(toViewer);
-            pointsSystem.RemovePointsFromUserByUserId("1", 1, 100).Returns(true);
+            pointsSystem.RemovePointsFromUserByUserId("1", pointTypeId, 100).Returns(true);
 
             var type = new GiftPointsType { Text = "Gold", Amount = "100", FromUsername = "fromuser", TargetName = "touser" };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
-            await pointsSystem.Received(1).AddPointsByUserId("2", 1, 100);
+            await pointsSystem.Received(1).AddPointsByUserId("2", pointTypeId, 100);
         }
 
         [Fact]
@@ -60,7 +61,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var viewerFeature = Substitute.For<IViewerFeature>();
             var handler = new GiftPointsHandler(logger, pointsSystem, viewerFeature);
 
-            var pointType = new PointType { Id = 1, Name = "Gold" };
+            var pointType = new PointType { Id = Guid.CreateVersion7(), Name = "Gold" };
             pointsSystem.GetPointTypeByName("Gold").Returns(pointType);
 
             var type = new GiftPointsType { Text = "Gold", Amount = "100", FromUsername = "sameuser", TargetName = "sameuser" };

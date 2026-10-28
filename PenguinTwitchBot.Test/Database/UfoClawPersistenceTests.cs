@@ -25,7 +25,7 @@ public class UfoClawPersistenceTests
         {
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             await context.Database.MigrateAsync();
-            context.Add(new UfoClawControlType { Id = 900000, Operation = "show", PrizeSetId = "set" });
+            context.Add(new UfoClawControlType { Id = Guid.CreateVersion7(), Operation = "show", PrizeSetId = "set" });
             await context.SaveChangesAsync();
         }
         var store = new UfoClawStore(services.GetRequiredService<IServiceScopeFactory>());

@@ -25,6 +25,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 
 public class StarshipExpeditionServiceTests
 {
+    private static readonly Guid SalvagePointTypeId = Guid.CreateVersion7();
     private readonly ITestOutputHelper _output;
 
     public StarshipExpeditionServiceTests(ITestOutputHelper output) => _output = output;
@@ -32,14 +33,16 @@ public class StarshipExpeditionServiceTests
     [Fact]
     public void SharedOutcomeVariables_PreserveAggregateValuesWithoutScopeSpecificFields()
     {
+        var pointTypeId1 = Guid.CreateVersion7();
+        var pointTypeId2 = Guid.CreateVersion7();
         var expeditionEvent = new StarshipExpeditionEventSnapshot
         {
             EventType = "custom-cache", Title = "Cache", Subject = "the Archive", OutcomeResult = "Success", OutcomeRarity = "Rare",
             OutcomeStory = "The crew recovered the cache.", Path = [new() { Label = "Scan" }, new() { Label = "Recover" }],
             RewardOutcomes =
             [
-                new() { UserId = "pilot", PointTypeId = 2, PointTypeName = "Credits", EarnedAmount = 10 },
-                new() { UserId = "pilot", PointTypeId = 3, PointTypeName = "Tokens", EarnedAmount = 5, LostAmount = 2 }
+                new() { UserId = "pilot", PointTypeId = pointTypeId1, PointTypeName = "Credits", EarnedAmount = 10 },
+                new() { UserId = "pilot", PointTypeId = pointTypeId2, PointTypeName = "Tokens", EarnedAmount = 5, LostAmount = 2 }
             ]
         };
         var variables = StarshipEventVariables.ForOutcome(expeditionEvent);
@@ -65,14 +68,15 @@ public class StarshipExpeditionServiceTests
     [Fact]
     public void TtsOutcomeMessage_UsesShortSentencesAveragesAndSpokenResourceChanges()
     {
+        var pointTypeId = Guid.CreateVersion7();
         var expeditionEvent = new StarshipExpeditionEventSnapshot
         {
             Title = "Derelict Salvage", OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess, OutcomeRarity = "Rare",
             OutcomeStory = "A long story that should not be read aloud.",
             RewardOutcomes =
             [
-                new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = 1000 },
-                new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = 1500 }
+                new() { UserId = "pilot", PointTypeId = pointTypeId, PointTypeName = "Credits", EarnedAmount = 1000 },
+                new() { UserId = "medic", PointTypeId = pointTypeId, PointTypeName = "Credits", EarnedAmount = 1500 }
             ],
             ShipContext = new() { HullBefore = 80, HullAfter = 65, HullMaximum = 100, SuppliesBefore = 50, SuppliesAfter = 40 }
         };
@@ -107,14 +111,15 @@ public class StarshipExpeditionServiceTests
     [Fact]
     public void TtsVoyageMessage_DistinguishesPaidAndPendingBanking()
     {
+        var pointTypeId = Guid.CreateVersion7();
         var snapshot = new StarshipExpeditionSnapshot
         {
             Status = StarshipExpeditionStatus.Returned,
             Crew = [new() { UserId = "pilot" }, new() { UserId = "medic" }],
             BankedPayouts =
             [
-                new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", Amount = 1000, IsPaid = true },
-                new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", Amount = 9000, IsPaid = false }
+                new() { UserId = "pilot", PointTypeId = pointTypeId, PointTypeName = "Credits", Amount = 1000, IsPaid = true },
+                new() { UserId = "medic", PointTypeId = pointTypeId, PointTypeName = "Credits", Amount = 9000, IsPaid = false }
             ]
         };
 
@@ -308,14 +313,15 @@ public class StarshipExpeditionServiceTests
     [Fact]
     public void RewardResolver_AwardsLongMaxValueWithoutOverflow()
     {
+        var pointTypeId = Guid.CreateVersion7();
         var member = new StarshipCrewMemberSnapshot { UserId = "pilot", UserName = "pilot", DisplayName = "Pilot" };
         var snapshot = new StarshipExpeditionSnapshot { Seed = 17, Crew = [member] };
         var profile = new StarshipRewardProfile
         {
             EventType = "SignalDetected",
             Enabled = true,
-            Tiers = [new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 4, Minimum = long.MaxValue, Maximum = long.MaxValue }] }],
-            Caps = [new() { PointTypeId = 4, MaximumPerEvent = long.MaxValue, MaximumUnbankedPerVoyage = long.MaxValue }]
+            Tiers = [new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = pointTypeId, Minimum = long.MaxValue, Maximum = long.MaxValue }] }],
+            Caps = [new() { PointTypeId = pointTypeId, MaximumPerEvent = long.MaxValue, MaximumUnbankedPerVoyage = long.MaxValue }]
         };
         var resolvedEvent = new StarshipExpeditionEventSnapshot
         {
@@ -926,6 +932,7 @@ public class StarshipExpeditionServiceTests
     public async Task ResolveEvent_SnapshotsEligibilityAndAwardsDeterministicCappedCrewBalance()
     {
         var stateStore = new InMemoryStateStore();
+        var routePointTypeId = Guid.CreateVersion7();
         var settingsStore = new InMemorySettingsStore(new StarshipExpeditionSettings
         {
             RewardProfiles =
@@ -934,7 +941,7 @@ public class StarshipExpeditionServiceTests
                 {
                     EventType = "RouteChoice",
                     Enabled = true,
-                    PointTypeId = 12,
+                    PointTypeId = routePointTypeId,
                     SuccessChancePercent = 100,
                     CommonWeightPercent = 100,
                     UncommonWeightPercent = 0,
@@ -952,7 +959,7 @@ public class StarshipExpeditionServiceTests
         viewerFeature.Setup(viewers => viewers.IsSubscriber("engineer")).ReturnsAsync(false);
         viewerFeature.Setup(viewers => viewers.IsSubscriber("subscriber")).ReturnsAsync(true);
         var points = new Mock<IPointsSystem>();
-        points.Setup(system => system.GetPointTypeById(12)).ReturnsAsync(new PointType { Id = 12, Name = "Salvage Credits" });
+        points.Setup(system => system.GetPointTypeById(routePointTypeId)).ReturnsAsync(new PointType { Id = routePointTypeId, Name = "Salvage Credits" });
         var triggerService = new Mock<IDefaultCommandTriggerService>();
         triggerService.Setup(trigger => trigger.TriggerDefaultCommandEventAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
@@ -991,11 +998,12 @@ public class StarshipExpeditionServiceTests
     public async Task ResolveMultipleEvents_EnforcesPerVoyageUnbankedCap()
     {
         var eventTypes = new[] { "RouteChoice", "SignalDetected", "SalvageSite", "Hazard" };
+        var pointTypeId = Guid.CreateVersion7();
         var rewardProfiles = eventTypes.Select(eventType => new StarshipRewardProfile
         {
             EventType = eventType,
             Enabled = true,
-            PointTypeId = 4,
+            PointTypeId = pointTypeId,
             SuccessChancePercent = 100,
             CommonWeightPercent = 100,
             UncommonWeightPercent = 0,
@@ -1011,7 +1019,7 @@ public class StarshipExpeditionServiceTests
             RewardProfiles = rewardProfiles
         });
         var points = new Mock<IPointsSystem>();
-        points.Setup(system => system.GetPointTypeById(4)).ReturnsAsync(new PointType { Id = 4, Name = "Credits" });
+        points.Setup(system => system.GetPointTypeById(pointTypeId)).ReturnsAsync(new PointType { Id = pointTypeId, Name = "Credits" });
         var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore, pointsSystem: points.Object);
         await service.StartExpeditionAsync("moderator", legCount: 5, seed: 106);
         await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
@@ -1044,7 +1052,7 @@ public class StarshipExpeditionServiceTests
             [
                 new StarshipRewardProfile
                 {
-                    EventType = "SignalDetected", Enabled = true, PointTypeId = 9, PointTypeName = "Credits",
+                    EventType = "SignalDetected", Enabled = true, PointTypeId = Guid.Parse("99999999-9999-9999-9999-999999999999"), PointTypeName = "Credits",
                     SuccessChancePercent = 55, CommonWeightPercent = 70, UncommonWeightPercent = 25, RareWeightPercent = 5,
                     CommonMinimum = 5, CommonMaximum = 15, UncommonMinimum = 20, UncommonMaximum = 35,
                     RareMinimum = 40, RareMaximum = 60, MaximumPerEvent = 100, MaximumUnbankedPerVoyage = 300
@@ -1086,11 +1094,12 @@ public class StarshipExpeditionServiceTests
     public async Task VoyageCap_RemainsConsumedAfterStationBanking()
     {
         var expeditionId = Guid.NewGuid();
+        var pointTypeId = Guid.CreateVersion7();
         var profile = new StarshipRewardProfile
         {
             EventType = "RouteChoice",
             Enabled = true,
-            PointTypeId = 4,
+            PointTypeId = pointTypeId,
             PointTypeName = "Credits",
             SuccessChancePercent = 100,
             CommonWeightPercent = 100,
@@ -1126,7 +1135,7 @@ public class StarshipExpeditionServiceTests
                     EventType = "RouteChoice",
                     RewardOutcomes = [new StarshipRewardOutcomeSnapshot
                     {
-                        UserId = "pilot-id", DisplayName = "Pilot", PointTypeId = 4,
+                        UserId = "pilot-id", DisplayName = "Pilot", PointTypeId = pointTypeId,
                         PointTypeName = "Credits", Outcome = "Success", EarnedAmount = 10
                     }]
                 }
@@ -1135,10 +1144,10 @@ public class StarshipExpeditionServiceTests
             [
                 new StarshipBankedPayoutSnapshot
                 {
-                    OperationId = $"starship:{expeditionId:N}:old-bank:pilot-id:4",
+                    OperationId = $"starship:{expeditionId:N}:old-bank:pilot-id:{pointTypeId}",
                     EventId = Guid.NewGuid(),
                     UserId = "pilot-id",
-                    PointTypeId = 4,
+                    PointTypeId = pointTypeId,
                     Amount = 10,
                     IsPaid = true
                 }
@@ -1173,7 +1182,7 @@ public class StarshipExpeditionServiceTests
         {
             EventType = "SalvageSite",
             Enabled = true,
-            PointTypeId = 2,
+            PointTypeId = SalvagePointTypeId,
             PointTypeName = "Salvage Credits",
             SuccessChancePercent = 0,
             CommonWeightPercent = 100,
@@ -1201,12 +1210,12 @@ public class StarshipExpeditionServiceTests
                 new StarshipCrewMemberSnapshot
                 {
                     UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
-                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = 80 }]
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = SalvagePointTypeId, PointTypeName = "Salvage Credits", Amount = 80 }]
                 },
                 new StarshipCrewMemberSnapshot
                 {
                     UserId = "engineer-id", UserName = "engineer", DisplayName = "Engineer",
-                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = 30 }]
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = SalvagePointTypeId, PointTypeName = "Salvage Credits", Amount = 30 }]
                 }
             ],
             CurrentEvent = new StarshipExpeditionEventSnapshot
@@ -1289,7 +1298,7 @@ public class StarshipExpeditionServiceTests
         [
             new StarshipRewardProfile
             {
-                EventType = "SalvageSite", Enabled = true, PointTypeId = 2, PointTypeName = "Salvage Credits",
+                EventType = "SalvageSite", Enabled = true, PointTypeId = SalvagePointTypeId, PointTypeName = "Salvage Credits",
                 SuccessChancePercent = 80, CommonWeightPercent = 100, UncommonWeightPercent = 0, RareWeightPercent = 0,
                 CommonMinimum = 10, CommonMaximum = 10, MaximumPerEvent = 100, MaximumUnbankedPerVoyage = 500,
                 RiskLossPercent = 40, MaximumRiskLossPerEvent = 100
@@ -1300,7 +1309,7 @@ public class StarshipExpeditionServiceTests
             new StarshipCrewMemberSnapshot
             {
                 UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
-                UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = pilotBalance }]
+                UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = SalvagePointTypeId, PointTypeName = "Salvage Credits", Amount = pilotBalance }]
             }
         ],
         CurrentEvent = CreateSalvageEvent()
@@ -1461,7 +1470,7 @@ public class StarshipExpeditionServiceTests
             fixture.Crew.Add(new StarshipCrewMemberSnapshot
             {
                 UserId = "engineer-id", UserName = "engineer", DisplayName = "Engineer",
-                UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = 50 }]
+                UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = SalvagePointTypeId, PointTypeName = "Salvage Credits", Amount = 50 }]
             });
             fixture.CurrentEvent!.Choices = [.. pool];
             fixture.CurrentEvent.ChoicePool = [.. pool];
@@ -1855,7 +1864,7 @@ public class StarshipExpeditionServiceTests
             [
                 new StarshipRewardProfile
                 {
-                    EventType = "SalvageSite", Enabled = true, PointTypeId = 2, PointTypeName = "Salvage Credits",
+                    EventType = "SalvageSite", Enabled = true, PointTypeId = SalvagePointTypeId, PointTypeName = "Salvage Credits",
                     SuccessChancePercent = 0, CommonWeightPercent = 100, UncommonWeightPercent = 0, RareWeightPercent = 0,
                     RiskLossPercent = 50, MaximumRiskLossPerEvent = 50
                 }
@@ -1865,7 +1874,7 @@ public class StarshipExpeditionServiceTests
                 new StarshipCrewMemberSnapshot
                 {
                     UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
-                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = 80 }]
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = SalvagePointTypeId, PointTypeName = "Salvage Credits", Amount = 80 }]
                 }
             ],
             CurrentEvent = new StarshipExpeditionEventSnapshot
@@ -1903,6 +1912,7 @@ public class StarshipExpeditionServiceTests
     public async Task StationPayout_RetriesAfterSnapshotSaveFailureWithoutDoubleCrediting()
     {
         var stateStore = new InMemoryStateStore();
+        var stationPointTypeId = Guid.CreateVersion7();
         await stateStore.SaveAsync(new StarshipExpeditionSnapshot
         {
             ExpeditionId = Guid.NewGuid(),
@@ -1920,7 +1930,7 @@ public class StarshipExpeditionServiceTests
                 new StarshipCrewMemberSnapshot
                 {
                     UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
-                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 3, PointTypeName = "Credits", Amount = 25 }]
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = stationPointTypeId, PointTypeName = "Credits", Amount = 25 }]
                 }
             ],
             CurrentEvent = new StarshipExpeditionEventSnapshot
@@ -1943,8 +1953,8 @@ public class StarshipExpeditionServiceTests
         triggerService.Setup(trigger => trigger.TriggerDefaultCommandEventAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
             .Returns(Task.CompletedTask);
-        points.Setup(system => system.AddPointsByUserIdOnce("pilot-id", 3, 25, It.IsAny<string>()))
-            .Returns((string _, int _, long amount, string operationId) =>
+        points.Setup(system => system.AddPointsByUserIdOnce("pilot-id", stationPointTypeId, 25, It.IsAny<string>()))
+            .Returns((string _, Guid _, long amount, string operationId) =>
             {
                 if (appliedOperations.Add(operationId)) permanentBalance += amount;
                 return Task.FromResult(true);
@@ -1962,7 +1972,7 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(25, permanentBalance);
         Assert.True((await service.GetSnapshotAsync())!.BankedPayouts.Single().IsPaid);
         Assert.Single(appliedOperations);
-        points.Verify(system => system.AddPointsByUserIdOnce("pilot-id", 3, 25, It.IsAny<string>()), Times.Exactly(2));
+        points.Verify(system => system.AddPointsByUserIdOnce("pilot-id", stationPointTypeId, 25, It.IsAny<string>()), Times.Exactly(2));
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipCrewRewardBanked,
@@ -1988,7 +1998,7 @@ public class StarshipExpeditionServiceTests
                 new StarshipBankedPayoutSnapshot
                 {
                     OperationId = "pending-payout", EventId = Guid.NewGuid(), UserId = "viewer-id",
-                    PointTypeId = 1, Amount = 10
+                    PointTypeId = Guid.CreateVersion7(), Amount = 10
                 }
             ]
         });
@@ -2004,6 +2014,7 @@ public class StarshipExpeditionServiceTests
     public async Task FinalReturn_BanksUnbankedCrewBalanceThroughIdempotentPointsPath()
     {
         var stateStore = new InMemoryStateStore();
+        var routePointTypeId = Guid.CreateVersion7();
         await stateStore.SaveAsync(new StarshipExpeditionSnapshot
         {
             ExpeditionId = Guid.NewGuid(),
@@ -2022,7 +2033,7 @@ public class StarshipExpeditionServiceTests
                 new StarshipCrewMemberSnapshot
                 {
                     UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
-                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 8, PointTypeName = "Credits", Amount = 35 }]
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = routePointTypeId, PointTypeName = "Credits", Amount = 35 }]
                 }
             ],
             CurrentEvent = new StarshipExpeditionEventSnapshot
@@ -2039,7 +2050,7 @@ public class StarshipExpeditionServiceTests
             }
         });
         var points = new Mock<IPointsSystem>();
-        points.Setup(system => system.AddPointsByUserIdOnce("pilot-id", 8, 35, It.IsAny<string>())).ReturnsAsync(true);
+        points.Setup(system => system.AddPointsByUserIdOnce("pilot-id", routePointTypeId, 35, It.IsAny<string>())).ReturnsAsync(true);
         var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: points.Object);
 
         var returned = await service.AdvanceEventAsync();
@@ -2048,26 +2059,28 @@ public class StarshipExpeditionServiceTests
         var payout = Assert.Single(returned.BankedPayouts);
         Assert.True(payout.IsPaid);
         Assert.Equal(35, payout.Amount);
-        points.Verify(system => system.AddPointsByUserIdOnce("pilot-id", 8, 35, payout.OperationId), Times.Once);
+        points.Verify(system => system.AddPointsByUserIdOnce("pilot-id", routePointTypeId, 35, payout.OperationId), Times.Once);
     }
 
     [Fact]
     public async Task TierRewards_AggregateCurrenciesAndApplyIndependentCaps()
     {
         var snapshot = CreateSalvageFixture(0);
+        var creditsTypeId = SalvagePointTypeId;
+        var tokensTypeId = Guid.CreateVersion7();
         var profile = snapshot.RewardProfiles[0];
         profile.SuccessChancePercent = 100;
         profile.ConvertLegacyToTiers();
         profile.Tiers[0].Rewards =
         [
-            new() { PointTypeId = 2, PointTypeName = "Credits", Minimum = 20, Maximum = 20 },
-            new() { PointTypeId = 2, PointTypeName = "Credits", Minimum = 30, Maximum = 30 },
-            new() { PointTypeId = 3, PointTypeName = "Tokens", Minimum = 12, Maximum = 12 }
+            new() { PointTypeId = creditsTypeId, PointTypeName = "Credits", Minimum = 20, Maximum = 20 },
+            new() { PointTypeId = creditsTypeId, PointTypeName = "Credits", Minimum = 30, Maximum = 30 },
+            new() { PointTypeId = tokensTypeId, PointTypeName = "Tokens", Minimum = 12, Maximum = 12 }
         ];
         profile.Caps =
         [
-            new() { PointTypeId = 2, MaximumPerEvent = 40, MaximumUnbankedPerVoyage = 100 },
-            new() { PointTypeId = 3, MaximumPerEvent = 10, MaximumUnbankedPerVoyage = 100 }
+            new() { PointTypeId = creditsTypeId, MaximumPerEvent = 40, MaximumUnbankedPerVoyage = 100 },
+            new() { PointTypeId = tokensTypeId, MaximumPerEvent = 10, MaximumUnbankedPerVoyage = 100 }
         ];
         var store = new InMemoryStateStore();
         await store.SaveAsync(snapshot);
@@ -2078,8 +2091,8 @@ public class StarshipExpeditionServiceTests
         var resolved = await service.AdvanceEventAsync();
 
         var outcomes = Assert.Single(resolved.CompletedEvents).RewardOutcomes;
-        Assert.Equal(40, outcomes.Single(item => item.PointTypeId == 2).EarnedAmount);
-        Assert.Equal(10, outcomes.Single(item => item.PointTypeId == 3).EarnedAmount);
+        Assert.Equal(40, outcomes.Single(item => item.PointTypeId == creditsTypeId).EarnedAmount);
+        Assert.Equal(10, outcomes.Single(item => item.PointTypeId == tokensTypeId).EarnedAmount);
         Assert.Equal(2, resolved.Crew.Single().UnbankedBalances.Count);
     }
 
@@ -2113,16 +2126,17 @@ public class StarshipExpeditionServiceTests
     [InlineData(true)]
     public async Task RewardAction_ClaimsBeforeQueueingAndDoesNotReplayAfterRecovery(bool queueFails)
     {
+        var actionId = Guid.CreateVersion7();
         var snapshot = CreateSalvageFixture();
         snapshot.PendingActions.Add(new StarshipPendingActionSnapshot
         {
-            OperationId = "reward-action-operation", ActionId = 42
+            OperationId = "reward-action-operation", ActionId = actionId
         });
         var store = new InMemoryStateStore();
         await store.SaveAsync(snapshot);
         var actions = new Mock<IActionManagementService>();
         var action = new PenguinTwitchBot.Database.Bot.Actions.ActionType { Name = "Reward alert" };
-        actions.Setup(manager => manager.GetActionByIdAsync(42)).ReturnsAsync(action);
+        actions.Setup(manager => manager.GetActionByIdAsync(actionId)).ReturnsAsync(action);
         var runner = new Mock<IAction>();
         runner.Setup(instance => instance.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), action, null, null))
             .Returns(async (ConcurrentDictionary<string, string> variables, PenguinTwitchBot.Database.Bot.Actions.ActionType _, Guid? _, int? _) =>
@@ -2167,16 +2181,17 @@ public class StarshipExpeditionServiceTests
     [Fact]
     public async Task AbortBanking_CoalescesAfterBankActionsAndWaitsForAllPayouts()
     {
+        var actionId = Guid.CreateVersion7();
         var snapshot = CreateSalvageFixture();
         snapshot.PendingActions.AddRange(Enumerable.Range(1, 2).Select(index => new StarshipPendingActionSnapshot
         {
-            OperationId = $"after-bank-{index}", ActionId = 42, Timing = StarshipActionTimings.AfterBank
+            OperationId = $"after-bank-{index}", ActionId = actionId, Timing = StarshipActionTimings.AfterBank
         }));
         var store = new InMemoryStateStore();
         await store.SaveAsync(snapshot);
         var points = new Mock<IPointsSystem>();
         var attempts = 0;
-        points.Setup(system => system.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>()))
+        points.Setup(system => system.AddPointsByUserIdOnce("pilot-id", SalvagePointTypeId, 100, It.IsAny<string>()))
             .ReturnsAsync(() => ++attempts > 1);
         var service = CreateService(store, pointsSystem: points.Object);
 
@@ -2195,10 +2210,11 @@ public class StarshipExpeditionServiceTests
     public async Task CatalogSnapshot_CustomEventsUseProfilesAndIgnoreLaterSettingsEditsAfterRecovery()
     {
         var settings = new StarshipExpeditionSettings { LegCount = 5, StationIntervalLegs = 24, ActiveCrewRewardsOnly = false };
+        var pointTypeId = Guid.CreateVersion7();
         var profile = new StarshipRewardProfile
         {
             Id = "archive-reward", Name = "Archive Reward", Enabled = true, SuccessChancePercent = 100,
-            Tiers = [new() { Id = "rare", Name = "Rare", Weight = 1, Rewards = [new() { PointTypeId = 8, Minimum = 17, Maximum = 17 }] }]
+            Tiers = [new() { Id = "rare", Name = "Rare", Weight = 1, Rewards = [new() { PointTypeId = pointTypeId, Minimum = 17, Maximum = 17 }] }]
         };
         settings.RewardProfiles.Add(profile);
         settings.EventCatalog = settings.EventCatalog.Where(definition => StarshipEventCatalog.IsStructural(definition.EventType)).ToList();
@@ -2209,7 +2225,7 @@ public class StarshipExpeditionServiceTests
             Images = ["/media/archive.png"], LootByTier = new() { ["Rare"] = "an intact star atlas" }
         });
         var points = new Mock<IPointsSystem>();
-        points.Setup(system => system.GetPointTypeById(8)).ReturnsAsync(new PointType { Id = 8, Name = "Archive Credits" });
+        points.Setup(system => system.GetPointTypeById(pointTypeId)).ReturnsAsync(new PointType { Id = pointTypeId, Name = "Archive Credits" });
         var settingsStore = new InMemorySettingsStore(settings);
         var stateStore = new InMemoryStateStore();
         var service = CreateService(stateStore, settingsStore: settingsStore, pointsSystem: points.Object);
@@ -2246,10 +2262,10 @@ public class StarshipExpeditionServiceTests
         profile.SuccessChancePercent = 100;
         profile.ConvertLegacyToTiers();
         profile.Tiers[0].Rewards[0].Minimum = profile.Tiers[0].Rewards[0].Maximum = 700;
-        profile.Caps = [new() { PointTypeId = 2, MaximumPerEvent = eventLimit, MaximumUnbankedPerVoyage = voyageLimit }];
+        profile.Caps = [new() { PointTypeId = SalvagePointTypeId, MaximumPerEvent = eventLimit, MaximumUnbankedPerVoyage = voyageLimit }];
         snapshot.CompletedEvents.Add(new StarshipExpeditionEventSnapshot
         {
-            RewardOutcomes = [new() { UserId = "pilot-id", PointTypeId = 2, EarnedAmount = 500 }]
+            RewardOutcomes = [new() { UserId = "pilot-id", PointTypeId = SalvagePointTypeId, EarnedAmount = 500 }]
         });
         var store = new InMemoryStateStore();
         await store.SaveAsync(snapshot);
@@ -2290,13 +2306,14 @@ public class StarshipExpeditionServiceTests
     [InlineData(false)]
     public async Task MultiCurrencyOutcome_CountsDistinctParticipantsAndFiresOneRiskTrigger(bool succeeds)
     {
+        var tokensTypeId = Guid.CreateVersion7();
         var snapshot = CreateSalvageFixture();
         var profile = snapshot.RewardProfiles[0];
         profile.SuccessChancePercent = succeeds ? 100 : 0;
         profile.ConvertLegacyToTiers();
-        profile.Tiers[0].Rewards.Add(new() { PointTypeId = 3, PointTypeName = "Tokens", Minimum = 10, Maximum = 10 });
-        profile.LossRules.Add(new() { PointTypeId = 3, PointTypeName = "Tokens", Percent = 20, MaximumPerEvent = 100 });
-        snapshot.Crew[0].UnbankedBalances.Add(new() { PointTypeId = 3, PointTypeName = "Tokens", Amount = 50 });
+        profile.Tiers[0].Rewards.Add(new() { PointTypeId = tokensTypeId, PointTypeName = "Tokens", Minimum = 10, Maximum = 10 });
+        profile.LossRules.Add(new() { PointTypeId = tokensTypeId, PointTypeName = "Tokens", Percent = 20, MaximumPerEvent = 100 });
+        snapshot.Crew[0].UnbankedBalances.Add(new() { PointTypeId = tokensTypeId, PointTypeName = "Tokens", Amount = 50 });
         var store = new InMemoryStateStore();
         await store.SaveAsync(snapshot);
         var fired = new List<(string EventType, Dictionary<string, string> Variables)>();
@@ -2348,19 +2365,19 @@ public class StarshipExpeditionServiceTests
         var snapshot = CreateSalvageFixture();
         snapshot.BankedPayouts.AddRange(
         [
-            new() { OperationId = "first-operation", UserId = "first-user", PointTypeId = 2, Amount = 10 },
-            new() { OperationId = "second-operation", UserId = "second-user", PointTypeId = 2, Amount = 20 }
+            new() { OperationId = "first-operation", UserId = "first-user", PointTypeId = SalvagePointTypeId, Amount = 10 },
+            new() { OperationId = "second-operation", UserId = "second-user", PointTypeId = SalvagePointTypeId, Amount = 20 }
         ]);
         var store = new InMemoryStateStore();
         await store.SaveAsync(snapshot);
         var points = new Mock<IPointsSystem>();
         var attempts = 0;
-        points.Setup(instance => instance.AddPointsByUserIdOnce("first-user", 2, 10, "first-operation")).Returns(() =>
+        points.Setup(instance => instance.AddPointsByUserIdOnce("first-user", SalvagePointTypeId, 10, "first-operation")).Returns(() =>
         {
             attempts++;
             return attempts == 1 && throws ? Task.FromException<bool>(new IOException("Payout unavailable")) : Task.FromResult(attempts > 1);
         });
-        points.Setup(instance => instance.AddPointsByUserIdOnce("second-user", 2, 20, "second-operation")).ReturnsAsync(true);
+        points.Setup(instance => instance.AddPointsByUserIdOnce("second-user", SalvagePointTypeId, 20, "second-operation")).ReturnsAsync(true);
         var service = CreateService(store, pointsSystem: points.Object);
 
         await service.ProcessDueTransitionAsync();
@@ -2370,7 +2387,7 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(1, attempts);
         await service.ProcessDueTransitionAsync();
         Assert.All((await service.GetSnapshotAsync())!.BankedPayouts, payout => Assert.True(payout.IsPaid));
-        points.Verify(instance => instance.AddPointsByUserIdOnce("second-user", 2, 20, "second-operation"), Times.Once);
+        points.Verify(instance => instance.AddPointsByUserIdOnce("second-user", SalvagePointTypeId, 20, "second-operation"), Times.Once);
     }
 
     [Theory]
@@ -2389,7 +2406,7 @@ public class StarshipExpeditionServiceTests
         var store = new InMemoryStateStore();
         await store.SaveAsync(snapshot);
         var points = new Mock<IPointsSystem>();
-        points.Setup(instance => instance.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>())).ReturnsAsync(true);
+        points.Setup(instance => instance.AddPointsByUserIdOnce("pilot-id", SalvagePointTypeId, 100, It.IsAny<string>())).ReturnsAsync(true);
         var service = CreateService(store, pointsSystem: points.Object);
         await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), choiceId);
 
@@ -2400,7 +2417,7 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(expectedBonus, resolved.ShipSystems.PendingSuccessBonusPercent);
         Assert.True(Assert.Single(resolved.BankedPayouts).IsPaid);
         await service.ProcessDueTransitionAsync();
-        points.Verify(instance => instance.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>()), Times.Once);
+        points.Verify(instance => instance.AddPointsByUserIdOnce("pilot-id", SalvagePointTypeId, 100, It.IsAny<string>()), Times.Once);
     }
 
     [Fact]
@@ -2463,7 +2480,7 @@ public class StarshipExpeditionServiceTests
         var store = new InMemoryStateStore();
         await store.SaveAsync(fixture);
         var points = new Mock<IPointsSystem>();
-        points.Setup(instance => instance.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>())).ReturnsAsync(true);
+        points.Setup(instance => instance.AddPointsByUserIdOnce("pilot-id", SalvagePointTypeId, 100, It.IsAny<string>())).ReturnsAsync(true);
         var triggers = new Mock<IDefaultCommandTriggerService>();
         triggers.Setup(instance => instance.TriggerDefaultCommandEventAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>())).Returns(Task.CompletedTask);
         var service = CreateService(store, pointsSystem: points.Object, defaultCommandTriggerService: triggers.Object);
@@ -2482,7 +2499,7 @@ public class StarshipExpeditionServiceTests
         Assert.Null(returned.NextEventAtUtc);
         Assert.True(Assert.Single(returned.BankedPayouts).IsPaid);
         await CreateService(store, pointsSystem: points.Object).ProcessDueTransitionAsync();
-        points.Verify(instance => instance.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>()), Times.Once);
+        points.Verify(instance => instance.AddPointsByUserIdOnce("pilot-id", SalvagePointTypeId, 100, It.IsAny<string>()), Times.Once);
     }
 
     [Fact]

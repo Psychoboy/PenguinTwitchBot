@@ -207,7 +207,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             actionCommandService.CommandExistsAsync(Arg.Any<string>()).Returns(false);
             var existingAction = new ActionType
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Existing",
                 SubActions = [
                     new RaffleStartType { RaffleKey = "existing-key" }

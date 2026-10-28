@@ -44,9 +44,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task StartFishingTournament_ActivatesAndBackfillsEndTime()
         {
+            var tournamentId = Guid.CreateVersion7();
             _context.FishingTournaments.Add(new FishingTournament
             {
-                Id = 1,
+                Id = tournamentId,
                 Name = "Test Tournament",
                 Enabled = false,
                 Status = FishingTournamentStatus.Scheduled,
@@ -54,7 +55,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             });
             await _context.SaveChangesAsync();
 
-            var started = await _fishingService.StartFishingTournament(1);
+            var started = await _fishingService.StartFishingTournament(tournamentId);
 
             Assert.NotNull(started);
             Assert.Equal(FishingTournamentStatus.Active, started!.Status);

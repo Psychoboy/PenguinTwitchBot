@@ -396,6 +396,7 @@ internal class Program
                 }
             }
             dbContext.Database.Migrate();
+            await DatabaseJsonNormalizer.NormalizeAsync(dbContext);
         }
 
         var skipDatabaseBackup = app.Configuration.GetValue<bool?>("SkipDatabaseBackup")

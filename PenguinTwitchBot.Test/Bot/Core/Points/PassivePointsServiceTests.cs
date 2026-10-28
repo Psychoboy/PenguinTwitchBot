@@ -57,9 +57,10 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         [Fact]
         public async Task DistributeForPointTypeAsync_StacksAdditiveRewards_AndSubscribersAlwaysActive()
         {
+            var pointTypeId = Guid.CreateVersion7();
             var pointType = new PointType
             {
-                Id = 2,
+                Id = pointTypeId,
                 Name = "Tickets",
                 PassivePointsEnabled = true,
                 PassivePointsIntervalMinutes = 5,
@@ -89,27 +90,30 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             await _service.DistributeForPointTypeAsync(pointType);
 
             // Lurker: AllViewers = 2
-            await _pointsSystem.Received(1).AddPointsByUserId("id_lurker", 2, 2);
+            await _pointsSystem.Received(1).AddPointsByUserId("id_lurker", pointTypeId, 2);
 
             // Active non-sub chatter: AllViewers (2) + ActiveViewers (3) = 5
-            await _pointsSystem.Received(1).AddPointsByUserId("id_chatter", 2, 5);
+            await _pointsSystem.Received(1).AddPointsByUserId("id_chatter", pointTypeId, 5);
 
             // Sub who is lurking in chat: Subscribers in chat are ALWAYS considered active -> All (2) + Active (3) + Sub (5) = 10
-            await _pointsSystem.Received(1).AddPointsByUserId("id_sub_lurker", 2, 10);
+            await _pointsSystem.Received(1).AddPointsByUserId("id_sub_lurker", pointTypeId, 10);
 
             // Sub who is chatting: All (2) + Active (3) + Sub (5) = 10
-            await _pointsSystem.Received(1).AddPointsByUserId("id_sub_chatter", 2, 10);
+            await _pointsSystem.Received(1).AddPointsByUserId("id_sub_chatter", pointTypeId, 10);
 
             // Known bot excluded
-            await _pointsSystem.DidNotReceive().AddPointsByUserId("id_nightbot", Arg.Any<int>(), Arg.Any<long>());
+            await _pointsSystem.DidNotReceive().AddPointsByUserId("id_nightbot", Arg.Any<Guid>(), Arg.Any<long>());
         }
 
         [Fact]
         public async Task ProcessTickAsync_RespectsPerPointTypeInterval_AndEnabledFlag()
         {
+            var pt1Id = Guid.CreateVersion7();
+            var pt2Id = Guid.CreateVersion7();
+            var pt3Id = Guid.CreateVersion7();
             var pt1 = new PointType
             {
-                Id = 1,
+                Id = pt1Id,
                 Name = "Loyalty",
                 PassivePointsEnabled = true,
                 PassivePointsIntervalMinutes = 2,
@@ -120,7 +124,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
 
             var pt2 = new PointType
             {
-                Id = 2,
+                Id = pt2Id,
                 Name = "Tickets",
                 PassivePointsEnabled = true,
                 PassivePointsIntervalMinutes = 3,
@@ -131,7 +135,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
 
             var pt3Disabled = new PointType
             {
-                Id = 3,
+                Id = pt3Id,
                 Name = "DisabledCurrency",
                 PassivePointsEnabled = false,
                 PassivePointsIntervalMinutes = 1,
@@ -156,16 +160,16 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             // t=2 min: pt1 fires (2 min elapsed), pt2 not yet (2 < 3)
             _timeProvider.AdvanceMinutes(1);
             await _service.ProcessTickAsync();
-            await _pointsSystem.Received(1).AddPointsByUserId("id_viewer1", 1, 10);
-            await _pointsSystem.DidNotReceive().AddPointsByUserId("id_viewer1", 2, Arg.Any<long>());
+            await _pointsSystem.Received(1).AddPointsByUserId("id_viewer1", pt1Id, 10);
+            await _pointsSystem.DidNotReceive().AddPointsByUserId("id_viewer1", pt2Id, Arg.Any<long>());
 
             // t=3 min: pt2 fires (3 min elapsed), pt1 at 1 min since last payout
             _timeProvider.AdvanceMinutes(1);
             await _service.ProcessTickAsync();
-            await _pointsSystem.Received(1).AddPointsByUserId("id_viewer1", 2, 5);
+            await _pointsSystem.Received(1).AddPointsByUserId("id_viewer1", pt2Id, 5);
 
             // Disabled currency never fires
-            await _pointsSystem.DidNotReceive().AddPointsByUserId("id_viewer1", 3, Arg.Any<long>());
+            await _pointsSystem.DidNotReceive().AddPointsByUserId("id_viewer1", pt3Id, Arg.Any<long>());
         }
 
         [Fact]
@@ -173,7 +177,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             var pointType = new PointType
             {
-                Id = 2,
+                Id = Guid.CreateVersion7(),
                 Name = "Tickets",
                 PassivePointsEnabled = true,
                 PassivePointsIntervalMinutes = 5,
@@ -204,7 +208,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             var pointType = new PointType
             {
-                Id = 2,
+                Id = Guid.CreateVersion7(),
                 Name = "{Interval} {SubTotal}",
                 PassivePointsEnabled = true,
                 PassivePointsIntervalMinutes = 5,

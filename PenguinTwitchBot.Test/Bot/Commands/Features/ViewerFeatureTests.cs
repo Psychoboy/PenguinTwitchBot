@@ -50,7 +50,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            testViewer = new Viewer { Id = 1, Username = "test", DisplayName = "Test", Title = "Test Title" };
+            testViewer = new Viewer { Id = Guid.CreateVersion7(), Username = "test", DisplayName = "Test", Title = "Test Title" };
             viewerQueryable = new List<Viewer> { testViewer }.BuildMockDbSet().AsQueryable();
             emptyViewerQueryable = new List<Viewer> { }.BuildMockDbSet().AsQueryable();
 
@@ -64,7 +64,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            var result = await viewerFeature.GetViewerById(1);
+            var result = await viewerFeature.GetViewerById(testViewer.Id);
 
             //Assert
             Assert.Equal(testViewer, result);

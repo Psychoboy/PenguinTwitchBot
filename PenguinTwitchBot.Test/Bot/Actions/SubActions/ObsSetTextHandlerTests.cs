@@ -13,7 +13,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
     public class ObsSetTextHandlerTests
     {
-        private static (ManagedOBSConnection Connection, IOBSWebsocket MockObs) CreateConnectedConnection(int id, string name)
+        private static (ManagedOBSConnection Connection, IOBSWebsocket MockObs) CreateConnectedConnection(Guid id, string name)
         {
             var config = new OBSConnection { Id = id, Name = name, Url = "ws://localhost:4455", Password = "test", Enabled = true };
             var mockObs = Substitute.For<IOBSWebsocket>();
@@ -30,15 +30,16 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetTextHandler>>();
             var handler = new ObsSetTextHandler(connectionManager, logger);
 
-            var (connection, mockObs) = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var (connection, mockObs) = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetTextType { OBSConnectionId = 1, InputName = "Text", TextContent = "Hello World" };
+            var type = new ObsSetTextType { OBSConnectionId = connectionId, InputName = "Text", TextContent = "Hello World" };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
-            connectionManager.Received(1).GetManagedConnection(1);
+            connectionManager.Received(1).GetManagedConnection(connectionId);
             mockObs.Received(1).SetInputSettings("Text", Arg.Is<JObject>(o => o["text"]!.ToString() == "Hello World"), false);
         }
 
@@ -49,10 +50,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetTextHandler>>();
             var handler = new ObsSetTextHandler(connectionManager, logger);
 
-            var (connection, _) = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var (connection, _) = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetTextType { OBSConnectionId = 1, InputName = "", TextContent = "Hello World" };
+            var type = new ObsSetTextType { OBSConnectionId = connectionId, InputName = "", TextContent = "Hello World" };
             var variables = new ConcurrentDictionary<string, string>();
 
             await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));

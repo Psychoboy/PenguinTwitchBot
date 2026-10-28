@@ -21,12 +21,13 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             var handler = new CheckPointsHandler(logger, pointsSystem, viewerFeature);
 
-            var pointType = new PointType { Id = 1, Name = "Gold" };
+            var pointTypeId = Guid.CreateVersion7();
+            var pointType = new PointType { Id = pointTypeId, Name = "Gold" };
             var viewer = new Viewer { UserId = "123", Username = "testuser" };
 
             pointsSystem.GetPointTypeByName("Gold").Returns(pointType);
             viewerFeature.GetViewerByUserName("testuser").Returns(viewer);
-            pointsSystem.GetUserPointsByUserId("123", 1).Returns(new UserPoints { Points = 500 });
+            pointsSystem.GetUserPointsByUserId("123", pointTypeId).Returns(new UserPoints { Points = 500 });
 
             var type = new CheckPointsType { PointTypeName = "Gold", TargetUser = "testuser" };
             var variables = new ConcurrentDictionary<string, string>();

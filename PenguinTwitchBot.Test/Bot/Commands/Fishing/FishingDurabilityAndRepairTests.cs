@@ -56,9 +56,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemDurability_DegradesDurabilityOnCatch()
         {
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var shopItem = new FishingShopItem
             {
-                Id = 1,
+                Id = shopItemId,
                 Name = "Carbon Rod",
                 Cost = 200,
                 EquipmentSlot = EquipmentSlot.Rod,
@@ -69,19 +71,19 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 1,
+                Id = boostId,
                 UserId = "user1",
-                ShopItemId = 1,
+                ShopItemId = shopItemId,
                 IsEquipped = true,
                 CurrentDurability = 100
             };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await _sut.ConsumeItemDurability("user1", new[] { 1 }, repairCostMultiplier: 0.25);
+            await _sut.ConsumeItemDurability("user1", new[] { boostId }, repairCostMultiplier: 0.25);
 
             using var verifyContext = CreateFreshContext();
-            var updated = await verifyContext.UserFishingBoosts.FindAsync(1);
+            var updated = await verifyContext.UserFishingBoosts.FindAsync(boostId);
             Assert.NotNull(updated);
             Assert.Equal(97.5, updated!.CurrentDurability);
             Assert.False(updated.IsBroken);
@@ -90,9 +92,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemDurability_WhenReachingZero_PreservedForRepairWhenMultiplierGreaterThanZero()
         {
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var shopItem = new FishingShopItem
             {
-                Id = 2,
+                Id = shopItemId,
                 Name = "Old Net",
                 Cost = 150,
                 EquipmentSlot = EquipmentSlot.Net,
@@ -103,19 +107,19 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 2,
+                Id = boostId,
                 UserId = "user1",
-                ShopItemId = 2,
+                ShopItemId = shopItemId,
                 IsEquipped = true,
                 CurrentDurability = 5
             };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await _sut.ConsumeItemDurability("user1", new[] { 2 }, repairCostMultiplier: 0.25);
+            await _sut.ConsumeItemDurability("user1", new[] { boostId }, repairCostMultiplier: 0.25);
 
             using var verifyContext = CreateFreshContext();
-            var updated = await verifyContext.UserFishingBoosts.FindAsync(2);
+            var updated = await verifyContext.UserFishingBoosts.FindAsync(boostId);
             Assert.NotNull(updated);
             Assert.Equal(0.0, updated!.CurrentDurability);
             Assert.True(updated.IsBroken);
@@ -125,9 +129,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemDurability_WhenReachingZero_DeletedWhenMultiplierIsZero()
         {
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var shopItem = new FishingShopItem
             {
-                Id = 3,
+                Id = shopItemId,
                 Name = "Disposable Line",
                 Cost = 50,
                 EquipmentSlot = EquipmentSlot.Line,
@@ -138,28 +144,30 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 3,
+                Id = boostId,
                 UserId = "user1",
-                ShopItemId = 3,
+                ShopItemId = shopItemId,
                 IsEquipped = true,
                 CurrentDurability = 5
             };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await _sut.ConsumeItemDurability("user1", new[] { 3 }, repairCostMultiplier: 0.0);
+            await _sut.ConsumeItemDurability("user1", new[] { boostId }, repairCostMultiplier: 0.0);
 
             using var verifyContext = CreateFreshContext();
-            var updated = await verifyContext.UserFishingBoosts.FindAsync(3);
+            var updated = await verifyContext.UserFishingBoosts.FindAsync(boostId);
             Assert.Null(updated);
         }
 
         [Fact]
         public async Task ReconcileDurability_RetroactivelyInitializesOldBoosts()
         {
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var shopItem = new FishingShopItem
             {
-                Id = 4,
+                Id = shopItemId,
                 Name = "Vintage Reel",
                 Cost = 300,
                 EquipmentSlot = EquipmentSlot.Reel,
@@ -170,9 +178,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 4,
+                Id = boostId,
                 UserId = "user1",
-                ShopItemId = 4,
+                ShopItemId = shopItemId,
                 IsEquipped = true,
                 CurrentDurability = null
             };
@@ -180,7 +188,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             var boosts = await _sut.GetUserBoosts("user1");
-            var retrieved = boosts.FirstOrDefault(b => b.Id == 4);
+            var retrieved = boosts.FirstOrDefault(b => b.Id == boostId);
 
             Assert.NotNull(retrieved);
             Assert.Equal(150.0, retrieved!.CurrentDurability);
@@ -207,12 +215,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task RepairItem_RestoresFullDurabilityAndDeductsGold()
         {
-            _context.FishingSettings.Add(new FishingSettings { Id = 1, RepairCostMultiplier = 0.25 });
+            _context.FishingSettings.Add(new FishingSettings { Id = Guid.CreateVersion7(), RepairCostMultiplier = 0.25 });
             _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 500 });
 
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var shopItem = new FishingShopItem
             {
-                Id = 5,
+                Id = shopItemId,
                 Name = "Titanium Rod",
                 Cost = 400,
                 EquipmentSlot = EquipmentSlot.Rod,
@@ -223,9 +233,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 5,
+                Id = boostId,
                 UserId = "user1",
-                ShopItemId = 5,
+                ShopItemId = shopItemId,
                 IsEquipped = true,
                 CurrentDurability = 50.0
             };
@@ -233,11 +243,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             // Cost = 400 * ((100 - 50) / 100) * 0.25 = 50 gold
-            var repairCost = await _sut.RepairItem("user1", 5);
+            var repairCost = await _sut.RepairItem("user1", boostId);
             Assert.Equal(50, repairCost);
 
             using var verifyContext = CreateFreshContext();
-            var updatedBoost = await verifyContext.UserFishingBoosts.FindAsync(5);
+            var updatedBoost = await verifyContext.UserFishingBoosts.FindAsync(boostId);
             var updatedGold = await verifyContext.FishingGolds.FirstOrDefaultAsync(g => g.UserId == "user1");
 
             Assert.NotNull(updatedBoost);
@@ -258,12 +268,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task RepairItem_ThrowsWhenNotEnoughGold()
         {
-            _context.FishingSettings.Add(new FishingSettings { Id = 1, RepairCostMultiplier = 0.5 });
+            _context.FishingSettings.Add(new FishingSettings { Id = Guid.CreateVersion7(), RepairCostMultiplier = 0.5 });
             _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 10 });
 
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var shopItem = new FishingShopItem
             {
-                Id = 6,
+                Id = shopItemId,
                 Name = "Expensive Tackle Box",
                 Cost = 1000,
                 EquipmentSlot = EquipmentSlot.TackleBox,
@@ -274,27 +286,29 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 6,
+                Id = boostId,
                 UserId = "user1",
-                ShopItemId = 6,
+                ShopItemId = shopItemId,
                 IsEquipped = true,
                 CurrentDurability = 0.0
             };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.RepairItem("user1", 6));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.RepairItem("user1", boostId));
         }
 
         [Fact]
         public async Task RepairItem_ThrowsWhenRepairDisabled()
         {
-            _context.FishingSettings.Add(new FishingSettings { Id = 1, RepairCostMultiplier = 0.0 });
+            _context.FishingSettings.Add(new FishingSettings { Id = Guid.CreateVersion7(), RepairCostMultiplier = 0.0 });
             _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 500 });
 
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var shopItem = new FishingShopItem
             {
-                Id = 7,
+                Id = shopItemId,
                 Name = "Net",
                 Cost = 100,
                 EquipmentSlot = EquipmentSlot.Net,
@@ -304,27 +318,29 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 7,
+                Id = boostId,
                 UserId = "user1",
-                ShopItemId = 7,
+                ShopItemId = shopItemId,
                 IsEquipped = true,
                 CurrentDurability = 20.0
             };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.RepairItem("user1", 7));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.RepairItem("user1", boostId));
         }
 
         [Fact]
         public async Task RepairAllEquippedItems_RepairsAllDamagedEquippedGear()
         {
-            _context.FishingSettings.Add(new FishingSettings { Id = 1, RepairCostMultiplier = 0.5 });
+            _context.FishingSettings.Add(new FishingSettings { Id = Guid.CreateVersion7(), RepairCostMultiplier = 0.5 });
             _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 1000 });
 
+            var rodShopId = Guid.CreateVersion7();
+            var reelShopId = Guid.CreateVersion7();
             var rodItem = new FishingShopItem
             {
-                Id = 8,
+                Id = rodShopId,
                 Name = "Rod",
                 Cost = 200,
                 EquipmentSlot = EquipmentSlot.Rod,
@@ -332,7 +348,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             };
             var reelItem = new FishingShopItem
             {
-                Id = 9,
+                Id = reelShopId,
                 Name = "Reel",
                 Cost = 200,
                 EquipmentSlot = EquipmentSlot.Reel,
@@ -340,19 +356,21 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             };
             _context.FishingShopItems.AddRange(rodItem, reelItem);
 
+            var rodBoostId = Guid.CreateVersion7();
+            var reelBoostId = Guid.CreateVersion7();
             var rodBoost = new UserFishingBoost
             {
-                Id = 8,
+                Id = rodBoostId,
                 UserId = "user1",
-                ShopItemId = 8,
+                ShopItemId = rodShopId,
                 IsEquipped = true,
                 CurrentDurability = 50.0 // Cost = 200 * 0.5 * 0.5 = 50
             };
             var reelBoost = new UserFishingBoost
             {
-                Id = 9,
+                Id = reelBoostId,
                 UserId = "user1",
-                ShopItemId = 9,
+                ShopItemId = reelShopId,
                 IsEquipped = true,
                 CurrentDurability = 50.0 // Cost = 200 * 0.5 * 0.5 = 50
             };
@@ -366,18 +384,18 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var gold = await verifyContext.FishingGolds.FirstOrDefaultAsync(g => g.UserId == "user1");
             Assert.Equal(900, gold!.TotalGold);
 
-            var updatedRod = await verifyContext.UserFishingBoosts.FindAsync(8);
-            var updatedReel = await verifyContext.UserFishingBoosts.FindAsync(9);
+            var updatedRod = await verifyContext.UserFishingBoosts.FindAsync(rodBoostId);
+            var updatedReel = await verifyContext.UserFishingBoosts.FindAsync(reelBoostId);
             Assert.Equal(100.0, updatedRod!.CurrentDurability);
             Assert.Equal(100.0, updatedReel!.CurrentDurability);
 
-            var repairEvents = await verifyContext.FishingRepairEvents.OrderBy(r => r.ShopItemId).ToListAsync();
+            var repairEvents = await verifyContext.FishingRepairEvents.ToListAsync();
             Assert.Equal(2, repairEvents.Count);
             Assert.All(repairEvents, r => Assert.Equal("AllEquipped", r.RepairType));
-            Assert.Equal("Rod", repairEvents[0].EquipmentSlot);
-            Assert.Equal(50m, repairEvents[0].GoldPaid);
-            Assert.Equal("Reel", repairEvents[1].EquipmentSlot);
-            Assert.Equal(50m, repairEvents[1].GoldPaid);
+            var rodEvent = repairEvents.Single(r => r.EquipmentSlot == "Rod");
+            var reelEvent = repairEvents.Single(r => r.EquipmentSlot == "Reel");
+            Assert.Equal(50m, rodEvent.GoldPaid);
+            Assert.Equal(50m, reelEvent.GoldPaid);
         }
 
         [Fact]
@@ -405,16 +423,24 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task DisableBreaking_ProtectsItemsFromAccidentLoss()
         {
-            var rod = new FishingShopItem { Id = 10, Name = "Unbreakable Rod", Cost = 500, EquipmentSlot = EquipmentSlot.Rod, DisableBreaking = true };
-            var reel = new FishingShopItem { Id = 11, Name = "Unbreakable Reel", Cost = 500, EquipmentSlot = EquipmentSlot.Reel, DisableBreaking = true };
-            var box = new FishingShopItem { Id = 12, Name = "Unbreakable Box", Cost = 500, EquipmentSlot = EquipmentSlot.TackleBox, DisableBreaking = true };
-            var net = new FishingShopItem { Id = 13, Name = "Unbreakable Net", Cost = 500, EquipmentSlot = EquipmentSlot.Net, DisableBreaking = true };
+            var rodId = Guid.CreateVersion7();
+            var reelId = Guid.CreateVersion7();
+            var boxId = Guid.CreateVersion7();
+            var netId = Guid.CreateVersion7();
+            var rod = new FishingShopItem { Id = rodId, Name = "Unbreakable Rod", Cost = 500, EquipmentSlot = EquipmentSlot.Rod, DisableBreaking = true };
+            var reel = new FishingShopItem { Id = reelId, Name = "Unbreakable Reel", Cost = 500, EquipmentSlot = EquipmentSlot.Reel, DisableBreaking = true };
+            var box = new FishingShopItem { Id = boxId, Name = "Unbreakable Box", Cost = 500, EquipmentSlot = EquipmentSlot.TackleBox, DisableBreaking = true };
+            var net = new FishingShopItem { Id = netId, Name = "Unbreakable Net", Cost = 500, EquipmentSlot = EquipmentSlot.Net, DisableBreaking = true };
             _context.FishingShopItems.AddRange(rod, reel, box, net);
 
-            var bRod = new UserFishingBoost { Id = 10, UserId = "user1", ShopItemId = 10, IsEquipped = true };
-            var bReel = new UserFishingBoost { Id = 11, UserId = "user1", ShopItemId = 11, IsEquipped = true };
-            var bBox = new UserFishingBoost { Id = 12, UserId = "user1", ShopItemId = 12, IsEquipped = true };
-            var bNet = new UserFishingBoost { Id = 13, UserId = "user1", ShopItemId = 13, IsEquipped = true };
+            var bRodId = Guid.CreateVersion7();
+            var bReelId = Guid.CreateVersion7();
+            var bBoxId = Guid.CreateVersion7();
+            var bNetId = Guid.CreateVersion7();
+            var bRod = new UserFishingBoost { Id = bRodId, UserId = "user1", ShopItemId = rodId, IsEquipped = true };
+            var bReel = new UserFishingBoost { Id = bReelId, UserId = "user1", ShopItemId = reelId, IsEquipped = true };
+            var bBox = new UserFishingBoost { Id = bBoxId, UserId = "user1", ShopItemId = boxId, IsEquipped = true };
+            var bNet = new UserFishingBoost { Id = bNetId, UserId = "user1", ShopItemId = netId, IsEquipped = true };
             _context.UserFishingBoosts.AddRange(bRod, bReel, bBox, bNet);
             await _context.SaveChangesAsync();
 
@@ -423,37 +449,39 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.Equal(0, rodSnap.TotalGoldLost);
             using (var freshContext = CreateFreshContext())
             {
-                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(10));
+                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(bRodId));
             }
 
             var reelJam = await _sut.ConsumeItemsOnReelJam("user1", "user1");
             Assert.Equal(0, reelJam.TotalGoldLost);
             using (var freshContext = CreateFreshContext())
             {
-                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(11));
+                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(bReelId));
             }
 
             var boxLost = await _sut.ConsumeItemsOnTackleBoxLost("user1", "user1");
             Assert.Equal(0, boxLost.TotalGoldLost);
             using (var freshContext = CreateFreshContext())
             {
-                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(12));
+                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(bBoxId));
             }
 
             var netBreak = await _sut.ConsumeItemsOnNetBreak("user1", "user1");
             Assert.Equal(0, netBreak.TotalGoldLost);
             using (var freshContext = CreateFreshContext())
             {
-                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(13));
+                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(bNetId));
             }
         }
 
         [Fact]
         public async Task EquipItem_AllowsBrokenItem_CanBeEquippedAndRepaired()
         {
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var shopItem = new FishingShopItem
             {
-                Id = 14,
+                Id = shopItemId,
                 Name = "Broken Rod",
                 Cost = 100,
                 EquipmentSlot = EquipmentSlot.Rod,
@@ -463,19 +491,19 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 14,
+                Id = boostId,
                 UserId = "user1",
-                ShopItemId = 14,
+                ShopItemId = shopItemId,
                 IsEquipped = false,
                 CurrentDurability = 0.0
             };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await _sut.EquipItem("user1", 14);
+            await _sut.EquipItem("user1", boostId);
 
             using var verifyContext = CreateFreshContext();
-            var updated = await verifyContext.UserFishingBoosts.FindAsync(14);
+            var updated = await verifyContext.UserFishingBoosts.FindAsync(boostId);
             Assert.NotNull(updated);
             Assert.True(updated!.IsEquipped);
             Assert.True(updated.IsBroken);
@@ -484,12 +512,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task Accidents_SkipBaitAndLureLoss_ForReelTackleBoxAndNet()
         {
-            var reel = new FishingShopItem { Id = 20, Name = "Reel", Cost = 100, EquipmentSlot = EquipmentSlot.Reel };
-            var bait = new FishingShopItem { Id = 21, Name = "Bait", Cost = 50, EquipmentSlot = EquipmentSlot.Bait, MaxUses = 5 };
+            var reelId = Guid.CreateVersion7();
+            var baitId = Guid.CreateVersion7();
+            var reel = new FishingShopItem { Id = reelId, Name = "Reel", Cost = 100, EquipmentSlot = EquipmentSlot.Reel };
+            var bait = new FishingShopItem { Id = baitId, Name = "Bait", Cost = 50, EquipmentSlot = EquipmentSlot.Bait, MaxUses = 5 };
             _context.FishingShopItems.AddRange(reel, bait);
 
-            var bReel = new UserFishingBoost { Id = 20, UserId = "userAccident", ShopItemId = 20, IsEquipped = true };
-            var bBait = new UserFishingBoost { Id = 21, UserId = "userAccident", ShopItemId = 21, IsEquipped = true, RemainingUses = 5 };
+            var bReelId = Guid.CreateVersion7();
+            var bBaitId = Guid.CreateVersion7();
+            var bReel = new UserFishingBoost { Id = bReelId, UserId = "userAccident", ShopItemId = reelId, IsEquipped = true };
+            var bBait = new UserFishingBoost { Id = bBaitId, UserId = "userAccident", ShopItemId = baitId, IsEquipped = true, RemainingUses = 5 };
             _context.UserFishingBoosts.AddRange(bReel, bBait);
             await _context.SaveChangesAsync();
 
@@ -497,7 +529,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.Equal(100, reelJamResult.TotalGoldLost);
 
             using var verifyContext = CreateFreshContext();
-            var baitAfterJam = await verifyContext.UserFishingBoosts.FindAsync(21);
+            var baitAfterJam = await verifyContext.UserFishingBoosts.FindAsync(bBaitId);
             Assert.NotNull(baitAfterJam);
             Assert.Equal(5, baitAfterJam!.RemainingUses);
         }
@@ -505,9 +537,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemDurability_ReturnsBrokenItem_WhenTransitioningFromPositiveToZero()
         {
+            var rodShopId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var rod = new FishingShopItem
             {
-                Id = 30,
+                Id = rodShopId,
                 Name = "Test Rod",
                 Cost = 100,
                 EquipmentSlot = EquipmentSlot.Rod,
@@ -518,20 +552,20 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 30,
+                Id = boostId,
                 UserId = "userBreak",
-                ShopItemId = 30,
+                ShopItemId = rodShopId,
                 IsEquipped = true,
                 CurrentDurability = 5.0
             };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            var broken = await _sut.ConsumeItemDurability("userBreak", new[] { 30 }, repairCostMultiplier: 0.25);
+            var broken = await _sut.ConsumeItemDurability("userBreak", new[] { boostId }, repairCostMultiplier: 0.25);
 
             Assert.Single(broken);
-            Assert.Equal(30, broken[0].UserBoostId);
-            Assert.Equal(30, broken[0].ShopItemId);
+            Assert.Equal(boostId, broken[0].UserBoostId);
+            Assert.Equal(rodShopId, broken[0].ShopItemId);
             Assert.Equal("Test Rod", broken[0].ItemName);
             Assert.Equal(EquipmentSlot.Rod, broken[0].EquipmentSlot);
             Assert.Equal(100, broken[0].ItemCost);
@@ -541,9 +575,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemDurability_DoesNotReturnBrokenItem_WhenAlreadyZero()
         {
+            var rodShopId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var rod = new FishingShopItem
             {
-                Id = 31,
+                Id = rodShopId,
                 Name = "Already Broken Rod",
                 Cost = 100,
                 EquipmentSlot = EquipmentSlot.Rod,
@@ -554,16 +590,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 31,
+                Id = boostId,
                 UserId = "userBreak2",
-                ShopItemId = 31,
+                ShopItemId = rodShopId,
                 IsEquipped = true,
                 CurrentDurability = 0.0
             };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            var broken = await _sut.ConsumeItemDurability("userBreak2", new[] { 31 }, repairCostMultiplier: 0.25);
+            var broken = await _sut.ConsumeItemDurability("userBreak2", new[] { boostId }, repairCostMultiplier: 0.25);
 
             Assert.Empty(broken);
         }
@@ -571,9 +607,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemDurability_DoesNotReturnBrokenItem_WhenRemainingDurabilityAboveZero()
         {
+            var rodShopId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
             var rod = new FishingShopItem
             {
-                Id = 32,
+                Id = rodShopId,
                 Name = "Healthy Rod",
                 Cost = 100,
                 EquipmentSlot = EquipmentSlot.Rod,
@@ -584,16 +622,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var boost = new UserFishingBoost
             {
-                Id = 32,
+                Id = boostId,
                 UserId = "userBreak3",
-                ShopItemId = 32,
+                ShopItemId = rodShopId,
                 IsEquipped = true,
                 CurrentDurability = 80.0
             };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            var broken = await _sut.ConsumeItemDurability("userBreak3", new[] { 32 }, repairCostMultiplier: 0.25);
+            var broken = await _sut.ConsumeItemDurability("userBreak3", new[] { boostId }, repairCostMultiplier: 0.25);
 
             Assert.Empty(broken);
         }

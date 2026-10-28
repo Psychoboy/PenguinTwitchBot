@@ -273,7 +273,7 @@ public class TwitchExtensionControllerTests
         var jwt = GenerateTestJwt("12345", "67890");
         var controller = CreateController(authHeader: $"Bearer {jwt}");
 
-        var viewer = new Viewer { Id = 1, UserId = "67890", Username = "luckyviewer", DisplayName = "LuckyViewer" };
+        var viewer = new Viewer { Id = Guid.CreateVersion7(), UserId = "67890", Username = "luckyviewer", DisplayName = "LuckyViewer" };
         _viewerFeature.GetViewerByUserId("67890").Returns(viewer);
         _giveawayFeature.GetPointsPerEntry().Returns(50);
         _pointsSystem.GetUserPointsByUsernameAndGame("luckyviewer", "GiveawayFeature")
@@ -334,7 +334,7 @@ public class TwitchExtensionControllerTests
         {
             new()
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Carbon Rod",
                 Description = "Light and durable",
                 Cost = 150,
@@ -393,11 +393,12 @@ public class TwitchExtensionControllerTests
     {
         var jwt = GenerateTestJwt("12345", "67890");
         var controller = CreateController(authHeader: $"Bearer {jwt}");
+        var boostId = Guid.CreateVersion7();
 
-        var result = await controller.EquipFishingItem(new ExtensionEquipItemRequest(42));
+        var result = await controller.EquipFishingItem(new ExtensionEquipItemRequest(boostId));
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        await _fishingInventoryService.Received(1).EquipItem("67890", 42);
+        await _fishingInventoryService.Received(1).EquipItem("67890", boostId);
     }
 
     [Fact]
@@ -405,11 +406,12 @@ public class TwitchExtensionControllerTests
     {
         var jwt = GenerateTestJwt("12345", "67890");
         var controller = CreateController(authHeader: $"Bearer {jwt}");
+        var boostId = Guid.CreateVersion7();
 
-        var result = await controller.UnequipFishingItem(new ExtensionEquipItemRequest(42));
+        var result = await controller.UnequipFishingItem(new ExtensionEquipItemRequest(boostId));
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        await _fishingInventoryService.Received(1).UnequipItem("67890", 42);
+        await _fishingInventoryService.Received(1).UnequipItem("67890", boostId);
     }
 
     [Fact]
@@ -417,13 +419,14 @@ public class TwitchExtensionControllerTests
     {
         var jwt = GenerateTestJwt("12345", "67890");
         var controller = CreateController(authHeader: $"Bearer {jwt}");
+        var boostId = Guid.CreateVersion7();
         _viewerFeature.GetViewerByUserId("67890").Returns(new Viewer { UserId = "67890", Username = "coolangler", DisplayName = "CoolAngler" });
-        _fishingInventoryService.RepairItem("67890", 42, username: "coolangler").Returns(150);
+        _fishingInventoryService.RepairItem("67890", boostId, username: "coolangler").Returns(150);
 
-        var result = await controller.RepairFishingItem(new ExtensionRepairItemRequest(42));
+        var result = await controller.RepairFishingItem(new ExtensionRepairItemRequest(boostId));
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        await _fishingInventoryService.Received(1).RepairItem("67890", 42, username: "coolangler");
+        await _fishingInventoryService.Received(1).RepairItem("67890", boostId, username: "coolangler");
     }
 
     [Fact]

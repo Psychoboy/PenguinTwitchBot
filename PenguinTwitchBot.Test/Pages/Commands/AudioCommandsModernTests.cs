@@ -46,7 +46,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
             [
                 new AudioCommand
                 {
-                    Id = 1,
+                    Id = Guid.CreateVersion7(),
                     CommandName = "test",
                     Category = "Test Category",
                     Description = "A test command",
@@ -61,7 +61,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 },
                 new AudioCommand
                 {
-                    Id = 2,
+                    Id = Guid.CreateVersion7(),
                     CommandName = "hello",
                     Category = "Greetings",
                     Description = "Say hello",

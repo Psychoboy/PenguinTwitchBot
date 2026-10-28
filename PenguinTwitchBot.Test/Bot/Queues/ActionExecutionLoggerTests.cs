@@ -45,15 +45,16 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             var variables = new ConcurrentDictionary<string, string>();
+            var actionId = Guid.CreateVersion7();
 
             // Act
-            var logId = executionLogger.LogActionEnqueued("TestAction", 42, "default", variables);
+            var logId = executionLogger.LogActionEnqueued("TestAction", actionId, "default", variables);
 
             // Assert
             Assert.NotEqual(Guid.Empty, logId);
             var log = executionLogger.GetLogById(logId);
             Assert.NotNull(log);
-            Assert.Equal(42, log!.ActionId);
+            Assert.Equal(actionId, log!.ActionId);
         }
 
         [Fact]

@@ -23,10 +23,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public void GetValues_And_SetValues_RoundTrip()
         {
+            var actionId = Guid.CreateVersion7();
             var original = new ExecuteActionType
             {
-                ActionId = 42,
-                ActionName = "TestAction",
+                ActionId = actionId,
                 Text = "arg1 arg2",
                 ElevatedCommand = true,
                 RankToExecuteAs = "Moderator",
@@ -39,7 +39,6 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             restored.SetValues(values);
 
             Assert.Equal(original.ActionId, restored.ActionId);
-            Assert.Equal(original.ActionName, restored.ActionName);
             Assert.Equal(original.Text, restored.Text);
             Assert.True(restored.ElevatedCommand);
             Assert.Equal(original.RankToExecuteAs, restored.RankToExecuteAs);
@@ -61,7 +60,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var subAction = new ExecuteActionType();
             var dict = new Dictionary<string, object?>
             {
-                [nameof(ExecuteActionType.ActionId)] = "10",
+                [nameof(ExecuteActionType.ActionId)] = Guid.CreateVersion7().ToString(),
                 [nameof(ExecuteActionType.ElevatedCommand)] = elevatedValue
             };
 
@@ -74,7 +73,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public void SetValues_MissingElevatedCommand_KeepsDefault()
         {
             var subAction = new ExecuteActionType { ElevatedCommand = false };
-            subAction.SetValues(new Dictionary<string, object?> { [nameof(ExecuteActionType.ActionId)] = "10" });
+            subAction.SetValues(new Dictionary<string, object?> { [nameof(ExecuteActionType.ActionId)] = Guid.CreateVersion7().ToString() });
             Assert.False(subAction.ElevatedCommand);
         }
 
@@ -93,7 +92,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var subAction = new ExecuteActionType();
             var result = subAction.Validate(new Dictionary<string, object?>
             {
-                [nameof(ExecuteActionType.ActionId)] = "0"
+                [nameof(ExecuteActionType.ActionId)] = Guid.Empty.ToString()
             });
 
             Assert.Equal("Action to Execute is required", result);
@@ -105,7 +104,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var subAction = new ExecuteActionType();
             var result = subAction.Validate(new Dictionary<string, object?>
             {
-                [nameof(ExecuteActionType.ActionId)] = "1",
+                [nameof(ExecuteActionType.ActionId)] = Guid.CreateVersion7().ToString(),
                 [nameof(ExecuteActionType.ElevatedCommand)] = true,
                 [nameof(ExecuteActionType.RankToExecuteAs)] = ""
             });
@@ -119,7 +118,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var subAction = new ExecuteActionType();
             var result = subAction.Validate(new Dictionary<string, object?>
             {
-                [nameof(ExecuteActionType.ActionId)] = "1",
+                [nameof(ExecuteActionType.ActionId)] = Guid.CreateVersion7().ToString(),
                 [nameof(ExecuteActionType.ElevatedCommand)] = "true",
                 [nameof(ExecuteActionType.RankToExecuteAs)] = ""
             });
@@ -133,7 +132,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var subAction = new ExecuteActionType();
             var result = subAction.Validate(new Dictionary<string, object?>
             {
-                [nameof(ExecuteActionType.ActionId)] = "1",
+                [nameof(ExecuteActionType.ActionId)] = Guid.CreateVersion7().ToString(),
                 [nameof(ExecuteActionType.ElevatedCommand)] = "true",
                 [nameof(ExecuteActionType.RankToExecuteAs)] = "Moderator"
             });
@@ -147,7 +146,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var subAction = new ExecuteActionType();
             var result = subAction.Validate(new Dictionary<string, object?>
             {
-                [nameof(ExecuteActionType.ActionId)] = "1",
+                [nameof(ExecuteActionType.ActionId)] = Guid.CreateVersion7().ToString(),
                 [nameof(ExecuteActionType.ElevatedCommand)] = false
             });
 

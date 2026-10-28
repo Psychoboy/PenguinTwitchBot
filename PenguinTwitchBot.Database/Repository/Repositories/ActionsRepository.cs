@@ -108,8 +108,8 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.CatchSubActions);
 
             // Handle SubActions: Remove deleted, Add new, Update existing
-            SyncSubActionCollection(existingAction.SubActions, action.SubActions);
-            SyncSubActionCollection(existingAction.CatchSubActions, action.CatchSubActions);
+            SyncSubActionCollection(existingAction.Id, isCatch: false, existingAction.SubActions, action.SubActions);
+            SyncSubActionCollection(existingAction.Id, isCatch: true, existingAction.CatchSubActions, action.CatchSubActions);
 
             // Handle Triggers: Remove deleted, Add new, Update existing
             var existingTriggerIds = existingAction.Triggers.Select(t => t.Id).ToHashSet();
@@ -161,7 +161,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             return [.. action.SubActions, .. action.CatchSubActions];
         }
 
-        private void SyncSubActionCollection(List<SubActionType> existingSubActions, List<SubActionType> incomingSubActions)
+        private void SyncSubActionCollection(Guid actionId, bool isCatch, List<SubActionType> existingSubActions, List<SubActionType> incomingSubActions)
         {
             var existingSubActionIds = existingSubActions.Select(s => s.Id).ToHashSet();
             var incomingSubActionIds = incomingSubActions.Where(s => s.Id != Guid.Empty).Select(s => s.Id).ToHashSet();
@@ -178,6 +178,17 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 
             foreach (var subAction in incomingSubActions)
             {
+                if (isCatch)
+                {
+                    subAction.CatchActionTypeId = actionId;
+                    subAction.ActionTypeId = null;
+                }
+                else
+                {
+                    subAction.ActionTypeId = actionId;
+                    subAction.CatchActionTypeId = null;
+                }
+
                 if (subAction.Id == Guid.Empty || !existingSubActionIds.Contains(subAction.Id))
                 {
                     if (subAction.Id == Guid.Empty)
@@ -185,6 +196,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                         subAction.Id = Guid.CreateVersion7();
                     }
                     existingSubActions.Add(subAction);
+                    _context.Entry(subAction).State = EntityState.Added;
                 }
                 else
                 {
@@ -195,9 +207,21 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                         _context.Entry(existingSubAction).State = EntityState.Deleted;
                         subAction.Id = Guid.CreateVersion7();
                         existingSubActions.Add(subAction);
+                        _context.Entry(subAction).State = EntityState.Added;
                     }
                     else if (existingSubAction != null)
                     {
+                        if (isCatch)
+                        {
+                            existingSubAction.CatchActionTypeId = actionId;
+                            existingSubAction.ActionTypeId = null;
+                        }
+                        else
+                        {
+                            existingSubAction.ActionTypeId = actionId;
+                            existingSubAction.CatchActionTypeId = null;
+                        }
+
                         _context.Entry(existingSubAction).CurrentValues.SetValues(subAction);
 
                         var existingActionEntry = _context.Entry(existingSubAction);

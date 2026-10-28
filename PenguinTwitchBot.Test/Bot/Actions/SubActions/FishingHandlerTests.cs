@@ -523,8 +523,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             var brokenItem = new FishingBrokenItemInfo
             {
-                UserBoostId = 5,
-                ShopItemId = 12,
+                UserBoostId = Guid.CreateVersion7(),
+                ShopItemId = Guid.CreateVersion7(),
                 ItemName = "Fiberglass Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 ItemCost = 200,
@@ -596,8 +596,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             var brokenItem = new FishingBrokenItemInfo
             {
-                UserBoostId = 5,
-                ShopItemId = 12,
+                UserBoostId = Guid.CreateVersion7(),
+                ShopItemId = Guid.CreateVersion7(),
                 ItemName = "Fiberglass Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 ItemCost = 200,

@@ -2,12 +2,20 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
-using PenguinTwitchBot.Database.Bot.DatabaseTools;
-using PenguinTwitchBot.Database.Bot.Models.Actions;
 using PenguinTwitchBot.Database.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Core.Database;
-using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
+using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Bot.Models.IpLogs;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using System.IO.Abstractions.TestingHelpers;
+using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace PenguinTwitchBot.Test.Database;
@@ -49,369 +57,325 @@ public class BackupToolsTests : IDisposable
         _connection.Dispose();
     }
 
-    private bool HasLog(LogLevel level, string message)
-    {
-        return _logger.Entries.Any(e => e.Level == level && e.Message.Contains(message));
-    }
-
-    private int CountLogs(LogLevel level)
-    {
-        return _logger.Entries.Count(e => e.Level == level);
-    }
-
-    #region BackupDatabase
+    #region Backup Tests
 
     [Fact]
-    public async Task BackupDatabase_CreatesTempDir()
+    public async Task BackupDatabase_CreatesZipViaZipService_AndCleansTempDir()
     {
-        await _sut.BackupDatabase(_context, _backupDir, _logger);
-
-        var tempDirs = _fs.Directory.GetDirectories(_backupDir, "temp-*");
-        Assert.Empty(tempDirs);
-    }
-
-    [Fact]
-    public async Task BackupDatabase_CallsHandlers()
-    {
-        bool handlerACalled = false;
-        bool handlerBCalled = false;
-
-        var originalA = FakeBackupHandlerA.Callback;
-        var originalB = FakeBackupHandlerB.Callback;
-        FakeBackupHandlerA.Callback = () => handlerACalled = true;
-        FakeBackupHandlerB.Callback = () => handlerBCalled = true;
-
-        try
-        {
-            await _sut.BackupDatabase(_context, _backupDir, _logger);
-        }
-        finally
-        {
-            FakeBackupHandlerA.Callback = originalA;
-            FakeBackupHandlerB.Callback = originalB;
-        }
-
-        Assert.True(handlerACalled, "FakeBackupHandlerA was not called");
-        Assert.True(handlerBCalled, "FakeBackupHandlerB was not called");
-    }
-
-    [Fact]
-    public async Task BackupDatabase_CreatesZipViaZipService()
-    {
-        await _sut.BackupDatabase(_context, _backupDir, _logger);
-
-        _zipMock.Verify(z => z.CreateFromDirectory(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task BackupDatabase_DeletesTempDirAfterZip()
-    {
-        await _sut.BackupDatabase(_context, _backupDir, _logger);
-
-        var tempDirs = _fs.Directory.GetDirectories(_backupDir, "temp-*");
-        Assert.Empty(tempDirs);
-    }
-
-    [Fact]
-    public async Task BackupDatabase_CreatesBackupDirectoryIfMissing()
-    {
-        var newDir = "/newbackups";
-        Assert.False(_fs.Directory.Exists(newDir));
-
-        await _sut.BackupDatabase(_context, newDir, _logger);
-
-        Assert.True(_fs.Directory.Exists(newDir));
-        _zipMock.Verify(z => z.CreateFromDirectory(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task BackupDatabase_NoOrphans_LogsNoWarning()
-    {
-        await _sut.BackupDatabase(_context, _backupDir, _logger);
-
-        Assert.Equal(0, CountLogs(LogLevel.Warning));
-    }
-
-
-    #endregion
-
-    #region BackupTable
-
-    [Fact]
-    public async Task BackupTable_WritesJsonFile()
-    {
-        var action = new ActionType { Id = 1, Name = "TestAction" };
+        var action = new ActionType { Id = Guid.CreateVersion7(), Name = "SampleAction" };
         _context.Actions.Add(action);
         await _context.SaveChangesAsync();
 
-        var tempDir = "/backuptable";
-        _fs.AddDirectory(tempDir);
-
-        await _sut.BackupTable<ActionType>(_context, tempDir, _logger);
-
-        var backupFile = "/backuptable/ActionType.json";
-        Assert.True(_fs.File.Exists(backupFile));
-    }
-
-    [Fact]
-    public async Task BackupTable_LogsRecordCount()
-    {
-        var action = new ActionType { Id = 1, Name = "TestAction" };
-        _context.Actions.Add(action);
-        await _context.SaveChangesAsync();
-
-        var tempDir = "/backuptablelog";
-        _fs.AddDirectory(tempDir);
-
-        await _sut.BackupTable<ActionType>(_context, tempDir, _logger);
-
-        Assert.True(HasLog(LogLevel.Debug, "Backed up 1 records to ActionType"));
-    }
-
-    #endregion
-
-    #region WriteData
-
-    [Fact]
-    public async Task WriteData_WritesJsonFile()
-    {
-        var tempDir = "/writedata";
-        _fs.AddDirectory(tempDir);
-
-        var records = new List<ActionType>
-        {
-            new ActionType { Id = 1, Name = "Test1" },
-            new ActionType { Id = 2, Name = "Test2" }
-        };
-
-        await _sut.WriteData<ActionType>(tempDir, records, _logger);
-
-        var backupFile = "/writedata/ActionType.json";
-        Assert.True(_fs.File.Exists(backupFile));
-    }
-
-    [Fact]
-    public async Task WriteData_LogsRecordCount()
-    {
-        var tempDir = "/writedatalog";
-        _fs.AddDirectory(tempDir);
-
-        var records = new List<ActionType>
-        {
-            new ActionType { Id = 1, Name = "Test1" }
-        };
-
-        await _sut.WriteData<ActionType>(tempDir, records, _logger);
-
-        Assert.True(HasLog(LogLevel.Debug, "Backed up 1 records to ActionType"));
-    }
-
-    #endregion
-
-    #region RestoreTable
-
-    [Fact]
-    public async Task RestoreTable_Noop_WhenFileMissing()
-    {
-        await _sut.RestoreTable<ActionType>(_context, _backupDir, _logger);
-
-        Assert.Empty(_context.Actions);
-    }
-
-    [Fact]
-    public async Task RestoreTable_RestoresRecords()
-    {
-        var tempDir = "/temprestore";
-        _fs.AddDirectory(tempDir);
-
-        _context.Actions.Add(new ActionType { Id = 1, Name = "Existing" });
-        await _context.SaveChangesAsync();
-
-        var records = new List<ActionType>
-        {
-            new ActionType { Id = 2, Name = "Restored" }
-        };
-        await _sut.WriteData<ActionType>(tempDir, records, _logger);
-
-        await _sut.RestoreTable<ActionType>(_context, tempDir, _logger);
-        await _context.SaveChangesAsync();
-
-        var restored = await _context.Actions.FirstAsync(a => a.Id == 2);
-        Assert.Equal("Restored", restored.Name);
-    }
-
-    [Fact]
-    public async Task RestoreTable_Throws_OnDeserializationFailure()
-    {
-        var tempDir = "/temprestorebad";
-        _fs.AddDirectory(tempDir);
-        _fs.File.WriteAllText("/temprestorebad/ActionType.json", "not json");
-
-        await Assert.ThrowsAsync<JsonException>(() => _sut.RestoreTable<ActionType>(_context, tempDir, _logger));
-    }
-
-    [Fact]
-    public async Task RestoreDatabase_RestoresFishTypeCategories()
-    {
-        PenguinTwitchBot.Database.Repository.Repositories.FishingRepository.ResetDeletionFlag();
-
-        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"fishcategories-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
-
-        try
-        {
-            var realZipMock = new Mock<IZipService>();
-            var realBackupTools = new BackupTools(new System.IO.Abstractions.FileSystem(), _logger, realZipMock.Object);
-
-            var fishTypes = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishType>
+        _zipMock.Setup(z => z.CreateFromDirectory(It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string>((src, dst) =>
             {
-                new()
+                // Verify manifest.json exists inside the temp dir during zip
+                Assert.True(_fs.File.Exists(_fs.Path.Combine(src, "manifest.json")));
+            });
+
+        var zipPath = await _sut.BackupDatabase(_context, _backupDir, _logger);
+
+        Assert.NotNull(zipPath);
+        _zipMock.Verify(z => z.CreateFromDirectory(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+
+        // Temp directories should be deleted
+        var tempDirs = _fs.Directory.GetDirectories(_backupDir, "temp-*");
+        Assert.Empty(tempDirs);
+    }
+
+    [Fact]
+    public async Task BackupDatabase_ExcludesTables_WithExcludeFromBackupAttribute()
+    {
+        _context.IpLogEntrys.Add(new IpLogEntry { Id = Guid.CreateVersion7().ToString(), Username = "user1", UserId = "1", Ip = "127.0.0.1", ConnectedDate = DateTime.UtcNow });
+        _context.SongRequestViewItems.Add(new SongRequestViewItem { Id = Guid.CreateVersion7(), SongId = "abc", Title = "Song 1" });
+        _context.Cooldowns.Add(new CurrentCooldowns { Id = Guid.CreateVersion7(), CommandName = "!test", UserName = "user1", IsGlobal = true });
+        await _context.SaveChangesAsync();
+
+        _zipMock.Setup(z => z.CreateFromDirectory(It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string>((src, dst) =>
+            {
+                Assert.False(_fs.File.Exists(_fs.Path.Combine(src, "IpLogEntry.json")));
+                Assert.False(_fs.File.Exists(_fs.Path.Combine(src, "SongRequestViewItem.json")));
+                Assert.False(_fs.File.Exists(_fs.Path.Combine(src, "CurrentCooldowns.json")));
+
+                var manifestContent = _fs.File.ReadAllText(_fs.Path.Combine(src, "manifest.json"));
+                var manifest = JsonSerializer.Deserialize<BackupManifest>(manifestContent);
+                Assert.NotNull(manifest);
+                Assert.False(manifest.Tables.ContainsKey(nameof(IpLogEntry)));
+                Assert.False(manifest.Tables.ContainsKey(nameof(SongRequestViewItem)));
+                Assert.False(manifest.Tables.ContainsKey(nameof(CurrentCooldowns)));
+            });
+
+        await _sut.BackupDatabase(_context, _backupDir, _logger);
+    }
+
+    [Fact]
+    public async Task BackupDatabase_FiltersViewerChatHistoryByRetention()
+    {
+        // Add retention setting: 1 month
+        _context.Settings.Add(new Setting
+        {
+            Name = "BackupChatHistoryMonthsToKeep",
+            DataType = Setting.DataTypeEnum.Int,
+            IntSetting = 1
+        });
+
+        // 1 recent message (kept) and 1 older message (filtered out)
+        _context.ViewerChatHistories.Add(new ViewerChatHistory
+        {
+            Id = Guid.CreateVersion7().ToString(),
+            Message = "Recent",
+            CreatedAt = DateTime.UtcNow.AddDays(-5),
+            Username = "user1",
+            DisplayName = "User 1"
+        });
+        _context.ViewerChatHistories.Add(new ViewerChatHistory
+        {
+            Id = Guid.CreateVersion7().ToString(),
+            Message = "Old",
+            CreatedAt = DateTime.UtcNow.AddDays(-45),
+            Username = "user2",
+            DisplayName = "User 2"
+        });
+        await _context.SaveChangesAsync();
+
+        _zipMock.Setup(z => z.CreateFromDirectory(It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string>((src, dst) =>
+            {
+                var chatJson = _fs.File.ReadAllText(_fs.Path.Combine(src, "ViewerChatHistory.json"));
+                var items = JsonSerializer.Deserialize<List<ViewerChatHistory>>(chatJson);
+                Assert.NotNull(items);
+                Assert.Single(items);
+                Assert.Equal("Recent", items[0].Message);
+            });
+
+        await _sut.BackupDatabase(_context, _backupDir, _logger);
+    }
+
+    #endregion
+
+    #region Restore & Validation Tests
+
+    [Fact]
+    public void ValidateBackupArchive_ThrowsWhenManifestMissing()
+    {
+        var zipBytes = CreateZipArchiveWithEntries([("somefile.txt", "content")]);
+        _fs.File.WriteAllBytes("/backups/invalid.zip", zipBytes);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            _sut.ValidateBackupArchive("/backups/invalid.zip"));
+
+        Assert.Contains("manifest.json", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateBackupArchive_ThrowsWhenChecksumMismatch()
+    {
+        var manifest = new BackupManifest
+        {
+            FormatVersion = BackupManifest.CurrentFormatVersion,
+            Tables = new Dictionary<string, BackupTableManifestEntry>
+            {
+                ["ActionType"] = new()
                 {
-                    Id = 1,
-                    Name = "Golden Carp",
-                    BaseWeight = 12.5,
-                    BaseGold = 250,
-                    ImageFileName = "golden-carp.png",
-                    Enabled = true,
-                    Categories =
-                    [
-                        new() { Id = 1, FishTypeId = 1, Category = "Freshwater" },
-                        new() { Id = 2, FishTypeId = 1, Category = "Boss" }
-                    ]
+                    EntityTypeName = "ActionType",
+                    TableName = "Actions",
+                    FileName = "ActionType.json",
+                    RowCount = 0,
+                    Sha256 = "0000000000000000000000000000000000000000000000000000000000000000" // Corrupt hash
                 }
-            };
-
-            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishType.json"), JsonSerializer.Serialize(fishTypes, new JsonSerializerOptions { WriteIndented = true }));
-
-            await realBackupTools.RestoreDatabase(_context, tempDir, _logger);
-
-            var restoredFish = await _context.FishTypes
-                .Include(f => f.Categories)
-                .SingleAsync();
-
-            Assert.Equal("Golden Carp", restoredFish.Name);
-            Assert.Equal(2, restoredFish.Categories.Count);
-            Assert.Contains(restoredFish.Categories, c => c.Category == "Freshwater");
-            Assert.Contains(restoredFish.Categories, c => c.Category == "Boss");
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
             }
-        }
+        };
+
+        var zipBytes = CreateZipArchiveWithEntries([
+            ("manifest.json", JsonSerializer.Serialize(manifest)),
+            ("ActionType.json", "[]")
+        ]);
+        _fs.File.WriteAllBytes("/backups/corrupt.zip", zipBytes);
+
+        var ex = Assert.Throws<InvalidDataException>(() =>
+            _sut.ValidateBackupArchive("/backups/corrupt.zip"));
+
+        Assert.Contains("Checksum mismatch", ex.Message);
     }
 
     [Fact]
-    public async Task RestoreDatabase_RestoresFishingTournamentTables()
+    public async Task RestoreDatabase_CreatesPreRestoreSnapshot_BeforeRestoring()
     {
-        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"fishtourney-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        // Put data in DB
+        _context.Actions.Add(new ActionType { Id = Guid.CreateVersion7(), Name = "BeforeRestoreAction" });
+        await _context.SaveChangesAsync();
+
+        var restoreDir = "/restore-stage";
+        _fs.AddDirectory(restoreDir);
+
+        var actionAfter = new List<ActionType>
+        {
+            new() { Id = Guid.CreateVersion7(), Name = "AfterRestoreAction" }
+        };
+        var actionBytes = JsonSerializer.SerializeToUtf8Bytes(actionAfter);
+        _fs.File.WriteAllBytes(_fs.Path.Combine(restoreDir, "ActionType.json"), actionBytes);
+
+        var hash = Convert.ToHexStringLower(SHA256.HashData(actionBytes));
+        var manifest = new BackupManifest
+        {
+            FormatVersion = BackupManifest.CurrentFormatVersion,
+            Tables = new Dictionary<string, BackupTableManifestEntry>
+            {
+                ["ActionType"] = new()
+                {
+                    EntityTypeName = "ActionType",
+                    TableName = "Actions",
+                    FileName = "ActionType.json",
+                    RowCount = 1,
+                    Sha256 = hash
+                }
+            }
+        };
+        _fs.File.WriteAllText(_fs.Path.Combine(restoreDir, "manifest.json"), JsonSerializer.Serialize(manifest));
+
+        bool preRestoreSnapshotTaken = false;
+        _zipMock.Setup(z => z.CreateFromDirectory(It.IsAny<string>(), It.Is<string>(s => s.Contains("pre_restore"))))
+            .Callback<string, string>((src, dst) =>
+            {
+                preRestoreSnapshotTaken = true;
+            });
+
+        await _sut.RestoreDatabase(_context, restoreDir, _logger);
+
+        Assert.True(preRestoreSnapshotTaken);
+        var restored = await _context.Actions.ToListAsync();
+        Assert.Single(restored);
+        Assert.Equal("AfterRestoreAction", restored[0].Name);
+    }
+
+    [Fact]
+    public async Task RestoreDatabase_PreservesForeignKeys_AndSubActionHierarchies()
+    {
+        var actionId = Guid.CreateVersion7();
+        var targetActionId = Guid.CreateVersion7();
+        var pointTypeId = Guid.CreateVersion7();
+
+        var pointType = new PointType { Id = pointTypeId, Name = "ChannelPoints" };
+        var targetAction = new ActionType { Id = targetActionId, Name = "TargetSubroutine" };
+        var mainAction = new ActionType
+        {
+            Id = actionId,
+            Name = "MainPipeline",
+            SubActions =
+            [
+                new ExecuteActionType
+                {
+                    Id = Guid.CreateVersion7(),
+                    ActionTypeId = actionId,
+                    ActionId = targetActionId
+                }
+            ],
+            Triggers =
+            [
+                new TriggerType
+                {
+                    Id = Guid.CreateVersion7(),
+                    ActionId = actionId,
+                    Name = "!pipe",
+                    Type = TriggerTypes.Command
+                }
+            ]
+        };
+
+        _context.PointTypes.Add(pointType);
+        _context.Actions.AddRange(targetAction, mainAction);
+        await _context.SaveChangesAsync();
+
+        // Roundtrip using a real temp folder
+        var tempFolder = Path.Combine(Path.GetTempPath(), $"backup-e2e-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempFolder);
 
         try
         {
-            var realZipMock = new Mock<IZipService>();
-            var realBackupTools = new BackupTools(new System.IO.Abstractions.FileSystem(), _logger, realZipMock.Object);
+            var realFs = new System.IO.Abstractions.FileSystem();
+            var realZip = new ZipService();
+            var realBackupTools = new BackupTools(realFs, _logger, realZip);
 
-            var pointTypes = new List<PenguinTwitchBot.Database.Bot.Models.Points.PointType>
-            {
-                new()
-                {
-                    Id = 1,
-                    Name = "Tournament Points",
-                    Description = "Primary reward pool"
-                }
-            };
+            var zipPath = await realBackupTools.BackupDatabase(_context, tempFolder, _logger);
+            Assert.True(File.Exists(zipPath));
 
-            var fishTypes = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishType>
-            {
-                new()
-                {
-                    Id = 2,
-                    Name = "Golden Carp",
-                    BaseWeight = 12.5,
-                    BaseGold = 250,
-                    ImageFileName = "golden-carp.png",
-                    Enabled = true
-                }
-            };
+            // Clear database
+            _context.SubActions.RemoveRange(_context.SubActions);
+            _context.Triggers.RemoveRange(_context.Triggers);
+            _context.Actions.RemoveRange(_context.Actions);
+            _context.PointTypes.RemoveRange(_context.PointTypes);
+            await _context.SaveChangesAsync();
+            Assert.Empty(_context.Actions);
 
-            var tournaments = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournament>
-            {
-                new()
-                {
-                    Id = 3,
-                    Name = "Summer Splash Cup",
-                    Description = "A restored tournament",
-                    Enabled = true,
-                    Status = PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentStatus.Scheduled,
-                    PrimaryScoreCategory = PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentScoreCategory.Largest,
-                    StartsAtUtc = DateTime.UtcNow.AddHours(1),
-                    EndsAtUtc = DateTime.UtcNow.AddHours(3),
-                    EntryFeeAmount = 50,
-                    EntryFeePointTypeId = 1
-                }
-            };
+            // Extract archive into a stage directory for restore
+            var extractDir = Path.Combine(tempFolder, "extracted");
+            ZipFile.ExtractToDirectory(zipPath, extractDir);
 
-            var eligibleFish = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentFishType>
-            {
-                new()
-                {
-                    Id = 4,
-                    FishingTournamentId = 3,
-                    FishTypeId = 2
-                }
-            };
+            // Restore from backup stage directory
+            await realBackupTools.RestoreDatabase(_context, extractDir, _logger);
 
-            var rewardRules = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentRewardRule>
-            {
-                new()
-                {
-                    Id = 5,
-                    FishingTournamentId = 3,
-                    ScoreCategory = PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentScoreCategory.Largest,
-                    RewardKind = PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentRewardKind.Points,
-                    Placement = 1,
-                    Points = 100,
-                    PointTypeId = 1,
-                    Enabled = true
-                }
-            };
+            // Verify
+            var restoredActions = await _context.Actions
+                .Include(a => a.SubActions)
+                .Include(a => a.Triggers)
+                .ToListAsync();
 
-            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "PointType.json"), JsonSerializer.Serialize(pointTypes, new JsonSerializerOptions { WriteIndented = true }));
-            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishType.json"), JsonSerializer.Serialize(fishTypes, new JsonSerializerOptions { WriteIndented = true }));
-            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishingTournament.json"), JsonSerializer.Serialize(tournaments, new JsonSerializerOptions { WriteIndented = true }));
-            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishingTournamentFishType.json"), JsonSerializer.Serialize(eligibleFish, new JsonSerializerOptions { WriteIndented = true }));
-            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishingTournamentRewardRule.json"), JsonSerializer.Serialize(rewardRules, new JsonSerializerOptions { WriteIndented = true }));
-
-            await realBackupTools.RestoreDatabase(_context, tempDir, _logger);
-
-            var restoredTournament = await _context.FishingTournaments
-                .Include(x => x.EntryFeePointType)
-                .Include(x => x.EligibleFish)
-                .Include(x => x.RewardRules)
-                .SingleAsync();
-
-            Assert.Equal("Summer Splash Cup", restoredTournament.Name);
-            Assert.Equal("Tournament Points", restoredTournament.EntryFeePointType?.Name);
-            Assert.Single(restoredTournament.EligibleFish);
-            Assert.Single(restoredTournament.RewardRules);
-            Assert.Single(_context.FishTypes);
-            Assert.Single(_context.Set<PenguinTwitchBot.Database.Bot.Models.Points.PointType>());
+            Assert.Equal(2, restoredActions.Count);
+            var mainRestored = restoredActions.Single(a => a.Id == actionId);
+            Assert.Equal("MainPipeline", mainRestored.Name);
+            Assert.Single(mainRestored.SubActions);
+            var execSubAction = Assert.IsType<ExecuteActionType>(mainRestored.SubActions[0]);
+            Assert.Equal(targetActionId, execSubAction.ActionId);
+            Assert.Single(mainRestored.Triggers);
+            Assert.Equal("!pipe", mainRestored.Triggers[0].Name);
         }
         finally
         {
-            if (Directory.Exists(tempDir))
+            if (Directory.Exists(tempFolder))
             {
-                Directory.Delete(tempDir, recursive: true);
+                Directory.Delete(tempFolder, recursive: true);
             }
         }
     }
 
     #endregion
 
-    #region GetBackupFiles
+    #region Helper & Converter Tests
+
+    [Fact]
+    public void LegacyIntCompatibleGuidJsonConverter_DeserializesIntAndGuid()
+    {
+        var options = new JsonSerializerOptions
+        {
+            Converters =
+            {
+                new LegacyIntCompatibleGuidJsonConverter(),
+                new LegacyIntCompatibleNullableGuidJsonConverter()
+            }
+        };
+
+        // Integer 1
+        var jsonInt = "1";
+        var guidFromInt = JsonSerializer.Deserialize<Guid>(jsonInt, options);
+        Assert.Equal(Guid.Parse("00000000-0000-7000-8000-000000000001"), guidFromInt);
+
+        // Integer 42
+        var jsonInt42 = "42";
+        var guidFromInt42 = JsonSerializer.Deserialize<Guid>(jsonInt42, options);
+        Assert.Equal(Guid.Parse("00000000-0000-7000-8000-00000000002a"), guidFromInt42);
+
+        // Standard canonical Guid
+        var canonical = Guid.NewGuid();
+        var jsonCanonical = $"\"{canonical}\"";
+        var parsedCanonical = JsonSerializer.Deserialize<Guid>(jsonCanonical, options);
+        Assert.Equal(canonical, parsedCanonical);
+
+        // Nullable Guid
+        var jsonNull = "null";
+        var nullableGuid = JsonSerializer.Deserialize<Guid?>(jsonNull, options);
+        Assert.Null(nullableGuid);
+    }
 
     [Fact]
     public void GetBackupFiles_ReturnsAllZips()
@@ -435,68 +399,37 @@ public class BackupToolsTests : IDisposable
 
     #endregion
 
-    #region Fake IBackupDb handlers for reflection discovery
-
-    public class FakeBackupHandlerA : IBackupDb
+    private static byte[] CreateZipArchiveWithEntries((string Name, string Content)[] entries)
     {
-        public static Action? Callback { get; set; }
-
-        public FakeBackupHandlerA(DbContext context) { }
-
-        public Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        using var memoryStream = new MemoryStream();
+        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, leaveOpen: true))
         {
-            Callback?.Invoke();
-            return Task.CompletedTask;
+            foreach (var (name, content) in entries)
+            {
+                var entry = archive.CreateEntry(name);
+                using var entryStream = entry.Open();
+                using var writer = new StreamWriter(entryStream);
+                writer.Write(content);
+            }
         }
+        return memoryStream.ToArray();
+    }
 
-        public Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
+    public class TestLogger : ILogger<BackupTools>
+    {
+        public List<LogEntry> Entries { get; } = new();
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            return Task.CompletedTask;
+            Entries.Add(new LogEntry { Level = logLevel, Message = formatter(state, exception) });
         }
     }
 
-    public class FakeBackupHandlerB : IBackupDb
+    public class LogEntry
     {
-        public static Action? Callback { get; set; }
-
-        public FakeBackupHandlerB(DbContext context) { }
-
-        public Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            Callback?.Invoke();
-            return Task.CompletedTask;
-        }
-
-        public Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            return Task.CompletedTask;
-        }
+        public LogLevel Level { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
-
-    #endregion
-}
-
-[CollectionDefinition("BackupTools", DisableParallelization = true)]
-public class BackupToolsCollection : ICollectionFixture<object> { }
-
-public class TestLogger : ILogger<BackupTools>
-{
-    public List<LogEntry> Entries { get; } = new();
-
-#pragma warning disable CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
-#pragma warning disable CS8603 // Possible null reference return.
-    public IDisposable BeginScope<TState>(TState state) => null;
-#pragma warning restore CS8603 // Possible null reference return.
-#pragma warning restore CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
-    public bool IsEnabled(LogLevel logLevel) => true;
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-    {
-        Entries.Add(new LogEntry { Level = logLevel, Message = formatter(state, exception) });
-    }
-}
-
-public class LogEntry
-{
-    public LogLevel Level { get; set; }
-    public string Message { get; set; } = string.Empty;
 }

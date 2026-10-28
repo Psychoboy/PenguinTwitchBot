@@ -56,9 +56,11 @@ namespace PenguinTwitchBot.Test.Services
                 _twitchService, _settings, _moderationClient, _configuration, TimeProvider.System);
         }
 
+        private static readonly Guid DefaultPointTypeId = Guid.CreateVersion7();
+
         private static RaidRewardConfig DefaultConfig() => new(
             Enabled: true,
-            PointTypeId: 5,
+            PointTypeId: DefaultPointTypeId,
             PointsToAward: 100,
             TimeWindowMinutes: 5,
             Message: "penguin raid",
@@ -108,7 +110,7 @@ namespace PenguinTwitchBot.Test.Services
             await SendChatMessageAsync("viewer1", "uid-1", "penguin raid", broadcasterId: "57135261");
             await Task.Delay(10);
 
-            await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
+            await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>());
         }
 
         [Fact]
@@ -118,7 +120,7 @@ namespace PenguinTwitchBot.Test.Services
             await SendChatMessageAsync("viewer1", "uid-1", "PENGUIN RAID hype!");
             await Task.Delay(10);
 
-            await _pointsSystem.Received(1).AddPointsByUserId("uid-1", 5, 100);
+            await _pointsSystem.Received(1).AddPointsByUserId("uid-1", DefaultPointTypeId, 100);
         }
 
         [Fact]
@@ -129,7 +131,7 @@ namespace PenguinTwitchBot.Test.Services
             await SendChatMessageAsync("viewer1", "uid-1", "penguin raid again");
             await Task.Delay(10);
 
-            await _pointsSystem.Received(1).AddPointsByUserId("uid-1", 5, 100);
+            await _pointsSystem.Received(1).AddPointsByUserId("uid-1", DefaultPointTypeId, 100);
         }
 
         [Fact]
@@ -139,7 +141,7 @@ namespace PenguinTwitchBot.Test.Services
             await SendChatMessageAsync("outsider", "uid-9", "penguin raid");
             await Task.Delay(10);
 
-            await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
+            await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>());
         }
 
         [Fact]
@@ -149,7 +151,7 @@ namespace PenguinTwitchBot.Test.Services
             await SendChatMessageAsync("viewer1", "uid-1", "hello there");
             await Task.Delay(10);
 
-            await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
+            await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>());
         }
 
         [Fact]
@@ -160,7 +162,7 @@ namespace PenguinTwitchBot.Test.Services
             await SendChatMessageAsync("viewer1", "uid-1", "penguin sub raid");
             await Task.Delay(10);
 
-            await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
+            await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>());
         }
 
         [Fact]
@@ -171,7 +173,7 @@ namespace PenguinTwitchBot.Test.Services
             await SendChatMessageAsync("viewer1", "uid-1", "penguin sub raid!!");
             await Task.Delay(10);
 
-            await _pointsSystem.Received(1).AddPointsByUserId("uid-1", 5, 100);
+            await _pointsSystem.Received(1).AddPointsByUserId("uid-1", DefaultPointTypeId, 100);
         }
 
         [Fact]
@@ -180,18 +182,18 @@ namespace PenguinTwitchBot.Test.Services
             await StartAndOpenRaidWindowAsync(DefaultConfig());
 
             // First attempt: point write throws -> reservation must roll back.
-            _pointsSystem.AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>())
+            _pointsSystem.AddPointsByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>())
                 .Returns<long>(_ => throw new Exception("db down"));
             await SendChatMessageAsync("viewer1", "uid-1", "penguin raid");
             await Task.Delay(10);
 
             // Second attempt after recovery -> should be awarded.
-            _pointsSystem.AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>())
+            _pointsSystem.AddPointsByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>())
                 .Returns(1000L);
             await SendChatMessageAsync("viewer1", "uid-1", "penguin raid again");
             await Task.Delay(10);
 
-            await _pointsSystem.Received(2).AddPointsByUserId("uid-1", 5, 100);
+            await _pointsSystem.Received(2).AddPointsByUserId("uid-1", DefaultPointTypeId, 100);
         }
 
         [Fact]

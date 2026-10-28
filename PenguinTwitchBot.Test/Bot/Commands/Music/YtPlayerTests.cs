@@ -63,7 +63,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
 
             var backupPlaylist = new MusicPlaylist
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Backup",
                 Songs = [existingSong]
             };
@@ -98,8 +98,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
             var song1FromPlaylist2 = new Song { SongId = "song1", Title = "Playlist2 Song1", Duration = TimeSpan.FromMinutes(3) };
             var song2 = new Song { SongId = "song2", Title = "Song2", Duration = TimeSpan.FromMinutes(4) };
 
-            var playlist1 = new MusicPlaylist { Id = 1, Songs = [song1FromPlaylist1, song2] };
-            var playlist2 = new MusicPlaylist { Id = 2, Songs = [song1FromPlaylist2] };
+            var playlist1 = new MusicPlaylist { Id = Guid.CreateVersion7(), Songs = [song1FromPlaylist1, song2] };
+            var playlist2 = new MusicPlaylist { Id = Guid.CreateVersion7(), Songs = [song1FromPlaylist2] };
 
             var allSongs = new Dictionary<string, Song>();
             foreach (var playlist in new[] { playlist1, playlist2 })
@@ -225,7 +225,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
         public async Task AddSongToRequests_ByUrl_BannedSong_RaisesTriggerAndDoesNotQueue()
         {
             var bannedSongService = Substitute.For<IBannedSongService>();
-            var bannedSong = new BannedSong { Id = 1, SongId = "dQw4w9WgXcQ", Title = "Nope" };
+            var bannedSong = new BannedSong { Id = Guid.CreateVersion7(), SongId = "dQw4w9WgXcQ", Title = "Nope" };
             bannedSongService.GetBannedSongAsync(Arg.Any<string>()).Returns(bannedSong);
 
             var ytPlayer = CreateYtPlayer(bannedSongService);
@@ -240,7 +240,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
         public async Task AddSongToQueue_BannedSong_RaisesTriggerAndDoesNotQueue()
         {
             var bannedSongService = Substitute.For<IBannedSongService>();
-            var bannedSong = new BannedSong { Id = 1, SongId = "dQw4w9WgXcQ", Title = "Nope" };
+            var bannedSong = new BannedSong { Id = Guid.CreateVersion7(), SongId = "dQw4w9WgXcQ", Title = "Nope" };
             bannedSongService.GetBannedSongAsync("dQw4w9WgXcQ").Returns(bannedSong);
 
             var ytPlayer = CreateYtPlayer(bannedSongService);
@@ -257,7 +257,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
         {
             // A song can be banned between the request-time check and reaching the queue boundary.
             var bannedSongService = Substitute.For<IBannedSongService>();
-            var bannedSong = new BannedSong { Id = 1, SongId = "dQw4w9WgXcQ", Title = "Nope", Reason = "Banned mid-request" };
+            var bannedSong = new BannedSong { Id = Guid.CreateVersion7(), SongId = "dQw4w9WgXcQ", Title = "Nope", Reason = "Banned mid-request" };
             bannedSongService.GetBannedSongAsync("dQw4w9WgXcQ").Returns(bannedSong);
 
             var ytPlayer = CreateYtPlayer(bannedSongService);
@@ -330,7 +330,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
 
             var backupPlaylistField = typeof(YtPlayer).GetField("BackupPlaylist", 
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            var backupPlaylist = new MusicPlaylist { Id = 1, Name = "Backup", Songs = [song1, song2] };
+            var backupPlaylist = new MusicPlaylist { Id = Guid.CreateVersion7(), Name = "Backup", Songs = [song1, song2] };
             backupPlaylistField!.SetValue(ytPlayer, backupPlaylist);
 
             Assert.True(ytPlayer.SongExistsInBackupList(song1));

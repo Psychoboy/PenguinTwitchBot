@@ -72,7 +72,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
                 .Do(callInfo =>
                 {
                     var cmd = callInfo.Arg<ActionCommand>();
-                    cmd.Id = 888;
+                    cmd.Id = Guid.CreateVersion7();
                     _dbCommands.Add(cmd);
                 });
 
@@ -86,7 +86,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
                 .Returns(callInfo =>
                 {
                     var action = callInfo.Arg<ActionType>();
-                    action.Id = 999;
+                    action.Id = Guid.CreateVersion7();
                     _dbActions.Add(action);
                     return Task.FromResult(action);
                 });
@@ -138,7 +138,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
         {
             var counter = new Counter
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 CounterName = "wins",
                 Amount = 5,
                 Step = 3,
@@ -160,7 +160,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
         {
             var counter = new Counter
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 CounterName = "coins",
                 Amount = 2,
                 Step = 5,
@@ -182,7 +182,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
         {
             var counter = new Counter
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 CounterName = "streak",
                 Amount = 15,
                 InitialValue = 0,
@@ -203,7 +203,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
         {
             var counter = new Counter
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 CounterName = "modonly",
                 Amount = 0,
                 IncrementRank = Rank.Moderator
@@ -231,7 +231,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
         {
             var counter = new Counter
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 CounterName = "admin_counter",
                 Amount = 10,
                 ResetRank = Rank.Streamer
@@ -255,7 +255,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
         {
             var counter = new Counter
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 CounterName = "score",
                 Amount = 10,
                 Step = 2,
@@ -325,7 +325,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
         {
             var counter = new Counter
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 CounterName = "concurrent_counter",
                 Amount = 0,
                 Step = 1,
@@ -346,9 +346,10 @@ namespace PenguinTwitchBot.Test.Bot.Services
         [Fact]
         public async Task UpdateCounterAsync_UpdatesExistingCounter()
         {
+            var counterId = Guid.CreateVersion7();
             var counter = new Counter
             {
-                Id = 1,
+                Id = counterId,
                 CounterName = "points",
                 DisplayName = "Old Points",
                 Amount = 10,
@@ -358,7 +359,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
 
             var updated = new Counter
             {
-                Id = 1,
+                Id = counterId,
                 CounterName = "points",
                 DisplayName = "New Points",
                 Amount = 25,
@@ -518,7 +519,7 @@ namespace PenguinTwitchBot.Test.Bot.Services
         {
             var counter = new Counter
             {
-                Id = 42,
+                Id = Guid.CreateVersion7(),
                 CounterName = "existingcounter",
                 DisplayName = "Existing Counter"
             };

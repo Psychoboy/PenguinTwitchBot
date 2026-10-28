@@ -81,10 +81,12 @@ public class QuickSearchServiceTests
     [Fact]
     public async Task SearchAsync_MatchesActions_DeepLinksWithActionId()
     {
+        var actionId1 = Guid.CreateVersion7();
+        var actionId2 = Guid.CreateVersion7();
         _unitOfWork.Actions.GetAllAsync().Returns(new List<ActionType>
         {
-            new() { Id = 42, Name = "Raid Alert Action", Group = "Alerts", Enabled = true },
-            new() { Id = 99, Name = "Song Request Action", Group = "Music", Enabled = false }
+            new() { Id = actionId1, Name = "Raid Alert Action", Group = "Alerts", Enabled = true },
+            new() { Id = actionId2, Name = "Song Request Action", Group = "Music", Enabled = false }
         });
 
         var results = await _service.SearchAsync("raid", []);
@@ -92,17 +94,18 @@ public class QuickSearchServiceTests
         var actionResult = results.FirstOrDefault(r => r.ResultType == QuickSearchResultType.Action);
         Assert.NotNull(actionResult);
         Assert.Equal("Raid Alert Action", actionResult.Title);
-        Assert.Equal("/actions/manage?actionId=42", actionResult.Href);
+        Assert.Equal($"/actions/manage?actionId={actionId1}", actionResult.Href);
         Assert.Contains("Alerts", actionResult.Subtitle);
     }
 
     [Fact]
     public async Task SearchAsync_Timers_WhenFeatureEnabled_ReturnsTimersWithDeepLink()
     {
+        var timerId = Guid.CreateVersion7();
         _featureCoordinator.IsEnabled(FeatureKeys.AutoTimer).Returns(true);
         _unitOfWork.TimerGroups.GetAsync().Returns(new List<TimerGroup>
         {
-            new() { Id = 7, Name = "Hydration Reminder", Active = true, IntervalMinimumSeconds = 600, IntervalMaximumSeconds = 600 }
+            new() { Id = timerId, Name = "Hydration Reminder", Active = true, IntervalMinimumSeconds = 600, IntervalMaximumSeconds = 600 }
         });
 
         var results = await _service.SearchAsync("hydration", []);
@@ -110,16 +113,17 @@ public class QuickSearchServiceTests
         var timerResult = results.FirstOrDefault(r => r.ResultType == QuickSearchResultType.Timer);
         Assert.NotNull(timerResult);
         Assert.Equal("Hydration Reminder", timerResult.Title);
-        Assert.Equal("/actions/timers?timerGroupId=7", timerResult.Href);
+        Assert.Equal($"/actions/timers?timerGroupId={timerId}", timerResult.Href);
     }
 
     [Fact]
     public async Task SearchAsync_Timers_WhenFeatureDisabled_DoesNotReturnTimers()
     {
+        var timerId = Guid.CreateVersion7();
         _featureCoordinator.IsEnabled(FeatureKeys.AutoTimer).Returns(false);
         _unitOfWork.TimerGroups.GetAsync().Returns(new List<TimerGroup>
         {
-            new() { Id = 7, Name = "Hydration Reminder", Active = true }
+            new() { Id = timerId, Name = "Hydration Reminder", Active = true }
         });
 
         var results = await _service.SearchAsync("hydration", []);
@@ -130,31 +134,33 @@ public class QuickSearchServiceTests
     [Fact]
     public async Task SearchAsync_Commands_MatchesWithAndWithoutExclamation()
     {
+        var commandId = Guid.CreateVersion7();
         _unitOfWork.ActionCommands.GetAllAsync().Returns(new List<ActionCommand>
         {
-            new() { Id = 10, CommandName = "discord", Category = "Socials", Disabled = false }
+            new() { Id = commandId, CommandName = "discord", Category = "Socials", Disabled = false }
         });
 
         // Search with exclamation prefix
         var resultsWithPrefix = await _service.SearchAsync("!discord", []);
-        Assert.Contains(resultsWithPrefix, r => r.Title == "!discord" && r.Href == "/actions/commands?commandId=10");
+        Assert.Contains(resultsWithPrefix, r => r.Title == "!discord" && r.Href == $"/actions/commands?commandId={commandId}");
 
         // Search without prefix
         var resultsWithoutPrefix = await _service.SearchAsync("discord", []);
-        Assert.Contains(resultsWithoutPrefix, r => r.Title == "!discord" && r.Href == "/actions/commands?commandId=10");
+        Assert.Contains(resultsWithoutPrefix, r => r.Title == "!discord" && r.Href == $"/actions/commands?commandId={commandId}");
     }
 
     [Fact]
     public async Task SearchAsync_DefaultCommands_DeepLinksToDefaultCommandEditor()
     {
+        var commandId = Guid.CreateVersion7();
         _unitOfWork.DefaultCommands.GetAllAsync().Returns(new List<DefaultCommand>
         {
-            new() { Id = 5, CommandName = "help", CustomCommandName = "help", ModuleName = "General", Disabled = false }
+            new() { Id = commandId, CommandName = "help", CustomCommandName = "help", ModuleName = "General", Disabled = false }
         });
 
         var results = await _service.SearchAsync("help", []);
 
-        var defaultCmdResult = results.FirstOrDefault(r => r.Href == "/commands/default/5");
+        var defaultCmdResult = results.FirstOrDefault(r => r.Href == $"/commands/default/{commandId}");
         Assert.NotNull(defaultCmdResult);
         Assert.Equal("!help", defaultCmdResult.Title);
         Assert.Contains("General", defaultCmdResult.Subtitle);
@@ -163,14 +169,15 @@ public class QuickSearchServiceTests
     [Fact]
     public async Task SearchAsync_AudioCommands_DeepLinksToAudioCommands()
     {
+        var commandId = Guid.CreateVersion7();
         _unitOfWork.AudioCommands.GetAllAsync().Returns(new List<AudioCommand>
         {
-            new() { Id = 12, CommandName = "airhorn", AudioFile = "airhorn.mp3", Disabled = false }
+            new() { Id = commandId, CommandName = "airhorn", AudioFile = "airhorn.mp3", Disabled = false }
         });
 
         var results = await _service.SearchAsync("airhorn", []);
 
-        var audioCmdResult = results.FirstOrDefault(r => r.Href == "/actions/audiocommands?commandId=12");
+        var audioCmdResult = results.FirstOrDefault(r => r.Href == $"/actions/audiocommands?commandId={commandId}");
         Assert.NotNull(audioCmdResult);
         Assert.Equal("!airhorn", audioCmdResult.Title);
         Assert.Contains("airhorn.mp3", audioCmdResult.Subtitle);
@@ -179,14 +186,15 @@ public class QuickSearchServiceTests
     [Fact]
     public async Task SearchAsync_Keywords_DeepLinksToKeywords()
     {
+        var keywordId = Guid.CreateVersion7();
         _unitOfWork.ActionKeywords.GetAllAsync().Returns(new List<ActionKeyword>
         {
-            new() { Id = 3, CommandName = "gg", Category = "Chat", Disabled = false }
+            new() { Id = keywordId, CommandName = "gg", Category = "Chat", Disabled = false }
         });
 
         var results = await _service.SearchAsync("gg", []);
 
-        var keywordResult = results.FirstOrDefault(r => r.Href == "/actions/keywords?keywordId=3");
+        var keywordResult = results.FirstOrDefault(r => r.Href == $"/actions/keywords?keywordId={keywordId}");
         Assert.NotNull(keywordResult);
         Assert.Equal("gg", keywordResult.Title);
     }
@@ -194,14 +202,15 @@ public class QuickSearchServiceTests
     [Fact]
     public async Task SearchAsync_Counters_DeepLinksToCounters()
     {
+        var counterId = Guid.CreateVersion7();
         _unitOfWork.Counters.GetAllAsync().Returns(new List<Counter>
         {
-            new() { Id = 8, CounterName = "death", DisplayName = "Death Counter", Amount = 14 }
+            new() { Id = counterId, CounterName = "death", DisplayName = "Death Counter", Amount = 14 }
         });
 
         var results = await _service.SearchAsync("death", []);
 
-        var counterResult = results.FirstOrDefault(r => r.Href == "/actions/counters?counterId=8");
+        var counterResult = results.FirstOrDefault(r => r.Href == $"/actions/counters?counterId={counterId}");
         Assert.NotNull(counterResult);
         Assert.Equal("Death Counter", counterResult.Title);
         Assert.Contains("14", counterResult.Subtitle);

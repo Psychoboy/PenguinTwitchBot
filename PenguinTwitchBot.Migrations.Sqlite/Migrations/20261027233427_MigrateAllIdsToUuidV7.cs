@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -3441,6 +3441,8 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 principalTable: "FishingTournaments",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
+
+            MigrateAllIdsToUuidV7Helper.ExecutePostMigration(migrationBuilder);
         }
 
         /// <inheritdoc />

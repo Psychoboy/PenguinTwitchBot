@@ -19,6 +19,11 @@ namespace PenguinTwitchBot.Test.Pages.Commands
 {
     public class ActionCommandsTests : IAsyncLifetime
     {
+        private static readonly Guid CommandId1 = Guid.CreateVersion7();
+        private static readonly Guid CommandId2 = Guid.CreateVersion7();
+        private static readonly Guid CommandId3 = Guid.CreateVersion7();
+        private static readonly Guid ActionId10 = Guid.CreateVersion7();
+
         private BunitContext? _ctx;
 
         public Task InitializeAsync() => Task.CompletedTask;
@@ -43,7 +48,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
             [
                 new ActionCommand
                 {
-                    Id = 1,
+                    Id = CommandId1,
                     CommandName = "test",
                     Category = "Test Category",
                     Description = "A test command",
@@ -59,7 +64,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 },
                 new ActionCommand
                 {
-                    Id = 2,
+                    Id = CommandId2,
                     CommandName = "hello",
                     Category = "Greetings",
                     Description = "Say hello",
@@ -75,7 +80,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 },
                 new ActionCommand
                 {
-                    Id = 3,
+                    Id = CommandId3,
                     CommandName = "points",
                     Category = "Points",
                     Description = "Check points",
@@ -100,7 +105,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
 
             var mockCommandService = new Mock<IActionCommandService>();
             mockCommandService.Setup(s => s.GetAllAsync()).ReturnsAsync(commands);
-            mockCommandService.Setup(s => s.GetByIdAsync(It.IsAny<int>())).Returns((int id) => Task.FromResult(commands.FirstOrDefault(c => c.Id == id)));
+            mockCommandService.Setup(s => s.GetByIdAsync(It.IsAny<Guid>())).Returns((Guid id) => Task.FromResult(commands.FirstOrDefault(c => c.Id == id)));
             mockCommandService.Setup(s => s.CommandExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
             mockCommandService.Setup(s => s.GetByCommandNameAsync(It.IsAny<string>())).Returns((string name) => Task.FromResult(commands.FirstOrDefault(c => c.CommandName.Equals(name, StringComparison.OrdinalIgnoreCase))));
 
@@ -238,10 +243,10 @@ namespace PenguinTwitchBot.Test.Pages.Commands
             {
                 new TriggerType
                 {
-                    Id = 1,
+                    Id = Guid.CreateVersion7(),
                     Type = TriggerTypes.Command,
-                    CommandId = 1,
-                    ActionId = 10,
+                    CommandId = CommandId1,
+                    ActionId = ActionId10,
                     Enabled = true,
                     Name = "Test Trigger"
                 }
@@ -250,7 +255,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
             {
                 new ActionType
                 {
-                    Id = 10,
+                    Id = ActionId10,
                     Name = "Test Action",
                     Group = "Test Group",
                     Enabled = true,
@@ -336,7 +341,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 Assert.Contains("!test", page.Markup);
             });
 
-            navManager.NavigateTo("/actions/commands?commandId=2");
+            navManager.NavigateTo($"/actions/commands?commandId={CommandId2}");
 
             await page.WaitForAssertionAsync(() =>
             {
@@ -351,10 +356,10 @@ namespace PenguinTwitchBot.Test.Pages.Commands
             SetupContext();
             var commands = CreateTestCommands();
             var deleteCalled = false;
-            var deletedId = 0;
+            var deletedId = Guid.Empty;
             var commandService = new Mock<IActionCommandService>();
             commandService.Setup(s => s.GetAllAsync()).ReturnsAsync(commands);
-            commandService.Setup(s => s.DeleteAsync(It.IsAny<int>())).Callback<int>(id =>
+            commandService.Setup(s => s.DeleteAsync(It.IsAny<Guid>())).Callback<Guid>(id =>
             {
                 deleteCalled = true;
                 deletedId = id;
@@ -391,7 +396,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
             await page.WaitForAssertionAsync(() =>
             {
                 Assert.True(deleteCalled);
-                Assert.Equal(1, deletedId);
+                Assert.Equal(CommandId1, deletedId);
             });
         }
 

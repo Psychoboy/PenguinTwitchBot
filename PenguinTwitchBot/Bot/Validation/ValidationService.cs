@@ -1685,9 +1685,12 @@ namespace PenguinTwitchBot.Bot.Validation
 
                 var result = new TimerTriggerConfig();
 
-                if (config.TryGetValue("TimerGroupId", out var timerGroupIdElement) && timerGroupIdElement.TryGetGuid(out var timerGroupId))
+                if (config.TryGetValue("TimerGroupId", out var timerGroupIdElement))
                 {
-                    result.TimerGroupId = timerGroupId;
+                    if (timerGroupIdElement.TryGetGuid(out var timerGroupId))
+                        result.TimerGroupId = timerGroupId;
+                    else if (UuidMigrationHelper.TryParseGuidOrLegacyInt(timerGroupIdElement.ToString(), out var parsedId))
+                        result.TimerGroupId = parsedId;
                 }
 
                 if (config.TryGetValue("TimerGroupName", out var timerGroupNameElement))
@@ -1716,9 +1719,12 @@ namespace PenguinTwitchBot.Bot.Validation
 
                 var result = new KeywordTriggerConfig();
 
-                if (config.TryGetValue("KeywordId", out var keywordIdElement) && keywordIdElement.TryGetGuid(out var keywordId))
+                if (config.TryGetValue("KeywordId", out var keywordIdElement))
                 {
-                    result.KeywordId = keywordId;
+                    if (keywordIdElement.TryGetGuid(out var keywordId))
+                        result.KeywordId = keywordId;
+                    else if (UuidMigrationHelper.TryParseGuidOrLegacyInt(keywordIdElement.ToString(), out var parsedId))
+                        result.KeywordId = parsedId;
                 }
 
                 if (config.TryGetValue("KeywordName", out var keywordNameElement))
@@ -1747,9 +1753,12 @@ namespace PenguinTwitchBot.Bot.Validation
 
                 var result = new CommandTriggerConfig();
 
-                if (config.TryGetValue("CommandId", out var commandIdElement) && commandIdElement.TryGetGuid(out var commandId))
+                if (config.TryGetValue("CommandId", out var commandIdElement))
                 {
-                    result.CommandId = commandId;
+                    if (commandIdElement.TryGetGuid(out var commandId))
+                        result.CommandId = commandId;
+                    else if (UuidMigrationHelper.TryParseGuidOrLegacyInt(commandIdElement.ToString(), out var parsedId))
+                        result.CommandId = parsedId;
                 }
 
                 if (config.TryGetValue("CommandName", out var commandNameElement))

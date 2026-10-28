@@ -16,10 +16,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var action = Substitute.For<IAction>();
             var handler = new ExecuteActionHandler(actionService, action);
 
-            var actionType = new ActionType { Id = 1, Name = "Test Action", QueueName = "default" };
-            actionService.GetActionByIdAsync(1).Returns(actionType);
+            var actionId = Guid.CreateVersion7();
+            var actionType = new ActionType { Id = actionId, Name = "Test Action", QueueName = "default" };
+            actionService.GetActionByIdAsync(actionId).Returns(actionType);
 
-            var type = new ExecuteActionType { ActionId = 1 };
+            var type = new ExecuteActionType { ActionId = actionId };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
@@ -47,7 +48,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var action = Substitute.For<IAction>();
             var handler = new ExecuteActionHandler(actionService, action);
 
-            var type = new ExecuteActionType { ActionId = 0 };
+            var type = new ExecuteActionType { ActionId = Guid.Empty };
             var variables = new ConcurrentDictionary<string, string>();
 
             await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));
