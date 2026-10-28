@@ -212,12 +212,7 @@ public class CounterService(
                         Name = $"!{commandName}",
                         Type = TriggerTypes.Command,
                         Enabled = true,
-                        CommandId = actionCommand.Id,
-                        Configuration = JsonSerializer.Serialize(new
-                        {
-                            CommandId = actionCommand.Id,
-                            CommandName = commandName
-                        })
+                        CommandId = actionCommand.Id
                     }
                 ]
             };
@@ -341,12 +336,7 @@ public class CounterService(
                         Name = $"!{commandName}",
                         Type = TriggerTypes.Command,
                         Enabled = true,
-                        CommandId = actionCommand.Id,
-                        Configuration = JsonSerializer.Serialize(new
-                        {
-                            CommandId = actionCommand.Id,
-                            CommandName = commandName
-                        })
+                        CommandId = actionCommand.Id
                     }
                 ]
             };

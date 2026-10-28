@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 
 namespace PenguinTwitchBot.Bot.Commands
@@ -47,6 +48,7 @@ namespace PenguinTwitchBot.Bot.Commands
         public async Task<ActionCommand> UpdateAsync(ActionCommand command)
         {
             // Check if the command name has changed
+            var renamed = false;
             if (command.Id != Guid.Empty)
             {
                 var existingCommand = await unitOfWork.ActionCommands.Find(x => x.Id == command.Id).AsNoTracking().FirstOrDefaultAsync();
@@ -54,6 +56,7 @@ namespace PenguinTwitchBot.Bot.Commands
                 {
                     // Command name has changed - update subactions
                     await unitOfWork.Actions.UpdateToggleCommandDisabledNamesForRenamedCommand(existingCommand.CommandName, command.CommandName);
+                    renamed = true;
                 }
             }
 
@@ -65,6 +68,11 @@ namespace PenguinTwitchBot.Bot.Commands
 
             unitOfWork.ActionCommands.Update(command);
             await unitOfWork.SaveChangesAsync();
+
+            if (renamed)
+            {
+                await actionManagementService.RenameTriggersAsync(TriggerTypes.Command, command.Id, $"!{command.CommandName}");
+            }
 
             return command;
         }

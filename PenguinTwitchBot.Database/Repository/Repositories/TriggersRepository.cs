@@ -127,5 +127,23 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .OrderBy(t => t.Name)
                 .ToListAsync();
         }
+
+        public async Task RenameByReferenceAsync(TriggerTypes type, Guid referenceId, string newName)
+        {
+            var now = DateTime.UtcNow;
+            var query = type switch
+            {
+                TriggerTypes.Command => _context.Triggers.Where(t => t.Type == type && t.CommandId == referenceId),
+                TriggerTypes.Keyword => _context.Triggers.Where(t => t.Type == type && t.KeywordId == referenceId),
+                TriggerTypes.Timer => _context.Triggers.Where(t => t.Type == type && t.TimerGroupId == referenceId),
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Only command, keyword and timer triggers are named after what they reference.")
+            };
+
+            await query
+                .Where(t => t.Name != newName)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(t => t.Name, newName)
+                    .SetProperty(t => t.UpdatedAt, now));
+        }
     }
 }

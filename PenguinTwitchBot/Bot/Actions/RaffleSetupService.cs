@@ -372,12 +372,7 @@ namespace PenguinTwitchBot.Bot.Actions
                         Name = $"!{command.CommandName}",
                         Type = TriggerTypes.Command,
                         Enabled = true,
-                        CommandId = command.Id,
-                        Configuration = JsonSerializer.Serialize(new
-                        {
-                            CommandId = command.Id,
-                            CommandName = command.CommandName
-                        })
+                        CommandId = command.Id
                     }
                 ]
             };

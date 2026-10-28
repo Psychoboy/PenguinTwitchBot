@@ -947,10 +947,10 @@
     {
         _selectedTimerGroup = timerGroup;
 
-        // Auto-populate trigger name with timer group format
+        // Name the trigger after the timer group so it reads naturally in the trigger list
         if (timerGroup?.Id != null && timerGroup.Id != Guid.Empty)
         {
-            _triggerName = $"TimerGroup_{timerGroup.Id}";
+            _triggerName = timerGroup.Name;
         }
     }
 
@@ -1357,17 +1357,14 @@
         Guid? timerGroupIdRef = null;
         Guid? defaultCommandIdRef = null;
 
-        // Build configuration JSON based on trigger type
+        // Command, keyword and timer triggers need no configuration: they are linked by their id columns.
+        // Build configuration JSON for the types that carry settings
         if (_selectedType == TriggerTypes.Command && _selectedCommandId.HasValue)
         {
             var command = _commands.FirstOrDefault(c => c.Id == _selectedCommandId);
             if (command != null)
             {
                 commandIdRef = command.Id;
-                configuration = System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    CommandId = command.Id
-                });
             }
         }
         else if (_selectedType == TriggerTypes.Keyword && _selectedKeywordId.HasValue)
@@ -1376,19 +1373,11 @@
             if (keyword != null)
             {
                 keywordIdRef = keyword.Id;
-                configuration = System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    KeywordId = keyword.Id
-                });
             }
         }
         else if (_selectedType == TriggerTypes.Timer && _selectedTimerGroup != null && _selectedTimerGroup.Id != Guid.Empty)
         {
             timerGroupIdRef = _selectedTimerGroup.Id;
-            configuration = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                TimerGroupId = _selectedTimerGroup.Id
-            });
         }
         else if (_selectedType == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(_selectedTwitchEvent))
         {

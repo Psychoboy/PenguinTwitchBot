@@ -351,8 +351,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions
                 new()
                 {
                     Type = TriggerTypes.Timer,
-                    Name = "TimerGroup_Socials",
-                    Configuration = $"{{\"TimerGroupId\":\"{timerGroupId}\",\"TimerGroupName\":\"Socials\"}}"
+                    Name = "Socials",
+                    TimerGroupId = timerGroupId
                 }
             };
 

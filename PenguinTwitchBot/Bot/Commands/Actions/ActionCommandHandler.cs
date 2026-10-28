@@ -65,9 +65,7 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                 }
 
                 // Get and execute actions
-                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
-                     TriggerTypes.Command,
-                    "!" + notification.EventArgs.Command);
+                var actions = await actionManagement.GetActionsByCommandIdEnabledAsync(actionCommand.Id);
 
                 if(actions.Count == 0)
                 {

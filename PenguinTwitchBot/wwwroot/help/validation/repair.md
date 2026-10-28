@@ -1,27 +1,35 @@
-# Diagnostics & Resolving Issues
+# Fixing Common Issues
 
-Step-by-step guidance for fixing issues detected by the validation engine.
-
----
-
-### Fixing Missing Sound Files
-
-When an audio file error is flagged:
-1. Note the missing file path displayed in the validation result.
-2. Ensure the sound file is copied into the bot's configured sounds directory (or update the file path in [Audio Commands](/actions/audiocommands) or the specific `PlaySound` sub-action).
-3. Re-run validation to verify resolution.
+Use the **Fix** button on a row to open the right page, then run the check again to confirm.
 
 ---
 
-### Resolving Missing Action / Connection References
+### A feature is turned off
 
-- **Deleted Actions**: If an `ExecuteAction` subaction targets a deleted action, edit the parent action in [Manage Actions](/actions/manage) and update or remove the target step.
-- **OBS Connections**: If an OBS connection was renamed or recreated, open the affected OBS sub-actions and reselect the appropriate connection from the dropdown.
+Open [Bot Settings](/settings/app) and turn the feature back on, or edit the action and remove the trigger or sub-action that needs it. If you turned the feature off on purpose, use **Ignore** on the warning.
 
----
+### Missing or deleted action, command or timer group
 
-### Cleaning Orphaned SubActions
+Open the action in [Manage Actions](/actions/manage). Edit the Execute Action (or timer, command or keyword trigger) that points at the missing item, and choose an existing one or remove the step.
 
-Orphaned records can occasionally occur after restoring partial backups:
-- Click the **Fix / Clean Up** button if available next to the rule to safely remove orphaned sub-action entries.
+### OBS problems
 
+- **No connection selected / connection missing**: edit the sub-action and pick a connection from the list.
+- **Connection disabled**: enable it on [OBS Connections](/obs/connections).
+- **Not connected**: check that OBS is running, the WebSocket server is enabled in OBS, and the URL and password match. The last error message from OBS is shown in the issue.
+
+### A game or Raid Rewards point type is missing
+
+Open [Game Settings](/settings/games) or [Raid Rewards](/settings/raidrewards) and choose a point type. Until you do, the first point type is used for that game.
+
+### Duplicate commands or keywords
+
+Rename or delete the extras on [Action Commands](/actions/commands) or [Keywords](/actions/keywords). When two share a name, only one can respond.
+
+### Timer groups
+
+On [Timers](/actions/timers), correct the interval values, add an action to a group that has none, or activate a group whose actions should run.
+
+### Issues you do not need to fix
+
+Click the eye icon to **Ignore** it. The issue stops counting as a problem but stays available under **Show ignored**, so you can restore it later.

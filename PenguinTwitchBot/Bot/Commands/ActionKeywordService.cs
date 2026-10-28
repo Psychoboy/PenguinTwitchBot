@@ -1,5 +1,6 @@
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Commands.Actions;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 
 namespace PenguinTwitchBot.Bot.Commands
@@ -55,6 +56,9 @@ namespace PenguinTwitchBot.Bot.Commands
 
         public async Task<ActionKeyword> UpdateAsync(ActionKeyword keyword)
         {
+            var renamed = keyword.Id != Guid.Empty &&
+                await unitOfWork.ActionKeywords.Find(x => x.Id == keyword.Id && x.CommandName != keyword.CommandName).AsNoTracking().AnyAsync();
+
             // Ensure category is never null
             keyword.Category = keyword.Category ?? string.Empty;
 
@@ -65,6 +69,11 @@ namespace PenguinTwitchBot.Bot.Commands
             await unitOfWork.SaveChangesAsync();
 
             keywordCache.InvalidateCache();
+
+            if (renamed)
+            {
+                await actionManagementService.RenameTriggersAsync(TriggerTypes.Keyword, keyword.Id, keyword.CommandName);
+            }
 
             return keyword;
         }

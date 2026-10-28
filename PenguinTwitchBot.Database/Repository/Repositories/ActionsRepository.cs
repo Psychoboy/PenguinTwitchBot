@@ -259,6 +259,38 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<ActionType>> GetActionsByCommandIdAsync(Guid commandId)
+        {
+            return await _context.Actions
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
+                .Include(a => a.Triggers)
+                .Where(a => a.Triggers.Any(t =>
+                    t.Type == TriggerTypes.Command &&
+                    t.Enabled &&
+                    t.CommandId == commandId))
+                .OrderBy(a => a.Name)
+                .ToListAsync();
+        }
+
+        public async Task<List<ActionType>> GetActionsByKeywordIdAsync(Guid keywordId)
+        {
+            return await _context.Actions
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
+                .Include(a => a.Triggers)
+                .Where(a => a.Triggers.Any(t =>
+                    t.Type == TriggerTypes.Keyword &&
+                    t.Enabled &&
+                    t.KeywordId == keywordId))
+                .OrderBy(a => a.Name)
+                .ToListAsync();
+        }
+
         /// <summary>
         /// Updates CommandName for all ToggleCommandDisabledType subactions (including nested) referencing the given command.
         /// </summary>

@@ -18,6 +18,9 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 [TriggerTypes.BannedSongRequest] = FeatureKeys.MusicPlayer
             };
 
+        public static string? GetFeatureKey(TriggerTypes triggerType) =>
+            FeatureByTriggerType.TryGetValue(triggerType, out var featureKey) ? featureKey : null;
+
         public static bool IsAvailable(TriggerTypes triggerType, IFeatureRuntimeCoordinator featureRuntimeCoordinator)
         {
             if (!FeatureByTriggerType.TryGetValue(triggerType, out var featureKey))

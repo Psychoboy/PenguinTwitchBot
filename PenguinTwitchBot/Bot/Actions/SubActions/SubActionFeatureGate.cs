@@ -46,6 +46,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 [SubActionTypes.RacingJoin] = FeatureKeys.DropGames
             };
 
+        public static string? GetFeatureKey(SubActionTypes subActionType) =>
+            FeatureBySubActionType.TryGetValue(subActionType, out var featureKey) ? featureKey : null;
+
         public static bool IsAvailable(SubActionTypes subActionType, IFeatureRuntimeCoordinator featureRuntimeCoordinator)
         {
             if (!FeatureBySubActionType.TryGetValue(subActionType, out var featureKey))

@@ -31,15 +31,19 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
                         result.ErrorCount,
                         result.WarningCount);
 
-                    foreach (var issue in result.Issues)
+                    foreach (var issue in result.Issues.Where(i => !i.Ignored))
                     {
                         if (issue.Severity == ValidationSeverity.Error)
                         {
                             _logger.LogError("Validation Issue: {Message}", issue.Message);
                         }
-                        else
+                        else if (issue.Severity == ValidationSeverity.Warning)
                         {
                             _logger.LogWarning("Validation Issue: {Message}", issue.Message);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Validation Note: {Message}", issue.Message);
                         }
                     }
                 }

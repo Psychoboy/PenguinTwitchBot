@@ -299,9 +299,7 @@
             var keyword = await KeywordService.GetByIdAsync(keywordId);
             if (keyword != null)
             {
-                _triggeredActions = await ActionService.GetActionsByTriggerTypeAndNameAsync(
-                    TriggerTypes.Keyword,
-                    keyword.CommandName);
+                _triggeredActions = await ActionService.GetActionsByKeywordIdAsync(keyword.Id);
             }
             else
             {

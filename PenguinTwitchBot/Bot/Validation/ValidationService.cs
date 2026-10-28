@@ -9,7 +9,7 @@ using System.Text.Json;
 
 namespace PenguinTwitchBot.Bot.Validation
 {
-    public class ValidationService : IValidationService
+    public partial class ValidationService : IValidationService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<ValidationService> _logger;
@@ -34,12 +34,28 @@ namespace PenguinTwitchBot.Bot.Validation
             var subActionResult = await ValidateSubActionsAsync();
             var commandResult = await ValidateCommandsAsync();
             var keywordResult = await ValidateKeywordsAsync();
+            var configurationResult = await ValidateConfigurationAsync();
 
             result.Issues.AddRange(actionResult.Issues);
             result.Issues.AddRange(triggerResult.Issues);
             result.Issues.AddRange(subActionResult.Issues);
             result.Issues.AddRange(commandResult.Issues);
             result.Issues.AddRange(keywordResult.Issues);
+            result.Issues.AddRange(configurationResult.Issues);
+
+            foreach (var partial in new[] { actionResult, triggerResult, subActionResult, commandResult, keywordResult, configurationResult })
+            {
+                foreach (var (name, count) in partial.Stats)
+                {
+                    result.Stats[name] = count;
+                }
+            }
+
+            var ignoredKeys = await GetIgnoredIssueKeysAsync();
+            foreach (var issue in result.Issues.Where(i => ignoredKeys.Contains(i.Key)))
+            {
+                issue.Ignored = true;
+            }
 
             _logger.LogInformation(
                 "Validation completed. Found {ErrorCount} errors and {WarningCount} warnings",
@@ -64,21 +80,10 @@ namespace PenguinTwitchBot.Bot.Validation
 
             var allActions = await db.Actions.GetAllWithDetailsAsync();
             _logger.LogDebug("Validating {ActionCount} actions", allActions.Count);
+            result.Stats["Actions"] = allActions.Count;
 
             // Track action names to check for duplicates
             var actionNameCounts = new Dictionary<string, List<Guid>>(StringComparer.OrdinalIgnoreCase);
-
-            // Build set of action IDs that are called by other actions via ExecuteAction subactions.
-            // These are "triggered" indirectly and should not be flagged as having no triggers.
-            var calledByExecuteAction = new HashSet<Guid>();
-            foreach (var a in allActions)
-            {
-                foreach (var ea in GetAllExecuteActionSubActions(a.SubActions ?? []))
-                {
-                    if (ea.ActionId.HasValue && ea.ActionId.Value != Guid.Empty)
-                        calledByExecuteAction.Add(ea.ActionId.Value);
-                }
-            }
 
             foreach (var action in allActions)
             {
@@ -117,21 +122,7 @@ namespace PenguinTwitchBot.Bot.Validation
                     });
                 }
 
-                // Warn about actions with no triggers (orphaned actions).
-                // Skip if this action is called by another action via ExecuteAction — that counts as a trigger.
-                if ((action.Triggers == null || action.Triggers.Count == 0) &&
-                    !(action.Id != Guid.Empty && calledByExecuteAction.Contains(action.Id)))
-                {
-                    result.Issues.Add(new ValidationIssue
-                    {
-                        IssueType = ValidationIssueType.ActionNoTriggers,
-                        Severity = ValidationSeverity.Warning,
-                        EntityType = "Action",
-                        EntityId = action.Id,
-                        EntityName = action.Name ?? "(unknown)",
-                        Message = $"Action '{action.Name}' has no triggers defined"
-                    });
-                }
+                // Actions without triggers are valid: they can run via the API, ExecuteAction or the test button.
 
                 // Warn about actions with no subactions
                 if (action.SubActions == null || action.SubActions.Count == 0)
@@ -320,6 +311,7 @@ namespace PenguinTwitchBot.Bot.Validation
             // Get all triggers
             var allTriggers = await db.Triggers.GetAllAsync();
             _logger.LogDebug("Validating {TriggerCount} triggers", allTriggers.Count);
+            result.Stats["Triggers"] = allTriggers.Count;
 
             // Get all timer groups and commands for validation - with full entities for name validation
             var timerGroups = await db.TimerGroups.GetAsync();
@@ -509,6 +501,7 @@ namespace PenguinTwitchBot.Bot.Validation
             // Get all actions with their subactions
             var allActions = await db.Actions.GetAllWithDetailsAsync();
             _logger.LogDebug("Validating subactions across {ActionCount} actions", allActions.Count);
+            result.Stats["Sub-actions"] = allActions.Sum(a => Flatten(a.SubActions).Count() + Flatten(a.CatchSubActions).Count());
 
             // Get all commands and actions for validation
             var commands = await db.ActionCommands.GetAsync();
@@ -844,6 +837,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Alert",
                             Message = "SubAction 'Alert' has missing or empty alert text",
+                            Detail = "Alert.Text",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -859,6 +853,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Alert",
                             Message = $"SubAction 'Alert' has invalid duration: {alert.Duration} (should be between 1 and 60 seconds)",
+                            Detail = "Alert.Duration",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -874,6 +869,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Alert",
                             Message = $"SubAction 'Alert' has invalid volume: {alert.Volume} (should be between 0 and 1)",
+                            Detail = "Alert.Volume",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -926,6 +922,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Write File",
                             Message = "SubAction 'Write File' has missing or empty file path",
+                            Detail = "WriteFile.File",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -941,6 +938,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Write File",
                             Message = "SubAction 'Write File' has empty content (will write empty string to file)",
+                            Detail = "WriteFile.Text",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -960,6 +958,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Logic: If/Else",
                             Message = "SubAction 'Logic: If/Else' has missing or empty Left Value",
+                            Detail = "LogicIfElse.LeftValue",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -975,6 +974,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Logic: If/Else",
                             Message = "SubAction 'Logic: If/Else' has missing or empty Right Value",
+                            Detail = "LogicIfElse.RightValue",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1059,6 +1059,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Set Variable",
                             Message = "SubAction 'Set Variable' has missing or empty variable name",
+                            Detail = "SetVariable.VariableName",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1074,6 +1075,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "Set Variable",
                             Message = "SubAction 'Set Variable' has empty value (will set variable to empty string)",
+                            Detail = "SetVariable.Value",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1083,21 +1085,6 @@ namespace PenguinTwitchBot.Bot.Validation
                 // Validate ObsSetScene subactions
                 if (subAction is ObsSetSceneType obsSetScene)
                 {
-                    if (!obsSetScene.OBSConnectionId.HasValue || obsSetScene.OBSConnectionId.Value == Guid.Empty)
-                    {
-                        result.Issues.Add(new ValidationIssue
-                        {
-                            IssueType = ValidationIssueType.SubActionInvalidConfiguration,
-                            Severity = ValidationSeverity.Error,
-                            EntityType = "SubAction",
-                            EntityId = subAction.Id,
-                            EntityName = "OBS - Set Scene",
-                            Message = "SubAction 'OBS - Set Scene' has missing or invalid OBS Connection ID",
-                            RelatedActionId = parentActionId,
-                            RelatedActionName = parentActionName
-                        });
-                    }
-
                     if (string.IsNullOrWhiteSpace(obsSetScene.SceneName))
                     {
                         result.Issues.Add(new ValidationIssue
@@ -1108,6 +1095,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "OBS - Set Scene",
                             Message = "SubAction 'OBS - Set Scene' has missing or empty scene name",
+                            Detail = "ObsSetScene.SceneName",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1117,21 +1105,6 @@ namespace PenguinTwitchBot.Bot.Validation
                 // Validate ObsSetSceneFilterState subactions
                 if (subAction is ObsSetSceneFilterStateType obsSetFilter)
                 {
-                    if (!obsSetFilter.OBSConnectionId.HasValue || obsSetFilter.OBSConnectionId.Value == Guid.Empty)
-                    {
-                        result.Issues.Add(new ValidationIssue
-                        {
-                            IssueType = ValidationIssueType.SubActionInvalidConfiguration,
-                            Severity = ValidationSeverity.Error,
-                            EntityType = "SubAction",
-                            EntityId = subAction.Id,
-                            EntityName = "OBS - Set Scene Filter State",
-                            Message = "SubAction 'OBS - Set Scene Filter State' has missing or invalid OBS Connection ID",
-                            RelatedActionId = parentActionId,
-                            RelatedActionName = parentActionName
-                        });
-                    }
-
                     if (string.IsNullOrWhiteSpace(obsSetFilter.SceneName))
                     {
                         result.Issues.Add(new ValidationIssue
@@ -1142,6 +1115,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "OBS - Set Scene Filter State",
                             Message = "SubAction 'OBS - Set Scene Filter State' has missing or empty scene name",
+                            Detail = "ObsSetSceneFilterState.SceneName",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1157,6 +1131,7 @@ namespace PenguinTwitchBot.Bot.Validation
                             EntityId = subAction.Id,
                             EntityName = "OBS - Set Scene Filter State",
                             Message = "SubAction 'OBS - Set Scene Filter State' has missing or empty filter name",
+                            Detail = "ObsSetSceneFilterState.FilterName",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -1214,37 +1189,30 @@ namespace PenguinTwitchBot.Bot.Validation
             }
         }
 
-        private void ValidateTimerTrigger(TriggerType trigger, Dictionary<Guid, TimerGroup> timerGroupDict, ValidationResult result)
+        // Command, keyword and timer triggers are linked through their id column only, so that is all that needs checking.
+        private static void ValidateTimerTrigger(TriggerType trigger, Dictionary<Guid, TimerGroup> timerGroupDict, ValidationResult result) =>
+            ValidateReference(trigger, trigger.TimerGroupId, "Timer", "timer group", timerGroupDict.ContainsKey,
+                ValidationIssueType.TriggerTimerGroupNotFound, "Choose a timer group on the trigger or remove it.", result);
+
+        private static void ValidateKeywordTrigger(TriggerType trigger, Dictionary<Guid, ActionKeyword> keywordDict, ValidationResult result) =>
+            ValidateReference(trigger, trigger.KeywordId, "Keyword", "keyword", keywordDict.ContainsKey,
+                ValidationIssueType.TriggerKeywordNotFound, "Choose a keyword on the trigger or remove it.", result);
+
+        private static void ValidateCommandTrigger(TriggerType trigger, Dictionary<Guid, ActionCommand> commandDict, ValidationResult result) =>
+            ValidateReference(trigger, trigger.CommandId, "Command", "command", commandDict.ContainsKey,
+                ValidationIssueType.TriggerCommandNotFound, "Choose a command on the trigger or remove it.", result);
+
+        private static void ValidateReference(
+            TriggerType trigger,
+            Guid? referenceId,
+            string triggerLabel,
+            string targetLabel,
+            Func<Guid, bool> exists,
+            ValidationIssueType notFoundType,
+            string suggestion,
+            ValidationResult result)
         {
-            var configData = ParseTimerTriggerConfiguration(trigger.Configuration);
-            var configTimerGroupId = configData?.TimerGroupId;
-            var configTimerGroupName = configData?.TimerGroupName;
-            var hasReferenceColumn = trigger.TimerGroupId.HasValue;
-            var hasConfigValue = configTimerGroupId.HasValue;
-
-            // Validate Timer trigger name format: should be "TimerGroup_{id}"
-            var timerGroupIdToCheck = trigger.TimerGroupId ?? configTimerGroupId;
-            if (timerGroupIdToCheck.HasValue && !string.IsNullOrWhiteSpace(trigger.Name))
-            {
-                var expectedName = $"TimerGroup_{timerGroupIdToCheck.Value}";
-                if (!trigger.Name.Equals(expectedName, StringComparison.Ordinal))
-                {
-                    result.Issues.Add(new ValidationIssue
-                    {
-                        IssueType = ValidationIssueType.TriggerInvalidName,
-                        Severity = ValidationSeverity.Warning,
-                        EntityType = "Trigger",
-                        EntityId = trigger.Id,
-                        EntityName = trigger.Name,
-                        Message = $"Timer trigger '{trigger.Name}' has incorrect name format. Expected: '{expectedName}'",
-                        RelatedActionId = trigger.ActionId,
-                        RelatedActionName = trigger.Action?.Name
-                    });
-                }
-            }
-
-            // Check if both are missing
-            if (!hasReferenceColumn && !hasConfigValue)
+            if (!referenceId.HasValue || referenceId.Value == Guid.Empty)
             {
                 result.Issues.Add(new ValidationIssue
                 {
@@ -1253,525 +1221,26 @@ namespace PenguinTwitchBot.Bot.Validation
                     EntityType = "Trigger",
                     EntityId = trigger.Id,
                     EntityName = trigger.Name,
-                    Message = $"Timer trigger '{trigger.Name}' is missing both TimerGroupId reference column and Configuration data",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-                return;
-            }
-
-            // Check if Configuration is invalid/missing but reference column exists
-            if (hasReferenceColumn && !hasConfigValue && !string.IsNullOrWhiteSpace(trigger.Configuration))
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerInvalidConfiguration,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Timer trigger '{trigger.Name}' has invalid or malformed Configuration JSON (missing TimerGroupId)",
+                    Message = $"{triggerLabel} trigger '{trigger.Name}' is not linked to a {targetLabel}.",
+                    Suggestion = suggestion,
                     RelatedActionId = trigger.ActionId,
                     RelatedActionName = trigger.Action?.Name
                 });
             }
-
-            // Check if Configuration is completely missing
-            if (hasReferenceColumn && string.IsNullOrWhiteSpace(trigger.Configuration))
+            else if (!exists(referenceId.Value))
             {
                 result.Issues.Add(new ValidationIssue
                 {
-                    IssueType = ValidationIssueType.TriggerMissingConfiguration,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Timer trigger '{trigger.Name}' is missing Configuration JSON data",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if reference column is missing but Configuration has a value
-            if (!hasReferenceColumn && hasConfigValue)
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerConfigurationMismatch,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Timer trigger '{trigger.Name}' has TimerGroupId in Configuration ({configTimerGroupId}) but missing reference column",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if both exist but don't match
-            if (hasReferenceColumn && hasConfigValue && trigger.TimerGroupId != configTimerGroupId)
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerConfigurationIdMismatch,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Timer trigger '{trigger.Name}' has mismatched TimerGroupId: reference column={trigger.TimerGroupId}, Configuration={configTimerGroupId}",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if the referenced TimerGroup exists
-            if (timerGroupIdToCheck.HasValue)
-            {
-                if (!timerGroupDict.TryGetValue(timerGroupIdToCheck.Value, out var timerGroup))
-                {
-                    result.Issues.Add(new ValidationIssue
-                    {
-                        IssueType = ValidationIssueType.TriggerTimerGroupNotFound,
-                        Severity = ValidationSeverity.Error,
-                        EntityType = "Trigger",
-                        EntityId = trigger.Id,
-                        EntityName = trigger.Name,
-                        Message = $"Timer trigger '{trigger.Name}' references non-existent TimerGroup ID: {timerGroupIdToCheck}",
-                        RelatedActionId = trigger.ActionId,
-                        RelatedActionName = trigger.Action?.Name
-                    });
-                }
-                else
-                {
-                    // Validate TimerGroupName if it exists in configuration
-                    if (!string.IsNullOrWhiteSpace(configTimerGroupName))
-                    {
-                        if (!configTimerGroupName.Equals(timerGroup.Name, StringComparison.Ordinal))
-                        {
-                            result.Issues.Add(new ValidationIssue
-                            {
-                                IssueType = ValidationIssueType.TriggerConfigurationNameMismatch,
-                                Severity = ValidationSeverity.Warning,
-                                EntityType = "Trigger",
-                                EntityId = trigger.Id,
-                                EntityName = trigger.Name,
-                                Message = $"Timer trigger '{trigger.Name}' has incorrect TimerGroupName in Configuration: expected '{timerGroup.Name}', found '{configTimerGroupName}'",
-                                RelatedActionId = trigger.ActionId,
-                                RelatedActionName = trigger.Action?.Name
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        private void ValidateKeywordTrigger(TriggerType trigger, Dictionary<Guid, ActionKeyword> keywordDict, ValidationResult result)
-        {
-            var configData = ParseKeywordTriggerConfiguration(trigger.Configuration);
-            var configKeywordId = configData?.KeywordId;
-            var configKeywordName = configData?.KeywordName;
-            var hasReferenceColumn = trigger.KeywordId.HasValue;
-            var hasConfigValue = configKeywordId.HasValue;
-
-            // Validate Keyword trigger name format: should be the keyword pattern
-            var keywordIdToCheck = trigger.KeywordId ?? configKeywordId;
-            if (keywordIdToCheck.HasValue && !string.IsNullOrWhiteSpace(trigger.Name))
-            {
-                if (keywordDict.TryGetValue(keywordIdToCheck.Value, out var keyword))
-                {
-                    var expectedName = keyword.CommandName;
-                    if (!trigger.Name.Equals(expectedName, StringComparison.Ordinal))
-                    {
-                        result.Issues.Add(new ValidationIssue
-                        {
-                            IssueType = ValidationIssueType.TriggerInvalidName,
-                            Severity = ValidationSeverity.Warning,
-                            EntityType = "Trigger",
-                            EntityId = trigger.Id,
-                            EntityName = trigger.Name,
-                            Message = $"Keyword trigger '{trigger.Name}' has incorrect name format. Expected: '{expectedName}'",
-                            RelatedActionId = trigger.ActionId,
-                            RelatedActionName = trigger.Action?.Name
-                        });
-                    }
-                }
-            }
-
-            // Check if both are missing
-            if (!hasReferenceColumn && !hasConfigValue)
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerMissingConfiguration,
+                    IssueType = notFoundType,
                     Severity = ValidationSeverity.Error,
                     EntityType = "Trigger",
                     EntityId = trigger.Id,
                     EntityName = trigger.Name,
-                    Message = $"Keyword trigger '{trigger.Name}' is missing both KeywordId reference column and Configuration data",
+                    Message = $"{triggerLabel} trigger '{trigger.Name}' points at a {targetLabel} that no longer exists.",
+                    Suggestion = suggestion,
                     RelatedActionId = trigger.ActionId,
                     RelatedActionName = trigger.Action?.Name
                 });
-                return;
-            }
-
-            // Check if Configuration is invalid/missing but reference column exists
-            if (hasReferenceColumn && !hasConfigValue && !string.IsNullOrWhiteSpace(trigger.Configuration))
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerInvalidConfiguration,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Keyword trigger '{trigger.Name}' has invalid or malformed Configuration JSON (missing KeywordId)",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if Configuration is completely missing
-            if (hasReferenceColumn && string.IsNullOrWhiteSpace(trigger.Configuration))
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerMissingConfiguration,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Keyword trigger '{trigger.Name}' is missing Configuration JSON data",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if reference column is missing but Configuration has a value
-            if (!hasReferenceColumn && hasConfigValue)
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerConfigurationMismatch,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Keyword trigger '{trigger.Name}' has KeywordId in Configuration ({configKeywordId}) but missing reference column",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if both exist but don't match
-            if (hasReferenceColumn && hasConfigValue && trigger.KeywordId != configKeywordId)
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerConfigurationIdMismatch,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Keyword trigger '{trigger.Name}' has mismatched KeywordId: reference column={trigger.KeywordId}, Configuration={configKeywordId}",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if the referenced Keyword exists
-            if (keywordIdToCheck.HasValue)
-            {
-                if (!keywordDict.TryGetValue(keywordIdToCheck.Value, out var keyword))
-                {
-                    result.Issues.Add(new ValidationIssue
-                    {
-                        IssueType = ValidationIssueType.TriggerKeywordNotFound,
-                        Severity = ValidationSeverity.Error,
-                        EntityType = "Trigger",
-                        EntityId = trigger.Id,
-                        EntityName = trigger.Name,
-                        Message = $"Keyword trigger '{trigger.Name}' references non-existent Keyword ID: {keywordIdToCheck}",
-                        RelatedActionId = trigger.ActionId,
-                        RelatedActionName = trigger.Action?.Name
-                    });
-                }
-                else
-                {
-                    // Validate KeywordName if it exists in configuration
-                    if (!string.IsNullOrWhiteSpace(configKeywordName))
-                    {
-                        if (!configKeywordName.Equals(keyword.CommandName, StringComparison.Ordinal))
-                        {
-                            result.Issues.Add(new ValidationIssue
-                            {
-                                IssueType = ValidationIssueType.TriggerConfigurationNameMismatch,
-                                Severity = ValidationSeverity.Warning,
-                                EntityType = "Trigger",
-                                EntityId = trigger.Id,
-                                EntityName = trigger.Name,
-                                Message = $"Keyword trigger '{trigger.Name}' has incorrect KeywordName in Configuration: expected '{keyword.CommandName}', found '{configKeywordName}'",
-                                RelatedActionId = trigger.ActionId,
-                                RelatedActionName = trigger.Action?.Name
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        private void ValidateCommandTrigger(TriggerType trigger, Dictionary<Guid, ActionCommand> commandDict, ValidationResult result)
-        {
-            var configData = ParseCommandTriggerConfiguration(trigger.Configuration);
-            var configCommandId = configData?.CommandId;
-            var configCommandName = configData?.CommandName;
-            var hasReferenceColumn = trigger.CommandId.HasValue;
-            var hasConfigValue = configCommandId.HasValue;
-
-            // Validate Command trigger name format: should be "!{CommandName}"
-            var commandIdToCheck = trigger.CommandId ?? configCommandId;
-            if (commandIdToCheck.HasValue && !string.IsNullOrWhiteSpace(trigger.Name))
-            {
-                if (commandDict.TryGetValue(commandIdToCheck.Value, out var command))
-                {
-                    var expectedName = $"!{command.CommandName}";
-                    if (!trigger.Name.Equals(expectedName, StringComparison.Ordinal))
-                    {
-                        result.Issues.Add(new ValidationIssue
-                        {
-                            IssueType = ValidationIssueType.TriggerInvalidName,
-                            Severity = ValidationSeverity.Warning,
-                            EntityType = "Trigger",
-                            EntityId = trigger.Id,
-                            EntityName = trigger.Name,
-                            Message = $"Command trigger '{trigger.Name}' has incorrect name format. Expected: '{expectedName}'",
-                            RelatedActionId = trigger.ActionId,
-                            RelatedActionName = trigger.Action?.Name
-                        });
-                    }
-                }
-            }
-
-            // Check if both are missing
-            if (!hasReferenceColumn && !hasConfigValue)
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerMissingConfiguration,
-                    Severity = ValidationSeverity.Error,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Command trigger '{trigger.Name}' is missing both CommandId reference column and Configuration data",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-                return;
-            }
-
-            // Check if Configuration is invalid/missing but reference column exists
-            if (hasReferenceColumn && !hasConfigValue && !string.IsNullOrWhiteSpace(trigger.Configuration))
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerInvalidConfiguration,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Command trigger '{trigger.Name}' has invalid or malformed Configuration JSON (missing CommandId)",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if Configuration is completely missing
-            if (hasReferenceColumn && string.IsNullOrWhiteSpace(trigger.Configuration))
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerMissingConfiguration,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Command trigger '{trigger.Name}' is missing Configuration JSON data",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if reference column is missing but Configuration has a value
-            if (!hasReferenceColumn && hasConfigValue)
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerConfigurationMismatch,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Command trigger '{trigger.Name}' has CommandId in Configuration ({configCommandId}) but missing reference column",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if both exist but don't match
-            if (hasReferenceColumn && hasConfigValue && trigger.CommandId != configCommandId)
-            {
-                result.Issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.TriggerConfigurationIdMismatch,
-                    Severity = ValidationSeverity.Warning,
-                    EntityType = "Trigger",
-                    EntityId = trigger.Id,
-                    EntityName = trigger.Name,
-                    Message = $"Command trigger '{trigger.Name}' has mismatched CommandId: reference column={trigger.CommandId}, Configuration={configCommandId}",
-                    RelatedActionId = trigger.ActionId,
-                    RelatedActionName = trigger.Action?.Name
-                });
-            }
-
-            // Check if the referenced Command exists
-            if (commandIdToCheck.HasValue)
-            {
-                if (!commandDict.TryGetValue(commandIdToCheck.Value, out var command))
-                {
-                    result.Issues.Add(new ValidationIssue
-                    {
-                        IssueType = ValidationIssueType.TriggerCommandNotFound,
-                        Severity = ValidationSeverity.Error,
-                        EntityType = "Trigger",
-                        EntityId = trigger.Id,
-                        EntityName = trigger.Name,
-                        Message = $"Command trigger '{trigger.Name}' references non-existent Command ID: {commandIdToCheck}",
-                        RelatedActionId = trigger.ActionId,
-                        RelatedActionName = trigger.Action?.Name
-                    });
-                }
-                else
-                {
-                    // Validate CommandName if it exists in configuration
-                    if (!string.IsNullOrWhiteSpace(configCommandName))
-                    {
-                        if (!configCommandName.Equals(command.CommandName, StringComparison.Ordinal))
-                        {
-                            result.Issues.Add(new ValidationIssue
-                            {
-                                IssueType = ValidationIssueType.TriggerConfigurationNameMismatch,
-                                Severity = ValidationSeverity.Warning,
-                                EntityType = "Trigger",
-                                EntityId = trigger.Id,
-                                EntityName = trigger.Name,
-                                Message = $"Command trigger '{trigger.Name}' has incorrect CommandName in Configuration: expected '{command.CommandName}', found '{configCommandName}'",
-                                RelatedActionId = trigger.ActionId,
-                                RelatedActionName = trigger.Action?.Name
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        private TimerTriggerConfig? ParseTimerTriggerConfiguration(string configuration)
-        {
-            if (string.IsNullOrWhiteSpace(configuration))
-                return null;
-
-            try
-            {
-                var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configuration);
-                if (config == null) return null;
-
-                var result = new TimerTriggerConfig();
-
-                if (config.TryGetValue("TimerGroupId", out var timerGroupIdElement))
-                {
-                    if (timerGroupIdElement.TryGetGuid(out var timerGroupId))
-                        result.TimerGroupId = timerGroupId;
-                    else if (UuidMigrationHelper.TryParseGuidOrLegacyInt(timerGroupIdElement.ToString(), out var parsedId))
-                        result.TimerGroupId = parsedId;
-                }
-
-                if (config.TryGetValue("TimerGroupName", out var timerGroupNameElement))
-                {
-                    result.TimerGroupName = timerGroupNameElement.GetString();
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "Failed to parse Timer trigger configuration");
-                return null;
-            }
-        }
-
-        private KeywordTriggerConfig? ParseKeywordTriggerConfiguration(string configuration)
-        {
-            if (string.IsNullOrWhiteSpace(configuration))
-                return null;
-
-            try
-            {
-                var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configuration);
-                if (config == null) return null;
-
-                var result = new KeywordTriggerConfig();
-
-                if (config.TryGetValue("KeywordId", out var keywordIdElement))
-                {
-                    if (keywordIdElement.TryGetGuid(out var keywordId))
-                        result.KeywordId = keywordId;
-                    else if (UuidMigrationHelper.TryParseGuidOrLegacyInt(keywordIdElement.ToString(), out var parsedId))
-                        result.KeywordId = parsedId;
-                }
-
-                if (config.TryGetValue("KeywordName", out var keywordNameElement))
-                {
-                    result.KeywordName = keywordNameElement.GetString();
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "Failed to parse Keyword trigger configuration");
-                return null;
-            }
-        }
-
-        private CommandTriggerConfig? ParseCommandTriggerConfiguration(string configuration)
-        {
-            if (string.IsNullOrWhiteSpace(configuration))
-                return null;
-
-            try
-            {
-                var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configuration);
-                if (config == null) return null;
-
-                var result = new CommandTriggerConfig();
-
-                if (config.TryGetValue("CommandId", out var commandIdElement))
-                {
-                    if (commandIdElement.TryGetGuid(out var commandId))
-                        result.CommandId = commandId;
-                    else if (UuidMigrationHelper.TryParseGuidOrLegacyInt(commandIdElement.ToString(), out var parsedId))
-                        result.CommandId = parsedId;
-                }
-
-                if (config.TryGetValue("CommandName", out var commandNameElement))
-                {
-                    result.CommandName = commandNameElement.GetString();
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "Failed to parse Command trigger configuration");
-                return null;
             }
         }
 
@@ -1785,6 +1254,7 @@ namespace PenguinTwitchBot.Bot.Validation
             // Get all commands
             var commands = await db.ActionCommands.GetAsync();
             _logger.LogDebug("Validating {CommandCount} commands", commands.Count);
+            result.Stats["Commands"] = commands.Count;
 
             // Get all triggers to check which commands are referenced
             var allTriggers = await db.Triggers.GetAllAsync();
@@ -1815,7 +1285,7 @@ namespace PenguinTwitchBot.Bot.Validation
                     result.Issues.Add(new ValidationIssue
                     {
                         IssueType = ValidationIssueType.CommandNoTriggers,
-                        Severity = ValidationSeverity.Warning,
+                        Severity = ValidationSeverity.Info,
                         EntityType = "Command",
                         EntityId = command.Id,
                         EntityName = command.CommandName ?? "(unknown)",
@@ -1838,6 +1308,7 @@ namespace PenguinTwitchBot.Bot.Validation
             // Get all keywords
             var keywords = await db.ActionKeywords.GetAsync();
             _logger.LogDebug("Validating {KeywordCount} keywords", keywords.Count);
+            result.Stats["Keywords"] = keywords.Count;
 
             // Get all triggers to check which keywords are referenced
             var allTriggers = await db.Triggers.GetAllAsync();
@@ -1868,7 +1339,7 @@ namespace PenguinTwitchBot.Bot.Validation
                     result.Issues.Add(new ValidationIssue
                     {
                         IssueType = ValidationIssueType.KeywordNoTriggers,
-                        Severity = ValidationSeverity.Warning,
+                        Severity = ValidationSeverity.Info,
                         EntityType = "Keyword",
                         EntityId = keyword.Id,
                         EntityName = keyword.CommandName ?? "(unknown)",
@@ -1880,23 +1351,5 @@ namespace PenguinTwitchBot.Bot.Validation
             _logger.LogDebug("Keyword validation found {IssueCount} issues", result.Issues.Count);
             return result;
         }
-    }
-
-    internal class TimerTriggerConfig
-    {
-        public Guid? TimerGroupId { get; set; }
-        public string? TimerGroupName { get; set; }
-    }
-
-    internal class CommandTriggerConfig
-    {
-        public Guid? CommandId { get; set; }
-        public string? CommandName { get; set; }
-    }
-
-    internal class KeywordTriggerConfig
-    {
-        public Guid? KeywordId { get; set; }
-        public string? KeywordName { get; set; }
     }
 }

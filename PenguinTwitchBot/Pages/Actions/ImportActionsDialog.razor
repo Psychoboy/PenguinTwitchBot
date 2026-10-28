@@ -1014,7 +1014,6 @@
                         Id = Guid.CreateVersion7(),
                         Name = $"!{command.CommandName}",
                         Type = TriggerTypes.Command,
-                        Configuration = JsonSerializer.Serialize(new { CommandId = command.Id }),
                         Enabled = trigger.Enabled,
                         CommandId = command.Id
                     });
@@ -1037,7 +1036,6 @@
                         Id = Guid.CreateVersion7(),
                         Name = keyword.CommandName,
                         Type = TriggerTypes.Keyword,
-                        Configuration = JsonSerializer.Serialize(new { KeywordId = keyword.Id }),
                         Enabled = trigger.Enabled,
                         KeywordId = keyword.Id
                     });
@@ -1064,9 +1062,8 @@
                     triggers.Add(new TriggerType
                     {
                         Id = Guid.CreateVersion7(),
-                        Name = $"TimerGroup_{timerGroup.Id}",
+                        Name = timerGroup.Name,
                         Type = TriggerTypes.Timer,
-                        Configuration = JsonSerializer.Serialize(new { TimerGroupId = timerGroup.Id }),
                         Enabled = trigger.Enabled,
                         TimerGroupId = timerGroup.Id
                     });

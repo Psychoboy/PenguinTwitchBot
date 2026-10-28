@@ -98,7 +98,7 @@ public class ActionCommandHandlerTests
 
         await _handler.Handle(notification, CancellationToken.None);
 
-        await _actionManagement.DidNotReceive().GetActionsByTriggerTypeAndNameEnabledAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>());
+        await _actionManagement.DidNotReceive().GetActionsByCommandIdEnabledAsync(Arg.Any<Guid>());
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class ActionCommandHandlerTests
 
         await _handler.Handle(notification, CancellationToken.None);
 
-        await _actionManagement.DidNotReceive().GetActionsByTriggerTypeAndNameEnabledAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>());
+        await _actionManagement.DidNotReceive().GetActionsByCommandIdEnabledAsync(Arg.Any<Guid>());
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public class ActionCommandHandlerTests
             Arg.Is<object>(o => o.ToString()!.Contains("attempted to run broadcaster-only command")),
             null,
             Arg.Any<Func<object, Exception?, string>>());
-        await _actionManagement.DidNotReceive().GetActionsByTriggerTypeAndNameEnabledAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>());
+        await _actionManagement.DidNotReceive().GetActionsByCommandIdEnabledAsync(Arg.Any<Guid>());
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public class ActionCommandHandlerTests
         _actionCommandService.GetByCommandNameAsync("test").Returns(command);
         _commandHandler.CheckPermission(Arg.Any<BaseCommandProperties>(), Arg.Any<CommandEventArgs>()).Returns(Task.FromResult(true));
         _commandHandler.IsCoolDownExpired(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(true));
-        _actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>()).Returns(Task.FromResult(new List<ActionType>()));
+        _actionManagement.GetActionsByCommandIdEnabledAsync(Arg.Any<Guid>()).Returns(Task.FromResult(new List<ActionType>()));
 
         await _handler.Handle(notification, CancellationToken.None);
 
@@ -213,7 +213,7 @@ public class ActionCommandHandlerTests
             Arg.Is<object>(o => o.ToString()!.Contains("does not have permission to run command")),
             null,
             Arg.Any<Func<object, Exception?, string>>());
-        await _actionManagement.DidNotReceive().GetActionsByTriggerTypeAndNameEnabledAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>());
+        await _actionManagement.DidNotReceive().GetActionsByCommandIdEnabledAsync(Arg.Any<Guid>());
     }
 
     [Fact]
@@ -243,7 +243,7 @@ public class ActionCommandHandlerTests
 
         await _handler.Handle(notification, CancellationToken.None);
 
-        await _actionManagement.DidNotReceive().GetActionsByTriggerTypeAndNameEnabledAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>());
+        await _actionManagement.DidNotReceive().GetActionsByCommandIdEnabledAsync(Arg.Any<Guid>());
     }
 
     [Fact]
@@ -272,7 +272,7 @@ public class ActionCommandHandlerTests
 
         await _handler.Handle(notification, CancellationToken.None);
 
-        await _actionManagement.DidNotReceive().GetActionsByTriggerTypeAndNameEnabledAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>());
+        await _actionManagement.DidNotReceive().GetActionsByCommandIdEnabledAsync(Arg.Any<Guid>());
     }
 
     [Fact]
@@ -305,8 +305,8 @@ public class ActionCommandHandlerTests
         _actionCommandService.GetByCommandNameAsync("test").Returns(command);
         _commandHandler.CheckPermission(command, notification.EventArgs).Returns(Task.FromResult(true));
         _commandHandler.IsCoolDownExpired("testuser", "test").Returns(Task.FromResult(true));
-        _actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
-            TriggerTypes.Command, "!test").Returns(Task.FromResult(new List<ActionType> { actionType1, actionType2 }));
+        _actionManagement.GetActionsByCommandIdEnabledAsync(
+            Arg.Any<Guid>()).Returns(Task.FromResult(new List<ActionType> { actionType1, actionType2 }));
 
         await _handler.Handle(notification, CancellationToken.None);
 
@@ -333,8 +333,8 @@ public class ActionCommandHandlerTests
         _actionCommandService.GetByCommandNameAsync("test").Returns(command);
         _commandHandler.CheckPermission(command, notification.EventArgs).Returns(Task.FromResult(true));
         _commandHandler.IsCoolDownExpired("testuser", "test").Returns(Task.FromResult(true));
-        _actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
-            TriggerTypes.Command, "!test").Returns(Task.FromResult(new List<ActionType> { new ActionType { Name = "Action1", SubActions = new List<SubActionType>() } }));
+        _actionManagement.GetActionsByCommandIdEnabledAsync(
+            Arg.Any<Guid>()).Returns(Task.FromResult(new List<ActionType> { new ActionType { Name = "Action1", SubActions = new List<SubActionType>() } }));
 
         _actionService.EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<ActionType>(), Arg.Any<Guid?>(), Arg.Any<int?>())
             .Returns(Task.FromException(new Exception("Test exception")));
@@ -371,8 +371,8 @@ public class ActionCommandHandlerTests
         _actionCommandService.GetByCommandNameAsync("test").Returns(command);
         _commandHandler.CheckPermission(command, notification.EventArgs).Returns(Task.FromResult(true));
         _commandHandler.IsCoolDownExpired("testuser", "test").Returns(Task.FromResult(true));
-        _actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
-            TriggerTypes.Command, "!test").Returns(Task.FromResult(new List<ActionType> { actionType }));
+        _actionManagement.GetActionsByCommandIdEnabledAsync(
+            Arg.Any<Guid>()).Returns(Task.FromResult(new List<ActionType> { actionType }));
 
         await _handler.Handle(notification, CancellationToken.None);
 
