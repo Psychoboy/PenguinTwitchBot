@@ -1,0 +1,303 @@
+@page "/community/quotes"
+@attribute [Authorize(Roles = "Streamer, Editor, Moderator")]
+@using PenguinTwitchBot.Database.Bot.Models
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Bot.Commands.Misc
+@using PenguinTwitchBot.Pages.Actions
+@inject QuoteSystem QuoteSystem
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Manage Quotes</PageTitle>
+
+<FeatureGate FeatureKey="@FeatureKeys.QuoteSystem">
+    <ChildContent>
+        <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+            <MudStack Spacing="4">
+                <!-- Header -->
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+                    <MudStack Spacing="1">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.FormatQuote" Size="Size.Large" Color="Color.Primary" />
+                            <MudText Typo="Typo.h4">Manage Quotes</MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Add, edit, and moderate memorable stream quotes. Quotes display friendly sequential numbers for viewers while preserving unique identifiers.
+                        </MudText>
+                    </MudStack>
+
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.OpenInNew"
+                                   OnClick="@(() => NavigationManager.NavigateTo("/quotes"))">
+                            View Public Page
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="OpenAddDialog">
+                            Add Quote
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+
+                <MudPaper Elevation="3">
+                    @if (!dataLoaded)
+                    {
+                        <MudStack Class="pa-4" Spacing="2">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Height="32px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="240px" Class="rounded" />
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudTable Items="@items" Filter="new Func<FilteredQuoteType, bool>(FilterQuote)" Dense="true" Hover="true">
+                            <ToolBarContent>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-1" Style="width: 100%;">
+                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.FormatQuote">
+                                        @items.Count @(items.Count == 1 ? "Quote" : "Quotes")
+                                    </MudChip>
+                                    <MudSpacer />
+                                    <MudTextField @bind-Value="searchString"
+                                                  Placeholder="Search quotes by text, game, creator, or #..."
+                                                  Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense"
+                                                  DebounceInterval="300"
+                                                  Adornment="Adornment.Start"
+                                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                                  IconSize="Size.Medium"
+                                                  Style="min-width: 300px;" />
+                                </MudStack>
+                            </ToolBarContent>
+                            <HeaderContent>
+                                <MudTh Style="width: 90px;"><MudTableSortLabel SortBy="new Func<FilteredQuoteType, object>(x => x.Number)">#</MudTableSortLabel></MudTh>
+                                <MudTh><MudTableSortLabel SortBy="new Func<FilteredQuoteType, object>(x => x.Quote)">Quote</MudTableSortLabel></MudTh>
+                                <MudTh><MudTableSortLabel SortBy="new Func<FilteredQuoteType, object>(x => x.Game)">Game</MudTableSortLabel></MudTh>
+                                <MudTh><MudTableSortLabel SortBy="new Func<FilteredQuoteType, object>(x => x.CreatedBy)">Created By</MudTableSortLabel></MudTh>
+                                <MudTh><MudTableSortLabel SortBy="new Func<FilteredQuoteType, object>(x => x.CreatedOn)">Created On</MudTableSortLabel></MudTh>
+                                <MudTh Style="text-align: right; width: 120px;">Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="#">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Tag" Size="Size.Small" Color="Color.Info" />
+                                        <MudTooltip Text="@($"ID: {context.Id}")">
+                                            <MudText><strong>#@(context.Number > 0 ? context.Number.ToString() : context.Id.ToString())</strong></MudText>
+                                        </MudTooltip>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Quote">
+                                    <MudText Style="white-space: pre-wrap;">@context.Quote</MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Game">
+                                    @if (!string.IsNullOrWhiteSpace(context.Game))
+                                    {
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.SportsEsports" Size="Size.Small" Color="Color.Tertiary" />
+                                            <MudText>@context.Game</MudText>
+                                        </MudStack>
+                                    }
+                                    else
+                                    {
+                                        <MudText Color="Color.Default" Class="fst-italic">No game</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Created By">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Success" />
+                                        <MudText>@context.CreatedBy</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Created On">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
+                                        <MudText>@context.CreatedOn.ToShortDateString()</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Actions" Style="text-align: right;">
+                                    <MudTooltip Text="Edit Quote">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                       Size="Size.Small"
+                                                       Color="Color.Primary"
+                                                       OnClick="@(() => OpenEditDialog(context))" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Delete Quote">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Size="Size.Small"
+                                                       Color="Color.Error"
+                                                       OnClick="@(() => DeleteQuoteAsync(context))" />
+                                    </MudTooltip>
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.SearchOff">
+                                    No quotes found matching your search.
+                                </MudAlert>
+                            </NoRecordsContent>
+                            <PagerContent>
+                                <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" />
+                            </PagerContent>
+                        </MudTable>
+                    }
+                </MudPaper>
+            </MudStack>
+        </MudContainer>
+    </ChildContent>
+    <DisabledContent>
+        <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.Medium">
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.PowerOff">
+                The Quote System feature is currently disabled.
+            </MudAlert>
+        </MudContainer>
+    </DisabledContent>
+</FeatureGate>
+
+@code {
+    private List<FilteredQuoteType> items = new();
+    private string searchString = string.Empty;
+    private bool dataLoaded = false;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        FeatureRuntimeCoordinator.StateChanged += HandleFeatureStateChanged;
+        await LoadQuotesAsync();
+    }
+
+    private async Task LoadQuotesAsync()
+    {
+        if (_disposed) return;
+
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.QuoteSystem))
+        {
+            var result = await QuoteSystem.GetAllQuotesForManagement();
+            items = result.OrderByDescending(x => x.Number > 0 ? x.Number : int.MaxValue).ToList();
+        }
+        else
+        {
+            items = new();
+        }
+
+        dataLoaded = true;
+        if (!_disposed)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private void HandleFeatureStateChanged()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(LoadQuotesAsync);
+    }
+
+    private bool FilterQuote(FilteredQuoteType element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if ($"{element.Number}".Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (element.Quote.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (element.Game.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (element.CreatedBy.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if ($"{element.Id}".Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var parameters = new DialogParameters<QuoteDialog>
+        {
+            { x => x.IsEditMode, false },
+            { x => x.QuoteText, string.Empty },
+            { x => x.Game, string.Empty },
+            { x => x.CreatedBy, "Streamer" }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<QuoteDialog>("Add New Quote", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: QuoteDialog.QuoteModel model })
+        {
+            var quote = new QuoteType
+            {
+                Quote = model.Quote,
+                Game = model.Game,
+                CreatedBy = model.CreatedBy,
+                CreatedOn = DateTime.UtcNow
+            };
+
+            await QuoteSystem.AddQuote(quote);
+            Snackbar.Add("Quote added successfully.", Severity.Success);
+            await LoadQuotesAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(FilteredQuoteType quote)
+    {
+        var parameters = new DialogParameters<QuoteDialog>
+        {
+            { x => x.IsEditMode, true },
+            { x => x.Number, quote.Number },
+            { x => x.QuoteText, quote.Quote },
+            { x => x.Game, quote.Game },
+            { x => x.CreatedBy, quote.CreatedBy }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<QuoteDialog>($"Edit Quote #{quote.Number}", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: QuoteDialog.QuoteModel model })
+        {
+            var success = await QuoteSystem.UpdateQuote(quote.Id, model.Quote, model.Game);
+            if (success)
+            {
+                Snackbar.Add($"Quote #{quote.Number} updated.", Severity.Success);
+                await LoadQuotesAsync();
+            }
+            else
+            {
+                Snackbar.Add("Failed to update quote.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task DeleteQuoteAsync(FilteredQuoteType quote)
+    {
+        var parameters = new DialogParameters<ConfirmDeleteDialog>
+        {
+            { x => x.Title, "Delete Quote" },
+            { x => x.Message, $"Are you sure you want to delete quote #{quote.Number} (\"{quote.Quote}\")?" },
+            { x => x.ConfirmText, "Delete" }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>("Confirm Delete", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            var success = await QuoteSystem.DeleteQuote(quote.Id);
+            if (success)
+            {
+                Snackbar.Add($"Quote #{quote.Number} deleted.", Severity.Success);
+                await LoadQuotesAsync();
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete quote.", Severity.Error);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
+    }
+}
+
