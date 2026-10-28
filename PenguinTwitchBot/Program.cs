@@ -434,6 +434,22 @@ internal class Program
             OnPrepareResponse = ctx =>
             {
                 var path = ctx.Context.Request.Path.Value ?? string.Empty;
+                // Without a max-age, browsers and Cloudflare revalidate heavy media on every visit.
+                if (path.StartsWith("/lib/", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Context.Response.Headers.CacheControl = "public,max-age=86400";
+                }
+                else if (path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                         path.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                         path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                         path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
+                         path.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+                         path.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) ||
+                         path.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase) ||
+                         path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Context.Response.Headers.CacheControl = "public,max-age=3600";
+                }
                 if (path.StartsWith("/extension", StringComparison.OrdinalIgnoreCase) ||
                     path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ||
                     path.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
@@ -1329,6 +1345,15 @@ try
         switch (provider)
         {
             case "postgres":
+                // Sub-action queries over the table-per-type hierarchy are ~300 KB of SQL each. Auto-preparing
+                // them avoids re-sending and re-planning that text on every call. Set "Max Auto Prepare=0"
+                // in the connection string to opt out (e.g. behind a transaction-mode pooler).
+                var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
+                if (!npgsqlBuilder.ContainsKey("Max Auto Prepare"))
+                {
+                    npgsqlBuilder.MaxAutoPrepare = 20;
+                    connectionString = npgsqlBuilder.ConnectionString;
+                }
                 options.UseNpgsql(connectionString, postgresOptions =>
                 {
                     postgresOptions.MigrationsAssembly(migrationsAssembly)

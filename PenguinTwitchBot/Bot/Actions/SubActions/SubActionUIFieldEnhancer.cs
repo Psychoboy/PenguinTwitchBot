@@ -479,7 +479,7 @@ public static class SubActionUIFieldEnhancer
     private static List<SubActionUIField> EnhanceExecuteAction(List<SubActionUIField> fields, ExecuteActionType execute, IServiceProvider serviceProvider)
     {
         var actionService = serviceProvider.GetRequiredService<IActionManagementService>();
-        var actions = Task.Run(async () => await actionService.GetAllActionsAsync()).GetAwaiter().GetResult();
+        var actions = Task.Run(async () => await actionService.GetActionSummariesAsync()).GetAwaiter().GetResult();
         var actionOptions = actions
             .Where(a => a.Id != Guid.Empty)
             .Select(a => new SelectOption { Name = a.Name, Id = a.Id })
@@ -742,7 +742,7 @@ public static class SubActionUIFieldEnhancer
     private static List<SubActionUIField> EnhanceForEachViewer(List<SubActionUIField> fields, ForEachViewerType foreachViewer, IServiceProvider serviceProvider)
     {
         var actionService = serviceProvider.GetRequiredService<IActionManagementService>();
-        var actions = Task.Run(async () => await actionService.GetAllActionsAsync()).GetAwaiter().GetResult();
+        var actions = Task.Run(async () => await actionService.GetActionSummariesAsync()).GetAwaiter().GetResult();
         var actionOptions = actions
             .Where(a => a.Id != Guid.Empty)
             .Select(a => new SelectOption { Name = a.Name, Id = a.Id })

@@ -103,8 +103,10 @@
                         <MudList T="Guid?" SelectedValue="_selectedActionIdInList" Dense="true" @key="_actionsListRenderVersion">
                             @foreach (var group in _filteredActions.Select(a => (a.Group ?? string.Empty).Trim()).Distinct().Order())
                             {
-                                <MudListItem Text="@(string.IsNullOrWhiteSpace(group) ? Ungrouped : group)" Expanded="@(GetNormalizedGroup(group) == _expandedGroupInList)">
+                                <MudListItem Text="@(string.IsNullOrWhiteSpace(group) ? Ungrouped : group)" Expanded="@IsGroupExpanded(group)" ExpandedChanged="@(expanded => OnGroupExpandedChanged(group, expanded))">
                                     <NestedList>
+                                @if (IsGroupExpanded(group))
+                                {
                                 @foreach (var action in _filteredActions.Where(a => (a.Group ?? string.Empty) == group))
                                 {
                                     <MudListItem T="Guid?" Value="@action.Id" OnClick="@(() => OnActionSelected(action))">
@@ -125,6 +127,7 @@
                                     </MudListItem>
                                     <MudDivider />
 
+                                }
                                 }
                                     </NestedList>
                                 </MudListItem>
@@ -361,7 +364,30 @@
     private bool _skipNextNavigationPrompt = false;
     private Guid? _selectedActionIdInList;
     private int _actionsListRenderVersion;
-    private string _expandedGroupInList = string.Empty;
+    private string _expandedGroupInListValue = string.Empty;
+    // User toggles override the auto-expanded group until the selection changes it again.
+    private readonly Dictionary<string, bool> _manualGroupState = new();
+    private string _expandedGroupInList
+    {
+        get => _expandedGroupInListValue;
+        set
+        {
+            _expandedGroupInListValue = value;
+            _manualGroupState.Clear();
+        }
+    }
+
+    // Collapsed groups skip rendering their items, which keeps clicks from re-diffing the whole list.
+    private bool IsGroupExpanded(string group)
+    {
+        var normalized = GetNormalizedGroup(group);
+        return _manualGroupState.TryGetValue(normalized, out var manual) ? manual : normalized == _expandedGroupInList;
+    }
+
+    private void OnGroupExpandedChanged(string group, bool expanded)
+    {
+        _manualGroupState[GetNormalizedGroup(group)] = expanded;
+    }
     private string _searchString = "";
     private string _filterGroup = "";
     private string _selectedActionHistorySearchString = "";

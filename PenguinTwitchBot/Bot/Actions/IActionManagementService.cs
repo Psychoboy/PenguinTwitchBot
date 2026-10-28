@@ -5,6 +5,8 @@ namespace PenguinTwitchBot.Bot.Actions
     public interface IActionManagementService
     {
         Task<List<ActionType>> GetAllActionsAsync();
+        /// <summary>Actions without sub-actions or triggers; much cheaper than <see cref="GetAllActionsAsync"/>.</summary>
+        Task<List<ActionType>> GetActionSummariesAsync();
         Task<ActionType?> GetActionByIdAsync(Guid id);
         Task<ActionType> CreateActionAsync(ActionType action);
         Task<ActionType> UpdateActionAsync(ActionType action);

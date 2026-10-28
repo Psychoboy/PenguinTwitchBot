@@ -7,6 +7,8 @@ namespace PenguinTwitchBot.Database.Repository
     {
         Task<ActionType?> GetByIdWithDetailsAsync(Guid id);
         Task<List<ActionType>> GetAllWithDetailsAsync();
+        /// <summary>Actions without sub-actions or triggers, ordered by name; use when only names/ids are needed.</summary>
+        Task<List<ActionType>> GetAllSummariesAsync();
         Task<ActionType> CreateActionAsync(ActionType action);
         Task<ActionType> UpdateActionAsync(ActionType action);
         Task DeleteActionAsync(Guid id);

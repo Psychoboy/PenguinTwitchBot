@@ -29,6 +29,13 @@ namespace PenguinTwitchBot.Bot.Actions
             return actions;
         }
 
+        public async Task<List<ActionType>> GetActionSummariesAsync()
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await unitOfWork.Actions.GetAllSummariesAsync();
+        }
+
         public async Task<ActionType?> GetActionByIdAsync(Guid id)
         {
             using var scope = _serviceScopeFactory.CreateScope();

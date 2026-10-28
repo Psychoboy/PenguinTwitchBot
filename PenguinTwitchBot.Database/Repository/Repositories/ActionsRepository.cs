@@ -51,6 +51,14 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             return actions;
         }
 
+        public async Task<List<ActionType>> GetAllSummariesAsync()
+        {
+            return await _context.Actions
+                .AsNoTracking()
+                .OrderBy(a => a.Name)
+                .ToListAsync();
+        }
+
         public async Task<ActionType> CreateActionAsync(ActionType action)
         {
             if (action.Id == Guid.Empty)

@@ -31,7 +31,7 @@ namespace PenguinTwitchBot.Pages.Components
         {
             _names = [];
             await TryLoad(async () =>
-                Add(SubActionReferenceKind.Action, (await services.GetRequiredService<IActionManagementService>().GetAllActionsAsync()).Select(a => (a.Id, a.Name))));
+                Add(SubActionReferenceKind.Action, (await services.GetRequiredService<IActionManagementService>().GetActionSummariesAsync()).Select(a => (a.Id, a.Name))));
             await TryLoad(async () =>
                 Add(SubActionReferenceKind.TimerGroup, (await services.GetRequiredService<IAutoTimers>().GetTimerGroupsAsync()).Select(t => (t.Id, t.Name))));
             await TryLoad(async () =>
