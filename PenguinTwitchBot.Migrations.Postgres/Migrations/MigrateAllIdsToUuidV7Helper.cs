@@ -1,11 +1,50 @@
+using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 {
     public static class MigrateAllIdsToUuidV7Helper
     {
-        public static void ExecutePreMigration(MigrationBuilder mb)
+        /// <summary>
+        /// Re-creates every foreign key saved (and dropped) by <see cref="ExecutePreMigration"/>.
+        /// Must run after all column type changes so parent and child key types match again.
+        /// </summary>
+        public static void ExecutePostMigration(MigrationBuilder mb)
         {
+            mb.Sql(@"
+DO $BODY$
+DECLARE r record;
+BEGIN
+    IF to_regclass('pg_temp.__uuid_fk_backup') IS NOT NULL THEN
+        FOR r IN SELECT tbl, conname, def FROM pg_temp.__uuid_fk_backup LOOP
+            EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I %s', r.tbl, r.conname, r.def);
+        END LOOP;
+        DROP TABLE pg_temp.__uuid_fk_backup;
+    END IF;
+END $BODY$;");
+        }
+
+        public static void ExecutePreMigration(MigrationBuilder mb, IModel? model = null)
+        {
+            // Postgres rejects a type change on a key column while a foreign key links it to a column of a
+            // different type, so save and drop every FK first; they are re-created by ExecutePostMigration.
+            mb.Sql(@"
+DROP TABLE IF EXISTS pg_temp.__uuid_fk_backup;
+CREATE TEMP TABLE __uuid_fk_backup AS
+    SELECT conrelid::regclass::text AS tbl, conname::text AS conname, pg_get_constraintdef(oid) AS def
+    FROM pg_constraint
+    WHERE contype = 'f' AND connamespace = current_schema()::regnamespace;
+DO $BODY$
+DECLARE r record;
+BEGIN
+    FOR r IN SELECT tbl, conname FROM pg_temp.__uuid_fk_backup LOOP
+        EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
+    END LOOP;
+END $BODY$;");
+
             var tablesWithId = new[]
             {
                 "ActionCommands", "ActionKeywords", "Actions", "Aliases", "AudioCommands", "AutoShoutouts",
@@ -87,6 +126,53 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
             {
                 ConvertColumn(mb, table, col);
             }
+
+            // Also cover any Guid key column the hardcoded lists miss (e.g. Songs.MusicPlaylistId).
+            // ConvertColumn skips columns that are already uuid, so repeats are harmless.
+            if (model != null)
+            {
+                foreach (var (table, col) in GetGuidKeyColumns(model))
+                {
+                    ConvertColumn(mb, table, col);
+                }
+            }
+        }
+
+        private static IEnumerable<(string Table, string Column)> GetGuidKeyColumns(IModel model)
+        {
+            var result = new HashSet<(string, string)>();
+            foreach (var entityType in model.GetEntityTypes())
+            {
+                var table = entityType.GetTableName();
+                if (table == null || entityType.GetViewName() != null)
+                {
+                    continue;
+                }
+
+                var storeObject = StoreObjectIdentifier.Table(table, entityType.GetSchema());
+                var props = new List<IReadOnlyProperty>();
+                var pk = entityType.FindPrimaryKey();
+                if (pk != null)
+                {
+                    props.AddRange(pk.Properties);
+                }
+
+                foreach (var fk in entityType.GetForeignKeys())
+                {
+                    props.AddRange(fk.Properties);
+                }
+
+                foreach (var p in props)
+                {
+                    var clr = Nullable.GetUnderlyingType(p.ClrType) ?? p.ClrType;
+                    if (clr == typeof(Guid) && p.GetColumnName(storeObject) is { } column)
+                    {
+                        result.Add((table, column));
+                    }
+                }
+            }
+
+            return result;
         }
 
         private static void ConvertColumn(MigrationBuilder mb, string table, string col)

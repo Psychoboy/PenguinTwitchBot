@@ -1296,6 +1296,11 @@ try
         {
             w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
 
+            // SubActionType uses table-per-concrete-type. This warning targets database-generated key defaults
+            // (e.g. identity columns) that could collide across tables; our Guid keys are generated client-side
+            // by UuidV7ValueGenerator, so it does not apply.
+            w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.TpcStoreGeneratedIdentityWarning);
+
             // SQLite emits this warning when it needs PRAGMA foreign_keys toggles around
             // schema updates. This is expected for provider-generated migration SQL.
             if (provider == "sqlite")

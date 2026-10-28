@@ -41,7 +41,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 table: "FishingTournamentEligibleCategories",
                 newName: "IX_FishingTournamentEligibleCategories_FishingTournamentId");
 
-            MigrateAllIdsToUuidV7Helper.ExecutePreMigration(migrationBuilder);
+            MigrateAllIdsToUuidV7Helper.ExecutePreMigration(migrationBuilder, TargetModel);
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -49,8 +49,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -58,8 +57,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "WheelId",
@@ -75,8 +73,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -84,8 +81,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -93,8 +89,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -102,8 +97,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -111,8 +105,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -120,8 +113,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PointTypeId",
@@ -137,8 +129,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "ShopItemId",
@@ -154,8 +145,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "TimerGroupId",
@@ -208,8 +198,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -217,8 +206,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -226,8 +214,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "CatchActionTypeId",
@@ -2796,8 +2783,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "MusicPlaylistId",
@@ -2813,8 +2799,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2830,8 +2815,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2839,8 +2823,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2848,8 +2831,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2857,8 +2839,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2866,8 +2847,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2875,8 +2855,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2884,8 +2863,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PointTypeId",
@@ -2901,8 +2879,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2910,8 +2887,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "OverlayLayoutId",
@@ -2927,8 +2903,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2936,8 +2911,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2945,8 +2919,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2954,8 +2927,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PointTypeId",
@@ -2972,8 +2944,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2981,8 +2952,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2990,8 +2960,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(long),
-                oldType: "bigint")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "bigint");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -2999,8 +2968,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3008,8 +2976,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(long),
-                oldType: "bigint")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "bigint");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3017,8 +2984,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3026,8 +2992,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "EntryFeePointTypeId",
@@ -3044,8 +3009,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "TargetFishTypeId",
@@ -3078,8 +3042,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "FishingTournamentId",
@@ -3103,8 +3066,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "FishingTournamentId",
@@ -3137,8 +3099,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3146,8 +3107,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "TargetFishTypeId",
@@ -3164,8 +3124,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3173,8 +3132,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "UserBoostId",
@@ -3198,8 +3156,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3207,8 +3164,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "FishTypeId",
@@ -3224,8 +3180,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "FishTypeId",
@@ -3241,8 +3196,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PointTypeId",
@@ -3259,8 +3213,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3268,8 +3221,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PointTypeId",
@@ -3286,8 +3238,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3295,8 +3246,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3304,8 +3254,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3313,8 +3262,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3322,8 +3270,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3331,8 +3278,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3340,8 +3286,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PointTypeId",
@@ -3358,8 +3303,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3367,8 +3311,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "Id",
@@ -3376,8 +3319,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PointTypeId",
@@ -3394,8 +3336,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "PointTypeId",
@@ -3412,8 +3353,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "FishingTournamentId",
@@ -3429,8 +3369,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "uuid",
                 nullable: false,
                 oldClrType: typeof(int),
-                oldType: "integer")
-                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                oldType: "integer");
 
             migrationBuilder.AddPrimaryKey(
                 name: "PK_FishingTournamentEligibleCategories",
@@ -3444,6 +3383,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 principalTable: "FishingTournaments",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
+
+            MigrateAllIdsToUuidV7Helper.ExecutePostMigration(migrationBuilder);
         }
 
         /// <inheritdoc />

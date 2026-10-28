@@ -3442,7 +3442,6 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
-            MigrateAllIdsToUuidV7Helper.ExecutePostMigration(migrationBuilder);
         }
 
         /// <inheritdoc />

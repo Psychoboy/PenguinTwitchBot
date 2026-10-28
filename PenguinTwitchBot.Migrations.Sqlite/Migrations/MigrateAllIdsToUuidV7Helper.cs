@@ -1,9 +1,62 @@
+using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 {
     public static class MigrateAllIdsToUuidV7Helper
     {
+        /// <summary>
+        /// Every Guid primary-key and foreign-key column in the model, so no key column that the
+        /// hardcoded lists miss (e.g. Songs.MusicPlaylistId) is left in legacy form.
+        /// </summary>
+        public static IEnumerable<(string Table, string Column)> GetGuidKeyColumns(IModel model)
+        {
+            var result = new HashSet<(string, string)>();
+            foreach (var entityType in model.GetEntityTypes())
+            {
+                var table = entityType.GetTableName();
+                if (table == null || entityType.GetViewName() != null)
+                {
+                    continue;
+                }
+
+                var storeObject = StoreObjectIdentifier.Table(table, entityType.GetSchema());
+                var props = new List<IReadOnlyProperty>();
+                var pk = entityType.FindPrimaryKey();
+                if (pk != null)
+                {
+                    props.AddRange(pk.Properties);
+                }
+
+                foreach (var fk in entityType.GetForeignKeys())
+                {
+                    props.AddRange(fk.Properties);
+                }
+
+                foreach (var p in props)
+                {
+                    var clr = Nullable.GetUnderlyingType(p.ClrType) ?? p.ClrType;
+                    if (clr == typeof(Guid) && p.GetColumnName(storeObject) is { } column)
+                    {
+                        result.Add((table, column));
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public static void ExecutePostMigration(MigrationBuilder mb, IModel model)
+        {
+            foreach (var (table, col) in GetGuidKeyColumns(model))
+            {
+                mb.Sql($"UPDATE \"{table}\" SET \"{col}\" = printf('00000000-0000-7000-8000-%012X', \"{col}\") WHERE \"{col}\" IS NOT NULL AND length(\"{col}\") < 36;");
+            }
+        }
+
         public static void ExecutePostMigration(MigrationBuilder mb)
         {
             var tablesWithId = new[]
@@ -24,7 +77,7 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
             foreach (var table in tablesWithId)
             {
-                mb.Sql($"UPDATE \"{table}\" SET \"Id\" = printf('00000000-0000-7000-8000-%012x', \"Id\") WHERE \"Id\" IS NOT NULL AND length(\"Id\") < 36;");
+                mb.Sql($"UPDATE \"{table}\" SET \"Id\" = printf('00000000-0000-7000-8000-%012X', \"Id\") WHERE \"Id\" IS NOT NULL AND length(\"Id\") < 36;");
             }
 
             var subactionTables = new[]
@@ -61,9 +114,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
             foreach (var table in subactionTables)
             {
-                mb.Sql($"UPDATE \"{table}\" SET \"Id\" = printf('00000000-0000-7000-8000-%012x', \"Id\") WHERE \"Id\" IS NOT NULL AND length(\"Id\") < 36;");
-                mb.Sql($"UPDATE \"{table}\" SET \"ActionTypeId\" = printf('00000000-0000-7000-8000-%012x', \"ActionTypeId\") WHERE \"ActionTypeId\" IS NOT NULL AND length(\"ActionTypeId\") < 36;");
-                mb.Sql($"UPDATE \"{table}\" SET \"CatchActionTypeId\" = printf('00000000-0000-7000-8000-%012x', \"CatchActionTypeId\") WHERE \"CatchActionTypeId\" IS NOT NULL AND length(\"CatchActionTypeId\") < 36;");
+                mb.Sql($"UPDATE \"{table}\" SET \"Id\" = printf('00000000-0000-7000-8000-%012X', \"Id\") WHERE \"Id\" IS NOT NULL AND length(\"Id\") < 36;");
+                mb.Sql($"UPDATE \"{table}\" SET \"ActionTypeId\" = printf('00000000-0000-7000-8000-%012X', \"ActionTypeId\") WHERE \"ActionTypeId\" IS NOT NULL AND length(\"ActionTypeId\") < 36;");
+                mb.Sql($"UPDATE \"{table}\" SET \"CatchActionTypeId\" = printf('00000000-0000-7000-8000-%012X', \"CatchActionTypeId\") WHERE \"CatchActionTypeId\" IS NOT NULL AND length(\"CatchActionTypeId\") < 36;");
             }
 
             var fks = new (string Table, string Column)[]
@@ -85,7 +138,7 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
             foreach (var (table, col) in fks)
             {
-                mb.Sql($"UPDATE \"{table}\" SET \"{col}\" = printf('00000000-0000-7000-8000-%012x', \"{col}\") WHERE \"{col}\" IS NOT NULL AND length(\"{col}\") < 36;");
+                mb.Sql($"UPDATE \"{table}\" SET \"{col}\" = printf('00000000-0000-7000-8000-%012X', \"{col}\") WHERE \"{col}\" IS NOT NULL AND length(\"{col}\") < 36;");
             }
         }
     }

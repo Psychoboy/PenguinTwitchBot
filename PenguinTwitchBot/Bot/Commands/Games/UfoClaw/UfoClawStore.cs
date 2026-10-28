@@ -14,7 +14,8 @@ public interface IUfoClawStore
 public sealed class UfoClawStore(IServiceScopeFactory scopeFactory) : IUfoClawStore
 {
     public const string SettingKey = "ufo_claw.v1";
-    public static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
+    public static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleGuidJsonConverter(), new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleNullableGuidJsonConverter() }, PropertyNameCaseInsensitive = true };
 
     public async Task<UfoClawDocument> LoadAsync()
     {

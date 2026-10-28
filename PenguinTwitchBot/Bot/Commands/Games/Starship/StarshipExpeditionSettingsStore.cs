@@ -12,6 +12,7 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleGuidJsonConverter(), new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleNullableGuidJsonConverter() },
         PropertyNameCaseInsensitive = true
     };
 
