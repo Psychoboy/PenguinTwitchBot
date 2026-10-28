@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Database.Repository
 {
-    public interface IGenericRepository<T>: IBackupDb where T : class
+    public interface IGenericRepository<T> where T : class
     {
-        T? GetById(int? id);
-        Task<T?> GetByIdAsync(int id);
+        T? GetById(Guid? id);
+        Task<T?> GetByIdAsync(Guid id);
         IEnumerable<T> GetAll();
         Task<IEnumerable<T>> GetAllAsync();
         IQueryable<T> Query();

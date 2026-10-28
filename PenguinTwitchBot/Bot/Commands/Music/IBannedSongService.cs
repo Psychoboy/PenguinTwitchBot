@@ -11,7 +11,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         /// <summary>Bans a song. Returns null when the input could not be resolved to a YouTube video id.</summary>
         Task<BannedSong?> BanSongAsync(string songIdOrUrl, string? title, string reason, string bannedBy);
 
-        Task<bool> UnbanSongAsync(int id);
+        Task<bool> UnbanSongAsync(Guid id);
 
         /// <summary>Runs any actions bound to the banned song request trigger.</summary>
         Task RaiseBannedSongRequestedAsync(BannedSong bannedSong, string requestedBy, string requestedInput);

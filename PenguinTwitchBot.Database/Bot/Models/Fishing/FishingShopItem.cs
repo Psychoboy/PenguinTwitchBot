@@ -5,7 +5,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     public class FishingShopItem
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public int Cost { get; set; } = 100;
@@ -20,7 +20,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public FishingBoostType? BoostType3 { get; set; }
         public double? BoostAmount3 { get; set; }
 
-        public int? TargetFishTypeId { get; set; }
+        public Guid? TargetFishTypeId { get; set; }
         public virtual FishType? TargetFishType { get; set; }
 
         [MaxLength(128)]

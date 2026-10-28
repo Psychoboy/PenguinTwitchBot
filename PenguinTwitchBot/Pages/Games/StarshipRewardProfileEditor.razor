@@ -71,10 +71,10 @@
 
 @code {
     [Parameter, EditorRequired] public StarshipRewardProfile Profile { get; set; } = default!;
-    [Parameter] public IReadOnlyDictionary<int, string> PointTypes { get; set; } = new Dictionary<int, string>();
-    [Parameter] public IReadOnlyDictionary<int, string> Actions { get; set; } = new Dictionary<int, string>();
+    [Parameter] public IReadOnlyDictionary<Guid, string> PointTypes { get; set; } = new Dictionary<Guid, string>();
+    [Parameter] public IReadOnlyDictionary<Guid, string> Actions { get; set; } = new Dictionary<Guid, string>();
 
-    private int FirstPointType => PointTypes.Keys.FirstOrDefault();
+    private Guid FirstPointType => PointTypes.Keys.FirstOrDefault();
     private readonly Dictionary<string, MudColor> _tierColors = new(StringComparer.OrdinalIgnoreCase);
 
     private MudColor TierColor(string value)
@@ -103,15 +103,15 @@
         (Profile.Tiers[index], Profile.Tiers[target]) = (Profile.Tiers[target], Profile.Tiers[index]);
     }
 
-    private string GetPointTypeLabel(int pointTypeId) => pointTypeId <= 0
+    private string GetPointTypeLabel(Guid pointTypeId) => pointTypeId == Guid.Empty
         ? "Select a point type"
         : PointTypes.GetValueOrDefault(pointTypeId, "Unknown point type");
 
-    private RenderFragment PointTypeField(int value, Action<int> changed) => @<MudSelect T="int" Label="Point Type" Variant="Variant.Outlined"
+    private RenderFragment PointTypeField(Guid value, Action<Guid> changed) => @<MudSelect T="Guid" Label="Point Type" Variant="Variant.Outlined"
         Value="value" ValueChanged="@(selected => changed(selected))" ToStringFunc="GetPointTypeLabel">
         @foreach (var pointType in PointTypes)
         {
-            <MudSelectItem T="int" Value="@pointType.Key">@pointType.Value</MudSelectItem>
+            <MudSelectItem T="Guid" Value="@pointType.Key">@pointType.Value</MudSelectItem>
         }
     </MudSelect>;
 
@@ -119,10 +119,10 @@
         @foreach (var entry in entries)
         {
             <MudStack Row="true" AlignItems="AlignItems.Center" @key="entry">
-                <MudSelect T="int" Label="Action" Variant="Variant.Outlined" @bind-Value="entry.ActionId">
+                <MudSelect T="Guid" Label="Action" Variant="Variant.Outlined" @bind-Value="entry.ActionId">
                     @foreach (var action in Actions)
                     {
-                        <MudSelectItem T="int" Value="@action.Key">@action.Value</MudSelectItem>
+                        <MudSelectItem T="Guid" Value="@action.Key">@action.Value</MudSelectItem>
                     }
                 </MudSelect>
                 <MudSelect T="string" Label="When" Variant="Variant.Outlined" @bind-Value="entry.Timing">

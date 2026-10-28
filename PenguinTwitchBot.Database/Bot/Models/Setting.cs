@@ -17,9 +17,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
             Long
         }
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public DataTypeEnum DataType { get; set; } = DataTypeEnum.String;
         public string StringSetting { get; set; } = string.Empty;

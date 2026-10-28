@@ -55,7 +55,7 @@
                 status: 'Returned', currentLeg: 6, crewCount: 9,
                 latestResult: {
                     sequence: 6, title: 'Navigation Hazard', sector: 'Vela Expanse', choice: 'Maneuver around it', resolvedAtUtc: iso(0),
-                    bankedAmounts: [{ pointTypeId: 1, pointTypeName: 'Salvage Credits', amount: 140, averagePerCrewMember: 16, isPaid: true }], outcome: 'Success', rarity: 'Common',
+                    bankedAmounts: [{ pointTypeId: '00000000-0000-7000-8000-000000000001', pointTypeName: 'Salvage Credits', amount: 140, averagePerCrewMember: 16, isPaid: true }], outcome: 'Success', rarity: 'Common',
                     lines: ['Voyage completed: 6 events, 3 successful, 1 failed, 9 crew.', 'Earned 23 Salvage Credits average per eligible crew member.'],
                     story: '', subject: '', objectKind: '', objectVariant: 0, objectRoll: 0
                 },

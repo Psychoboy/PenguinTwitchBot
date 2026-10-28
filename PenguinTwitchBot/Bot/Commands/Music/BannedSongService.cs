@@ -66,7 +66,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             return value.Length <= maxLength ? value : value[..maxLength];
         }
 
-        public async Task<bool> UnbanSongAsync(int id)
+        public async Task<bool> UnbanSongAsync(Guid id)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

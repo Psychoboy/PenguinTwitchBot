@@ -11,36 +11,36 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         // Fish Type Management
         Task<List<FishType>> GetAllFishTypes();
         Task<List<FishType>> GetFishTypesWithCatches();
-        Task<FishType?> GetFishTypeById(int id);
+        Task<FishType?> GetFishTypeById(Guid id);
         Task AddFishType(FishType fishType);
         Task UpdateFishType(FishType fishType);
-        Task DeleteFishType(int id);
+        Task DeleteFishType(Guid id);
 
         // Fish Catch Queries
-        Task<List<FishCatch>> GetTopCatchesForFishType(int fishTypeId, int count = 10);
+        Task<List<FishCatch>> GetTopCatchesForFishType(Guid fishTypeId, int count = 10);
         Task<List<FishCatch>> GetUserCatches(string userId, int count = 50);
-        Task<FishCatch?> GetUserBestCatchForFishType(string userId, int fishTypeId);
-        Task<int> GetUserCatchCountForFishType(string userId, int fishTypeId);
-        Task<Dictionary<int, FishCatch>> GetUserBestCatchesForAllFishTypes(string userId);
-        Task<Dictionary<int, int>> GetUserCatchCountsForAllFishTypes(string userId);
+        Task<FishCatch?> GetUserBestCatchForFishType(string userId, Guid fishTypeId);
+        Task<int> GetUserCatchCountForFishType(string userId, Guid fishTypeId);
+        Task<Dictionary<Guid, FishCatch>> GetUserBestCatchesForAllFishTypes(string userId);
+        Task<Dictionary<Guid, int>> GetUserCatchCountsForAllFishTypes(string userId);
         Task<List<FishingTournament>> GetAllFishingTournaments(int count = 100);
         Task<List<FishingTournament>> GetCurrentFishingTournaments();
         Task<List<FishingTournament>> GetPastFishingTournaments(int count = 25);
         Task<List<FishCatch>> GetRecentCatches(int count = 20);
-        Task<FishingTournament?> GetFishingTournamentById(int id);
-        Task<List<FishingTournamentStanding>> GetFishingTournamentStandings(int tournamentId, int count = 10);
+        Task<FishingTournament?> GetFishingTournamentById(Guid id);
+        Task<List<FishingTournamentStanding>> GetFishingTournamentStandings(Guid tournamentId, int count = 10);
 
         /// <summary>
         /// Returns the player currently holding (or that finished in) each enabled reward rule's placement,
         /// keyed by reward rule id.
         /// </summary>
-        Task<Dictionary<int, FishingTournamentRewardStanding>> GetFishingTournamentRewardStandings(int tournamentId);
-        Task<FishingTournament?> StartFishingTournament(int id);
-        Task<FishingTournament?> CloneAndStartFishingTournament(int templateTournamentId);
-        Task<FishingTournament?> ReopenFishingTournament(int id);
+        Task<Dictionary<Guid, FishingTournamentRewardStanding>> GetFishingTournamentRewardStandings(Guid tournamentId);
+        Task<FishingTournament?> StartFishingTournament(Guid id);
+        Task<FishingTournament?> CloneAndStartFishingTournament(Guid templateTournamentId);
+        Task<FishingTournament?> ReopenFishingTournament(Guid id);
         Task<FishingTournament> SaveFishingTournament(FishingTournament tournament);
-        Task<FishingTournament?> EndFishingTournament(int id);
-        Task DeleteFishingTournament(int id);
+        Task<FishingTournament?> EndFishingTournament(Guid id);
+        Task DeleteFishingTournament(Guid id);
 
         // Gold Management
         Task<FishingGold?> GetUserGold(string userId);

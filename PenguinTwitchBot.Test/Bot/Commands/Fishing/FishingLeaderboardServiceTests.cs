@@ -47,30 +47,30 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             var fishTypes = new List<FishType>
             {
-                new() { Id = 1, Name = "Common Bass", Rarity = FishRarity.Common, BaseWeight = 10.0, BaseGold = 50, Enabled = true },
-                new() { Id = 2, Name = "Rare Salmon", Rarity = FishRarity.Rare, BaseWeight = 20.0, BaseGold = 200, Enabled = true },
-                new() { Id = 3, Name = "Legendary Marlin", Rarity = FishRarity.Legendary, BaseWeight = 100.0, BaseGold = 1000, Enabled = true }
+                new() { Id = Guid.CreateVersion7(), Name = "Common Bass", Rarity = FishRarity.Common, BaseWeight = 10.0, BaseGold = 50, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Rare Salmon", Rarity = FishRarity.Rare, BaseWeight = 20.0, BaseGold = 200, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Legendary Marlin", Rarity = FishRarity.Legendary, BaseWeight = 100.0, BaseGold = 1000, Enabled = true }
             };
             _context.FishTypes.AddRange(fishTypes);
 
             var catches = new List<FishCatch>
             {
                 // User 1: Multiple catches
-                new() { Id = 1, UserId = "user1", Username = "Alice", FishTypeId = 1, FishType = fishTypes[0], 
+                new() { Id = Guid.CreateVersion7(), UserId = "user1", Username = "Alice", FishTypeId = fishTypes[0].Id, FishType = fishTypes[0], 
                     Weight = 12.0, Stars = 3, GoldEarned = 75, CaughtAt = DateTime.UtcNow.AddHours(-5) },
-                new() { Id = 2, UserId = "user1", Username = "Alice", FishTypeId = 2, FishType = fishTypes[1], 
+                new() { Id = Guid.CreateVersion7(), UserId = "user1", Username = "Alice", FishTypeId = fishTypes[1].Id, FishType = fishTypes[1], 
                     Weight = 25.0, Stars = 4, GoldEarned = 300, CaughtAt = DateTime.UtcNow.AddHours(-3) },
-                new() { Id = 3, UserId = "user1", Username = "Alice", FishTypeId = 1, FishType = fishTypes[0], 
+                new() { Id = Guid.CreateVersion7(), UserId = "user1", Username = "Alice", FishTypeId = fishTypes[0].Id, FishType = fishTypes[0], 
                     Weight = 10.0, Stars = 2, GoldEarned = 50, CaughtAt = DateTime.UtcNow.AddHours(-1) },
 
                 // User 2: High value catch
-                new() { Id = 4, UserId = "user2", Username = "Bob", FishTypeId = 3, FishType = fishTypes[2], 
+                new() { Id = Guid.CreateVersion7(), UserId = "user2", Username = "Bob", FishTypeId = fishTypes[2].Id, FishType = fishTypes[2], 
                     Weight = 120.0, Stars = 5, GoldEarned = 1500, CaughtAt = DateTime.UtcNow.AddHours(-2) },
 
                 // User 3: Lower value catches
-                new() { Id = 5, UserId = "user3", Username = "Charlie", FishTypeId = 1, FishType = fishTypes[0], 
+                new() { Id = Guid.CreateVersion7(), UserId = "user3", Username = "Charlie", FishTypeId = fishTypes[0].Id, FishType = fishTypes[0], 
                     Weight = 8.0, Stars = 1, GoldEarned = 40, CaughtAt = DateTime.UtcNow.AddHours(-4) },
-                new() { Id = 6, UserId = "user3", Username = "Charlie", FishTypeId = 1, FishType = fishTypes[0], 
+                new() { Id = Guid.CreateVersion7(), UserId = "user3", Username = "Charlie", FishTypeId = fishTypes[0].Id, FishType = fishTypes[0], 
                     Weight = 9.0, Stars = 2, GoldEarned = 45, CaughtAt = DateTime.UtcNow.AddMinutes(-30) }
             };
             _context.FishCatches.AddRange(catches);

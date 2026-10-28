@@ -9,9 +9,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class QuoteType
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public DateTime CreatedOn { get; set; } = DateTime.MinValue;
         public string CreatedBy { get; set; } = "";
         public string Game { get; set; } = "";

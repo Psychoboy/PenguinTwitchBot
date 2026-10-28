@@ -10,9 +10,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class AutoShoutout
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string Name {get;set;} = null!;
         public string? CustomMessage {get;set;}
         public DateTime LastShoutout {get;set;} = DateTime.MinValue;

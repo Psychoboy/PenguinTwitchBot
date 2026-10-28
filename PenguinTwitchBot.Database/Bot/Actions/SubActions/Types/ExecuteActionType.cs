@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
@@ -10,8 +11,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         tableName: "subactions_executeaction")]
     public class ExecuteActionType : SubActionType, ISubActionUIProvider
     {
-        public int? ActionId { get; set; }
-        public string ActionName { get; set; } = string.Empty;
+        public Guid? ActionId { get; set; }
         public bool ElevatedCommand { get; set; }
         public string? RankToExecuteAs { get; set; }
 
@@ -78,7 +78,6 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             return new Dictionary<string, object?>
             {
                 { nameof(ActionId), ActionId?.ToString() ?? string.Empty },
-                { nameof(ActionName), ActionName },
                 { nameof(Text), Text },
                 { nameof(ElevatedCommand), ElevatedCommand },
                 { nameof(RankToExecuteAs), RankToExecuteAs },
@@ -90,7 +89,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (values.TryGetValue(nameof(ActionId), out var actionId) && 
                 !string.IsNullOrWhiteSpace(actionId?.ToString()) &&
-                int.TryParse(actionId?.ToString(), out var parsedId))
+                UuidMigrationHelper.TryParseGuidOrLegacyInt(actionId?.ToString(), out var parsedId) &&
+                parsedId != Guid.Empty)
             {
                 ActionId = parsedId;
             }
@@ -120,18 +120,14 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 Enabled = enabled as bool? ?? true;
             }
-
-            if (values.TryGetValue(nameof(ActionName), out var actionName))
-            {
-                ActionName = actionName?.ToString() ?? string.Empty;
-            }
         }
 
         public string? Validate(Dictionary<string, object?> values)
         {
             if (!values.TryGetValue(nameof(ActionId), out var actionId) ||
                 string.IsNullOrWhiteSpace(actionId?.ToString()) ||
-                !int.TryParse(actionId?.ToString(), out var parsedId) || parsedId <= 0)
+                !UuidMigrationHelper.TryParseGuidOrLegacyInt(actionId?.ToString(), out var parsedId) ||
+                parsedId == Guid.Empty)
             {
                 return "Action to Execute is required";
             }

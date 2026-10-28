@@ -16,6 +16,7 @@ public sealed class StarshipExpeditionStateStore(
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleGuidJsonConverter(), new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleNullableGuidJsonConverter() },
         PropertyNameCaseInsensitive = true
     };
 
@@ -205,11 +206,11 @@ public sealed class StarshipExpeditionStateStore(
             throw new InvalidDataException("Every Starship crew member must have a user ID.");
         if (snapshot.Crew.Select(member => member.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != snapshot.Crew.Count)
             throw new InvalidDataException("Starship expedition crew contains duplicate user IDs.");
-        if (snapshot.Crew.Any(member => member.UnbankedBalances == null || member.UnbankedBalances.Any(balance => balance.PointTypeId <= 0 || balance.Amount < 0)))
+        if (snapshot.Crew.Any(member => member.UnbankedBalances == null || member.UnbankedBalances.Any(balance => balance.PointTypeId == Guid.Empty || balance.Amount < 0)))
             throw new InvalidDataException("Starship crew unbanked balances are invalid.");
         if (snapshot.RewardProfiles == null || snapshot.BankedPayouts == null)
             throw new InvalidDataException("Starship reward or payout state cannot be null.");
-        if (snapshot.BankedPayouts.Any(payout => string.IsNullOrWhiteSpace(payout.OperationId) || string.IsNullOrWhiteSpace(payout.UserId) || payout.PointTypeId <= 0 || payout.Amount <= 0))
+        if (snapshot.BankedPayouts.Any(payout => string.IsNullOrWhiteSpace(payout.OperationId) || string.IsNullOrWhiteSpace(payout.UserId) || payout.PointTypeId == Guid.Empty || payout.Amount <= 0))
             throw new InvalidDataException("Starship banked payout state is invalid.");
         if (snapshot.BankedPayouts.Select(payout => payout.OperationId).Distinct(StringComparer.Ordinal).Count() != snapshot.BankedPayouts.Count)
             throw new InvalidDataException("Starship banked payouts contain duplicate operation IDs.");
@@ -252,10 +253,10 @@ public sealed class StarshipExpeditionStateStore(
         if (snapshot.CurrentEvent is { } rewardEvent &&
             (rewardEvent.EligibleRewardUserIds.Any(string.IsNullOrWhiteSpace) ||
              rewardEvent.EligibleRewardUserIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() != rewardEvent.EligibleRewardUserIds.Count ||
-             rewardEvent.RewardOutcomes.Any(outcome => string.IsNullOrWhiteSpace(outcome.UserId) || outcome.PointTypeId <= 0 || outcome.EarnedAmount < 0 || outcome.LostAmount < 0)))
+             rewardEvent.RewardOutcomes.Any(outcome => string.IsNullOrWhiteSpace(outcome.UserId) || outcome.PointTypeId == Guid.Empty || outcome.EarnedAmount < 0 || outcome.LostAmount < 0)))
             throw new InvalidDataException("Starship event reward state is invalid.");
         if (snapshot.CurrentEvent is { } riskEvent && riskEvent.PendingRiskConfirmations.Any(item =>
-                string.IsNullOrWhiteSpace(item.UserId) || string.IsNullOrWhiteSpace(item.ChoiceId) || item.PointTypeId <= 0 ||
+                string.IsNullOrWhiteSpace(item.UserId) || string.IsNullOrWhiteSpace(item.ChoiceId) || item.PointTypeId == Guid.Empty ||
                 item.ExposedBalance < 0 || item.MaximumLoss < 0 || item.MaximumLoss > item.ExposedBalance))
             throw new InvalidDataException("Starship risk confirmation values are invalid.");
     }

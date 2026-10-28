@@ -13,6 +13,7 @@ using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
 using PenguinTwitchBot.Database.Bot.Models.Themes;
 using PenguinTwitchBot.Database.Bot.Core;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Database.Bot.Core.Database
@@ -80,6 +81,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<FishingSettings> FishingSettings { get; set; } = null!;
         public DbSet<FishingTournament> FishingTournaments { get; set; } = null!;
         public DbSet<FishingTournamentFishType> FishingTournamentFishTypes { get; set; } = null!;
+        public DbSet<FishingTournamentEligibleCategory> FishingTournamentEligibleCategories { get; set; } = null!;
         public DbSet<FishingTournamentRewardRule> FishingTournamentRewardRules { get; set; } = null!;
         public DbSet<FishingTournamentCatch> FishingTournamentCatches { get; set; } = null!;
 
@@ -288,6 +290,12 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<FishingTournament>()
+                .HasMany(t => t.EligibleCategories)
+                .WithOne(c => c.FishingTournament)
+                .HasForeignKey(c => c.FishingTournamentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<FishingTournament>()
                 .HasMany(t => t.RewardRules)
                 .WithOne(r => r.FishingTournament)
                 .HasForeignKey(r => r.FishingTournamentId)
@@ -369,6 +377,15 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasForeignKey(w => w.OverlayLayoutId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                var primaryKey = entityType.FindPrimaryKey();
+                if (primaryKey is { Properties.Count: 1 } && primaryKey.Properties[0].ClrType == typeof(Guid))
+                {
+                    primaryKey.Properties[0].ValueGenerated = Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.OnAdd;
+                    primaryKey.Properties[0].SetValueGeneratorFactory((_, _) => new UuidV7ValueGenerator());
+                }
+            }
         }
     }
 }

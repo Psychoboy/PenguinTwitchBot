@@ -58,6 +58,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     public async Task SaveAndLoad_PreservesSettingsAndNormalizedCustomSectors()
     {
         var store = CreateStore();
+        var pointTypeId = Guid.CreateVersion7();
         var settings = new StarshipExpeditionSettings
         {
             GameEnabled = true,
@@ -82,7 +83,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
                 {
                     EventType = "SalvageSite",
                     Enabled = true,
-                    PointTypeId = 7,
+                    PointTypeId = pointTypeId,
                     PointTypeName = "Salvage Credits",
                     SuccessChancePercent = 75,
                     CommonWeightPercent = 60,
@@ -131,7 +132,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal("Returned {count} in {duration}s", loaded.SessionEndChatMessageTemplate);
         var rewardProfile = loaded.RewardProfiles.Single(profile => profile.EventType == "SalvageSite");
         Assert.Equal("SalvageSite", rewardProfile.EventType);
-        Assert.Equal(7, rewardProfile.PointTypeId);
+        Assert.Equal(pointTypeId, rewardProfile.PointTypeId);
         Assert.Equal(75, rewardProfile.SuccessChancePercent);
         Assert.Equal([60, 30, 10], new[] { rewardProfile.CommonWeightPercent, rewardProfile.UncommonWeightPercent, rewardProfile.RareWeightPercent });
         Assert.Equal(40, rewardProfile.MaximumRiskLossPerEvent);
@@ -341,7 +342,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     {
         var wrongOdds = new StarshipExpeditionSettings
         {
-            RewardProfiles = [new StarshipRewardProfile { EventType = "SignalDetected", Enabled = true, PointTypeId = 1, CommonWeightPercent = 50 }]
+            RewardProfiles = [new StarshipRewardProfile { EventType = "SignalDetected", Enabled = true, PointTypeId = Guid.CreateVersion7(), CommonWeightPercent = 50 }]
         };
         Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(wrongOdds));
 
@@ -351,7 +352,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
             {
                 EventType = "SignalDetected",
                 Enabled = false,
-                PointTypeId = 1,
+                PointTypeId = Guid.CreateVersion7(),
                 CommonMinimum = 20,
                 CommonMaximum = 10
             }]
@@ -362,6 +363,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     [Fact]
     public void NormalizeAndValidate_AllowsLongMaxRewardRangesAndOptionalCaps()
     {
+        var pointTypeId = Guid.CreateVersion7();
         var settings = new StarshipExpeditionSettings
         {
             RewardProfiles =
@@ -369,9 +371,9 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
                 new StarshipRewardProfile
                 {
                     Id = "large-reward", EventType = "SignalDetected", Enabled = false,
-                    Tiers = [new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 1, Minimum = 0, Maximum = long.MaxValue }] }],
-                    Caps = [new() { PointTypeId = 1, MaximumPerEvent = long.MaxValue, MaximumUnbankedPerVoyage = long.MaxValue }],
-                    LossRules = [new() { PointTypeId = 1, Percent = 100, MaximumPerEvent = long.MaxValue }]
+                    Tiers = [new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = pointTypeId, Minimum = 0, Maximum = long.MaxValue }] }],
+                    Caps = [new() { PointTypeId = pointTypeId, MaximumPerEvent = long.MaxValue, MaximumUnbankedPerVoyage = long.MaxValue }],
+                    LossRules = [new() { PointTypeId = pointTypeId, Percent = 100, MaximumPerEvent = long.MaxValue }]
                 }
             ]
         };
@@ -387,14 +389,17 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     [Fact]
     public async Task SaveAndLoad_PreservesReusableProfilesRelativeWeightsAndActionTiming()
     {
+        var ordinaryTypeId = Guid.CreateVersion7();
+        var legendaryTypeId = Guid.CreateVersion7();
+        var legendaryActionId = Guid.CreateVersion7();
         var settings = new StarshipExpeditionSettings();
         settings.RewardProfiles.Add(new StarshipRewardProfile
         {
             Id = "shared", Name = "Shared recovery", Enabled = true,
             Tiers =
             [
-                new() { Id = "ordinary", Name = "Ordinary", Weight = 3, Rewards = [new() { PointTypeId = 2, Minimum = 1, Maximum = 5 }] },
-                new() { Id = "legendary", Name = "Legendary", Weight = 1, Color = "#ffcc00", Rewards = [new() { PointTypeId = 3, Minimum = 10, Maximum = 15 }], Actions = [new() { ActionId = 42, Timing = StarshipActionTimings.AfterBank }] }
+                new() { Id = "ordinary", Name = "Ordinary", Weight = 3, Rewards = [new() { PointTypeId = ordinaryTypeId, Minimum = 1, Maximum = 5 }] },
+                new() { Id = "legendary", Name = "Legendary", Weight = 1, Color = "#ffcc00", Rewards = [new() { PointTypeId = legendaryTypeId, Minimum = 10, Maximum = 15 }], Actions = [new() { ActionId = legendaryActionId, Timing = StarshipActionTimings.AfterBank }] }
             ]
         });
         settings.EventRewardProfileIds["SalvageSite"] = "shared";
@@ -554,22 +559,23 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     {
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var profile = settings.RewardProfiles[0];
+        var pointTypeId = Guid.CreateVersion7();
         Assert.Null(profile.MaximumPerEvent);
         Assert.Null(profile.MaximumUnbankedPerVoyage);
         Assert.Null(profile.MaximumRiskLossPerEvent);
-        profile.Tiers[0].Rewards[0].PointTypeId = 7;
-        profile.Caps.Add(new() { PointTypeId = 7, MaximumPerEvent = 30, MaximumUnbankedPerVoyage = 90 });
+        profile.Tiers[0].Rewards[0].PointTypeId = pointTypeId;
+        profile.Caps.Add(new() { PointTypeId = pointTypeId, MaximumPerEvent = 30, MaximumUnbankedPerVoyage = 90 });
         await CreateStore().SaveAsync(settings);
         var reloaded = await CreateStore().LoadAsync();
         var saved = reloaded.RewardProfiles.Single(item => item.Id == profile.Id);
-        Assert.Equal(30, saved.GetCap(7).MaximumPerEvent);
+        Assert.Equal(30, saved.GetCap(pointTypeId).MaximumPerEvent);
         saved.Caps.Clear();
         await CreateStore().SaveAsync(reloaded);
 
         var uncapped = (await CreateStore().LoadAsync()).RewardProfiles.Single(item => item.Id == profile.Id);
         Assert.Empty(uncapped.Caps);
-        Assert.Null(uncapped.GetCap(7).MaximumPerEvent);
-        Assert.Null(uncapped.GetCap(7).MaximumUnbankedPerVoyage);
+        Assert.Null(uncapped.GetCap(pointTypeId).MaximumPerEvent);
+        Assert.Null(uncapped.GetCap(pointTypeId).MaximumUnbankedPerVoyage);
     }
 
     [Fact]
@@ -594,6 +600,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     {
         var settingsStore = CreateStore();
         var settings = await settingsStore.LoadAsync();
+        var pointTypeId = Guid.CreateVersion7();
         settings.GameEnabled = true;
         settings.LegCount = 4;
         settings.StationIntervalLegs = 24;
@@ -602,7 +609,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         settings.RewardProfiles.Add(new StarshipRewardProfile
         {
             Id = "release-profile", Name = "Release Profile", Enabled = true, SuccessChancePercent = 100,
-            Tiers = [new() { Id = "common", Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 8, Minimum = 10, Maximum = 10 }] }]
+            Tiers = [new() { Id = "common", Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = pointTypeId, Minimum = 10, Maximum = 10 }] }]
         });
         settings.EventCatalog.Add(new StarshipEventDefinition("release-cache", "Original Cache", "A cache near {subject}.",
             [new() { ChoiceId = "recover", Label = "Recover the cache" }, new() { ChoiceId = "pass", Label = "Pass", EndsWithoutReward = true }], "recover", "Recovered {loot}.")
@@ -612,8 +619,8 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         });
         await settingsStore.SaveAsync(settings);
         var points = new Mock<IPointsSystem>();
-        points.Setup(instance => instance.GetPointTypeById(8)).ReturnsAsync(new PenguinTwitchBot.Database.Bot.Models.Points.PointType { Id = 8, Name = "Credits" });
-        points.Setup(instance => instance.AddPointsByUserIdOnce(It.IsAny<string>(), 8, It.IsAny<long>(), It.IsAny<string>())).ReturnsAsync(true);
+        points.Setup(instance => instance.GetPointTypeById(pointTypeId)).ReturnsAsync(new PenguinTwitchBot.Database.Bot.Models.Points.PointType { Id = pointTypeId, Name = "Credits" });
+        points.Setup(instance => instance.AddPointsByUserIdOnce(It.IsAny<string>(), pointTypeId, It.IsAny<long>(), It.IsAny<string>())).ReturnsAsync(true);
         StarshipExpeditionService CreateService()
         {
             var chat = new Mock<IServiceBackbone>();
@@ -653,7 +660,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.NotNull(completed.ShipContext);
         Assert.Equal(80, resolved.ShipSystems!.Hull);
         await recovered.StopExpeditionAsync("moderator");
-        points.Verify(instance => instance.AddPointsByUserIdOnce("release-pilot", 8, 10, It.IsAny<string>()), Times.Once);
+        points.Verify(instance => instance.AddPointsByUserIdOnce("release-pilot", pointTypeId, 10, It.IsAny<string>()), Times.Once);
 
         var next = CreateService();
         await next.StartExpeditionAsync("moderator", seed: 2468);

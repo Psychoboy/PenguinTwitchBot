@@ -29,7 +29,7 @@ namespace PenguinTwitchBot.Tests.Bot.Commands.Custom
             _featureRuntimeCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
             _featureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias).Returns(true);
 
-            testAlias = new AliasModel { AliasName = "thealias", CommandName = "testcommand", Id = 1 };
+            testAlias = new AliasModel { AliasName = "thealias", CommandName = "testcommand", Id = Guid.CreateVersion7() };
             aliasQueryable = new List<AliasModel> { testAlias };
             emptyAliasQueryable = new List<AliasModel>();
 
@@ -57,7 +57,7 @@ namespace PenguinTwitchBot.Tests.Bot.Commands.Custom
             dispatcher.Send(Arg.Any<GetAliasById>()).ReturnsForAnyArgs(testAlias);
 
             //Act
-            var result = await alias.GetAliasAsync(1);
+            var result = await alias.GetAliasAsync(testAlias.Id);
 
             //Assert
             Assert.Equal(testAlias, result);
@@ -81,7 +81,7 @@ namespace PenguinTwitchBot.Tests.Bot.Commands.Custom
         public async Task CreateOrUpdateAliasAsync_ShoulUpdate()
         {
             // Arrange
-            var newTestAlias = new AliasModel { AliasName = "testAlias", CommandName = "testCommand", Id = 1 };
+            var newTestAlias = new AliasModel { AliasName = "testAlias", CommandName = "testCommand", Id = Guid.CreateVersion7() };
 
             // Act
             await alias.CreateOrUpdateAliasAsync(newTestAlias);

@@ -1,0 +1,25 @@
+/* Plain grid until the masonry script runs (or if it can't), so tiles never overlap. */
+.homepage-masonry {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 540px), 1fr));
+    gap: 16px;
+    align-items: start;
+}
+
+/* Hide the un-packed grid so the initial layout never flashes. The script adds .is-masonry once tiles are placed;
+   if it never runs (script failure), the animation reveals the plain grid after a short delay. Kept CSS-only so
+   Blazor re-renders can't clobber it. */
+.homepage-masonry:not(.is-masonry) {
+    visibility: hidden;
+    animation: homepage-masonry-reveal 0s linear 1.5s forwards;
+}
+
+@keyframes homepage-masonry-reveal {
+    to { visibility: visible; }
+}
+
+/* Rows are small units and each tile spans as many as it needs; the span includes the vertical gap. */
+.homepage-masonry.is-masonry {
+    grid-auto-rows: 8px;
+    row-gap: 0;
+}

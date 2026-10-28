@@ -23,7 +23,7 @@ namespace PenguinTwitchBot.Bot.ObsConnector
         private static readonly int MaxReconnectAttemptsBeforeCap = 
             (int)Math.Floor(Math.Log2((double)MaxReconnectDelay / InitialReconnectDelay));
         
-        public int Id => _config.Id;
+        public Guid Id => _config.Id;
         public string Name => _config.Name;
         public bool IsConnected { get; private set; }
         public DateTime? LastConnected { get; private set; }
@@ -265,10 +265,10 @@ namespace PenguinTwitchBot.Bot.ObsConnector
 
     public class OBSConnectionEventArgs : EventArgs
     {
-        public int ConnectionId { get; }
+        public Guid ConnectionId { get; }
         public string ConnectionName { get; }
 
-        public OBSConnectionEventArgs(int connectionId, string connectionName)
+        public OBSConnectionEventArgs(Guid connectionId, string connectionName)
         {
             ConnectionId = connectionId;
             ConnectionName = connectionName;
@@ -279,7 +279,7 @@ namespace PenguinTwitchBot.Bot.ObsConnector
     {
         public string SceneName { get; }
 
-        public OBSSceneChangedEventArgs(int connectionId, string connectionName, string sceneName)
+        public OBSSceneChangedEventArgs(Guid connectionId, string connectionName, string sceneName)
             : base(connectionId, connectionName)
         {
             SceneName = sceneName;

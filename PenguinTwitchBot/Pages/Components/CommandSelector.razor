@@ -33,16 +33,16 @@
     @if (!_showCreateForm)
     {
         <!-- Selection Mode -->
-        <MudSelect T="int?" Value="_selectedCommandId" Label="@SelectLabel" Variant="Variant.Outlined" 
+        <MudSelect T="Guid?" Value="_selectedCommandId" Label="@SelectLabel" Variant="Variant.Outlined" 
                    Required="@Required" 
                    ValueChanged="OnCommandSelectedInternal">
             @if (AllowNone)
             {
-                <MudSelectItem T="int?" Value="null">None</MudSelectItem>
+                <MudSelectItem T="Guid?" Value="null">None</MudSelectItem>
             }
             @foreach (var command in _commands)
             {
-                <MudSelectItem T="int?" Value="@command.Id">!@command.CommandName</MudSelectItem>
+                <MudSelectItem T="Guid?" Value="@command.Id">!@command.CommandName</MudSelectItem>
             }
         </MudSelect>
 
@@ -71,8 +71,8 @@
 </MudStack>
 
 @code {
-    [Parameter] public int? SelectedCommandId { get; set; }
-    [Parameter] public EventCallback<int?> SelectedCommandIdChanged { get; set; }
+    [Parameter] public Guid? SelectedCommandId { get; set; }
+    [Parameter] public EventCallback<Guid?> SelectedCommandIdChanged { get; set; }
     [Parameter] public EventCallback<ActionCommand> OnCommandCreated { get; set; }
     [Parameter] public string SelectLabel { get; set; } = "Select Command";
     [Parameter] public bool Required { get; set; } = true;
@@ -80,7 +80,7 @@
     [Parameter] public bool AllowCreate { get; set; } = true;
 
     private List<ActionCommand> _commands = new();
-    private int? _selectedCommandId;
+    private Guid? _selectedCommandId;
     private bool _showCreateForm = false;
     private ActionCommand _newCommand = new();
 
@@ -103,7 +103,7 @@
         _commands = (await CommandService.GetAllAsync()).OrderBy(c => c.CommandName).ToList();
     }
 
-    private async Task OnCommandSelectedInternal(int? commandId)
+    private async Task OnCommandSelectedInternal(Guid? commandId)
     {
         _selectedCommandId = commandId;
         await SelectedCommandIdChanged.InvokeAsync(commandId);

@@ -19,14 +19,14 @@ namespace PenguinTwitchBot.Bot.Commands.Alias
             return (await dispatcher.Send(new GetAliases())).ToList();
         }
 
-        public Task<AliasModel?> GetAliasAsync(int id)
+        public Task<AliasModel?> GetAliasAsync(Guid id)
         {
             return dispatcher.Send(new GetAliasById(id));
         }
 
         public Task CreateOrUpdateAliasAsync(AliasModel alias)
         {
-            if (alias.Id == null)
+            if (alias.Id == Guid.Empty)
             {
                 return dispatcher.Send(new CreateAlias(alias));
             }

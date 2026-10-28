@@ -168,7 +168,7 @@
 
     private string _error = string.Empty;
 
-    private bool IsEditMode => !IsNew && (Counter.Id ?? 0) > 0;
+    private bool IsEditMode => !IsNew && Counter.Id != Guid.Empty;
 
     private ActionCommand? _existingCommand;
     private bool _createActionAndCommand = true;

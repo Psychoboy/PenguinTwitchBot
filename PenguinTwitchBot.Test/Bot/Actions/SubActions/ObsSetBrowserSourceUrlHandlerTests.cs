@@ -12,7 +12,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
     public class ObsSetBrowserSourceUrlHandlerTests
     {
-        private static ManagedOBSConnection CreateConnectedConnection(int id, string name)
+        private static ManagedOBSConnection CreateConnectedConnection(Guid id, string name)
         {
             var config = new OBSConnection { Id = id, Name = name, Url = "ws://localhost:4455", Password = "test", Enabled = true };
             var mockObs = Substitute.For<IOBSWebsocket>();
@@ -29,15 +29,16 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetBrowserSourceUrlHandler>>();
             var handler = new ObsSetBrowserSourceUrlHandler(connectionManager, logger);
 
-            var connection = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var connection = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = 1, InputName = "Browser", Url = "https://example.com" };
+            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = connectionId, InputName = "Browser", Url = "https://example.com" };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
-            connectionManager.Received(1).GetManagedConnection(1);
+            connectionManager.Received(1).GetManagedConnection(connectionId);
         }
 
         [Fact]
@@ -80,10 +81,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetBrowserSourceUrlHandler>>();
             var handler = new ObsSetBrowserSourceUrlHandler(connectionManager, logger);
 
-            var connection = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var connection = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = 1, InputName = "Browser", Url = invalidUrl };
+            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = connectionId, InputName = "Browser", Url = invalidUrl };
             var variables = new ConcurrentDictionary<string, string>();
 
             await Assert.ThrowsAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));
@@ -102,10 +104,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetBrowserSourceUrlHandler>>();
             var handler = new ObsSetBrowserSourceUrlHandler(connectionManager, logger);
 
-            var connection = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var connection = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = 1, InputName = "Browser", Url = urlWithControls };
+            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = connectionId, InputName = "Browser", Url = urlWithControls };
             var variables = new ConcurrentDictionary<string, string>();
 
             await Assert.ThrowsAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));
@@ -120,15 +123,16 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetBrowserSourceUrlHandler>>();
             var handler = new ObsSetBrowserSourceUrlHandler(connectionManager, logger);
 
-            var connection = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var connection = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = 1, InputName = "Browser", Url = validUrl };
+            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = connectionId, InputName = "Browser", Url = validUrl };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
-            connectionManager.Received(1).GetManagedConnection(1);
+            connectionManager.Received(1).GetManagedConnection(connectionId);
         }
     }
 }

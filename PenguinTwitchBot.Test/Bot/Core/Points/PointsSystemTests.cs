@@ -70,7 +70,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var userId = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var max = 100;
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 200 };
 
@@ -89,7 +89,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var userId = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var max = 100;
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 50 };
 
@@ -108,7 +108,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var userId = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 100 };
 
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns(userPoints);
@@ -126,7 +126,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var userId = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
 
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns((UserPoints?)null);
             _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
@@ -144,7 +144,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var username = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var viewer = new Viewer { UserId = "user1" };
             var userPoints = new UserPoints { UserId = viewer.UserId, PointTypeId = pointType, Points = 100 };
 
@@ -164,7 +164,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var username = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
 
             _viewerFeatureMock.GetViewerByUserName(username).Returns((Viewer?)null);
 
@@ -196,7 +196,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         public async Task GetPointTypeById_ShouldReturnPointType_WhenPointTypeExists()
         {
             // Arrange
-            var pointTypeId = 1;
+            var pointTypeId = Guid.CreateVersion7();
             var pointType = new PointType { Id = pointTypeId };
 
             _unitOfWorkMock.PointTypes.GetByIdAsync(pointTypeId).Returns(pointType);
@@ -212,7 +212,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         public async Task GetPointTypes_ShouldReturnAllPointTypes()
         {
             // Arrange
-            var pointTypes = new List<PointType> { new PointType { Id = 1 }, new PointType { Id = 2 } };
+            var pointTypes = new List<PointType> { new PointType { Id = Guid.CreateVersion7() }, new PointType { Id = Guid.CreateVersion7() } };
 
             _unitOfWorkMock.PointTypes.GetAsync(includeProperties: "PointCommands").Returns(pointTypes);
 
@@ -227,7 +227,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         public async Task AddPointType_ShouldAddAndSavePointType()
         {
             // Arrange
-            var pointType = new PointType { Id = 1 };
+            var pointType = new PointType { Id = Guid.CreateVersion7() };
 
             // Act
             await _pointsSystem.AddPointType(pointType);
@@ -241,7 +241,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         public async Task UpdatePointType_ShouldUpdateAndSavePointType()
         {
             // Arrange
-            var pointType = new PointType { Id = 1 };
+            var pointType = new PointType { Id = Guid.CreateVersion7() };
 
             // Act
             await _pointsSystem.UpdatePointType(pointType);
@@ -255,7 +255,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         public async Task DeletePointType_ShouldRemoveAndSavePointType_WhenPointTypeExists()
         {
             // Arrange
-            var pointTypeId = 1;
+            var pointTypeId = Guid.CreateVersion7();
             var pointType = new PointType { Id = pointTypeId };
 
             _unitOfWorkMock.PointTypes.GetByIdAsync(pointTypeId).Returns(pointType);
@@ -273,7 +273,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var userId = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var points = 50;
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 100 };
 
@@ -294,7 +294,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var userId = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var points = 50;
 
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns((UserPoints?)null);
@@ -311,7 +311,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var userId = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var points = 50;
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 30 };
 
@@ -328,7 +328,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         public async Task SetPointsByUserId_ShouldSetBalanceAndPersist()
         {
             const string userId = "user1";
-            const int pointType = 2;
+            var pointType = Guid.CreateVersion7();
             var userPoints = new UserPoints { UserId = userId, Username = "viewer", PointTypeId = pointType, Points = 30 };
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns(userPoints);
             _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId, Username = "viewer" });
@@ -344,13 +344,14 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         [Fact]
         public async Task SetPointsByUserId_ShouldRejectNegativeBalance()
         {
-            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _pointsSystem.SetPointsByUserId("user1", 1, -1));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _pointsSystem.SetPointsByUserId("user1", Guid.CreateVersion7(), -1));
             _unitOfWorkMock.UserPoints.DidNotReceiveWithAnyArgs().Update(default!);
         }
 
         [Fact]
         public async Task AddPointsToActiveUsers_AwardsEveryActiveViewerBeforeReturning()
         {
+            var pointTypeId = Guid.CreateVersion7();
             _viewerFeatureMock.GetActiveViewers().Returns(["viewer1", "viewer2"]);
             _viewerFeatureMock.GetCurrentViewers().Returns([]);
             _viewerFeatureMock.GetViewerByUserName(Arg.Any<string>()).Returns(call =>
@@ -363,9 +364,9 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
                 var userId = call.Arg<string>();
                 return new Viewer { UserId = userId, Username = userId };
             });
-            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(Arg.Any<string>(), 3).Returns((UserPoints?)null);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(Arg.Any<string>(), pointTypeId).Returns((UserPoints?)null);
 
-            await _pointsSystem.AddPointsToActiveUsers(3, 8);
+            await _pointsSystem.AddPointsToActiveUsers(pointTypeId, 8);
 
             await _unitOfWorkMock.UserPoints.Received(1).AddAsync(Arg.Is<UserPoints>(points => points.UserId == "viewer1" && points.Points == 8));
             await _unitOfWorkMock.UserPoints.Received(1).AddAsync(Arg.Is<UserPoints>(points => points.UserId == "viewer2" && points.Points == 8));
@@ -377,7 +378,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var username = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var points = 50;
             var viewer = new Viewer { UserId = "user1" };
             var userPoints = new UserPoints { UserId = viewer.UserId, PointTypeId = pointType, Points = 100 };
@@ -400,7 +401,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var username = "user1";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var points = 50;
 
             _viewerFeatureMock.GetViewerByUserName(username).Returns((Viewer?)null);
@@ -418,11 +419,11 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             // Arrange
             var userId = "user1";
             var gameName = "game1";
-            var pointType = new PointType { Id = 1 };
-            var userPoints = new UserPoints { UserId = userId, PointTypeId = (int)pointType.Id, Points = 100 };
+            var pointType = new PointType { Id = Guid.CreateVersion7() };
+            var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType.Id, Points = 100 };
 
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
-            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, (int)pointType.Id).Returns(userPoints);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType.Id).Returns(userPoints);
             _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
@@ -438,13 +439,13 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             // Arrange
             var username = "user1";
             var gameName = "game1";
-            var pointType = new PointType { Id = 1 };
+            var pointType = new PointType { Id = Guid.CreateVersion7() };
             var viewer = new Viewer { UserId = "user1" };
-            var userPoints = new UserPoints { UserId = viewer.UserId, PointTypeId = (int)pointType.Id, Points = 100 };
+            var userPoints = new UserPoints { UserId = viewer.UserId, PointTypeId = pointType.Id, Points = 100 };
 
             _viewerFeatureMock.GetViewerByUserName(username).Returns(viewer);
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
-            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, (int)pointType.Id).Returns(userPoints);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, pointType.Id).Returns(userPoints);
             _viewerFeatureMock.GetViewerByUserId("user1").Returns(new Viewer { UserId = "user1" });
 
             // Act
@@ -461,11 +462,11 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             var userId = "user1";
             var gameName = "game1";
             var points = 50;
-            var pointType = new PointType { Id = 1 };
-            var userPoints = new UserPoints { UserId = userId, PointTypeId = (int)pointType.Id, Points = 100 };
+            var pointType = new PointType { Id = Guid.CreateVersion7() };
+            var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType.Id, Points = 100 };
 
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
-            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, (int)pointType.Id).Returns(userPoints);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType.Id).Returns(userPoints);
             _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
@@ -484,13 +485,13 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             var username = "user1";
             var gameName = "game1";
             var points = 50;
-            var pointType = new PointType { Id = 1 };
+            var pointType = new PointType { Id = Guid.CreateVersion7() };
             var viewer = new Viewer { UserId = "user1" };
-            var userPoints = new UserPoints { UserId = viewer.UserId, PointTypeId = (int)pointType.Id, Points = 100 };
+            var userPoints = new UserPoints { UserId = viewer.UserId, PointTypeId = pointType.Id, Points = 100 };
 
             _viewerFeatureMock.GetViewerByUserName(username).Returns(viewer);
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
-            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, (int)pointType.Id).Returns(userPoints);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, pointType.Id).Returns(userPoints);
             _viewerFeatureMock.GetViewerByUserId("user1").Returns(new Viewer { UserId = "user1" });
 
             // Act
@@ -509,13 +510,13 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             var userId = "user1";
             var gameName = "game1";
             var points = 100;
-            var pointType = new PointType { Id = 1 };
+            var pointType = new PointType { Id = Guid.CreateVersion7() };
             var viewer = new Viewer { UserId = "user1", Username = "TestUser" };
-            var userPoints = new UserPoints { UserId = viewer.UserId, Username = viewer.Username, PointTypeId = (int)pointType.Id, Points = 100 };
+            var userPoints = new UserPoints { UserId = viewer.UserId, Username = viewer.Username, PointTypeId = pointType.Id, Points = 100 };
 
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
             _viewerFeatureMock.GetViewerByUserId(userId).Returns(viewer);
-            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, (int)pointType.Id).Returns(userPoints);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, pointType.Id).Returns(userPoints);
 
             // Act
             await _pointsSystem.AddPointsByUserIdAndGame(userId, gameName, points);
@@ -530,7 +531,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var userId = $"user-{Guid.NewGuid():N}";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var viewer = new Viewer { UserId = userId, Username = "TestUser" };
             var concurrentCount = 0;
             var maxObservedConcurrency = 0;
@@ -567,7 +568,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         public async Task AddPointsByUserIdOnce_AwardsAndPersistsMarkerOnlyOnce()
         {
             var userId = $"user-{Guid.NewGuid():N}";
-            const int pointTypeId = 4;
+            var pointTypeId = Guid.CreateVersion7();
             const string operationId = "starship-expedition-station-payout";
             var viewer = new Viewer { UserId = userId, Username = "TestUser" };
             var settingsRows = new List<Setting>();
@@ -616,7 +617,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         {
             // Arrange
             var userId = $"user-{Guid.NewGuid():N}";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 100 };
             var concurrentCount = 0;
             var maxObservedConcurrency = 0;
@@ -657,7 +658,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             // Arrange
             var userIdA = $"user-{Guid.NewGuid():N}";
             var userIdB = $"user-{Guid.NewGuid():N}";
-            var pointType = 1;
+            var pointType = Guid.CreateVersion7();
             var bothEntered = new TaskCompletionSource();
             var entryCount = 0;
 
@@ -692,15 +693,15 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             var username = "testuser";
             var gameName = "game1";
             var points = 100;
-            var pointType = new PointType { Id = 1 };
+            var pointType = new PointType { Id = Guid.CreateVersion7() };
             var viewer = new Viewer { UserId = "user1", Username = username };
             var userId = "user1";
-            var userPoints = new UserPoints { UserId = viewer.UserId, Username = viewer.Username, PointTypeId = (int)pointType.Id, Points = 100 };
+            var userPoints = new UserPoints { UserId = viewer.UserId, Username = viewer.Username, PointTypeId = pointType.Id, Points = 100 };
 
             _viewerFeatureMock.GetViewerByUserName(username).Returns(viewer);
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
             _viewerFeatureMock.GetViewerByUserId(userId).Returns(viewer);
-            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, (int)pointType.Id).Returns(userPoints);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, pointType.Id).Returns(userPoints);
 
             // Act
             await _pointsSystem.AddPointsByUsernameAndGame(username, gameName, points);
@@ -717,11 +718,11 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             var userId = "user1";
             var gameName = "game1";
             var max = 100;
-            var pointType = new PointType { Id = 1 };
-            var userPoints = new UserPoints { UserId = userId, PointTypeId = (int)pointType.Id, Points = 200 };
+            var pointType = new PointType { Id = Guid.CreateVersion7() };
+            var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType.Id, Points = 200 };
 
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
-            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, (int)pointType.Id).Returns(userPoints);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType.Id).Returns(userPoints);
             _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
@@ -745,7 +746,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             };
             await _pointsSystem.RunCommand(eventArgs, new PointCommand
             {
-                PointType = new PointType { Id = 1 },
+                PointType = new PointType { Id = Guid.CreateVersion7() },
                 CommandType = PointCommandType.Get,
             });
 

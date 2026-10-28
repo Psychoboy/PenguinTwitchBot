@@ -180,7 +180,7 @@ public sealed class DefaultCommandTriggerServiceTests : IDisposable
         commands.GetDefaultCommandByDefaultCommandName(commandName).Returns(defaultCommand);
         context.Services.AddSingleton(commands);
         var points = Substitute.For<IPointsSystem>();
-        points.GetPointTypes().Returns(Task.FromResult<IEnumerable<PointType>>([new() { Id = 1, Name = "Credits" }]));
+        points.GetPointTypes().Returns(Task.FromResult<IEnumerable<PointType>>([new() { Id = Guid.CreateVersion7(), Name = "Credits" }]));
         context.Services.AddSingleton(points);
         context.Services.AddSingleton<ITriggerVariableResolver, DefaultCommandTriggerVariableResolver>();
         var provider = context.Render<MudDialogProvider>();
@@ -197,7 +197,7 @@ public sealed class DefaultCommandTriggerServiceTests : IDisposable
         {
             var toggle = wizard.FindComponents<MudSwitch<bool>>().Single(component => component.Instance.Label == "Create a new action");
             await wizard.InvokeAsync(() => toggle.Instance.ValueChanged.InvokeAsync(false));
-            var select = wizard.FindComponent<MudSelect<int?>>();
+            var select = wizard.FindComponent<MudSelect<Guid?>>();
             await wizard.InvokeAsync(() => select.Instance.ValueChanged.InvokeAsync(action.Id));
         }
         else
@@ -243,7 +243,7 @@ public sealed class DefaultCommandTriggerServiceTests : IDisposable
             var repeated = provider.FindComponent<GameOutcomeAutomationWizard>();
             var toggle = repeated.FindComponents<MudSwitch<bool>>().Single(component => component.Instance.Label == "Create a new action");
             await repeated.InvokeAsync(() => toggle.Instance.ValueChanged.InvokeAsync(false));
-            await repeated.InvokeAsync(() => repeated.FindComponent<MudSelect<int?>>().Instance.ValueChanged.InvokeAsync(action.Id));
+            await repeated.InvokeAsync(() => repeated.FindComponent<MudSelect<Guid?>>().Instance.ValueChanged.InvokeAsync(action.Id));
             await repeated.FindAll("button").Single(button => button.TextContent.Trim() == "Create Link").ClickAsync(new MouseEventArgs());
             Assert.Contains("already linked", repeated.Markup);
             Assert.Equal(1, await _context.Triggers.CountAsync());

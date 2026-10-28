@@ -11,6 +11,9 @@ Seconds  Minutes  Hours  Day-of-Month  Month  Day-of-Week
 * `0 0/30 * * * ?` &rarr; Every 30 minutes
 * `0 0 9 ? * MON` &rarr; Every Monday at 9:00 AM
 
+#### Emote Cache
+The emote cache refreshes once daily at 3:00 AM by default and is also warmed shortly after startup. Cached emotes remain available while a refresh is running. Use **Refresh Emote Cache Now** in the scheduled jobs settings to fetch updates immediately without restarting the bot.
+
 #### Run On Startup
 When **Run On Startup** is checked, the cleanup job immediately runs once when the bot boots up, ensuring outdated data is pruned without waiting for the first scheduled cron trigger.
 

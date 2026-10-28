@@ -229,7 +229,7 @@ namespace PenguinTwitchBot.Services
             try
             {
                 var config = await _settings.GetConfigAsync();
-                if (!config.Enabled || config.PointTypeId <= 0 || string.IsNullOrWhiteSpace(config.Message))
+                if (!config.Enabled || config.PointTypeId == Guid.Empty || string.IsNullOrWhiteSpace(config.Message))
                     return;
 
                 // Snapshot eligible viewers: current chatters OR recently-active chatters.
@@ -472,7 +472,7 @@ namespace PenguinTwitchBot.Services
             }
         }
 
-        private async Task<string> GetPointTypeNameAsync(int pointTypeId)
+        private async Task<string> GetPointTypeNameAsync(Guid pointTypeId)
         {
             var pt = await _pointsSystem.GetPointTypeById(pointTypeId);
             return pt?.Name ?? $"Type {pointTypeId}";

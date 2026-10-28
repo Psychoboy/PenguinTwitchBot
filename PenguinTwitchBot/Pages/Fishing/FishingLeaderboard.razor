@@ -184,8 +184,8 @@
                         else if (leaderboardFishTypes.Any())
                         {
                             <MudStack AlignItems="AlignItems.Center" Class="mb-4 mt-4">
-                                <MudSelect Value="@selectedFishTypeId" 
-                                           ValueChanged="@(async (int value) => await OnFishTypeChanged(value))"
+                                <MudSelect T="Guid" Value="@selectedFishTypeId" 
+                                           ValueChanged="@(async (Guid value) => await OnFishTypeChanged(value))"
                                            Label="Select Fish Type" 
                                            Variant="Variant.Outlined"
                                            Adornment="Adornment.Start"
@@ -203,7 +203,7 @@
                                 </MudSelect>
                             </MudStack>
 
-                            @if (selectedFishTypeId > 0)
+                            @if (selectedFishTypeId != Guid.Empty)
                             {
                                 var selectedFish = leaderboardFishTypes.FirstOrDefault(f => f.Id == selectedFishTypeId);
                                 <MudPaper Elevation="5" Class="pa-5 mb-4">
@@ -784,8 +784,8 @@
     private List<FishType> leaderboardFishTypes = new();
     private List<FishCatch> topCatches = new();
     private List<FishCatch> userDexCatches = new();
-    private Dictionary<int, int> userDexCatchCounts = new();
-    private int selectedFishTypeId = 0;
+    private Dictionary<Guid, int> userDexCatchCounts = new();
+    private Guid selectedFishTypeId = Guid.Empty;
     private string currentUserId = string.Empty;
 
     // New leaderboards
@@ -799,7 +799,7 @@
     private List<DexEntry> cachedSortedDexEntries = new();
     private List<FishType>? dexCacheFishTypesReference;
     private List<FishCatch>? dexCacheUserDexCatchesReference;
-    private Dictionary<int, int>? dexCacheUserDexCatchCountsReference;
+    private Dictionary<Guid, int>? dexCacheUserDexCatchCountsReference;
     private DexSortField? dexCacheSortField;
     private bool? dexCacheIsSortDescending;
 
@@ -912,7 +912,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (selectedFishTypeId > 0)
+        if (selectedFishTypeId != Guid.Empty)
         {
             await LoadLeaderboard();
         }
@@ -953,7 +953,7 @@
         }
     }
 
-    private async Task OnFishTypeChanged(int newFishTypeId)
+    private async Task OnFishTypeChanged(Guid newFishTypeId)
     {
         selectedFishTypeId = newFishTypeId;
         await LoadLeaderboard();

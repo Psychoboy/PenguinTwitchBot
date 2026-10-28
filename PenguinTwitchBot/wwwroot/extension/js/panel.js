@@ -623,7 +623,7 @@
             container.querySelectorAll('.btn-item-action').forEach(function (btn) {
                 btn.addEventListener('click', async function () {
                     var action = btn.getAttribute('data-action');
-                    var id = parseInt(btn.getAttribute('data-id'), 10);
+                    var id = btn.getAttribute('data-id');
                     btn.disabled = true;
                     try {
                         if (action === 'equip') {
@@ -858,7 +858,7 @@
                     TwitchExtApi.requestIdentityShare();
                     return;
                 }
-                var id = parseInt(btn.getAttribute('data-id'), 10);
+                var id = btn.getAttribute('data-id');
                 var name = btn.getAttribute('data-name');
                 btn.disabled = true;
                 try {
@@ -1437,7 +1437,7 @@
         var pointTypeSelect = document.getElementById('lb-point-type-select');
         if (pointTypeSelect) {
             pointTypeSelect.addEventListener('change', function () {
-                state.selectedPointTypeId = parseInt(pointTypeSelect.value, 10);
+                state.selectedPointTypeId = pointTypeSelect.value;
                 loadLeaderboards();
             });
         }

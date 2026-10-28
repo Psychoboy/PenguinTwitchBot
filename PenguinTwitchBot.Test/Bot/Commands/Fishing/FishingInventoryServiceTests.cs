@@ -50,15 +50,17 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemUses_DecrementsFiniteUseItem()
         {
-            var shopItem = new FishingShopItem { Id = 1, Name = "Bait", MaxUses = 5, IsConsumable = true };
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
+            var shopItem = new FishingShopItem { Id = shopItemId, Name = "Bait", MaxUses = 5, IsConsumable = true };
             _context.FishingShopItems.Add(shopItem);
-            var boost = new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 5 };
+            var boost = new UserFishingBoost { Id = boostId, UserId = "user1", ShopItemId = shopItemId, IsEquipped = true, RemainingUses = 5 };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await _sut.ConsumeItemUses("user1", new[] { 1 });
+            await _sut.ConsumeItemUses("user1", new[] { boostId });
 
-            var updated = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == 1);
+            var updated = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == boostId);
             Assert.Equal(4, updated.RemainingUses);
             Assert.True(updated.IsEquipped);
         }
@@ -66,57 +68,65 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemUses_RemovesConsumableWhenDepleted()
         {
-            var shopItem = new FishingShopItem { Id = 1, Name = "Bait", MaxUses = 1, IsConsumable = true };
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
+            var shopItem = new FishingShopItem { Id = shopItemId, Name = "Bait", MaxUses = 1, IsConsumable = true };
             _context.FishingShopItems.Add(shopItem);
-            var boost = new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1 };
+            var boost = new UserFishingBoost { Id = boostId, UserId = "user1", ShopItemId = shopItemId, IsEquipped = true, RemainingUses = 1 };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await _sut.ConsumeItemUses("user1", new[] { 1 });
+            await _sut.ConsumeItemUses("user1", new[] { boostId });
 
-            var remaining = await _context.UserFishingBoosts.AsNoTracking().SingleOrDefaultAsync(b => b.Id == 1);
+            var remaining = await _context.UserFishingBoosts.AsNoTracking().SingleOrDefaultAsync(b => b.Id == boostId);
             Assert.Null(remaining);
         }
 
         [Fact]
         public async Task ConsumeItemUses_RemovesLimitedUseItemWhenDepleted()
         {
-            var shopItem = new FishingShopItem { Id = 1, Name = "Rod", MaxUses = 1, IsConsumable = false };
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
+            var shopItem = new FishingShopItem { Id = shopItemId, Name = "Rod", MaxUses = 1, IsConsumable = false };
             _context.FishingShopItems.Add(shopItem);
-            var boost = new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1 };
+            var boost = new UserFishingBoost { Id = boostId, UserId = "user1", ShopItemId = shopItemId, IsEquipped = true, RemainingUses = 1 };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await _sut.ConsumeItemUses("user1", new[] { 1 });
+            await _sut.ConsumeItemUses("user1", new[] { boostId });
 
-            var remaining = await _context.UserFishingBoosts.AsNoTracking().SingleOrDefaultAsync(b => b.Id == 1);
+            var remaining = await _context.UserFishingBoosts.AsNoTracking().SingleOrDefaultAsync(b => b.Id == boostId);
             Assert.Null(remaining);
         }
 
         [Fact]
         public async Task ConsumeItemUses_EquipsNextAvailableCopyWhenDepleted()
         {
-            var shopItem = new FishingShopItem { Id = 1, Name = "Bait", MaxUses = 1, IsConsumable = false };
+            var shopItemId = Guid.CreateVersion7();
+            var boostId1 = Guid.CreateVersion7();
+            var boostId2 = Guid.CreateVersion7();
+            var shopItem = new FishingShopItem { Id = shopItemId, Name = "Bait", MaxUses = 1, IsConsumable = false };
             _context.FishingShopItems.Add(shopItem);
             // Equal PurchasedAt values so the replacement is picked by Id, not by clock resolution.
             var purchasedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             _context.UserFishingBoosts.AddRange(
-                new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1, PurchasedAt = purchasedAt },
-                new UserFishingBoost { Id = 2, UserId = "user1", ShopItemId = 1, IsEquipped = false, RemainingUses = 1, PurchasedAt = purchasedAt });
+                new UserFishingBoost { Id = boostId1, UserId = "user1", ShopItemId = shopItemId, IsEquipped = true, RemainingUses = 1, PurchasedAt = purchasedAt },
+                new UserFishingBoost { Id = boostId2, UserId = "user1", ShopItemId = shopItemId, IsEquipped = false, RemainingUses = 1, PurchasedAt = purchasedAt });
             await _context.SaveChangesAsync();
 
-            await _sut.ConsumeItemUses("user1", new[] { 1 });
+            await _sut.ConsumeItemUses("user1", new[] { boostId1 });
 
-            var replacement = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == 2);
+            var replacement = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == boostId2);
             Assert.True(replacement.IsEquipped);
         }
 
         [Fact]
         public async Task ConsumeItemUses_AfterBatchPurchase_EquipsNextAvailableItemWhenDepleted()
         {
+            var shopItemId = Guid.CreateVersion7();
             _context.FishingShopItems.Add(new FishingShopItem
             {
-                Id = 1,
+                Id = shopItemId,
                 Name = "Worm Bait",
                 Cost = 10,
                 MaxUses = 1,
@@ -127,9 +137,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 100 });
             await _context.SaveChangesAsync();
 
-            await _sut.PurchaseBoost("user1", 1, 3);
+            await _sut.PurchaseBoost("user1", shopItemId, 3);
 
-            var items = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").OrderBy(b => b.Id).ToListAsync();
+            var items = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").OrderBy(b => b.PurchasedAt).ThenBy(b => b.Id).ToListAsync();
             Assert.Equal(3, items.Count);
 
             // Equip the first bait
@@ -139,7 +149,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _sut.ConsumeItemUses("user1", new[] { items[0].Id });
 
             // First item should be deleted, second item should now be equipped
-            var remainingItems = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").OrderBy(b => b.Id).ToListAsync();
+            var remainingItems = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").OrderBy(b => b.PurchasedAt).ThenBy(b => b.Id).ToListAsync();
             Assert.Equal(2, remainingItems.Count);
             Assert.Equal(items[1].Id, remainingItems[0].Id);
             Assert.True(remainingItems[0].IsEquipped);
@@ -149,32 +159,36 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemUses_SerializesConcurrentCallsForSameUser()
         {
-            var shopItem = new FishingShopItem { Id = 1, Name = "Bait", MaxUses = 5, IsConsumable = false };
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
+            var shopItem = new FishingShopItem { Id = shopItemId, Name = "Bait", MaxUses = 5, IsConsumable = false };
             _context.FishingShopItems.Add(shopItem);
-            var boost = new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 2 };
+            var boost = new UserFishingBoost { Id = boostId, UserId = "user1", ShopItemId = shopItemId, IsEquipped = true, RemainingUses = 2 };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            var first = _sut.ConsumeItemUses("user1", new[] { 1 });
-            var second = _sut.ConsumeItemUses("user1", new[] { 1 });
+            var first = _sut.ConsumeItemUses("user1", new[] { boostId });
+            var second = _sut.ConsumeItemUses("user1", new[] { boostId });
             await Task.WhenAll(first, second);
 
-            var updated = await _context.UserFishingBoosts.AsNoTracking().SingleOrDefaultAsync(b => b.Id == 1);
+            var updated = await _context.UserFishingBoosts.AsNoTracking().SingleOrDefaultAsync(b => b.Id == boostId);
             Assert.Null(updated);
         }
 
         [Fact]
         public async Task ConsumeItemUses_LeavesUnlimitedUseItemUnchanged()
         {
-            var shopItem = new FishingShopItem { Id = 1, Name = "Permanent Rod", IsConsumable = false };
+            var shopItemId = Guid.CreateVersion7();
+            var boostId = Guid.CreateVersion7();
+            var shopItem = new FishingShopItem { Id = shopItemId, Name = "Permanent Rod", IsConsumable = false };
             _context.FishingShopItems.Add(shopItem);
-            var boost = new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = -1 };
+            var boost = new UserFishingBoost { Id = boostId, UserId = "user1", ShopItemId = shopItemId, IsEquipped = true, RemainingUses = -1 };
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            await _sut.ConsumeItemUses("user1", new[] { 1 });
+            await _sut.ConsumeItemUses("user1", new[] { boostId });
 
-            var updated = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == 1);
+            var updated = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == boostId);
             Assert.Equal(-1, updated.RemainingUses);
             Assert.True(updated.IsEquipped);
         }
@@ -182,9 +196,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task PurchaseBoost_CreatesMultipleLimitedUseItems()
         {
+            var shopItemId = Guid.CreateVersion7();
             _context.FishingShopItems.Add(new FishingShopItem
             {
-                Id = 1,
+                Id = shopItemId,
                 Name = "Bait",
                 Cost = 100,
                 MaxUses = 5,
@@ -193,7 +208,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 500 });
             await _context.SaveChangesAsync();
 
-            await _sut.PurchaseBoost("user1", 1, 3);
+            await _sut.PurchaseBoost("user1", shopItemId, 3);
 
             var items = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").ToListAsync();
             var gold = await _context.FishingGolds.AsNoTracking().SingleAsync(g => g.UserId == "user1");
@@ -205,9 +220,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task PurchaseBoost_ConcurrentPurchases_OnlyOneSucceedsWithSingleBalance()
         {
+            var shopItemId = Guid.CreateVersion7();
             _context.FishingShopItems.Add(new FishingShopItem
             {
-                Id = 1,
+                Id = shopItemId,
                 Name = "Bait",
                 Cost = 100,
                 MaxUses = 1,
@@ -220,7 +236,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             {
                 try
                 {
-                    await _sut.PurchaseBoost("user1", 1, 1);
+                    await _sut.PurchaseBoost("user1", shopItemId, 1);
                     return true;
                 }
                 catch (InvalidOperationException ex) when (ex.Message == "Not enough gold")
@@ -242,9 +258,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task PurchaseBoost_RejectsLimitedUseItemWithZeroMaxUses_WithoutDebitingGold()
         {
+            var shopItemId = Guid.CreateVersion7();
             _context.FishingShopItems.Add(new FishingShopItem
             {
-                Id = 1,
+                Id = shopItemId,
                 Name = "Broken Bait",
                 Cost = 100,
                 MaxUses = 0,
@@ -253,7 +270,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 500 });
             await _context.SaveChangesAsync();
 
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.PurchaseBoost("user1", 1, 1));
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.PurchaseBoost("user1", shopItemId, 1));
             Assert.Equal("Limited-use items must have at least 1 max use", ex.Message);
 
             var items = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").ToListAsync();
@@ -265,9 +282,12 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task ConsumeItemsOnLineSnap_ConcurrentWithConsumeItemUses_LeavesConsistentState()
         {
+            var shopItemId = Guid.CreateVersion7();
+            var boostId1 = Guid.CreateVersion7();
+            var boostId2 = Guid.CreateVersion7();
             _context.FishingShopItems.Add(new FishingShopItem
             {
-                Id = 1,
+                Id = shopItemId,
                 Name = "Bait",
                 Cost = 100,
                 MaxUses = 1,
@@ -275,12 +295,12 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 Enabled = true
             });
             _context.UserFishingBoosts.AddRange(
-                new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1 },
-                new UserFishingBoost { Id = 2, UserId = "user1", ShopItemId = 1, IsEquipped = false, RemainingUses = 1 });
+                new UserFishingBoost { Id = boostId1, UserId = "user1", ShopItemId = shopItemId, IsEquipped = true, RemainingUses = 1 },
+                new UserFishingBoost { Id = boostId2, UserId = "user1", ShopItemId = shopItemId, IsEquipped = false, RemainingUses = 1 });
             await _context.SaveChangesAsync();
 
             var snapTask = _sut.ConsumeItemsOnLineSnap("user1", "user1");
-            var consumeTask = _sut.ConsumeItemUses("user1", new[] { 1, 2 });
+            var consumeTask = _sut.ConsumeItemUses("user1", new[] { boostId1, boostId2 });
             await Task.WhenAll(snapTask, consumeTask);
 
             var remainingItems = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").ToListAsync();

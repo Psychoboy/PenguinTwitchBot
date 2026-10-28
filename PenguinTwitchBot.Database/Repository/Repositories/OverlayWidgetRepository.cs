@@ -6,7 +6,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
     public class OverlayWidgetRepository(ApplicationDbContext context)
         : GenericRepository<OverlayWidget>(context), IOverlayWidgetRepository
     {
-        public async Task<List<OverlayWidget>> GetByLayoutIdAsync(int layoutId)
+        public async Task<List<OverlayWidget>> GetByLayoutIdAsync(Guid layoutId)
         {
             return await _context.OverlayWidgets
                 .AsNoTracking()

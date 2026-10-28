@@ -8,9 +8,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class ViewerMessageCount
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string UserId { get; set; } = string.Empty;
         [MaxLength(255)]
         public string Username { get; set; } = "";

@@ -12,7 +12,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
     public class ObsSetSourceVisibilityHandlerTests
     {
-        private static (ManagedOBSConnection Connection, IOBSWebsocket MockObs) CreateConnectedConnection(int id, string name)
+        private static (ManagedOBSConnection Connection, IOBSWebsocket MockObs) CreateConnectedConnection(Guid id, string name)
         {
             var config = new OBSConnection { Id = id, Name = name, Url = "ws://localhost:4455", Password = "test", Enabled = true };
             var mockObs = Substitute.For<IOBSWebsocket>();
@@ -29,15 +29,16 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetSourceVisibilityHandler>>();
             var handler = new ObsSetSourceVisibilityHandler(connectionManager, logger);
 
-            var (connection, mockObs) = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var (connection, mockObs) = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetSourceVisibilityType { OBSConnectionId = 1, SceneName = "Gaming", SourceName = "Webcam", Visible = true };
+            var type = new ObsSetSourceVisibilityType { OBSConnectionId = connectionId, SceneName = "Gaming", SourceName = "Webcam", Visible = true };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
-            connectionManager.Received(1).GetManagedConnection(1);
+            connectionManager.Received(1).GetManagedConnection(connectionId);
             var sceneItemId = mockObs.Received(1).GetSceneItemId("Gaming", "Webcam", 0);
             mockObs.Received(1).SetSceneItemEnabled("Gaming", sceneItemId, true);
         }
@@ -49,10 +50,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetSourceVisibilityHandler>>();
             var handler = new ObsSetSourceVisibilityHandler(connectionManager, logger);
 
-            var (connection, _) = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var (connection, _) = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetSourceVisibilityType { OBSConnectionId = 1, SceneName = "", SourceName = "Webcam", Visible = true };
+            var type = new ObsSetSourceVisibilityType { OBSConnectionId = connectionId, SceneName = "", SourceName = "Webcam", Visible = true };
             var variables = new ConcurrentDictionary<string, string>();
 
             await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));

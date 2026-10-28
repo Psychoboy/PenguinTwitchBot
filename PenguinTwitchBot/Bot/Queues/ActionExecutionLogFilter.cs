@@ -8,7 +8,7 @@ namespace PenguinTwitchBot.Bot.Queues
             IEnumerable<ActionExecutionLog> source,
             string? searchString,
             ActionExecutionState? filterState,
-            int? actionId = null)
+            Guid? actionId = null)
         {
             var filtered = source;
 

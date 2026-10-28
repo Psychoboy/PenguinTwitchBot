@@ -241,7 +241,7 @@ public class StarshipSectorSelectionTests
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var profile = new StarshipRewardProfile
         {
-            Id = "bulk-test", Name = "Bulk Test", Tiers = [new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 7, Minimum = 5, Maximum = 10 }] }]
+            Id = "bulk-test", Name = "Bulk Test", Tiers = [new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = Guid.CreateVersion7(), Minimum = 5, Maximum = 10 }] }]
         };
         settings.RewardProfiles.Add(profile);
         var store = new Mock<IStarshipExpeditionSettingsStore>();
@@ -273,11 +273,13 @@ public class StarshipSectorSelectionTests
     public async Task BulkRarityEditor_UpdatesOneCurrencyAndAddsANewCurrencyReward()
     {
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var pointTypeId1 = Guid.CreateVersion7();
+        var pointTypeId2 = Guid.CreateVersion7();
         var profile = new StarshipRewardProfile
         {
             Id = "bulk-two-types", Name = "Two Types", Tiers =
             [
-                new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 7, Minimum = 5, Maximum = 10 }] },
+                new() { Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = pointTypeId1, Minimum = 5, Maximum = 10 }] },
                 new() { Name = "Uncommon", Weight = 1, Rewards = [] }
             ]
         };
@@ -287,7 +289,7 @@ public class StarshipSectorSelectionTests
         dialog.Setup(service => service.ShowMessageBoxAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DialogOptions?>()))
             .Returns(Task.FromResult<bool?>(true));
         await using var context = CreatePageContext(settings, store,
-            pointTypes: [new() { Id = 7, Name = "Credits" }, new() { Id = 9, Name = "Tokens" }],
+            pointTypes: [new() { Id = pointTypeId1, Name = "Credits" }, new() { Id = pointTypeId2, Name = "Tokens" }],
             dialogService: dialog.Object);
         var page = context.Render<StarshipExpeditionGame>();
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(2));
@@ -296,8 +298,8 @@ public class StarshipSectorSelectionTests
             .Find("input").ChangeAsync(new ChangeEventArgs { Value = true });
         var rarity = page.FindComponents<MudSelect<string>>().Single(item => item.Instance.Label == "Rarity");
         await page.InvokeAsync(() => rarity.Instance.ValueChanged.InvokeAsync("Common"));
-        var pointType = page.FindComponents<MudSelect<int?>>().Single(item => item.Instance.Label == "Point Type");
-        await page.InvokeAsync(() => pointType.Instance.ValueChanged.InvokeAsync(7));
+        var pointType = page.FindComponents<MudSelect<Guid?>>().Single(item => item.Instance.Label == "Point Type");
+        await page.InvokeAsync(() => pointType.Instance.ValueChanged.InvokeAsync(pointTypeId1));
         await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Minimum")
             .Find("input").ChangeAsync(new ChangeEventArgs { Value = "20" });
         await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Maximum")
@@ -307,16 +309,16 @@ public class StarshipSectorSelectionTests
 
         var updatedProfile = settings.RewardProfiles.Single(item => item.Id == profile.Id);
         Assert.Equal((20L, 30L), (updatedProfile.Tiers[0].Rewards[0].Minimum, updatedProfile.Tiers[0].Rewards[0].Maximum));
-        Assert.DoesNotContain(updatedProfile.Tiers[0].Rewards, reward => reward.PointTypeId == 9);
+        Assert.DoesNotContain(updatedProfile.Tiers[0].Rewards, reward => reward.PointTypeId == pointTypeId2);
 
         await page.FindComponents<MudCheckBox<bool>>().Single(item => item.Instance.Label == profile.Name)
             .Find("input").ChangeAsync(new ChangeEventArgs { Value = true });
         var addMode = page.FindComponents<MudSwitch<bool>>().Single(item => item.Instance.Label == "Add reward to tiers instead of updating existing rewards");
         await page.InvokeAsync(() => addMode.Instance.ValueChanged.InvokeAsync(true));
         var addRarity = page.FindComponents<MudSelect<string>>().Single(item => item.Instance.Label == "Rarity");
-        var addPointType = page.FindComponents<MudSelect<int?>>().Single(item => item.Instance.Label == "Point Type");
+        var addPointType = page.FindComponents<MudSelect<Guid?>>().Single(item => item.Instance.Label == "Point Type");
         await page.InvokeAsync(() => addRarity.Instance.ValueChanged.InvokeAsync("Common"));
-        await page.InvokeAsync(() => addPointType.Instance.ValueChanged.InvokeAsync(9));
+        await page.InvokeAsync(() => addPointType.Instance.ValueChanged.InvokeAsync(pointTypeId2));
         await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Minimum")
             .Find("input").ChangeAsync(new ChangeEventArgs { Value = "40" });
         await page.FindComponents<MudNumericField<long?>>().Single(item => item.Instance.Label == "Maximum")
@@ -326,7 +328,7 @@ public class StarshipSectorSelectionTests
         await page.FindAll("button").Single(button => button.TextContent.Trim() == "Apply to Unsaved Settings").ClickAsync(new MouseEventArgs());
 
         var addedReward = Assert.Single(settings.RewardProfiles.Single(item => item.Id == profile.Id).Tiers[0].Rewards,
-            reward => reward.PointTypeId == 9);
+            reward => reward.PointTypeId == pointTypeId2);
         Assert.Equal((40L, 60L), (addedReward.Minimum, addedReward.Maximum));
     }
 
@@ -366,6 +368,8 @@ public class StarshipSectorSelectionTests
     [Fact]
     public async Task CloneRewardProfile_CreatesIndependentCustomCopyWithUniqueNameAndId()
     {
+        var pointTypeId = Guid.CreateVersion7();
+        var actionId = Guid.CreateVersion7();
         var source = new StarshipRewardProfile
         {
             Id = "clone-source",
@@ -377,12 +381,12 @@ public class StarshipSectorSelectionTests
                 new()
                 {
                     Id = "common", Name = "Common", Weight = 2,
-                    Rewards = [new() { PointTypeId = 7, PointTypeName = "Credits", Minimum = 10, Maximum = 20 }],
-                    Actions = [new() { ActionId = 12, ActionName = "Celebrate", Timing = StarshipActionTimings.AfterBank }]
+                    Rewards = [new() { PointTypeId = pointTypeId, PointTypeName = "Credits", Minimum = 10, Maximum = 20 }],
+                    Actions = [new() { ActionId = actionId, ActionName = "Celebrate", Timing = StarshipActionTimings.AfterBank }]
                 }
             ],
-            Caps = [new() { PointTypeId = 7, MaximumPerEvent = 50 }],
-            LossRules = [new() { PointTypeId = 7, PointTypeName = "Credits", Percent = 20 }]
+            Caps = [new() { PointTypeId = pointTypeId, MaximumPerEvent = 50 }],
+            LossRules = [new() { PointTypeId = pointTypeId, PointTypeName = "Credits", Percent = 20 }]
         };
         var settings = new StarshipExpeditionSettings { RewardProfiles = [.. new StarshipExpeditionSettings().RewardProfiles, source] };
         var store = new Mock<IStarshipExpeditionSettingsStore>();

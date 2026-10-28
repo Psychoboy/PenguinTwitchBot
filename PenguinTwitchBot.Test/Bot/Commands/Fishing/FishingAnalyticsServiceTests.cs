@@ -38,7 +38,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _fishingService = Substitute.For<IFishingService>();
             var settings = new FishingSettings
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 LineSnapChance = 0.02,
                 RodSnapChance = 0.001,
                 ReelJamChance = 0.01,
@@ -66,29 +66,29 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             var fishTypes = new List<FishType>
             {
-                new() { Id = 1, Name = "Minnow", Rarity = FishRarity.Common, BaseGold = 10, BaseWeight = 0.5, Enabled = true },
-                new() { Id = 2, Name = "Bass", Rarity = FishRarity.Uncommon, BaseGold = 35, BaseWeight = 2.0, Enabled = true },
-                new() { Id = 3, Name = "Salmon", Rarity = FishRarity.Rare, BaseGold = 75, BaseWeight = 5.0, Enabled = true },
-                new() { Id = 4, Name = "Tuna", Rarity = FishRarity.Epic, BaseGold = 150, BaseWeight = 25.0, Enabled = true },
-                new() { Id = 5, Name = "Shark", Rarity = FishRarity.Legendary, BaseGold = 300, BaseWeight = 100.0, Enabled = true }
+                new() { Id = Guid.CreateVersion7(), Name = "Minnow", Rarity = FishRarity.Common, BaseGold = 10, BaseWeight = 0.5, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Bass", Rarity = FishRarity.Uncommon, BaseGold = 35, BaseWeight = 2.0, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Salmon", Rarity = FishRarity.Rare, BaseGold = 75, BaseWeight = 5.0, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Tuna", Rarity = FishRarity.Epic, BaseGold = 150, BaseWeight = 25.0, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Shark", Rarity = FishRarity.Legendary, BaseGold = 300, BaseWeight = 100.0, Enabled = true }
             };
             _context.FishTypes.AddRange(fishTypes);
 
             var shopItems = new List<FishingShopItem>
             {
-                new() { Id = 1, Name = "Bamboo Rod", Cost = 150, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, MaxDurability = 100, DurabilityLossPerUse = 1, Enabled = true },
-                new() { Id = 2, Name = "Fiberglass Rod", Cost = 400, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.10, MaxDurability = 150, DurabilityLossPerUse = 1, Enabled = true },
-                new() { Id = 3, Name = "Legendary Rod", Cost = 2500, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.25, MaxDurability = 300, DurabilityLossPerUse = 1, Enabled = true },
-                new() { Id = 4, Name = "Basic Reel", Cost = 200, EquipmentSlot = EquipmentSlot.Reel, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.05, MaxDurability = 100, DurabilityLossPerUse = 1, Enabled = true },
-                new() { Id = 5, Name = "Monofilament Line", Cost = 175, EquipmentSlot = EquipmentSlot.Line, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.10, MaxDurability = 50, DurabilityLossPerUse = 1, Enabled = true },
-                new() { Id = 6, Name = "Standard Hook", Cost = 150, EquipmentSlot = EquipmentSlot.Hook, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.05, MaxDurability = 50, DurabilityLossPerUse = 1, Enabled = true },
-                new() { Id = 7, Name = "Basic Tackle Box", Cost = 300, EquipmentSlot = EquipmentSlot.TackleBox, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, MaxDurability = 200, DurabilityLossPerUse = 1, Enabled = true },
-                new() { Id = 8, Name = "Landing Net", Cost = 350, EquipmentSlot = EquipmentSlot.Net, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.15, MaxDurability = 150, DurabilityLossPerUse = 1, Enabled = true },
-                new() { Id = 9, Name = "Worms", Cost = 75, EquipmentSlot = EquipmentSlot.Bait, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, IsConsumable = true, MaxUses = 5, Enabled = true },
-                new() { Id = 10, Name = "Titanium Wire", Cost = 2800, EquipmentSlot = EquipmentSlot.Line, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.45, DisableBreaking = true, Enabled = true },
-                new() { Id = 11, Name = "Carbon Fiber Rod", Cost = 1000, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, MaxDurability = 100, DurabilityLossPerUse = 2, DisableBreaking = true, Enabled = true },
-                new() { Id = 12, Name = "Master Reel", Cost = 3500, EquipmentSlot = EquipmentSlot.Reel, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.20, MaxDurability = 300, DurabilityLossPerUse = 1, Enabled = true },
-                new() { Id = 13, Name = "Diamond Hook", Cost = 3000, EquipmentSlot = EquipmentSlot.Hook, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.20, MaxDurability = 200, DurabilityLossPerUse = 1, Enabled = true }
+                new() { Id = Guid.CreateVersion7(), Name = "Bamboo Rod", Cost = 150, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, MaxDurability = 100, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Fiberglass Rod", Cost = 400, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.10, MaxDurability = 150, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Legendary Rod", Cost = 2500, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.25, MaxDurability = 300, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Basic Reel", Cost = 200, EquipmentSlot = EquipmentSlot.Reel, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.05, MaxDurability = 100, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Monofilament Line", Cost = 175, EquipmentSlot = EquipmentSlot.Line, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.10, MaxDurability = 50, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Standard Hook", Cost = 150, EquipmentSlot = EquipmentSlot.Hook, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.05, MaxDurability = 50, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Basic Tackle Box", Cost = 300, EquipmentSlot = EquipmentSlot.TackleBox, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, MaxDurability = 200, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Landing Net", Cost = 350, EquipmentSlot = EquipmentSlot.Net, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.15, MaxDurability = 150, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Worms", Cost = 75, EquipmentSlot = EquipmentSlot.Bait, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, IsConsumable = true, MaxUses = 5, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Titanium Wire", Cost = 2800, EquipmentSlot = EquipmentSlot.Line, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.45, DisableBreaking = true, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Carbon Fiber Rod", Cost = 1000, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, MaxDurability = 100, DurabilityLossPerUse = 2, DisableBreaking = true, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Master Reel", Cost = 3500, EquipmentSlot = EquipmentSlot.Reel, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.20, MaxDurability = 300, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Diamond Hook", Cost = 3000, EquipmentSlot = EquipmentSlot.Hook, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.20, MaxDurability = 200, DurabilityLossPerUse = 1, Enabled = true }
             };
             _context.FishingShopItems.AddRange(shopItems);
 
@@ -237,11 +237,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task AnalyzeGameBalance_AggregatesRealAndProjectedTelemetry()
         {
+            var minnow = _context.FishTypes.First(f => f.Name == "Minnow");
+            var bass = _context.FishTypes.First(f => f.Name == "Bass");
+            var salmon = _context.FishTypes.First(f => f.Name == "Salmon");
+            var carbonFiberRod = _context.FishingShopItems.First(i => i.Name == "Carbon Fiber Rod");
+
             // Seed sample catches
             _context.FishCatches.AddRange(
-                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 1, GoldEarned = 12, Stars = 1, Weight = 0.6, CaughtAt = DateTime.UtcNow.AddDays(-2) },
-                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 2, GoldEarned = 38, Stars = 2, Weight = 2.4, CaughtAt = DateTime.UtcNow.AddDays(-2) },
-                new FishCatch { UserId = "u2", Username = "FisherBob", FishTypeId = 3, GoldEarned = 80, Stars = 3, Weight = 7.5, CaughtAt = DateTime.UtcNow.AddDays(-1) }
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = minnow.Id, GoldEarned = 12, Stars = 1, Weight = 0.6, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = bass.Id, GoldEarned = 38, Stars = 2, Weight = 2.4, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u2", Username = "FisherBob", FishTypeId = salmon.Id, GoldEarned = 80, Stars = 3, Weight = 7.5, CaughtAt = DateTime.UtcNow.AddDays(-1) }
             );
 
             // Seed sample snap/accident event
@@ -259,7 +264,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.UserFishingBoosts.Add(new UserFishingBoost
             {
                 UserId = "u1",
-                ShopItemId = 11, // Carbon Fiber Rod (1000g, 100 max dur, 2 loss, 0.25 repair multiplier -> 5g per attempt)
+                ShopItemId = carbonFiberRod.Id, // Carbon Fiber Rod (1000g, 100 max dur, 2 loss, 0.25 repair multiplier -> 5g per attempt)
                 IsEquipped = true,
                 CurrentDurability = 100
             });
@@ -301,10 +306,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public async Task AnalyzeGameBalance_WithRepairEvents_UsesObservedRepairTelemetry()
         {
+            var minnow = _context.FishTypes.First(f => f.Name == "Minnow");
+            var bass = _context.FishTypes.First(f => f.Name == "Bass");
+            var salmon = _context.FishTypes.First(f => f.Name == "Salmon");
+            var carbonFiberRod = _context.FishingShopItems.First(i => i.Name == "Carbon Fiber Rod");
+            var masterReel = _context.FishingShopItems.First(i => i.Name == "Master Reel");
+
             _context.FishCatches.AddRange(
-                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 1, GoldEarned = 12, Stars = 1, Weight = 0.6, CaughtAt = DateTime.UtcNow.AddDays(-2) },
-                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 2, GoldEarned = 38, Stars = 2, Weight = 2.4, CaughtAt = DateTime.UtcNow.AddDays(-2) },
-                new FishCatch { UserId = "u2", Username = "FisherBob", FishTypeId = 3, GoldEarned = 80, Stars = 3, Weight = 7.5, CaughtAt = DateTime.UtcNow.AddDays(-1) }
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = minnow.Id, GoldEarned = 12, Stars = 1, Weight = 0.6, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = bass.Id, GoldEarned = 38, Stars = 2, Weight = 2.4, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u2", Username = "FisherBob", FishTypeId = salmon.Id, GoldEarned = 80, Stars = 3, Weight = 7.5, CaughtAt = DateTime.UtcNow.AddDays(-1) }
             );
 
             _context.FishingSnapEvents.Add(new FishingSnapEvent
@@ -322,8 +333,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 {
                     UserId = "u1",
                     Username = "player1",
-                    ShopItemId = 11,
-                    UserBoostId = 1,
+                    ShopItemId = carbonFiberRod.Id,
+                    UserBoostId = Guid.CreateVersion7(),
                     ItemName = "Carbon Fiber Rod",
                     EquipmentSlot = "Rod",
                     DurabilityRestored = 20,
@@ -339,8 +350,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 {
                     UserId = "u1",
                     Username = "player1",
-                    ShopItemId = 12,
-                    UserBoostId = 2,
+                    ShopItemId = masterReel.Id,
+                    UserBoostId = Guid.CreateVersion7(),
                     ItemName = "Pro Reel",
                     EquipmentSlot = "Reel",
                     DurabilityRestored = 10,
@@ -378,7 +389,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             _context.FishingShopItems.Add(new FishingShopItem
             {
-                Id = 99,
+                Id = Guid.CreateVersion7(),
                 Name = "Ocean Lure",
                 Cost = 300,
                 EquipmentSlot = EquipmentSlot.Bait,
@@ -401,7 +412,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             var boostSettings = new FishingSettings
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 BoostMode = true,
                 BoostModeRarityMultiplier = 2.0,
                 LineSnapChance = 0.02,

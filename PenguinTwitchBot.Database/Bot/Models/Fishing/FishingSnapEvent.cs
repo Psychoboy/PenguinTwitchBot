@@ -5,7 +5,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     public class FishingSnapEvent
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         [MaxLength(255)]
         public string UserId { get; set; } = string.Empty;
@@ -32,8 +32,8 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 
     public class FishingSnapLostItem
     {
-        public int UserBoostId { get; set; }
-        public int ShopItemId { get; set; }
+        public Guid UserBoostId { get; set; }
+        public Guid ShopItemId { get; set; }
         public string ItemName { get; set; } = string.Empty;
         public string EquipmentSlot { get; set; } = string.Empty;
         public int ItemCostAtSnap { get; set; }

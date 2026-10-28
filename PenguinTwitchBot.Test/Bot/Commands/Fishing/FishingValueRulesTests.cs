@@ -63,11 +63,12 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public void NormalizeAndValidate_ShopItem_Succeeds_WhenTargetsAreProvided()
         {
+            var targetFishId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
                 BoostType = FishingBoostType.SpecificFishBoost,
                 BoostAmount = 0.1,
-                TargetFishTypeId = 5,
+                TargetFishTypeId = targetFishId,
                 BoostType2 = FishingBoostType.SpecificCategoryBoost,
                 BoostAmount2 = 0.2,
                 TargetCategory = "River"
@@ -77,7 +78,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             Assert.Equal(0.1, item.BoostAmount);
             Assert.Equal(0.2, item.BoostAmount2);
-            Assert.Equal(5, item.TargetFishTypeId);
+            Assert.Equal(targetFishId, item.TargetFishTypeId);
             Assert.Equal("River", item.TargetCategory);
         }
 
@@ -162,7 +163,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var item = new FishingShopItem
             {
                 BoostType = FishingBoostType.GeneralRarityBoost,
-                TargetFishTypeId = 10,
+                TargetFishTypeId = Guid.CreateVersion7(),
                 TargetCategory = "River"
             };
 
@@ -175,17 +176,18 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         [Fact]
         public void ClearUnusedShopItemTargets_PreservesTargets_WhenBoostsPresent()
         {
+            var targetFishId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
                 BoostType = FishingBoostType.SpecificFishBoost,
-                TargetFishTypeId = 10,
+                TargetFishTypeId = targetFishId,
                 BoostType2 = FishingBoostType.SpecificCategoryBoost,
                 TargetCategory = "River"
             };
 
             FishingValueRules.ClearUnusedShopItemTargets(item);
 
-            Assert.Equal(10, item.TargetFishTypeId);
+            Assert.Equal(targetFishId, item.TargetFishTypeId);
             Assert.Equal("River", item.TargetCategory);
         }
 

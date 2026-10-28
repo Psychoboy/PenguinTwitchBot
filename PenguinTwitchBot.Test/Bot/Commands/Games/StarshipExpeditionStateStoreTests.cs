@@ -19,14 +19,15 @@ public class StarshipExpeditionStateStoreTests
         var originalCulture = CultureInfo.CurrentCulture;
         try
         {
+            var pointTypeId = Guid.CreateVersion7();
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
             var expeditionEvent = new StarshipExpeditionEventSnapshot
             {
                 OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess,
                 RewardOutcomes =
                 [
-                    new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = 1234 },
-                    new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = 1235 }
+                    new() { UserId = "pilot", PointTypeId = pointTypeId, PointTypeName = "Credits", EarnedAmount = 1234 },
+                    new() { UserId = "medic", PointTypeId = pointTypeId, PointTypeName = "Credits", EarnedAmount = 1235 }
                 ]
             };
 
@@ -44,16 +45,18 @@ public class StarshipExpeditionStateStoreTests
     [InlineData(true)]
     public void RewardFeedback_ShowsPerCurrencyAveragesIncludingZeroAwardCrew(bool failure)
     {
+        var pointTypeId1 = Guid.CreateVersion7();
+        var pointTypeId2 = Guid.CreateVersion7();
         var expeditionEvent = new StarshipExpeditionEventSnapshot
         {
             OutcomeResult = failure ? StarshipExpeditionNarrative.OutcomeFailure : StarshipExpeditionNarrative.OutcomeSuccess,
             RewardOutcomes =
             [
-                new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = failure ? 0 : 10, LostAmount = failure ? 10 : 0 },
-                new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = failure ? 0 : 30, LostAmount = failure ? 30 : 0 },
-                new() { UserId = "engineer", PointTypeId = 1, PointTypeName = "Credits" },
-                new() { UserId = "pilot", PointTypeId = 2, PointTypeName = "Tokens", EarnedAmount = failure ? 0 : 6, LostAmount = failure ? 6 : 0 },
-                new() { UserId = "medic", PointTypeId = 2, PointTypeName = "Tokens", EarnedAmount = failure ? 0 : 8, LostAmount = failure ? 8 : 0 }
+                new() { UserId = "pilot", PointTypeId = pointTypeId1, PointTypeName = "Credits", EarnedAmount = failure ? 0 : 10, LostAmount = failure ? 10 : 0 },
+                new() { UserId = "medic", PointTypeId = pointTypeId1, PointTypeName = "Credits", EarnedAmount = failure ? 0 : 30, LostAmount = failure ? 30 : 0 },
+                new() { UserId = "engineer", PointTypeId = pointTypeId1, PointTypeName = "Credits" },
+                new() { UserId = "pilot", PointTypeId = pointTypeId2, PointTypeName = "Tokens", EarnedAmount = failure ? 0 : 6, LostAmount = failure ? 6 : 0 },
+                new() { UserId = "medic", PointTypeId = pointTypeId2, PointTypeName = "Tokens", EarnedAmount = failure ? 0 : 8, LostAmount = failure ? 8 : 0 }
             ]
         };
 
@@ -67,28 +70,29 @@ public class StarshipExpeditionStateStoreTests
             Assert.DoesNotContain("40 Credits", text);
             Assert.DoesNotContain("13.33", text);
         }
-        Assert.Equal(40, expeditionEvent.RewardOutcomes.Where(outcome => outcome.PointTypeId == 1)
+        Assert.Equal(40, expeditionEvent.RewardOutcomes.Where(outcome => outcome.PointTypeId == pointTypeId1)
             .Sum(outcome => failure ? outcome.LostAmount : outcome.EarnedAmount));
-        Assert.Equal(14, expeditionEvent.RewardOutcomes.Where(outcome => outcome.PointTypeId == 2)
+        Assert.Equal(14, expeditionEvent.RewardOutcomes.Where(outcome => outcome.PointTypeId == pointTypeId2)
             .Sum(outcome => failure ? outcome.LostAmount : outcome.EarnedAmount));
     }
 
     [Fact]
     public void VoyageFeedback_AndBankingProjectionAverageDistinctCrewWithoutSaturatingTotals()
     {
+        var pointTypeId = Guid.CreateVersion7();
         var expeditionEvent = new StarshipExpeditionEventSnapshot
         {
             RewardOutcomes =
             [
-                new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = long.MaxValue },
-                new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", EarnedAmount = long.MaxValue }
+                new() { UserId = "pilot", PointTypeId = pointTypeId, PointTypeName = "Credits", EarnedAmount = long.MaxValue },
+                new() { UserId = "medic", PointTypeId = pointTypeId, PointTypeName = "Credits", EarnedAmount = long.MaxValue }
             ]
         };
         var payouts = new List<StarshipBankedPayoutSnapshot>
         {
-            new() { UserId = "pilot", PointTypeId = 1, PointTypeName = "Credits", Amount = 10, IsPaid = true },
-            new() { UserId = "PILOT", PointTypeId = 1, PointTypeName = "Credits", Amount = 20, IsPaid = true },
-            new() { UserId = "medic", PointTypeId = 1, PointTypeName = "Credits", Amount = 30, IsPaid = true }
+            new() { UserId = "pilot", PointTypeId = pointTypeId, PointTypeName = "Credits", Amount = 10, IsPaid = true },
+            new() { UserId = "PILOT", PointTypeId = pointTypeId, PointTypeName = "Credits", Amount = 20, IsPaid = true },
+            new() { UserId = "medic", PointTypeId = pointTypeId, PointTypeName = "Credits", Amount = 30, IsPaid = true }
         };
         var snapshot = new StarshipExpeditionSnapshot
         {
@@ -291,6 +295,7 @@ public class StarshipExpeditionStateStoreTests
     [InlineData(false, true)]
     public async Task Load_InvalidPersistedShipRulesPreservesSnapshotWithOutstandingRewards(bool hasUnbankedBalance, bool hasUnpaidPayout)
     {
+        var pointTypeId = Guid.CreateVersion7();
         var snapshot = new StarshipExpeditionSnapshot
         {
             ExpeditionId = Guid.NewGuid(),
@@ -300,14 +305,14 @@ public class StarshipExpeditionStateStoreTests
                 new StarshipCrewMemberSnapshot
                 {
                     UserId = "viewer-1",
-                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 1, Amount = 20 }]
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = pointTypeId, Amount = 20 }]
                 }
             ] : [],
             BankedPayouts = hasUnpaidPayout ?
             [
                 new StarshipBankedPayoutSnapshot
                 {
-                    OperationId = "starship:pending-payout", UserId = "viewer-1", PointTypeId = 1, Amount = 30
+                    OperationId = "starship:pending-payout", UserId = "viewer-1", PointTypeId = pointTypeId, Amount = 30
                 }
             ] : [],
             ShipSystems = new StarshipShipSystemsSnapshot
@@ -389,7 +394,7 @@ public class StarshipExpeditionStateStoreTests
                     DisplayName = "Pilot",
                     JoinedAtUtc = DateTimeOffset.UtcNow,
                     EnrollmentMethod = StarshipCrewEnrollmentMethod.ExplicitJoin,
-                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Credits", Amount = 40 }]
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = Guid.Parse("22222222-2222-2222-2222-222222222222"), PointTypeName = "Credits", Amount = 40 }]
                 },
                 new StarshipCrewMemberSnapshot
                 {
@@ -412,13 +417,13 @@ public class StarshipExpeditionStateStoreTests
                 EligibleRewardUserIds = ["viewer-1"],
                 RewardOutcomes = [new StarshipRewardOutcomeSnapshot
                 {
-                    UserId = "viewer-1", DisplayName = "Pilot", PointTypeId = 2, PointTypeName = "Credits",
+                    UserId = "viewer-1", DisplayName = "Pilot", PointTypeId = Guid.Parse("22222222-2222-2222-2222-222222222222"), PointTypeName = "Credits",
                     Outcome = "Success", Rarity = "Common", EarnedAmount = 10
                 }],
                 PendingRiskConfirmations = [new StarshipRiskConfirmationSnapshot
                 {
                     UserId = "viewer-1", ChoiceId = "scan", ExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(20),
-                    PointTypeId = 2, PointTypeName = "Credits", ExposedBalance = 40, MaximumLoss = 10
+                    PointTypeId = Guid.Parse("22222222-2222-2222-2222-222222222222"), PointTypeName = "Credits", ExposedBalance = 40, MaximumLoss = 10
                 }],
                 Votes = [new StarshipEventVoteSnapshot { UserId = "viewer-1", ChoiceId = "scan" }]
             },
@@ -426,7 +431,7 @@ public class StarshipExpeditionStateStoreTests
             [
                 new StarshipRewardProfile
                 {
-                    EventType = "SignalDetected", Enabled = true, PointTypeId = 2, PointTypeName = "Credits",
+                    EventType = "SignalDetected", Enabled = true, PointTypeId = Guid.Parse("22222222-2222-2222-2222-222222222222"), PointTypeName = "Credits",
                     SuccessChancePercent = 75, CommonWeightPercent = 70, UncommonWeightPercent = 25, RareWeightPercent = 5
                 }
             ],
@@ -435,7 +440,7 @@ public class StarshipExpeditionStateStoreTests
                 new StarshipBankedPayoutSnapshot
                 {
                     OperationId = "starship:bank-1", EventId = Guid.NewGuid(), UserId = "viewer-1",
-                    DisplayName = "Pilot", PointTypeId = 2, PointTypeName = "Credits", Amount = 40
+                    DisplayName = "Pilot", PointTypeId = Guid.Parse("22222222-2222-2222-2222-222222222222"), PointTypeName = "Credits", Amount = 40
                 }
             ]
         };
@@ -509,7 +514,7 @@ public class StarshipExpeditionStateStoreTests
             [
                 new StarshipRewardProfile
                 {
-                    EventType = "SignalDetected", Enabled = true, PointTypeId = 4, PointTypeName = "Credits",
+                    EventType = "SignalDetected", Enabled = true, PointTypeId = Guid.Parse("44444444-4444-4444-4444-444444444444"), PointTypeName = "Credits",
                     SuccessChancePercent = 75, CommonWeightPercent = 70, UncommonWeightPercent = 25, RareWeightPercent = 5,
                     CommonMinimum = 5, CommonMaximum = 10, MaximumRiskLossPerEvent = 20
                 }
@@ -529,7 +534,7 @@ public class StarshipExpeditionStateStoreTests
                 new StarshipBankedPayoutSnapshot
                 {
                     OperationId = "starship:bank-op", EventId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                    UserId = "private-viewer-id", DisplayName = "Pilot", PointTypeId = 4, PointTypeName = "Credits", Amount = 15, IsPaid = true
+                    UserId = "private-viewer-id", DisplayName = "Pilot", PointTypeId = Guid.Parse("44444444-4444-4444-4444-444444444444"), PointTypeName = "Credits", Amount = 15, IsPaid = true
                 }
             ],
             Crew = [new StarshipCrewMemberSnapshot { UserId = "private-viewer-id" }],

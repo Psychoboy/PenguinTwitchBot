@@ -12,7 +12,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
     public class ObsSetMediaStateHandlerTests
     {
-        private static ManagedOBSConnection CreateConnectedConnection(int id, string name)
+        private static ManagedOBSConnection CreateConnectedConnection(Guid id, string name)
         {
             var config = new OBSConnection { Id = id, Name = name, Url = "ws://localhost:4455", Password = "test", Enabled = true };
             var mockObs = Substitute.For<IOBSWebsocket>();
@@ -29,15 +29,16 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetMediaStateHandler>>();
             var handler = new ObsSetMediaStateHandler(connectionManager, logger);
 
-            var connection = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var connection = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetMediaStateType { OBSConnectionId = 1, InputName = "Media", MediaAction = "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY" };
+            var type = new ObsSetMediaStateType { OBSConnectionId = connectionId, InputName = "Media", MediaAction = "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY" };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
-            connectionManager.Received(1).GetManagedConnection(1);
+            connectionManager.Received(1).GetManagedConnection(connectionId);
         }
 
         [Fact]
@@ -60,10 +61,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetMediaStateHandler>>();
             var handler = new ObsSetMediaStateHandler(connectionManager, logger);
 
-            var connection = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var connection = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetMediaStateType { OBSConnectionId = 1, InputName = "Media", MediaAction = "" };
+            var type = new ObsSetMediaStateType { OBSConnectionId = connectionId, InputName = "Media", MediaAction = "" };
             var variables = new ConcurrentDictionary<string, string>();
 
             await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));

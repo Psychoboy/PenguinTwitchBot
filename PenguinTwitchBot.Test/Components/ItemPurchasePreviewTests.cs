@@ -12,6 +12,10 @@ namespace PenguinTwitchBot.Test.Components
 {
     public class ItemPurchasePreviewTests
     {
+        private static readonly Guid EquippedRodId = Guid.CreateVersion7();
+        private static readonly Guid NewRodId = Guid.CreateVersion7();
+        private static readonly Guid NewHookId = Guid.CreateVersion7();
+
         private BunitContext CreateTestContext()
         {
             var ctx = new BunitContext();
@@ -27,8 +31,8 @@ namespace PenguinTwitchBot.Test.Components
 
             fishingService.GetAllFishTypes().Returns(new List<FishType>
             {
-                new() { Id = 1, Name = "Common Bass", Rarity = FishRarity.Common, Enabled = true },
-                new() { Id = 2, Name = "Uncommon Trout", Rarity = FishRarity.Uncommon, Enabled = true }
+                new() { Id = Guid.CreateVersion7(), Name = "Common Bass", Rarity = FishRarity.Common, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Uncommon Trout", Rarity = FishRarity.Uncommon, Enabled = true }
             });
             fishingService.GetSettings().Returns(new FishingSettings { BoostMode = false, BoostModeRarityMultiplier = 1.0 });
 
@@ -57,13 +61,13 @@ namespace PenguinTwitchBot.Test.Components
                 }
             };
 
-            analyticsService.CalculateRarityProbabilities(Arg.Any<bool>(), Arg.Any<double>(), Arg.Is<List<int>>(ids => ids.Contains(1)))
+            analyticsService.CalculateRarityProbabilities(Arg.Any<bool>(), Arg.Any<double>(), Arg.Is<List<Guid>>(ids => ids.Contains(EquippedRodId)))
                 .Returns(boostedRarity);
-            analyticsService.CalculateRarityProbabilities(Arg.Any<bool>(), Arg.Any<double>(), Arg.Is<List<int>>(ids => !ids.Contains(1)))
+            analyticsService.CalculateRarityProbabilities(Arg.Any<bool>(), Arg.Any<double>(), Arg.Is<List<Guid>>(ids => !ids.Contains(EquippedRodId)))
                 .Returns(baseRarity);
 
-            analyticsService.CalculateCatchProbabilities(Arg.Any<bool>(), Arg.Any<double>(), Arg.Any<List<int>>())
-                .Returns(new Dictionary<int, FishProbability>());
+            analyticsService.CalculateCatchProbabilities(Arg.Any<bool>(), Arg.Any<double>(), Arg.Any<List<Guid>>())
+                .Returns(new Dictionary<Guid, FishProbability>());
 
             return ctx;
         }
@@ -76,7 +80,7 @@ namespace PenguinTwitchBot.Test.Components
             // Arrange: Equipped item is a Rod with GeneralRarityBoost
             var equippedRod = new FishingShopItem
             {
-                Id = 1,
+                Id = EquippedRodId,
                 Name = "Bamboo Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 BoostType = FishingBoostType.GeneralRarityBoost,
@@ -86,7 +90,7 @@ namespace PenguinTwitchBot.Test.Components
             // Preview item is a Rod without GeneralRarityBoost (e.g. WeightBoost)
             var newRod = new FishingShopItem
             {
-                Id = 2,
+                Id = NewRodId,
                 Name = "Heavy Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 BoostType = FishingBoostType.WeightBoost,
@@ -112,7 +116,7 @@ namespace PenguinTwitchBot.Test.Components
             // Arrange: Equipped item is a Rod with GeneralRarityBoost
             var equippedRod = new FishingShopItem
             {
-                Id = 1,
+                Id = EquippedRodId,
                 Name = "Bamboo Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 BoostType = FishingBoostType.GeneralRarityBoost,
@@ -122,7 +126,7 @@ namespace PenguinTwitchBot.Test.Components
             // Preview item is a Hook (different slot) with StarBoost (no rarity boost involved)
             var newHook = new FishingShopItem
             {
-                Id = 3,
+                Id = NewHookId,
                 Name = "Standard Hook",
                 EquipmentSlot = EquipmentSlot.Hook,
                 BoostType = FishingBoostType.StarBoost,

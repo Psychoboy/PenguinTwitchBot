@@ -21,12 +21,13 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var handler = new ForEachViewerHandler(actionService, action, viewerFeature, serviceBackbone);
 
-            var actionType = new ActionType { Id = 1, Name = "Test Action", QueueName = "default" };
-            actionService.GetActionByIdAsync(1).Returns(actionType);
+            var actionId = Guid.CreateVersion7();
+            var actionType = new ActionType { Id = actionId, Name = "Test Action", QueueName = "default" };
+            actionService.GetActionByIdAsync(actionId).Returns(actionType);
             viewerFeature.GetActiveViewers().Returns(new List<string> { "user1", "user2" });
             serviceBackbone.IsKnownBot(Arg.Any<string>()).Returns(false);
 
-            var type = new ForEachViewerType { ActionId = 1, ViewerScope = "activeviewers" };
+            var type = new ForEachViewerType { ActionId = actionId, ViewerScope = "activeviewers" };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);

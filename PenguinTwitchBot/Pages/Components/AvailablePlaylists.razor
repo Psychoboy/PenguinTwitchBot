@@ -48,9 +48,9 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" Disabled="true" />
                         </MudTooltip>
                     }
-                    @if (OnToggleAdditional.HasDelegate && DefaultPlaylistId != context.Id && context.Id is not null)
+                    @if (OnToggleAdditional.HasDelegate && DefaultPlaylistId != context.Id && context.Id != Guid.Empty)
                     {
-                        var isChecked = AdditionalPlaylistIds.Contains(context.Id.Value);
+                        var isChecked = AdditionalPlaylistIds.Contains(context.Id);
                         <MudTooltip Text="@(isChecked ? "Remove from Additional" : "Add to Additional")">
                             <MudCheckBox T="bool" Value="isChecked" ValueChanged="(bool c) => OnToggleAdditional.InvokeAsync((context, c))" />
                         </MudTooltip>
@@ -88,8 +88,8 @@
 
 @code {
     [Parameter] public List<MusicPlaylist> Playlists { get; set; } = new();
-    [Parameter] public int? DefaultPlaylistId { get; set; }
-    [Parameter] public List<int> AdditionalPlaylistIds { get; set; } = new();
+    [Parameter] public Guid? DefaultPlaylistId { get; set; }
+    [Parameter] public List<Guid> AdditionalPlaylistIds { get; set; } = new();
     [Parameter] public EventCallback<MusicPlaylist> OnSetDefault { get; set; }
     [Parameter] public EventCallback<(MusicPlaylist, bool)> OnToggleAdditional { get; set; }
     [Parameter] public EventCallback<MusicPlaylist> OnView { get; set; }

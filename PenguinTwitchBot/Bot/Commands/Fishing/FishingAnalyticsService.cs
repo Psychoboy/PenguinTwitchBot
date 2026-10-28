@@ -24,7 +24,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             _fishingService = fishingService;
         }
 
-        public async Task<FishingSimulationResult> SimulateFishing(int iterations, List<int> shopItemIds)
+        public async Task<FishingSimulationResult> SimulateFishing(int iterations, List<Guid> shopItemIds)
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -190,13 +190,13 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return result;
         }
 
-        public async Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds)
+        public async Task<Dictionary<Guid, FishProbability>> CalculateCatchProbabilities(List<Guid> shopItemIds)
         {
             var settings = await _fishingService.GetSettings();
             return await CalculateCatchProbabilities(settings?.BoostMode ?? false, settings?.BoostModeRarityMultiplier ?? 1.0, shopItemIds);
         }
 
-        public async Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds)
+        public async Task<Dictionary<Guid, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<Guid> shopItemIds)
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -204,7 +204,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
-                return new Dictionary<int, FishProbability>();
+                return new Dictionary<Guid, FishProbability>();
             }
 
             var shopItems = await context.FishingShopItems
@@ -224,7 +224,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             var rarityWeights = CalculateRarityWeights(fishTypes, useBoostMode, boostModeMultiplier, mockBoosts);
             var totalRarityWeight = rarityWeights.Values.Sum();
-            var probabilities = new Dictionary<int, FishProbability>();
+            var probabilities = new Dictionary<Guid, FishProbability>();
 
             foreach (var fish in fishTypes)
             {
@@ -248,7 +248,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return probabilities;
         }
 
-        public async Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds)
+        public async Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<Guid> shopItemIds)
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -533,7 +533,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             List<FishingShopItem> equippedItems;
             if (string.Equals(scenario.SelectedLoadoutTier, "Custom", StringComparison.OrdinalIgnoreCase))
             {
-                equippedItems = shopItems.Where(i => scenario.CustomShopItemIds.Contains(i.Id)).ToList();
+                equippedItems = shopItems.Where(i => scenario.CustomShopItemIds.Select(x => x.ToString()).Contains(i.Id.ToString())).ToList();
             }
             else
             {
@@ -1900,7 +1900,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             List<FishType> fishTypes,
             FishingBoostType? boostType,
             double boostAmount,
-            int? targetFishTypeId)
+            Guid? targetFishTypeId)
         {
             if (boostType == FishingBoostType.GeneralRarityBoost)
             {
@@ -1947,7 +1947,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return 1.0 / fishOfRarity.Count;
         }
 
-        private Dictionary<int, FishProbability> BuildFishProbabilityMap(
+        private Dictionary<Guid, FishProbability> BuildFishProbabilityMap(
             List<FishType> fishTypes,
             bool useBoostMode,
             double boostModeMultiplier,
@@ -1955,7 +1955,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             var rarityWeights = CalculateRarityWeights(fishTypes, useBoostMode, boostModeMultiplier, boosts);
             var totalRarityWeight = rarityWeights.Values.Sum();
-            var probabilities = new Dictionary<int, FishProbability>();
+            var probabilities = new Dictionary<Guid, FishProbability>();
 
             foreach (var fish in fishTypes)
             {

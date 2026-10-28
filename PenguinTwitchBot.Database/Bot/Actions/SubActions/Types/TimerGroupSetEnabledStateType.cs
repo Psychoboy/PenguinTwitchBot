@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
@@ -11,8 +12,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
     public class TimerGroupSetEnabledStateType : SubActionType, ISubActionUIProvider
     {
         public TimerGroupSetEnabledStateType() { SubActionTypes = SubActionTypes.TimerGroupSetEnabledState; }
-        public int? TimerGroupId { get; set; }
-        public string TimerGroupName { get; set; } = string.Empty;
+        public Guid? TimerGroupId { get; set; }
         public bool IsEnabled { get; set; } = true;
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
@@ -49,8 +49,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             return new Dictionary<string, object?>
             {
-                { nameof(TimerGroupId), TimerGroupId.ToString() },
-                { nameof(TimerGroupName), TimerGroupName },
+                { nameof(TimerGroupId), TimerGroupId?.ToString() ?? string.Empty },
                 { nameof(IsEnabled), IsEnabled },
                 { nameof(Enabled), Enabled }
             };
@@ -58,13 +57,15 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(TimerGroupId), out var timerGroupId) && int.TryParse(timerGroupId?.ToString(), out var parsedId))
+            if (values.TryGetValue(nameof(TimerGroupId), out var timerGroupId) &&
+                UuidMigrationHelper.TryParseGuidOrLegacyInt(timerGroupId?.ToString(), out var parsedId) &&
+                parsedId != Guid.Empty)
             {
                 TimerGroupId = parsedId;
             }
-            if (values.TryGetValue(nameof(TimerGroupName), out var timerGroupName))
+            else
             {
-                TimerGroupName = timerGroupName?.ToString() ?? string.Empty;
+                TimerGroupId = null;
             }
             if (values.TryGetValue(nameof(IsEnabled), out var isEnabled) && bool.TryParse(isEnabled?.ToString(), out var parsedIsEnabled))
             {
@@ -78,7 +79,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public string? Validate(Dictionary<string, object?> values)
         {
-            if (!values.TryGetValue(nameof(TimerGroupId), out var timerGroupId) || !int.TryParse(timerGroupId?.ToString(), out var parsedId) || parsedId <= 0)
+            if (!values.TryGetValue(nameof(TimerGroupId), out var timerGroupId) ||
+                !UuidMigrationHelper.TryParseGuidOrLegacyInt(timerGroupId?.ToString(), out var parsedId) ||
+                parsedId == Guid.Empty)
             {
                 return "Timer Group is required";
             }

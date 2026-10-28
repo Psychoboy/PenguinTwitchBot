@@ -22,6 +22,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 {
     public class AddTriggerDialogSmokeTests : IAsyncLifetime
     {
+        private static readonly Guid GambleCmdId = Guid.CreateVersion7();
         private BunitContext? _ctx;
 
         public Task InitializeAsync() => Task.CompletedTask;
@@ -57,16 +58,16 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             var commandHandler = Substitute.For<ICommandHandler>();
             commandHandler.GetDefaultCommandsFromDb().Returns(Task.FromResult(new List<DefaultCommand>
             {
-                new() { Id = 1, CommandName = "gamble", ModuleName = "Gamble" },
-                new() { Id = 2, CommandName = "defuse", ModuleName = "Defuse" },
-                new() { Id = 3, CommandName = "roll", ModuleName = "Roll" },
-                new() { Id = 4, CommandName = "slot", ModuleName = "Slots" },
-                new() { Id = 5, CommandName = "steal", ModuleName = "Steal" },
-                new() { Id = 6, CommandName = "heist", ModuleName = "Heist" },
-                new() { Id = 7, CommandName = "death", ModuleName = "DeathCounter" },
-                new() { Id = 8, CommandName = "spinwheel", ModuleName = "WheeledGame" },
-                new() { Id = 9, CommandName = "drop", ModuleName = "DropGames" },
-                new() { Id = 10, CommandName = "plinko", ModuleName = "DropGames" }
+                new() { Id = GambleCmdId, CommandName = "gamble", ModuleName = "Gamble" },
+                new() { Id = Guid.CreateVersion7(), CommandName = "defuse", ModuleName = "Defuse" },
+                new() { Id = Guid.CreateVersion7(), CommandName = "roll", ModuleName = "Roll" },
+                new() { Id = Guid.CreateVersion7(), CommandName = "slot", ModuleName = "Slots" },
+                new() { Id = Guid.CreateVersion7(), CommandName = "steal", ModuleName = "Steal" },
+                new() { Id = Guid.CreateVersion7(), CommandName = "heist", ModuleName = "Heist" },
+                new() { Id = Guid.CreateVersion7(), CommandName = "death", ModuleName = "DeathCounter" },
+                new() { Id = Guid.CreateVersion7(), CommandName = "spinwheel", ModuleName = "WheeledGame" },
+                new() { Id = Guid.CreateVersion7(), CommandName = "drop", ModuleName = "DropGames" },
+                new() { Id = Guid.CreateVersion7(), CommandName = "plinko", ModuleName = "DropGames" }
             }));
             _ctx.Services.AddSingleton(commandHandler);
 
@@ -395,10 +396,10 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             SetupContext();
             var existingTrigger = new TriggerType
             {
-                Id = 42,
+                Id = Guid.CreateVersion7(),
                 Name = "gamble_Win",
                 Type = TriggerTypes.DefaultCommand,
-                DefaultCommandId = 1,
+                DefaultCommandId = GambleCmdId,
                 Configuration = "{\"DefaultCommandName\":\"gamble\",\"EventType\":\"Gamble.Win\"}"
             };
 

@@ -6,9 +6,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
     public class TriggerType
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         public string Name { get; set; } = null!;
         public TriggerTypes Type { get; set; }
@@ -18,15 +16,15 @@ namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         // One-to-many relationship: Trigger belongs to one Action
-        public int? ActionId { get; set; }
+        public Guid? ActionId { get; set; }
         [JsonIgnore]
         public ActionType? Action { get; set; }
 
         // Nullable reference columns for efficient querying (instead of JSON deserialization)
         // These are populated based on trigger type and stored alongside Configuration JSON
-        public int? TimerGroupId { get; set; } // For TriggerTypes.Timer
-        public int? CommandId { get; set; }     // For TriggerTypes.Command
-        public int? DefaultCommandId { get; set; } // For TriggerTypes.DefaultCommand
-        public int? KeywordId { get; set; }     // For TriggerTypes.Keyword
+        public Guid? TimerGroupId { get; set; } // For TriggerTypes.Timer
+        public Guid? CommandId { get; set; }     // For TriggerTypes.Command
+        public Guid? DefaultCommandId { get; set; } // For TriggerTypes.DefaultCommand
+        public Guid? KeywordId { get; set; }     // For TriggerTypes.Keyword
     }
 }

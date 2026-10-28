@@ -21,7 +21,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var pointType = await pointsSystem.GetPointTypeByName(checkPointsType.PointTypeName);
-            if (pointType == null || !pointType.Id.HasValue)
+            if (pointType == null || pointType.Id == Guid.Empty)
             {
                 logger.LogError("Point type not found for CheckPointsHandler");
                 //Throw so the action logger finds it and it can be fixed in the UI before it causes any issues
@@ -42,7 +42,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionUserFacingException(subAction, $"Viewer not found: {targetUser}");
             }
 
-            var points = await pointsSystem.GetUserPointsByUserId(targetViewer.UserId, pointType.Id.Value);
+            var points = await pointsSystem.GetUserPointsByUserId(targetViewer.UserId, pointType.Id);
             variables["TargetPoints"] = points.Points.ToString();
             variables["TargetPointsFormatted"] = $"{points.Points:N0}";
         }

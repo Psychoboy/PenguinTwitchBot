@@ -10,9 +10,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class Counter
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string CounterName { get; set; } = string.Empty;
         public string? DisplayName { get; set; }
         public int Amount { get; set; }

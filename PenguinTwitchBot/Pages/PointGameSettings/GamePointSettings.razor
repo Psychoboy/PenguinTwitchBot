@@ -52,7 +52,7 @@
     private async void ItemHasBeenCommitted(object element)
     {
         var pointSettings = (PointGamePair)element;
-        await pointSystem.SetPointTypeForGame(pointSettings.Setting.GameName, pointSettings.PointType.GetId());
+        await pointSystem.SetPointTypeForGame(pointSettings.Setting.GameName, pointSettings.PointType.Id);
     }
 
     private string ConvertFunction(PointType? pointType)

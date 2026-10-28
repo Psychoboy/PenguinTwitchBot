@@ -6,9 +6,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class GlobalVariable
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         [Required]
         [StringLength(255)]

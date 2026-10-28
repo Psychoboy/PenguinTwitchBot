@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using System.Text.Json.Serialization;
 
@@ -7,9 +7,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions
     public class ActionType
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; } = null!;
         public string Group { get; set; } = string.Empty;
         public bool Enabled { get; set; } = true;

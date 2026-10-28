@@ -21,7 +21,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for ForEachViewerHandler");
             }
 
-            if (!forEachViewer.ActionId.HasValue || forEachViewer.ActionId.Value == 0)
+            if (!forEachViewer.ActionId.HasValue || forEachViewer.ActionId.Value == Guid.Empty)
             {
                 throw new SubActionHandlerException(subAction, "No action ID provided to ForEachViewerHandler");
             }

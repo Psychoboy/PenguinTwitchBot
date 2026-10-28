@@ -141,7 +141,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
                 throw new ArgumentOutOfRangeException(nameof(profile.SuccessChancePercent), "Success chance must be between 0 and 100 percent.");
             if (profile.UsesLegacyFields)
             {
-                if (profile.Enabled && profile.PointTypeId <= 0)
+                if (profile.Enabled && profile.PointTypeId == Guid.Empty)
                     throw new ArgumentOutOfRangeException(nameof(profile.PointTypeId), $"Select a point type for {profile.EventType}.");
                 if (profile.CommonWeightPercent is < 0 or > 100 || profile.UncommonWeightPercent is < 0 or > 100 || profile.RareWeightPercent is < 0 or > 100)
                     throw new ArgumentOutOfRangeException(nameof(profile.CommonWeightPercent), "Rarity weights must be between 0 and 100 percent.");
@@ -326,7 +326,7 @@ public sealed partial class StarshipRewardProfile
     public List<StarshipRewardAction> FailureActions { get; set; } = [];
     public string EventType { get; set; } = string.Empty;
     public bool Enabled { get; set; }
-    public int PointTypeId { get; set; }
+    public Guid PointTypeId { get; set; }
     public string PointTypeName { get; set; } = string.Empty;
     public int SuccessChancePercent { get; set; } = 80;
     public int CommonWeightPercent { get; set; } = 70;

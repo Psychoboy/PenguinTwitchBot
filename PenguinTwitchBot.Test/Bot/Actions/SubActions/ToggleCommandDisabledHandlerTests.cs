@@ -16,7 +16,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ToggleCommandDisabledHandler>>();
             var handler = new ToggleCommandDisabledHandler(commandService, logger);
 
-            var command = new PenguinTwitchBot.Database.Bot.Models.Commands.ActionCommand { Id = 1, CommandName = "!test", Disabled = false };
+            var command = new PenguinTwitchBot.Database.Bot.Models.Commands.ActionCommand { Id = Guid.CreateVersion7(), CommandName = "!test", Disabled = false };
             commandService.GetByCommandNameAsync("!test").Returns(command);
 
             var type = new ToggleCommandDisabledType { CommandName = "!test", IsDisabled = true };

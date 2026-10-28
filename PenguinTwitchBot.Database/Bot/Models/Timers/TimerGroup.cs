@@ -5,9 +5,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Timers
     public class TimerGroup
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; } = null!;
         public bool Active { get; set; } = true;
         public bool Repeat { get; set; } = true;

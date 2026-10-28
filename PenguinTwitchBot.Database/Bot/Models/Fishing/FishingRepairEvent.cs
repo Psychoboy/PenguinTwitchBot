@@ -5,7 +5,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     public class FishingRepairEvent
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         [MaxLength(255)]
         public string UserId { get; set; } = string.Empty;
@@ -13,9 +13,9 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         [MaxLength(255)]
         public string Username { get; set; } = string.Empty;
 
-        public int ShopItemId { get; set; }
+        public Guid ShopItemId { get; set; }
 
-        public int UserBoostId { get; set; }
+        public Guid UserBoostId { get; set; }
 
         [MaxLength(255)]
         public string ItemName { get; set; } = string.Empty;

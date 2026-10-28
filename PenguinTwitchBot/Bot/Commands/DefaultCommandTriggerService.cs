@@ -51,7 +51,7 @@ namespace PenguinTwitchBot.Bot.Commands
                     return;
                 }
 
-                if (!defaultCommand.Id.HasValue)
+                if (defaultCommand.Id == Guid.Empty)
                 {
                     _logger.LogWarning("Default command has no ID: {CommandName}", defaultCommandName);
                     return;
@@ -71,7 +71,7 @@ namespace PenguinTwitchBot.Bot.Commands
                 }
 
                 // Get all triggers for this default command
-                var triggers = await unitOfWork.Triggers.GetByDefaultCommandIdAsync(defaultCommand.Id.Value);
+                var triggers = await unitOfWork.Triggers.GetByDefaultCommandIdAsync(defaultCommand.Id);
 
                 if (triggers.Count == 0)
                 {

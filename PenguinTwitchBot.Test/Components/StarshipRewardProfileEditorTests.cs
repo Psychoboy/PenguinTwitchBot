@@ -18,19 +18,21 @@ public class StarshipRewardProfileEditorTests
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         context.Render<MudPopoverProvider>();
-        var reward = new StarshipRewardEntry { PointTypeId = 0, Minimum = 5, Maximum = 10 };
+        var pointTypeId1 = Guid.CreateVersion7();
+        var pointTypeId2 = Guid.CreateVersion7();
+        var reward = new StarshipRewardEntry { PointTypeId = Guid.Empty, Minimum = 5, Maximum = 10 };
         var profile = new StarshipRewardProfile { Tiers = [new() { Name = "Common", Rewards = [reward] }] };
         var editor = context.Render<StarshipRewardProfileEditor>(parameters => parameters
             .Add(component => component.Profile, profile)
-            .Add(component => component.PointTypes, new Dictionary<int, string> { [7] = "Credits", [9] = "Tokens" }));
-        var select = editor.FindComponent<MudSelect<int>>();
+            .Add(component => component.PointTypes, new Dictionary<Guid, string> { [pointTypeId1] = "Credits", [pointTypeId2] = "Tokens" }));
+        var select = editor.FindComponent<MudSelect<Guid>>();
 
-        Assert.Equal("Select a point type", select.Instance.ToStringFunc!(0));
-        Assert.Contains(editor.FindComponents<MudSelectItem<int>>(), item => item.Instance.Value == 7);
-        Assert.Contains(editor.FindComponents<MudSelectItem<int>>(), item => item.Instance.Value == 9);
-        await context.Renderer.Dispatcher.InvokeAsync(() => select.Instance.ValueChanged.InvokeAsync(9));
+        Assert.Equal("Select a point type", select.Instance.ToStringFunc!(Guid.Empty));
+        Assert.Contains(editor.FindComponents<MudSelectItem<Guid>>(), item => item.Instance.Value == pointTypeId1);
+        Assert.Contains(editor.FindComponents<MudSelectItem<Guid>>(), item => item.Instance.Value == pointTypeId2);
+        await context.Renderer.Dispatcher.InvokeAsync(() => select.Instance.ValueChanged.InvokeAsync(pointTypeId2));
 
-        Assert.Equal(9, reward.PointTypeId);
+        Assert.Equal(pointTypeId2, reward.PointTypeId);
         Assert.Equal("Tokens", select.Instance.ToStringFunc!(reward.PointTypeId));
     }
 
@@ -42,13 +44,14 @@ public class StarshipRewardProfileEditorTests
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         context.Render<MudPopoverProvider>();
+        var pointTypeId = Guid.CreateVersion7();
         var profile = new StarshipRewardProfile
         {
-            Tiers = [new() { Name = "Common", Rewards = [new() { PointTypeId = 7 }] }]
+            Tiers = [new() { Name = "Common", Rewards = [new() { PointTypeId = pointTypeId }] }]
         };
         var editor = context.Render<StarshipRewardProfileEditor>(parameters => parameters
             .Add(component => component.Profile, profile)
-            .Add(component => component.PointTypes, new Dictionary<int, string> { [7] = "Credits" }));
+            .Add(component => component.PointTypes, new Dictionary<Guid, string> { [pointTypeId] = "Credits" }));
         editor.FindAll("button").Single(button => button.TextContent.Trim() == "Add Point Limit").Click();
         var cap = Assert.Single(profile.Caps);
         Assert.Null(cap.MaximumPerEvent);
@@ -62,7 +65,7 @@ public class StarshipRewardProfileEditorTests
         editor.Find("button[aria-label='Remove limit']").Click();
         profile.ValidateCapsAndLoss("test");
         Assert.Empty(profile.Caps);
-        Assert.Null(profile.GetCap(7).MaximumPerEvent);
+        Assert.Null(profile.GetCap(pointTypeId).MaximumPerEvent);
     }
 
     [Fact]

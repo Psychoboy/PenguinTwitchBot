@@ -232,6 +232,7 @@ internal class Program
             var ttsCleanup = new JobKey(IScheduledJobSettingsService.TtsCleanupJobName);
             var updatePostedSchedulekey = new JobKey(IScheduledJobSettingsService.UpdatePostedScheduleJobName);
             var validationSanityCheckKey = new JobKey(IScheduledJobSettingsService.ValidationSanityCheckJobName);
+            var refreshEmoteCacheKey = new JobKey(IScheduledJobSettingsService.RefreshEmoteCacheJobName);
 
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.TriggerBackupJob>(opts => opts.WithIdentity(backupDbJobKey).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupClipsJob>(opts => opts.WithIdentity(cleanupClipsJobKey).StoreDurably());
@@ -243,6 +244,7 @@ internal class Program
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.TtsCleanupJob>(opts => opts.WithIdentity(ttsCleanup).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(updatePostedSchedulekey).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.ValidationSanityCheckJob>(opts => opts.WithIdentity(validationSanityCheckKey).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.RefreshEmoteCacheJob>(opts => opts.WithIdentity(refreshEmoteCacheKey).StoreDurably());
         });
         builder.Services.AddQuartzHostedService(
             q => q.WaitForJobsToComplete = true
@@ -313,6 +315,7 @@ internal class Program
         builder.Services.AddScoped<IUserThemeService, UserThemeService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();
+        builder.Services.AddScoped<PenguinTwitchBot.Pages.Components.SubActionReferenceNames>();
         builder.Services.AddScoped<IBackupSettingsService, BackupSettingsService>();
         builder.Services.AddSingleton<IUpdateChannelSettingsService, UpdateChannelSettingsService>();
         builder.Services.AddSingleton<IChatHistoryRetentionSettingsService, ChatHistoryRetentionSettingsService>();
@@ -396,6 +399,7 @@ internal class Program
                 }
             }
             dbContext.Database.Migrate();
+            await DatabaseJsonNormalizer.NormalizeAsync(dbContext);
         }
 
         var skipDatabaseBackup = app.Configuration.GetValue<bool?>("SkipDatabaseBackup")
@@ -988,7 +992,8 @@ try
             [IScheduledJobSettingsService.UpdateDiscordEventsJobName] = "0 0/5 * * * ?",
             [IScheduledJobSettingsService.PostScheduleJobName] = "0 0 9 ? * MON",
             [IScheduledJobSettingsService.UpdatePostedScheduleJobName] = "0 0 10 * * ?",
-            [IScheduledJobSettingsService.ValidationSanityCheckJobName] = "0 0 5 * * ?"
+            [IScheduledJobSettingsService.ValidationSanityCheckJobName] = "0 0 5 * * ?",
+            [IScheduledJobSettingsService.RefreshEmoteCacheJobName] = "0 0 3 * * ?"
         };
 
         foreach (var kvp in defaultCronByJob)
@@ -1004,6 +1009,19 @@ try
             }
 
             await UpsertCronTriggerAsync(scheduler, new JobKey(kvp.Key), new TriggerKey($"{kvp.Key}-Trigger"), enabled, cronToUse);
+        }
+
+        // Warm the emote cache shortly after startup, once Twitch services have had time to connect.
+        var emoteJobKey = new JobKey(IScheduledJobSettingsService.RefreshEmoteCacheJobName);
+        if (await settings.GetJobEnabledAsync(IScheduledJobSettingsService.RefreshEmoteCacheJobName, true))
+        {
+            var startupTriggerKey = new TriggerKey($"{IScheduledJobSettingsService.RefreshEmoteCacheJobName}-Startup");
+            await scheduler.UnscheduleJob(startupTriggerKey);
+            await scheduler.ScheduleJob(TriggerBuilder.Create()
+                .WithIdentity(startupTriggerKey)
+                .ForJob(emoteJobKey)
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(15))
+                .Build());
         }
     }
 
@@ -1295,6 +1313,11 @@ try
         {
             w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
 
+            // SubActionType uses table-per-concrete-type. This warning targets database-generated key defaults
+            // (e.g. identity columns) that could collide across tables; our Guid keys are generated client-side
+            // by UuidV7ValueGenerator, so it does not apply.
+            w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.TpcStoreGeneratedIdentityWarning);
+
             // SQLite emits this warning when it needs PRAGMA foreign_keys toggles around
             // schema updates. This is expected for provider-generated migration SQL.
             if (provider == "sqlite")
@@ -1306,6 +1329,15 @@ try
         switch (provider)
         {
             case "postgres":
+                // Sub-action queries over the table-per-type hierarchy are ~300 KB of SQL each. Auto-preparing
+                // them avoids re-sending and re-planning that text on every call. Set "Max Auto Prepare=0"
+                // in the connection string to opt out (e.g. behind a transaction-mode pooler).
+                var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
+                if (!npgsqlBuilder.ContainsKey("Max Auto Prepare"))
+                {
+                    npgsqlBuilder.MaxAutoPrepare = 20;
+                    connectionString = npgsqlBuilder.ConnectionString;
+                }
                 options.UseNpgsql(connectionString, postgresOptions =>
                 {
                     postgresOptions.MigrationsAssembly(migrationsAssembly)

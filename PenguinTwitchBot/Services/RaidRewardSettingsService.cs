@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
 
@@ -6,7 +7,7 @@ namespace PenguinTwitchBot.Services;
 
 public sealed record RaidRewardConfig(
     bool Enabled,
-    int PointTypeId,
+    Guid PointTypeId,
     long PointsToAward,
     int TimeWindowMinutes,
     string Message,
@@ -62,7 +63,7 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
 
         return new RaidRewardConfig(
             Enabled: GetInt(map, EnabledName) == 1,
-            PointTypeId: GetInt(map, PointTypeIdName),
+            PointTypeId: GetGuid(map, PointTypeIdName),
             PointsToAward: GetLong(map, PointsToAwardName, 100),
             TimeWindowMinutes: GetInt(map, TimeWindowMinutesName, 5),
             Message: string.IsNullOrWhiteSpace(GetString(map, MessageName))
@@ -87,7 +88,7 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
         await UpsertInt(db, EnabledName, config.Enabled ? 1 : 0);
-        await UpsertInt(db, PointTypeIdName, config.PointTypeId);
+        await UpsertString(db, PointTypeIdName, config.PointTypeId.ToString());
         await UpsertLong(db, PointsToAwardName, config.PointsToAward);
         await UpsertInt(db, TimeWindowMinutesName, config.TimeWindowMinutes);
         await UpsertString(db, MessageName, config.Message);
@@ -98,6 +99,14 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
         await UpsertInt(db, PostRemindersName, config.PostReminders ? 1 : 0);
 
         await db.SaveChangesAsync();
+    }
+
+    private static Guid GetGuid(Dictionary<string, Setting> map, string name)
+    {
+        if (!map.TryGetValue(name, out var s)) return Guid.Empty;
+        if (UuidMigrationHelper.TryParseGuidOrLegacyInt(s.StringSetting, out var fromStr)) return fromStr;
+        if (s.IntSetting > 0) return UuidMigrationHelper.FromLegacyInt(s.IntSetting);
+        return Guid.Empty;
     }
 
     private static int GetInt(Dictionary<string, Setting> map, string name, int defaultValue = 0)

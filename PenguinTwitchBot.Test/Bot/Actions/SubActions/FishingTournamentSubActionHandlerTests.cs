@@ -12,27 +12,28 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task StartHandler_StartsTournamentAndWritesVariables()
         {
+            var tournamentId = Guid.CreateVersion7();
             var fishingService = Substitute.For<IFishingService>();
             var handler = new FishingTournamentStartHandler(fishingService);
             var tournament = new FishingTournament
             {
-                Id = 10,
+                Id = tournamentId,
                 Name = "Spring Cup",
                 Enabled = true,
                 Status = FishingTournamentStatus.Active,
                 PrimaryScoreCategory = FishingTournamentScoreCategory.Largest
             };
 
-            fishingService.StartFishingTournament(10).Returns(tournament);
+            fishingService.StartFishingTournament(tournamentId).Returns(tournament);
 
             var variables = new ConcurrentDictionary<string, string>();
 
-            await handler.ExecuteAsync(new FishingTournamentStartType { TournamentId = 10 }, variables);
+            await handler.ExecuteAsync(new FishingTournamentStartType { TournamentId = tournamentId }, variables);
 
-            await fishingService.Received(1).StartFishingTournament(10);
-            await fishingService.DidNotReceive().CloneAndStartFishingTournament(Arg.Any<int>());
+            await fishingService.Received(1).StartFishingTournament(tournamentId);
+            await fishingService.DidNotReceive().CloneAndStartFishingTournament(Arg.Any<Guid>());
             Assert.Equal("true", variables["fishing_tournament_success"]);
-            Assert.Equal("10", variables["fishing_tournament_id"]);
+            Assert.Equal(tournamentId.ToString(), variables["fishing_tournament_id"]);
             Assert.Equal("Spring Cup", variables["fishing_tournament_name"]);
             Assert.Equal("Active", variables["fishing_tournament_status"]);
             Assert.Equal("false", variables["fishing_tournament_started_from_template"]);
@@ -41,27 +42,29 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task StartHandler_CloneMode_ClonesAndStartsTournamentAndWritesVariables()
         {
+            var templateId = Guid.CreateVersion7();
+            var clonedId = Guid.CreateVersion7();
             var fishingService = Substitute.For<IFishingService>();
             var handler = new FishingTournamentStartHandler(fishingService);
             var tournament = new FishingTournament
             {
-                Id = 22,
+                Id = clonedId,
                 Name = "Spring Cup (2026-07-05 09:00)",
                 Enabled = true,
                 Status = FishingTournamentStatus.Active,
                 PrimaryScoreCategory = FishingTournamentScoreCategory.TotalWeight
             };
 
-            fishingService.CloneAndStartFishingTournament(10).Returns(tournament);
+            fishingService.CloneAndStartFishingTournament(templateId).Returns(tournament);
 
             var variables = new ConcurrentDictionary<string, string>();
 
-            await handler.ExecuteAsync(new FishingTournamentStartType { TournamentId = 10, CloneFromTemplate = true }, variables);
+            await handler.ExecuteAsync(new FishingTournamentStartType { TournamentId = templateId, CloneFromTemplate = true }, variables);
 
-            await fishingService.Received(1).CloneAndStartFishingTournament(10);
-            await fishingService.DidNotReceive().StartFishingTournament(Arg.Any<int>());
+            await fishingService.Received(1).CloneAndStartFishingTournament(templateId);
+            await fishingService.DidNotReceive().StartFishingTournament(Arg.Any<Guid>());
             Assert.Equal("true", variables["fishing_tournament_success"]);
-            Assert.Equal("22", variables["fishing_tournament_id"]);
+            Assert.Equal(clonedId.ToString(), variables["fishing_tournament_id"]);
             Assert.Equal("Spring Cup (2026-07-05 09:00)", variables["fishing_tournament_name"]);
             Assert.Equal("Active", variables["fishing_tournament_status"]);
             Assert.Equal("true", variables["fishing_tournament_started_from_template"]);
@@ -70,26 +73,27 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task EndHandler_EndsTournamentAndWritesVariables()
         {
+            var tournamentId = Guid.CreateVersion7();
             var fishingService = Substitute.For<IFishingService>();
             var handler = new FishingTournamentEndHandler(fishingService);
             var tournament = new FishingTournament
             {
-                Id = 12,
+                Id = tournamentId,
                 Name = "Summer Cup",
                 Enabled = false,
                 Status = FishingTournamentStatus.Completed,
                 PrimaryScoreCategory = FishingTournamentScoreCategory.TotalWeight
             };
 
-            fishingService.EndFishingTournament(12).Returns(tournament);
+            fishingService.EndFishingTournament(tournamentId).Returns(tournament);
 
             var variables = new ConcurrentDictionary<string, string>();
 
-            await handler.ExecuteAsync(new FishingTournamentEndType { TournamentId = 12 }, variables);
+            await handler.ExecuteAsync(new FishingTournamentEndType { TournamentId = tournamentId }, variables);
 
-            await fishingService.Received(1).EndFishingTournament(12);
+            await fishingService.Received(1).EndFishingTournament(tournamentId);
             Assert.Equal("true", variables["fishing_tournament_success"]);
-            Assert.Equal("12", variables["fishing_tournament_id"]);
+            Assert.Equal(tournamentId.ToString(), variables["fishing_tournament_id"]);
             Assert.Equal("Summer Cup", variables["fishing_tournament_name"]);
             Assert.Equal("Completed", variables["fishing_tournament_status"]);
         }

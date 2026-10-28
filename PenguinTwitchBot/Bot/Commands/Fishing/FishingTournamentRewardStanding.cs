@@ -6,7 +6,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     /// </summary>
     public sealed class FishingTournamentRewardStanding
     {
-        public int RewardRuleId { get; set; }
+        public Guid RewardRuleId { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public double Score { get; set; }

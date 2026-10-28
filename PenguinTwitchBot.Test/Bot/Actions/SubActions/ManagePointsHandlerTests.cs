@@ -15,11 +15,12 @@ public class ManagePointsHandlerTests
     private readonly IPointsSystem _pointsSystem = Substitute.For<IPointsSystem>();
     private readonly IViewerFeature _viewerFeature = Substitute.For<IViewerFeature>();
     private readonly ManagePointsHandler _handler;
+    private readonly Guid _pointTypeId = Guid.CreateVersion7();
 
     public ManagePointsHandlerTests()
     {
         _handler = new ManagePointsHandler(_pointsSystem, _viewerFeature);
-        _pointsSystem.GetPointTypeByName("Coins").Returns(new PointType { Id = 7, Name = "Coins" });
+        _pointsSystem.GetPointTypeByName("Coins").Returns(new PointType { Id = _pointTypeId, Name = "Coins" });
         _viewerFeature.GetViewerByUserId("user-1").Returns(new Viewer { UserId = "user-1", Username = "viewer" });
     }
 
@@ -38,11 +39,11 @@ public class ManagePointsHandlerTests
             ["UserId"] = "user-1",
             ["Score"] = "12"
         };
-        _pointsSystem.AddPointsByUserId("user-1", 7, 24).Returns(24);
+        _pointsSystem.AddPointsByUserId("user-1", _pointTypeId, 24).Returns(24);
 
         await _handler.ExecuteAsync(subAction, variables);
 
-        await _pointsSystem.Received(1).AddPointsByUserId("user-1", 7, 24);
+        await _pointsSystem.Received(1).AddPointsByUserId("user-1", _pointTypeId, 24);
     }
 
     [Fact]
@@ -59,7 +60,7 @@ public class ManagePointsHandlerTests
         {
             ["UserId"] = "user-1"
         };
-        _pointsSystem.AddPointsByUserId("user-1", 7, 5).Returns(0);
+        _pointsSystem.AddPointsByUserId("user-1", _pointTypeId, 5).Returns(0);
 
         var exception = await Assert.ThrowsAsync<SubActionUserFacingException>(() => _handler.ExecuteAsync(subAction, variables));
 
@@ -80,7 +81,7 @@ public class ManagePointsHandlerTests
         {
             ["UserId"] = "user-1"
         };
-        _pointsSystem.RemovePointsFromUserByUserId("user-1", 7, 15).Returns(false);
+        _pointsSystem.RemovePointsFromUserByUserId("user-1", _pointTypeId, 15).Returns(false);
 
         await Assert.ThrowsAsync<SubActionUserFacingException>(() => _handler.ExecuteAsync(subAction, variables));
     }
@@ -102,7 +103,7 @@ public class ManagePointsHandlerTests
 
         await _handler.ExecuteAsync(subAction, variables);
 
-        await _pointsSystem.Received(1).SetPointsByUserId("user-1", 7, 0);
+        await _pointsSystem.Received(1).SetPointsByUserId("user-1", _pointTypeId, 0);
     }
 
     [Fact]
@@ -117,7 +118,7 @@ public class ManagePointsHandlerTests
 
         await _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>());
 
-        await _pointsSystem.Received(1).AddPointsToActiveUsers(7, 5);
+        await _pointsSystem.Received(1).AddPointsToActiveUsers(_pointTypeId, 5);
     }
 
     [Fact]
@@ -136,7 +137,7 @@ public class ManagePointsHandlerTests
         };
 
         await Assert.ThrowsAsync<SubActionUserFacingException>(() => _handler.ExecuteAsync(subAction, variables));
-        await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
+        await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>());
     }
 
     [Theory]
@@ -159,8 +160,8 @@ public class ManagePointsHandlerTests
 
         await Assert.ThrowsAsync<SubActionUserFacingException>(() => _handler.ExecuteAsync(subAction, variables));
 
-        await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
-        await _pointsSystem.DidNotReceive().RemovePointsFromUserByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
-        await _pointsSystem.DidNotReceive().AddPointsToActiveUsers(Arg.Any<int>(), Arg.Any<long>());
+        await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>());
+        await _pointsSystem.DidNotReceive().RemovePointsFromUserByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>());
+        await _pointsSystem.DidNotReceive().AddPointsToActiveUsers(Arg.Any<Guid>(), Arg.Any<long>());
     }
 }

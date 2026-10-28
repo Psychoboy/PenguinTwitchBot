@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         private readonly ILogger<AutoTimers> _logger;
         private readonly Timer _intervalTimer;
         private readonly IServiceBackbone _serviceBackbone;
-        private readonly ConcurrentDictionary<int, int> MessageCounters = new();
+        private readonly ConcurrentDictionary<Guid, int> MessageCounters = new();
         private readonly SemaphoreSlim _timerLock = new(1, 1);
         private int _isStarted;
         private int MessageCounter = 0;
@@ -65,7 +65,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             return await db.TimerGroups.GetAsync();
         }
 
-        public virtual async Task<TimerGroup?> GetTimerGroupAsync(int id)
+        public virtual async Task<TimerGroup?> GetTimerGroupAsync(Guid id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -82,39 +82,34 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 
         public async Task UpdateTimerGroup(TimerGroup group, string oldName, string newName)
         {
-            if(!group.Id.HasValue)
+            if (group.Id == Guid.Empty)
             {
-                _logger.LogWarning("Cannot update timer group: Timer group ID is null");
+                _logger.LogWarning("Cannot update timer group: Timer group ID is empty");
                 return;
             }
 
             if (!oldName.Equals(newName, StringComparison.OrdinalIgnoreCase))
             {
                 // Name has changed - update trigger configurations
-                await UpdateTriggerConfigurationsForRenamedTimerGroup(group.Id.Value, oldName, newName);
-
-                // Also update subaction references
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                await db.Actions.UpdateTimerGroupNamesForRenamedTimerGroup(group.Id.Value, newName);
+                await UpdateTriggerConfigurationsForRenamedTimerGroup(group.Id, oldName, newName);
             }
         }
 
         public virtual async Task UpdateTimerGroup(TimerGroup group)
         {
-            if(!group.Id.HasValue)
+            if (group.Id == Guid.Empty)
             {
-                _logger.LogWarning("Cannot update timer group: Timer group ID is null");
+                _logger.LogWarning("Cannot update timer group: Timer group ID is empty");
                 return;
             }
 
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             
-            var existing = await db.TimerGroups.GetByIdAsync(group.Id.Value);
+            var existing = await db.TimerGroups.GetByIdAsync(group.Id);
             if (existing == null)
             {
-                _logger.LogWarning("Timer group {Id} not found for update", group.Id.Value);
+                _logger.LogWarning("Timer group {Id} not found for update", group.Id);
                 return;
             }
             
@@ -198,9 +193,9 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             if (CheckEnoughMessagesAndUpdate(group) == false && !overrideCheck) return;
             try
             {
-                if (group.Id.HasValue)
+                if (group.Id != Guid.Empty)
                 {
-                    var actions = await GetActionsForTimerGroup(group.Id.Value);
+                    var actions = await GetActionsForTimerGroup(group.Id);
                     var enabledActions = actions.Where(x => x.Enabled == true).ToList();
                     if (enabledActions.Any())
                     {
@@ -236,9 +231,9 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 
-                if (group.Id.HasValue)
+                if (group.Id != Guid.Empty)
                 {
-                    var existing = await db.TimerGroups.GetByIdAsync(group.Id.Value);
+                    var existing = await db.TimerGroups.GetByIdAsync(group.Id);
                     if (existing != null)
                     {
                         existing.NextRun = nextRun;
@@ -260,22 +255,22 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         private bool CheckEnoughMessagesAndUpdate(TimerGroup group)
         {
             var id = group.Id;
-            if (id == null)
+            if (id == Guid.Empty)
             {
                 return false;
             }
-            if (MessageCounters.TryGetValue((int)id, out var messageCounter))
+            if (MessageCounters.TryGetValue(id, out var messageCounter))
             {
                 if (messageCounter + group.MinimumMessages > MessageCounter)
                 {
                     return false;
                 }
             }
-            MessageCounters[(int)id] = MessageCounter;
+            MessageCounters[id] = MessageCounter;
             return true;
         }
 
-        public async Task<List<ActionType>> GetActionsForTimerGroup(int timerGroupId)
+        public async Task<List<ActionType>> GetActionsForTimerGroup(Guid timerGroupId)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -294,7 +289,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 var variables = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["timer_name"] = group.Name,
-                    ["timer_id"] = group.Id?.ToString() ?? "0"
+                    ["timer_id"] = group.Id.ToString()
                 };
 
                 await using var scope = _scopeFactory.CreateAsyncScope();
@@ -308,7 +303,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             }
         }
 
-        public async Task AddActionToTimerGroup(int timerGroupId, int actionId)
+        public async Task AddActionToTimerGroup(Guid timerGroupId, Guid actionId)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -344,7 +339,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             }
         }
 
-        public async Task RemoveActionFromTimerGroup(int timerGroupId, int actionId)
+        public async Task RemoveActionFromTimerGroup(Guid timerGroupId, Guid actionId)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -363,7 +358,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         /// Updates trigger configurations for all triggers associated with a timer group when its name changes.
         /// Uses the old timer group name to reliably find triggers instead of string matching on TimerGroupId.
         /// </summary>
-        private async Task UpdateTriggerConfigurationsForRenamedTimerGroup(int timerGroupId, string oldTimerGroupName, string newTimerGroupName)
+        private async Task UpdateTriggerConfigurationsForRenamedTimerGroup(Guid timerGroupId, string oldTimerGroupName, string newTimerGroupName)
         {
             try
             {

@@ -93,7 +93,7 @@
                         <MudItem xs="12" md="4">
                             <MudPaper Class="pa-4" Elevation="1">
                                 <MudText Typo="Typo.h6" Class="mb-3">
-                                    @(newPointType.Id == null ? "Create Point Type" : $"Editing: {newPointType.Name}")
+                                    @(newPointType.Id == Guid.Empty ? "Create Point Type" : $"Editing: {newPointType.Name}")
                                 </MudText>
                                 <EditForm Model="@newPointType" OnValidSubmit="SavePointType">
                                     <DataAnnotationsValidator />
@@ -117,7 +117,7 @@
                                                    FullWidth="true" StartIcon="@Icons.Material.Filled.Save">
                                             Save
                                         </MudButton>
-                                        @if (newPointType.Id != null)
+                                        @if (newPointType.Id != Guid.Empty)
                                         {
                                             <MudButton Variant="Variant.Text" Color="Color.Default" FullWidth="true" OnClick="CancelEdit">
                                                 Cancel
@@ -202,9 +202,9 @@
 
     private async Task RefreshPointType(PointType savedPointType)
     {
-        if (savedPointType.Id != null)
+        if (savedPointType.Id != Guid.Empty)
         {
-            var latest = await pointSystem.GetPointTypeById(savedPointType.Id.Value);
+            var latest = await pointSystem.GetPointTypeById(savedPointType.Id);
             if (latest != null)
             {
                 var idx = PointTypes.FindIndex(p => p.Id == latest.Id);
@@ -226,7 +226,7 @@
 
     private async Task SavePointType()
     {
-        if (newPointType.Id != null)
+        if (newPointType.Id != Guid.Empty)
         {
             var existingInList = PointTypes.FirstOrDefault(p => p.Id == newPointType.Id);
             if (existingInList != null)
@@ -298,12 +298,12 @@
 
     private async Task DeletePointType(PointType pointType)
     {
-        if (pointType.Id == 1)
+        if (pointType.Name.Equals("Points", StringComparison.OrdinalIgnoreCase))
         {
             Snackbar.Add("You can not delete the primary points. You can edit/rename it only.", Severity.Error);
             return;
         }
-        await pointSystem.DeletePointType(pointType.Id.GetValueOrDefault());
+        await pointSystem.DeletePointType(pointType.Id);
         PointTypes = (await pointSystem.GetPointTypes()).ToList();
     }
 

@@ -50,7 +50,8 @@ public sealed class StarshipExpeditionService(
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleGuidJsonConverter(), new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleNullableGuidJsonConverter() }
     };
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
@@ -994,7 +995,7 @@ public sealed class StarshipExpeditionService(
                     {
                         ["User"] = payout.DisplayName,
                         ["PointType"] = payout.PointTypeName,
-                        ["PointTypeId"] = payout.PointTypeId.ToString(CultureInfo.InvariantCulture),
+                        ["PointTypeId"] = payout.PointTypeId.ToString(),
                         ["Amount"] = payout.Amount.ToString(CultureInfo.InvariantCulture),
                         ["AmountFormatted"] = payout.Amount.ToString("N0", CultureInfo.CurrentCulture),
                         ["OperationId"] = payout.OperationId,
@@ -1191,11 +1192,11 @@ public sealed class StarshipExpeditionService(
         {
             if (pointsSystem == null)
                 throw new InvalidOperationException("Starship reward profiles require the points system.");
-            var names = new Dictionary<int, string>();
+            var names = new Dictionary<Guid, string>();
             foreach (var pointTypeId in profile.GetPointTypeIds())
             {
                 var pointType = await pointsSystem.GetPointTypeById(pointTypeId);
-                if (pointType?.Id == null)
+                if (pointType == null || pointType.Id == Guid.Empty)
                     throw new InvalidOperationException($"Point type {pointTypeId} for {profile.EventType} no longer exists.");
                 names[pointTypeId] = pointType.Name;
             }
@@ -1908,7 +1909,7 @@ public sealed class StarshipExpeditionService(
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                (string OperationId, int ActionId, Dictionary<string, string> Variables)? next = null;
+                (string OperationId, Guid ActionId, Dictionary<string, string> Variables)? next = null;
                 await _stateLock.WaitAsync(cancellationToken);
                 try
                 {

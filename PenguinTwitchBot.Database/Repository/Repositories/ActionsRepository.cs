@@ -3,11 +3,6 @@ using PenguinTwitchBot.Database.Bot.Actions.SubActions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Storage;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 
 namespace PenguinTwitchBot.Database.Repository.Repositories
 {
@@ -17,7 +12,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         {
         }
 
-        public async Task<ActionType?> GetByIdWithDetailsAsync(int id)
+        public async Task<ActionType?> GetByIdWithDetailsAsync(Guid id)
         {
             var action = await _context.Actions
                 .AsNoTracking()
@@ -56,8 +51,21 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             return actions;
         }
 
+        public async Task<List<ActionType>> GetAllSummariesAsync()
+        {
+            return await _context.Actions
+                .AsNoTracking()
+                .OrderBy(a => a.Name)
+                .ToListAsync();
+        }
+
         public async Task<ActionType> CreateActionAsync(ActionType action)
         {
+            if (action.Id == Guid.Empty)
+            {
+                action.Id = Guid.CreateVersion7();
+            }
+
             action.SubActions ??= [];
             action.CatchSubActions ??= [];
 
@@ -67,21 +75,9 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             var allIncomingSubActions = GetAllTopLevelSubActions(action);
 
             // Assign IDs to new SubActions
-            if (allIncomingSubActions.Any())
+            foreach (var subAction in allIncomingSubActions.Where(s => s.Id == Guid.Empty))
             {
-                var maxId = await _context.SubActions.MaxAsync(s => (int?)s.Id) ?? 0;
-                foreach (var subAction in allIncomingSubActions.Where(s => s.Id == 0))
-                {
-                    maxId++;
-                    subAction.Id = maxId;
-                }
-            }
-
-            // Populate action-reference names for action-calling subactions before save
-            if(allIncomingSubActions.Count != 0)
-            {
-                await PopulateActionReferenceNamesBeforeSave(allIncomingSubActions);
-                await PopulateTimerGroupNamesBeforeSave(allIncomingSubActions);
+                subAction.Id = Guid.CreateVersion7();
             }
 
             await _context.Actions.AddAsync(action);
@@ -92,9 +88,9 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 
         public async Task<ActionType> UpdateActionAsync(ActionType action)
         {
-            if (!action.Id.HasValue || action.Id.Value == 0)
+            if (action.Id == Guid.Empty)
             {
-                throw new InvalidOperationException("Cannot update action: Action ID is null or zero");
+                throw new InvalidOperationException("Cannot update action: Action ID is empty");
             }
 
             // Load the existing action from database WITH tracking
@@ -103,11 +99,11 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .Include(a => a.CatchSubActions)
                 .Include(a => a.Triggers)
                 .AsSplitQuery()
-                .FirstOrDefaultAsync(a => a.Id == action.Id.Value);
+                .FirstOrDefaultAsync(a => a.Id == action.Id);
 
             if (existingAction == null)
             {
-                throw new InvalidOperationException($"Action with ID {action.Id.Value} not found");
+                throw new InvalidOperationException($"Action with ID {action.Id} not found");
             }
 
             // Update scalar properties on the tracked entity
@@ -120,15 +116,12 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(action.CatchSubActions);
 
             // Handle SubActions: Remove deleted, Add new, Update existing
-            // Track the next available ID to prevent duplicate ID assignments in the same operation
-            var nextAvailableId = await _context.SubActions.MaxAsync(s => (int?)s.Id) ?? 0;
-
-            SyncSubActionCollection(existingAction.SubActions, action.SubActions, ref nextAvailableId);
-            SyncSubActionCollection(existingAction.CatchSubActions, action.CatchSubActions, ref nextAvailableId);
+            SyncSubActionCollection(existingAction.Id, isCatch: false, existingAction.SubActions, action.SubActions);
+            SyncSubActionCollection(existingAction.Id, isCatch: true, existingAction.CatchSubActions, action.CatchSubActions);
 
             // Handle Triggers: Remove deleted, Add new, Update existing
             var existingTriggerIds = existingAction.Triggers.Select(t => t.Id).ToHashSet();
-            var newTriggerIds = action.Triggers.Where(t => t.Id > 0).Select(t => t.Id).ToHashSet();
+            var newTriggerIds = action.Triggers.Where(t => t.Id != Guid.Empty).Select(t => t.Id).ToHashSet();
 
             // Remove Triggers that are no longer in the incoming list
             var triggersToRemove = existingAction.Triggers
@@ -151,22 +144,17 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 else if (!existingTriggerIds.Contains(trigger.Id))
                 {
                     // New Trigger - add to collection
-                    trigger.ActionId = action.Id.Value;
+                    trigger.ActionId = action.Id;
                     existingAction.Triggers.Add(trigger);
                 }
             }
-
-            // Populate action-reference names for action-calling subactions before save
-            var allSubActions = existingAction.SubActions.Concat(existingAction.CatchSubActions).ToList();
-            await PopulateActionReferenceNamesBeforeSave(allSubActions);
-            await PopulateTimerGroupNamesBeforeSave(allSubActions);
 
             await _context.SaveChangesAsync();
 
             return existingAction;
         }
 
-        public async Task DeleteActionAsync(int id)
+        public async Task DeleteActionAsync(Guid id)
         {
             var action = await _context.Actions.FindAsync(id);
             if (action != null)
@@ -176,104 +164,15 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             }
         }
 
-        /// <summary>
-        /// Populates ActionName for all subactions that call another action (including nested) before save.
-        /// Only queries actions that are actually referenced.
-        /// </summary>
-        private async Task PopulateActionReferenceNamesBeforeSave(List<SubActionType> subActions)
-        {
-            var executeActions = GetAllExecuteActionSubActions(subActions);
-            var forEachViewerActions = GetAllForEachViewerSubActions(subActions);
-            if (!executeActions.Any() && !forEachViewerActions.Any()) return;
-
-            // Get distinct ActionIds that need to be resolved
-            var actionIdsToResolve = executeActions.Select(e => e.ActionId)
-                .Concat(forEachViewerActions.Select(e => e.ActionId))
-                .Where(actionId => actionId.HasValue)
-                .Select(actionId => actionId!.Value)
-                .Distinct()
-                .ToList();
-
-            if (!actionIdsToResolve.Any()) return;
-
-            // Query only the actions we need
-            var referencedActions = await _context.Actions
-                .AsNoTracking()
-                .Where(a => a.Id.HasValue && actionIdsToResolve.Contains(a.Id.Value))
-                .Select(a => new { a.Id, a.Name })
-                .ToListAsync();
-
-            var actionIdToNameMap = referencedActions.ToDictionary(a => a.Id!.Value, a => a.Name);
-
-            // Populate ActionName for each ExecuteAction subaction
-            foreach (var executeAction in executeActions)
-            {
-                if (executeAction.ActionId.HasValue && actionIdToNameMap.TryGetValue(executeAction.ActionId.Value, out var actionName))
-                {
-                    executeAction.ActionName = actionName;
-                }
-            }
-
-            foreach (var forEachViewer in forEachViewerActions)
-            {
-                if (forEachViewer.ActionId.HasValue && actionIdToNameMap.TryGetValue(forEachViewer.ActionId.Value, out var actionName))
-                {
-                    forEachViewer.ActionName = actionName;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Recursively finds all ExecuteActionType subactions, including those nested in LogicIfElseType.
-        /// </summary>
-        private List<ExecuteActionType> GetAllExecuteActionSubActions(IEnumerable<SubActionType> subActions)
-        {
-            var result = new List<ExecuteActionType>();
-            foreach (var subAction in subActions)
-            {
-                if (subAction is ExecuteActionType exec)
-                {
-                    result.Add(exec);
-                }
-                else if (subAction is LogicIfElseType logic)
-                {
-                    result.AddRange(GetAllExecuteActionSubActions(logic.TrueSubActions));
-                    result.AddRange(GetAllExecuteActionSubActions(logic.FalseSubActions));
-                }
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Recursively finds all ForEachViewerType subactions, including those nested in LogicIfElseType.
-        /// </summary>
-        private List<ForEachViewerType> GetAllForEachViewerSubActions(IEnumerable<SubActionType> subActions)
-        {
-            var result = new List<ForEachViewerType>();
-            foreach (var subAction in subActions)
-            {
-                if (subAction is ForEachViewerType forEachViewer)
-                {
-                    result.Add(forEachViewer);
-                }
-                else if (subAction is LogicIfElseType logic)
-                {
-                    result.AddRange(GetAllForEachViewerSubActions(logic.TrueSubActions));
-                    result.AddRange(GetAllForEachViewerSubActions(logic.FalseSubActions));
-                }
-            }
-            return result;
-        }
-
         private static List<SubActionType> GetAllTopLevelSubActions(ActionType action)
         {
             return [.. action.SubActions, .. action.CatchSubActions];
         }
 
-        private void SyncSubActionCollection(List<SubActionType> existingSubActions, List<SubActionType> incomingSubActions, ref int nextAvailableId)
+        private void SyncSubActionCollection(Guid actionId, bool isCatch, List<SubActionType> existingSubActions, List<SubActionType> incomingSubActions)
         {
             var existingSubActionIds = existingSubActions.Select(s => s.Id).ToHashSet();
-            var incomingSubActionIds = incomingSubActions.Where(s => s.Id > 0).Select(s => s.Id).ToHashSet();
+            var incomingSubActionIds = incomingSubActions.Where(s => s.Id != Guid.Empty).Select(s => s.Id).ToHashSet();
 
             var subActionsToRemove = existingSubActions
                 .Where(s => !incomingSubActionIds.Contains(s.Id))
@@ -287,11 +186,25 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 
             foreach (var subAction in incomingSubActions)
             {
-                if (subAction.Id == 0 || !existingSubActionIds.Contains(subAction.Id))
+                if (isCatch)
                 {
-                    nextAvailableId++;
-                    subAction.Id = nextAvailableId;
+                    subAction.CatchActionTypeId = actionId;
+                    subAction.ActionTypeId = null;
+                }
+                else
+                {
+                    subAction.ActionTypeId = actionId;
+                    subAction.CatchActionTypeId = null;
+                }
+
+                if (subAction.Id == Guid.Empty || !existingSubActionIds.Contains(subAction.Id))
+                {
+                    if (subAction.Id == Guid.Empty)
+                    {
+                        subAction.Id = Guid.CreateVersion7();
+                    }
                     existingSubActions.Add(subAction);
+                    _context.Entry(subAction).State = EntityState.Added;
                 }
                 else
                 {
@@ -300,12 +213,23 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                     {
                         existingSubActions.Remove(existingSubAction);
                         _context.Entry(existingSubAction).State = EntityState.Deleted;
-                        nextAvailableId++;
-                        subAction.Id = nextAvailableId;
+                        subAction.Id = Guid.CreateVersion7();
                         existingSubActions.Add(subAction);
+                        _context.Entry(subAction).State = EntityState.Added;
                     }
                     else if (existingSubAction != null)
                     {
+                        if (isCatch)
+                        {
+                            existingSubAction.CatchActionTypeId = actionId;
+                            existingSubAction.ActionTypeId = null;
+                        }
+                        else
+                        {
+                            existingSubAction.ActionTypeId = actionId;
+                            existingSubAction.CatchActionTypeId = null;
+                        }
+
                         _context.Entry(existingSubAction).CurrentValues.SetValues(subAction);
 
                         var existingActionEntry = _context.Entry(existingSubAction);
@@ -315,44 +239,6 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                             existingSubActions.Add(subAction);
                         }
                     }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Populates TimerGroupName for all TimerGroupSetEnabledStateType subactions (including nested) before save.
-        /// Only queries timer groups that are actually referenced.
-        /// </summary>
-        private async Task PopulateTimerGroupNamesBeforeSave(List<SubActionType> subActions)
-        {
-            var allTimerGroupSubActions = GetAllTimerGroupSubActions(subActions);
-            if (!allTimerGroupSubActions.Any()) return;
-
-            // Get distinct TimerGroupIds that need to be resolved
-            var timerGroupIdsToResolve = allTimerGroupSubActions
-                .Where(tg => tg.TimerGroupId.HasValue)
-                .Select(tg => tg.TimerGroupId!.Value)
-                .Distinct()
-                .ToList();
-
-            if (!timerGroupIdsToResolve.Any()) return;
-
-            // Query only the timer groups we need
-            var referencedTimerGroups = await _context.Set<Bot.Models.Timers.TimerGroup>()
-                .AsNoTracking()
-                .Where(tg => tg.Id.HasValue && timerGroupIdsToResolve.Contains(tg.Id.Value))
-                .Select(tg => new { tg.Id, tg.Name })
-                .ToListAsync();
-
-            var timerGroupIdToNameMap = referencedTimerGroups.ToDictionary(tg => tg.Id!.Value, tg => tg.Name);
-
-            // Populate TimerGroupName for each TimerGroupSetEnabledState subaction
-            foreach (var timerGroupSubAction in allTimerGroupSubActions)
-            {
-                if (timerGroupSubAction.TimerGroupId.HasValue &&
-                    timerGroupIdToNameMap.TryGetValue(timerGroupSubAction.TimerGroupId.Value, out var timerGroupName))
-                {
-                    timerGroupSubAction.TimerGroupName = timerGroupName;
                 }
             }
         }
@@ -371,436 +257,6 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                     t.Enabled))
                 .OrderBy(a => a.Name)
                 .ToListAsync();
-        }
-
-        public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            // Load Actions with all related SubActions and Triggers
-            var records = await context.Set<ActionType>()
-                .AsNoTracking()
-                .Include(a => a.SubActions)
-                .Include(a => a.CatchSubActions)
-                .Include(a => a.Triggers)
-                .AsSplitQuery()
-                .ToListAsync();
-
-            // Populate ActionName for all action-calling subactions (including nested) based on ActionId
-            var actionIdToNameMap = records.ToDictionary(a => a.Id!.Value, a => a.Name);
-            foreach (var action in records)
-            {
-                var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions.Concat(action.CatchSubActions));
-                foreach (var subAction in allExecuteActions)
-                {
-                    if (subAction.ActionId.HasValue && actionIdToNameMap.TryGetValue(subAction.ActionId.Value, out var actionName))
-                    {
-                        subAction.ActionName = actionName;
-                    }
-                }
-
-                var allForEachViewerSubActions = GetAllForEachViewerSubActions(action.SubActions.Concat(action.CatchSubActions));
-                foreach (var subAction in allForEachViewerSubActions)
-                {
-                    if (subAction.ActionId.HasValue && actionIdToNameMap.TryGetValue(subAction.ActionId.Value, out var actionName))
-                    {
-                        subAction.ActionName = actionName;
-                    }
-                }
-            }
-
-            var options = new JsonSerializerOptions
-            {
-                ReferenceHandler = ReferenceHandler.IgnoreCycles,
-                WriteIndented = true,
-                TypeInfoResolver = new SubActionTypeResolver()
-            };
-
-            var fileName = $"{backupDirectory}/ActionType.json";
-            await using var writeStream = new FileStream(fileName, FileMode.Create, FileAccess.Write,
-                FileShare.None, bufferSize: 65536, useAsync: true);
-            await JsonSerializer.SerializeAsync(writeStream, records, options);
-            logger?.LogDebug("Backed up {Count} ActionType records with SubActions and Triggers", records.Count);
-        }
-
-        public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            try
-            {
-                var fileName = $"{backupDirectory}/ActionType.json";
-                if (!File.Exists(fileName)) return;
-
-                var options = new JsonSerializerOptions
-                {
-                    ReferenceHandler = ReferenceHandler.IgnoreCycles,
-                    TypeInfoResolver = new SubActionTypeResolver()
-                };
-
-                await using var readStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
-                    FileShare.Read, bufferSize: 65536, useAsync: true);
-                var records = await JsonSerializer.DeserializeAsync<List<ActionType>>(readStream, options);
-                if (records == null) throw new Exception("ActionType.json was null");
-
-                logger?.LogDebug("Deserialized {Count} ActionType records", records.Count);
-
-                context.ChangeTracker.Clear();
-
-                // ExecuteDeleteAsync bypasses EF cascade deletes, so we must explicitly delete subaction tables first
-                // Get all subaction table names from the SubActionRegistry
-                var subActionTableNames = SubActionRegistry.Metadata.Values
-                    .Select(m => m.TableName)
-                    .Where(t => !string.IsNullOrWhiteSpace(t))
-                    .Distinct()
-                    .ToList();
-
-                var sqlGenerationHelper = context.Database.GetService<ISqlGenerationHelper>();
-
-                // Delete all subaction tables
-                foreach (var tableName in subActionTableNames)
-                {
-                    // These values are all controlled internally within the application
-#pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
-                    await context.Database.ExecuteSqlRawAsync($"DELETE FROM {sqlGenerationHelper.DelimitIdentifier(tableName)}");
-#pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
-                }
-
-                // Delete Triggers (they have FK to Actions)
-                #pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
-                await context.Database.ExecuteSqlRawAsync($"DELETE FROM {sqlGenerationHelper.DelimitIdentifier("Triggers")}");
-                #pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
-
-                // Finally, delete Actions
-                await context.Set<ActionType>().ExecuteDeleteAsync();
-
-                context.ChangeTracker.Clear();
-
-                // SubAction IDs are marked with [JsonIgnore], so they're not in the backup
-                // We need to assign IDs manually before adding to context
-                int nextSubActionId = 1; // Start from 1 since table is empty
-
-
-                // First Pass: Add actions with non-ExecuteAction subactions (including nested)
-                // ExecuteAction subactions need to be added after all actions are created
-                // so we can map ActionName back to ActionId
-                var executeActionSubActions = new List<(ActionType action, ExecuteActionType subAction, List<SubActionType> parentList)>();
-
-                foreach (var record in records)
-                {
-                    MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(record.SubActions);
-                    MinigameSubActionMigrationHelper.UpgradeLegacySubActionsInList(record.CatchSubActions);
-
-                    // Recursively remove all ExecuteAction subactions and collect them for second pass
-                    RemoveAndCollectExecuteActions(record.SubActions, record, executeActionSubActions);
-                    RemoveAndCollectExecuteActions(record.CatchSubActions, record, executeActionSubActions);
-
-                    // Assign IDs to remaining SubActions
-                    foreach (var subAction in record.SubActions)
-                    {
-                        subAction.Id = nextSubActionId++;
-                    }
-
-                    foreach (var subAction in record.CatchSubActions)
-                    {
-                        subAction.Id = nextSubActionId++;
-                    }
-
-                    // Ensure ActionId is set for Triggers
-                    foreach (var trigger in record.Triggers)
-                    {
-                        if (record.Id.HasValue)
-                        {
-                            trigger.ActionId = record.Id.Value;
-                        }
-                    }
-
-                    // Add the Action - EF will cascade to SubActions and Triggers
-                    context.Set<ActionType>().Add(record);
-                }
-
-                // Save to generate new Action IDs
-                await context.SaveChangesAsync();
-                logger?.LogDebug("Restored {ActionCount} Actions (first pass)", records.Count);
-
-                // Second Pass: Add ExecuteAction subactions with resolved ActionIds
-                if (executeActionSubActions.Any())
-                {
-                    // Build a map from action name to new action ID
-                    // Handle duplicate names by using GroupBy and taking the first
-                    var actionNameToIdMap = records
-                        .Where(a => a.Id.HasValue)
-                        .GroupBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => 
-                            {
-                                if (g.Count() > 1)
-                                {
-                                    logger?.LogWarning("Multiple actions found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
-                                }
-                                return g.First().Id!.Value;
-                            },
-                            StringComparer.OrdinalIgnoreCase);
-
-                    foreach (var (action, executeSubAction, parentList) in executeActionSubActions)
-                    {
-                        // Resolve ActionId from ActionName
-                        if (actionNameToIdMap.TryGetValue(executeSubAction.ActionName, out var resolvedActionId))
-                        {
-                            executeSubAction.ActionId = resolvedActionId;
-                            executeSubAction.Id = nextSubActionId++;
-                            parentList.Add(executeSubAction);
-                        }
-                        else
-                        {
-                            logger?.LogWarning("ExecuteAction subaction references unknown action: {ActionName}", executeSubAction.ActionName);
-                        }
-                    }
-
-                        // Save ExecuteAction subactions
-                        await context.SaveChangesAsync();
-                        logger?.LogDebug("Restored {ExecuteActionCount} ExecuteAction subactions (second pass)", 
-                            executeActionSubActions.Count);
-                    }
-
-                    var subActionCount = records.Sum(r => r.SubActions.Count + r.CatchSubActions.Count);
-                    var triggerCount = records.Sum(r => r.Triggers.Count);
-                    logger?.LogDebug("Restored {ActionCount} Actions with {SubActionCount} SubActions and {TriggerCount} Triggers", 
-                        records.Count, subActionCount, triggerCount);
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Failed to restore ActionType");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Post-restore method to remap all entity references after all tables have been restored.
-        /// This must be called AFTER all tables are restored so TimerGroups and ActionCommands have their new IDs.
-        /// </summary>
-        public async Task RemapEntityReferencesAfterRestore(ILogger? logger = null)
-        {
-            logger?.LogInformation("Starting post-restore entity reference remapping...");
-
-            // Load all actions with triggers and subactions
-            var actions = await _context.Actions
-                .Include(a => a.Triggers)
-                .Include(a => a.SubActions)
-                .Include(a => a.CatchSubActions)
-                .AsSplitQuery()
-                .ToListAsync();
-
-            // Third Pass: Remap Timer trigger IDs based on TimerGroupName
-            await RemapTimerTriggerIds(_context, actions, logger);
-
-            // Fourth Pass: Remap Command trigger IDs based on CommandName
-            await RemapCommandTriggerIds(_context, actions, logger);
-
-            // Fifth Pass: Remap Keyword trigger IDs based on KeywordName
-            await RemapKeywordTriggerIds(_context, actions, logger);
-
-            // Sixth Pass: Remap DefaultCommand trigger IDs based on DefaultCommandName
-            await RemapDefaultCommandTriggerIds(_context, actions, logger);
-
-            // Seventh Pass: Remap TimerGroupSetEnabledState SubAction IDs based on TimerGroupName
-            await RemapTimerGroupSubActionIds(_context, actions, logger);
-
-            // Eighth Pass: Validate ToggleCommandDisabled SubAction CommandNames
-            await RemapToggleCommandDisabledSubActions(_context, actions, logger);
-
-            // Ninth Pass: Remap ForEachViewer SubAction action IDs based on ActionName
-            await RemapForEachViewerSubActionIds(_context, actions, logger);
-
-            logger?.LogInformation("Completed post-restore entity reference remapping");
-        }
-
-        /// <summary>
-        /// Recursively removes all ExecuteActionType subactions from the given list and collects them for later processing.
-        /// Also processes nested LogicIfElseType subactions.
-        /// </summary>
-        private void RemoveAndCollectExecuteActions(List<SubActionType> subActions, ActionType action, List<(ActionType, ExecuteActionType, List<SubActionType>)> collected)
-        {
-            for (int i = subActions.Count - 1; i >= 0; i--)
-            {
-                var subAction = subActions[i];
-                if (subAction is ExecuteActionType exec)
-                {
-                    collected.Add((action, exec, subActions));
-                    subActions.RemoveAt(i);
-                }
-                else if (subAction is LogicIfElseType logic)
-                {
-                    RemoveAndCollectExecuteActions(logic.TrueSubActions, action, collected);
-                    RemoveAndCollectExecuteActions(logic.FalseSubActions, action, collected);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Updates ActionName for all action-calling subactions (including nested) referencing the given actionId.
-        /// Optimized to only load actions that contain ExecuteAction subactions.
-        /// </summary>
-        public async Task UpdateExecuteActionNamesForRenamedAction(int actionId, string newName)
-        {
-            // Load all actions with their subactions
-            // Note: We need to load all because we can't efficiently filter by nested ExecuteActionType in a query
-            var allActions = await _context.Actions
-                .Include(a => a.SubActions)
-                .Include(a => a.CatchSubActions)
-                .AsSplitQuery()
-                .ToListAsync();
-
-            bool hasChanges = false;
-            foreach (var action in allActions)
-            {
-                var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions.Concat(action.CatchSubActions));
-                foreach (var exec in allExecuteActions)
-                {
-                    if (exec.ActionId == actionId && exec.ActionName != newName)
-                    {
-                        exec.ActionName = newName;
-                        hasChanges = true;
-                    }
-                }
-
-                var allForEachViewerSubActions = GetAllForEachViewerSubActions(action.SubActions.Concat(action.CatchSubActions));
-                foreach (var forEachViewer in allForEachViewerSubActions)
-                {
-                    if (forEachViewer.ActionId == actionId && forEachViewer.ActionName != newName)
-                    {
-                        forEachViewer.ActionName = newName;
-                        hasChanges = true;
-                    }
-                }
-            }
-            if (hasChanges)
-            {
-                await _context.SaveChangesAsync();
-            }
-        }
-
-        /// <summary>
-        /// Updates CommandName in all Command trigger configurations when a command is renamed.
-        /// </summary>
-        public async Task UpdateCommandTriggerConfigurationsForRenamedCommand(int commandId, string oldCommandName, string newCommandName)
-        {
-
-
-            var commandTriggers = await _context.Triggers
-                .Where(x => x.Type == TriggerTypes.Command && x.Name == "!" + oldCommandName).ToListAsync();
-
-            var updatedCount = 0;
-            foreach (var trigger in commandTriggers)
-            {
-                try
-                {
-                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
-                    if (config == null) continue;
-                    // Update the CommandName in the configuration
-                    var newConfig = new
-                    {
-                        CommandId = commandId,
-                        CommandName = newCommandName
-                    };
-                    trigger.Configuration = JsonSerializer.Serialize(newConfig);
-                    trigger.Name = "!" + newCommandName;
-
-                    // Update the reference column as well
-                    trigger.CommandId = commandId;
-
-                    // Explicitly mark the properties as modified
-                    _context.Entry(trigger).Property(t => t.Configuration).IsModified = true;
-                    _context.Entry(trigger).Property(t => t.Name).IsModified = true;
-                    _context.Entry(trigger).Property(t => t.CommandId).IsModified = true;
-                    updatedCount++;
-                }
-                catch (Exception)
-                {
-                    // Skip triggers with invalid configuration
-                    continue;
-                }
-            }
-
-            if (updatedCount > 0)
-            {
-                await _context.SaveChangesAsync();
-            }
-        }
-
-        /// <summary>
-        /// Updates KeywordName in all Keyword trigger configurations when a keyword is renamed.
-        /// </summary>
-        public async Task UpdateKeywordTriggerConfigurationsForRenamedKeyword(int keywordId, string oldKeywordName, string newKeywordName)
-        {
-            var keywordTriggers = await _context.Triggers
-                .Where(x => x.Type == TriggerTypes.Keyword && x.KeywordId == keywordId).ToListAsync();
-
-            var updatedCount = 0;
-            foreach (var trigger in keywordTriggers)
-            {
-                try
-                {
-                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
-                    if (config == null) continue;
-                    // Update the KeywordName in the configuration
-                    var newConfig = new
-                    {
-                        KeywordId = keywordId,
-                        KeywordName = newKeywordName
-                    };
-                    trigger.Configuration = JsonSerializer.Serialize(newConfig);
-                    trigger.Name = newKeywordName;
-
-                    // Update the reference column as well
-                    trigger.KeywordId = keywordId;
-
-                    // Explicitly mark the properties as modified
-                    _context.Entry(trigger).Property(t => t.Configuration).IsModified = true;
-                    _context.Entry(trigger).Property(t => t.Name).IsModified = true;
-                    _context.Entry(trigger).Property(t => t.KeywordId).IsModified = true;
-                    updatedCount++;
-                }
-                catch (Exception)
-                {
-                    // Skip triggers with invalid configuration
-                    continue;
-                }
-            }
-
-            if (updatedCount > 0)
-            {
-                await _context.SaveChangesAsync();
-            }
-        }
-
-        /// <summary>
-        /// Updates TimerGroupName for all TimerGroupSetEnabledStateType subactions (including nested) referencing the given timerGroupId.
-        /// </summary>
-        public async Task UpdateTimerGroupNamesForRenamedTimerGroup(int timerGroupId, string newName)
-        {
-            // Load all actions with their subactions
-            // Note: We need to load all because we can't efficiently filter by nested TimerGroupSetEnabledStateType in a query
-            var allActions = await _context.Actions
-                .Include(a => a.SubActions)
-                .Include(a => a.CatchSubActions)
-                .AsSplitQuery()
-                .ToListAsync();
-
-            bool hasChanges = false;
-            foreach (var action in allActions)
-            {
-                var allTimerGroupSubActions = GetAllTimerGroupSubActions(action.SubActions.Concat(action.CatchSubActions));
-                foreach (var timerGroupSubAction in allTimerGroupSubActions)
-                {
-                    if (timerGroupSubAction.TimerGroupId == timerGroupId && timerGroupSubAction.TimerGroupName != newName)
-                    {
-                        timerGroupSubAction.TimerGroupName = newName;
-                        hasChanges = true;
-                    }
-                }
-            }
-            if (hasChanges)
-            {
-                await _context.SaveChangesAsync();
-            }
         }
 
         /// <summary>
@@ -833,625 +289,6 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             if (hasChanges)
             {
                 await _context.SaveChangesAsync();
-            }
-        }
-
-        /// <summary>
-        /// Remaps Timer trigger IDs based on TimerGroupName after restore.
-        /// Timer Group IDs change during restore, so we use names to re-establish the relationships.
-        /// </summary>
-        private async Task RemapTimerTriggerIds(DbContext context, List<ActionType> records, ILogger? logger)
-        {
-            var timerTriggers = records
-                .SelectMany(a => a.Triggers)
-                .Where(t => t.Type == TriggerTypes.Timer && !string.IsNullOrEmpty(t.Configuration))
-                .ToList();
-
-            if (!timerTriggers.Any())
-            {
-                logger?.LogDebug("No timer triggers to remap");
-                return;
-            }
-
-            // Load all timer groups from the database (with their new IDs)
-            var timerGroups = await context.Set<Bot.Models.Timers.TimerGroup>()
-                .AsNoTracking()
-                .ToListAsync();
-
-            var timerGroupNameToIdMap = timerGroups
-                .Where(tg => tg.Id.HasValue)
-                .GroupBy(tg => tg.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => 
-                    {
-                        if (g.Count() > 1)
-                        {
-                            logger?.LogWarning("Multiple timer groups found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
-                        }
-                        return g.First().Id!.Value;
-                    },
-                    StringComparer.OrdinalIgnoreCase);
-
-            int remappedCount = 0;
-            int failedCount = 0;
-
-            foreach (var trigger in timerTriggers)
-            {
-                try
-                {
-                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
-                    if (config == null) continue;
-
-                    // Try to get TimerGroupName (new format)
-                    if (config.TryGetValue("TimerGroupName", out var timerGroupNameElement))
-                    {
-                        var timerGroupName = timerGroupNameElement.GetString();
-                        if (!string.IsNullOrEmpty(timerGroupName) && 
-                            timerGroupNameToIdMap.TryGetValue(timerGroupName, out var newTimerGroupId))
-                        {
-                            // Update the configuration with the new TimerGroupId
-                            var newConfig = new
-                            {
-                                TimerGroupId = newTimerGroupId,
-                                TimerGroupName = timerGroupName
-                            };
-                            trigger.Configuration = JsonSerializer.Serialize(newConfig);
-
-                            // Update the reference column as well
-                            trigger.TimerGroupId = newTimerGroupId;
-
-                            // Update the trigger name to match the new ID
-                            trigger.Name = $"TimerGroup_{newTimerGroupId}";
-
-                            remappedCount++;
-                            logger?.LogDebug("Remapped timer trigger for '{TimerGroupName}': old trigger name was {OldName}, new ID is {NewId}", 
-                                timerGroupName, trigger.Name, newTimerGroupId);
-                        }
-                        else
-                        {
-                            failedCount++;
-                            logger?.LogWarning("Timer trigger references unknown timer group: {TimerGroupName}", timerGroupName);
-                        }
-                    }
-                    else
-                    {
-                        // Old format - only has TimerGroupId, cannot remap
-                        failedCount++;
-                        logger?.LogWarning("Timer trigger uses old format (TimerGroupId only) and cannot be remapped. Configuration: {Config}", trigger.Configuration);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    logger?.LogError(ex, "Failed to remap timer trigger. Configuration: {Config}", trigger.Configuration);
-                }
-            }
-
-            if (remappedCount > 0 || failedCount > 0)
-            {
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Remapped {RemappedCount} timer triggers, {FailedCount} failed", remappedCount, failedCount);
-            }
-        }
-
-        /// <summary>
-        /// Remaps Command trigger IDs based on CommandName after restore.
-        /// Command IDs change during restore, so we use names to re-establish the relationships.
-        /// </summary>
-        private async Task RemapCommandTriggerIds(DbContext context, List<ActionType> records, ILogger? logger)
-        {
-            var commandTriggers = records
-                .SelectMany(a => a.Triggers)
-                .Where(t => t.Type == TriggerTypes.Command && !string.IsNullOrEmpty(t.Configuration))
-                .ToList();
-
-            if (!commandTriggers.Any())
-            {
-                logger?.LogDebug("No command triggers to remap");
-                return;
-            }
-
-            // Load all action commands from the database (with their new IDs)
-            var actionCommands = await context.Set<Bot.Models.Commands.ActionCommand>()
-                .AsNoTracking()
-                .ToListAsync();
-
-            var commandNameToIdMap = actionCommands
-                .Where(ac => ac.Id.HasValue)
-                .GroupBy(ac => ac.CommandName, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => 
-                    {
-                        if (g.Count() > 1)
-                        {
-                            logger?.LogWarning("Multiple commands found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
-                        }
-                        return g.First().Id!.Value;
-                    },
-                    StringComparer.OrdinalIgnoreCase);
-
-            int remappedCount = 0;
-            int failedCount = 0;
-
-            foreach (var trigger in commandTriggers)
-            {
-                try
-                {
-                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
-                    if (config == null) continue;
-
-                    // Try to get CommandName
-                    if (config.TryGetValue("CommandName", out var commandNameElement))
-                    {
-                        var commandName = commandNameElement.GetString();
-                        if (!string.IsNullOrEmpty(commandName) && 
-                            commandNameToIdMap.TryGetValue(commandName, out var newCommandId))
-                        {
-                            // Update the configuration with the new CommandId
-                            var newConfig = new
-                            {
-                                CommandId = newCommandId,
-                                CommandName = commandName
-                            };
-                            trigger.Configuration = JsonSerializer.Serialize(newConfig);
-
-                            // Update the reference column as well
-                            trigger.CommandId = newCommandId;
-
-                            remappedCount++;
-                            logger?.LogDebug("Remapped command trigger for '!{CommandName}': new ID is {NewId}", commandName, newCommandId);
-                        }
-                        else
-                        {
-                            failedCount++;
-                            logger?.LogWarning("Command trigger references unknown command: {CommandName}", commandName);
-                        }
-                    }
-                    else
-                    {
-                        // Old format - only has CommandId, cannot remap
-                        failedCount++;
-                        logger?.LogWarning("Command trigger uses old format (CommandId only) and cannot be remapped. Configuration: {Config}", trigger.Configuration);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    logger?.LogError(ex, "Failed to remap command trigger. Configuration: {Config}", trigger.Configuration);
-                }
-            }
-
-            if (remappedCount > 0 || failedCount > 0)
-            {
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Remapped {RemappedCount} command triggers, {FailedCount} failed", remappedCount, failedCount);
-            }
-        }
-
-        /// <summary>
-        /// Remaps Keyword trigger IDs based on KeywordName after restore.
-        /// Keyword IDs change during restore, so we use names to re-establish the relationships.
-        /// </summary>
-        private async Task RemapKeywordTriggerIds(DbContext context, List<ActionType> records, ILogger? logger)
-        {
-            var keywordTriggers = records
-                .SelectMany(a => a.Triggers)
-                .Where(t => t.Type == TriggerTypes.Keyword && !string.IsNullOrEmpty(t.Configuration))
-                .ToList();
-
-            if (!keywordTriggers.Any())
-            {
-                logger?.LogDebug("No keyword triggers to remap");
-                return;
-            }
-
-            // Load all action keywords from the database (with their new IDs)
-            var actionKeywords = await context.Set<Bot.Models.Commands.ActionKeyword>()
-                .AsNoTracking()
-                .ToListAsync();
-
-            var keywordNameToIdMap = actionKeywords
-                .Where(ak => ak.Id.HasValue)
-                .GroupBy(ak => ak.CommandName, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => 
-                    {
-                        if (g.Count() > 1)
-                        {
-                            logger?.LogWarning("Multiple keywords found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
-                        }
-                        return g.First().Id!.Value;
-                    },
-                    StringComparer.OrdinalIgnoreCase);
-
-            int remappedCount = 0;
-            int failedCount = 0;
-
-            foreach (var trigger in keywordTriggers)
-            {
-                try
-                {
-                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
-                    if (config == null) continue;
-
-                    // Try to get KeywordName
-                    if (config.TryGetValue("KeywordName", out var keywordNameElement))
-                    {
-                        var keywordName = keywordNameElement.GetString();
-                        if (!string.IsNullOrEmpty(keywordName) && 
-                            keywordNameToIdMap.TryGetValue(keywordName, out var newKeywordId))
-                        {
-                            // Update the configuration with the new KeywordId
-                            var newConfig = new
-                            {
-                                KeywordId = newKeywordId,
-                                KeywordName = keywordName
-                            };
-                            trigger.Configuration = JsonSerializer.Serialize(newConfig);
-
-                            // Update the reference column as well
-                            trigger.KeywordId = newKeywordId;
-
-                            remappedCount++;
-                            logger?.LogDebug("Remapped keyword trigger for '{KeywordName}': new ID is {NewId}", keywordName, newKeywordId);
-                        }
-                        else
-                        {
-                            failedCount++;
-                            logger?.LogWarning("Keyword trigger references unknown keyword: {KeywordName}", keywordName);
-                        }
-                    }
-                    else
-                    {
-                        // Old format - only has KeywordId, cannot remap
-                        failedCount++;
-                        logger?.LogWarning("Keyword trigger uses old format (KeywordId only) and cannot be remapped. Configuration: {Config}", trigger.Configuration);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    logger?.LogError(ex, "Failed to remap keyword trigger. Configuration: {Config}", trigger.Configuration);
-                }
-            }
-
-            if (remappedCount > 0 || failedCount > 0)
-            {
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Remapped {RemappedCount} keyword triggers, {FailedCount} failed", remappedCount, failedCount);
-            }
-        }
-
-        /// <summary>
-        /// Remaps DefaultCommand trigger IDs based on DefaultCommandName after restore.
-        /// DefaultCommand IDs change during restore, so we use names to re-establish the relationships.
-        /// </summary>
-        private async Task RemapDefaultCommandTriggerIds(DbContext context, List<ActionType> records, ILogger? logger)
-        {
-            var defaultCommandTriggers = records
-                .SelectMany(a => a.Triggers)
-                .Where(t => t.Type == TriggerTypes.DefaultCommand && !string.IsNullOrEmpty(t.Configuration))
-                .ToList();
-
-            if (!defaultCommandTriggers.Any())
-            {
-                logger?.LogDebug("No default command triggers to remap");
-                return;
-            }
-
-            // Load all default commands from the database (with their new IDs)
-            var defaultCommands = await context.Set<Bot.Models.Commands.DefaultCommand>()
-                .AsNoTracking()
-                .ToListAsync();
-
-            var commandNameToIdMap = defaultCommands
-                .Where(dc => dc.Id.HasValue)
-                .GroupBy(dc => dc.CommandName, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => 
-                    {
-                        if (g.Count() > 1)
-                        {
-                            logger?.LogWarning("Multiple default commands found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
-                        }
-                        return g.First().Id!.Value;
-                    },
-                    StringComparer.OrdinalIgnoreCase);
-
-            int remappedCount = 0;
-            int failedCount = 0;
-
-            foreach (var trigger in defaultCommandTriggers)
-            {
-                try
-                {
-                    var config = JsonSerializer.Deserialize<Bot.Actions.Triggers.Configurations.DefaultCommandTriggerConfiguration>(trigger.Configuration);
-                    if (config == null)
-                    {
-                        failedCount++;
-                        logger?.LogWarning("Failed to deserialize DefaultCommandTriggerConfiguration. Configuration: {Config}", trigger.Configuration);
-                        continue;
-                    }
-
-                    // Get DefaultCommandName from configuration
-                    if (!string.IsNullOrEmpty(config.DefaultCommandName) && 
-                        commandNameToIdMap.TryGetValue(config.DefaultCommandName, out var newDefaultCommandId))
-                    {
-                        // Update the reference column with the new ID
-                        trigger.DefaultCommandId = newDefaultCommandId;
-
-                        remappedCount++;
-                        logger?.LogDebug("Remapped default command trigger for '{CommandName}' event '{EventType}': new ID is {NewId}", 
-                            config.DefaultCommandName, config.EventType, newDefaultCommandId);
-                    }
-                    else
-                    {
-                        failedCount++;
-                        logger?.LogWarning("Default command trigger references unknown default command: {CommandName}", config.DefaultCommandName);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    logger?.LogError(ex, "Failed to remap default command trigger. Configuration: {Config}", trigger.Configuration);
-                }
-            }
-
-            if (remappedCount > 0 || failedCount > 0)
-            {
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Remapped {RemappedCount} default command triggers, {FailedCount} failed", remappedCount, failedCount);
-            }
-        }
-
-        /// <summary>
-        /// Remaps TimerGroupSetEnabledState SubAction IDs based on TimerGroupName after restore.
-        /// Timer Group IDs change during restore, so we use names to re-establish the relationships.
-        /// </summary>
-        private async Task RemapTimerGroupSubActionIds(DbContext context, List<ActionType> records, ILogger? logger)
-        {
-            var timerGroupSubActions = records
-                .SelectMany(a => GetAllTimerGroupSubActions(a.SubActions.Concat(a.CatchSubActions)))
-                .ToList();
-
-            if (!timerGroupSubActions.Any())
-            {
-                logger?.LogDebug("No TimerGroupSetEnabledState subactions to remap");
-                return;
-            }
-
-            // Load all timer groups from the database (with their new IDs)
-            var timerGroups = await context.Set<Bot.Models.Timers.TimerGroup>()
-                .AsNoTracking()
-                .ToListAsync();
-
-            var timerGroupNameToIdMap = timerGroups
-                .Where(tg => tg.Id.HasValue)
-                .GroupBy(tg => tg.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => 
-                    {
-                        if (g.Count() > 1)
-                        {
-                            logger?.LogWarning("Multiple timer groups found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
-                        }
-                        return g.First().Id!.Value;
-                    },
-                    StringComparer.OrdinalIgnoreCase);
-
-            int remappedCount = 0;
-            int failedCount = 0;
-
-            foreach (var subAction in timerGroupSubActions)
-            {
-                try
-                {
-                    // Check if we have a TimerGroupName to remap with
-                    if (!string.IsNullOrEmpty(subAction.TimerGroupName))
-                    {
-                        if (timerGroupNameToIdMap.TryGetValue(subAction.TimerGroupName, out var newTimerGroupId))
-                        {
-                            subAction.TimerGroupId = newTimerGroupId;
-                            remappedCount++;
-                            logger?.LogDebug("Remapped TimerGroupSetEnabledState subaction for '{TimerGroupName}': new ID is {NewId}", 
-                                subAction.TimerGroupName, newTimerGroupId);
-                        }
-                        else
-                        {
-                            failedCount++;
-                            logger?.LogWarning("TimerGroupSetEnabledState subaction references unknown timer group: {TimerGroupName}", 
-                                subAction.TimerGroupName);
-                        }
-                    }
-                    else
-                    {
-                        // Old format - only has TimerGroupId, cannot remap
-                        failedCount++;
-                        logger?.LogWarning("TimerGroupSetEnabledState subaction uses old format (TimerGroupId only) and cannot be remapped. TimerGroupId: {TimerGroupId}", 
-                            subAction.TimerGroupId);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    logger?.LogError(ex, "Failed to remap TimerGroupSetEnabledState subaction. TimerGroupId: {TimerGroupId}, TimerGroupName: {TimerGroupName}", 
-                        subAction.TimerGroupId, subAction.TimerGroupName);
-                }
-            }
-
-            if (remappedCount > 0 || failedCount > 0)
-            {
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Remapped {RemappedCount} TimerGroupSetEnabledState subactions, {FailedCount} failed", 
-                    remappedCount, failedCount);
-            }
-        }
-
-        /// <summary>
-        /// Recursively finds all TimerGroupSetEnabledStateType subactions, including those nested in LogicIfElseType.
-        /// </summary>
-        private List<TimerGroupSetEnabledStateType> GetAllTimerGroupSubActions(IEnumerable<SubActionType> subActions)
-        {
-            var result = new List<TimerGroupSetEnabledStateType>();
-            foreach (var subAction in subActions)
-            {
-                if (subAction is TimerGroupSetEnabledStateType timerGroup)
-                {
-                    result.Add(timerGroup);
-                }
-                else if (subAction is LogicIfElseType logic)
-                {
-                    result.AddRange(GetAllTimerGroupSubActions(logic.TrueSubActions));
-                    result.AddRange(GetAllTimerGroupSubActions(logic.FalseSubActions));
-                }
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Remaps ToggleCommandDisabled SubAction CommandNames after restore.
-        /// This ensures that command references are maintained even if command IDs change.
-        /// Note: CommandName should already be populated during restore, but this validates and fixes any issues.
-        /// </summary>
-        private async Task RemapToggleCommandDisabledSubActions(DbContext context, List<ActionType> records, ILogger? logger)
-        {
-            var toggleCommandSubActions = records
-                .SelectMany(a => GetAllToggleCommandDisabledSubActions(a.SubActions.Concat(a.CatchSubActions)))
-                .ToList();
-
-            if (!toggleCommandSubActions.Any())
-            {
-                logger?.LogDebug("No ToggleCommandDisabled subactions to remap");
-                return;
-            }
-
-            // Load all action commands from the database
-            var actionCommands = await context.Set<Bot.Models.Commands.ActionCommand>()
-                .AsNoTracking()
-                .ToListAsync();
-
-            var commandNameSet = new HashSet<string>(
-                actionCommands.Select(ac => ac.CommandName),
-                StringComparer.OrdinalIgnoreCase);
-
-            int validatedCount = 0;
-            int failedCount = 0;
-
-            foreach (var subAction in toggleCommandSubActions)
-            {
-                try
-                {
-                    // Check if CommandName exists in the current database
-                    if (!string.IsNullOrEmpty(subAction.CommandName))
-                    {
-                        if (commandNameSet.Contains(subAction.CommandName))
-                        {
-                            validatedCount++;
-                            logger?.LogDebug("Validated ToggleCommandDisabled subaction for command '{CommandName}'", subAction.CommandName);
-                        }
-                        else
-                        {
-                            failedCount++;
-                            logger?.LogWarning("ToggleCommandDisabled subaction references unknown command: {CommandName}", subAction.CommandName);
-                        }
-                    }
-                    else
-                    {
-                        // Empty CommandName
-                        failedCount++;
-                        logger?.LogWarning("ToggleCommandDisabled subaction has empty CommandName");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    logger?.LogError(ex, "Failed to validate ToggleCommandDisabled subaction. CommandName: {CommandName}", 
-                        subAction.CommandName);
-                }
-            }
-
-            logger?.LogInformation("Validated {ValidatedCount} ToggleCommandDisabled subactions, {FailedCount} failed", 
-                validatedCount, failedCount);
-        }
-
-        /// <summary>
-        /// Remaps ForEachViewer SubAction IDs based on ActionName after restore.
-        /// Action IDs change during restore, so we use ActionName to re-establish the relationships.
-        /// </summary>
-        private async Task RemapForEachViewerSubActionIds(DbContext context, List<ActionType> records, ILogger? logger)
-        {
-            var forEachViewerSubActions = records
-                .SelectMany(action => GetAllForEachViewerSubActions(action.SubActions.Concat(action.CatchSubActions)))
-                .ToList();
-
-            if (!forEachViewerSubActions.Any())
-            {
-                logger?.LogDebug("No ForEachViewer subactions to remap");
-                return;
-            }
-
-            var actions = await context.Set<ActionType>()
-                .AsNoTracking()
-                .Where(action => action.Id.HasValue)
-                .ToListAsync();
-
-            var actionNameToIdMap = actions
-                .GroupBy(action => action.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    group => group.Key,
-                    group =>
-                    {
-                        if (group.Count() > 1)
-                        {
-                            logger?.LogWarning("Multiple actions found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", group.Key, group.First().Id);
-                        }
-                        return group.First().Id!.Value;
-                    },
-                    StringComparer.OrdinalIgnoreCase);
-
-            var remappedCount = 0;
-            var failedCount = 0;
-
-            foreach (var subAction in forEachViewerSubActions)
-            {
-                try
-                {
-                    if (!string.IsNullOrWhiteSpace(subAction.ActionName))
-                    {
-                        if (actionNameToIdMap.TryGetValue(subAction.ActionName, out var newActionId))
-                        {
-                            subAction.ActionId = newActionId;
-                            remappedCount++;
-                            logger?.LogDebug("Remapped ForEachViewer subaction for action '{ActionName}': new ID is {NewId}", subAction.ActionName, newActionId);
-                        }
-                        else
-                        {
-                            failedCount++;
-                            logger?.LogWarning("ForEachViewer subaction references unknown action: {ActionName}", subAction.ActionName);
-                        }
-                    }
-                    else
-                    {
-                        failedCount++;
-                        logger?.LogWarning("ForEachViewer subaction uses old format (ActionId only) and cannot be remapped. ActionId: {ActionId}", subAction.ActionId);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    logger?.LogError(ex, "Failed to remap ForEachViewer subaction. ActionId: {ActionId}, ActionName: {ActionName}", subAction.ActionId, subAction.ActionName);
-                }
-            }
-
-            if (remappedCount > 0 || failedCount > 0)
-            {
-                await context.SaveChangesAsync();
-                logger?.LogInformation("Remapped {RemappedCount} ForEachViewer subactions, {FailedCount} failed", remappedCount, failedCount);
             }
         }
 

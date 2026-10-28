@@ -36,7 +36,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             var userId = GetCurrentUserId(variables);
             var qualifyingPlacementOverride = Math.Max(0, eligibleCatch.QualifyingPlacementOverride);
-            var qualifyingResults = new List<(int TournamentId, string TournamentName, int Rank, int MaxQualifyingPlacement)>();
+            var qualifyingResults = new List<(Guid TournamentId, string TournamentName, int Rank, int MaxQualifyingPlacement)>();
 
             if (!string.IsNullOrWhiteSpace(userId) && matchingTournaments.Count > 0)
             {
@@ -111,7 +111,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         {
             var allFishTypes = await fishingService.GetAllFishTypes();
 
-            if (variables.TryGetValue("fish_type_id", out var fishTypeIdText) && int.TryParse(fishTypeIdText, out var fishTypeId) && fishTypeId > 0)
+            if (variables.TryGetValue("fish_type_id", out var fishTypeIdText) && Guid.TryParse(fishTypeIdText, out var fishTypeId) && fishTypeId != Guid.Empty)
             {
                 return allFishTypes.FirstOrDefault(f => f.Id == fishTypeId);
             }

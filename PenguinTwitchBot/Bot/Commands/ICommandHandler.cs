@@ -15,7 +15,7 @@ namespace PenguinTwitchBot.Bot.Commands
         bool CommandExists(string command);
         Command? GetCommand(string commandName);
         string GetCommandDefaultName(string commandName);
-        Task<DefaultCommand?> GetDefaultCommandById(int id);
+        Task<DefaultCommand?> GetDefaultCommandById(Guid id);
         Task<DefaultCommand?> GetDefaultCommandFromDb(string defaultCommandName);
         Task<List<DefaultCommand>> GetDefaultCommandsFromDb();
         Task<bool> IsCoolDownExpired(string user, string command);
@@ -25,7 +25,7 @@ namespace PenguinTwitchBot.Bot.Commands
         void UpdateCommandName(string oldCommandName, string newCommandName);
         Task UpdateDefaultCommand(DefaultCommand defaultCommand);
         Task<IEnumerable<ExternalCommands>> GetExternalCommands();
-        Task<ExternalCommands?> GetExternalCommand(int id);
+        Task<ExternalCommands?> GetExternalCommand(Guid id);
         Task AddOrUpdateExternalCommand(ExternalCommands externalCommand);
         Task DeleteExternalCommand(ExternalCommands externalCommand);
         Task<bool> CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs);

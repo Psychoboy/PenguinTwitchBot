@@ -22,7 +22,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var actionId = executeAction.ActionId;
-            if(!actionId.HasValue || actionId.Value == 0)
+            if(!actionId.HasValue || actionId.Value == Guid.Empty)
             {
                 throw new SubActionHandlerException(subAction, "Invalid action ID provided to ExecuteActionHandler: {ActionId}", actionId.HasValue ? actionId : "" );
             }

@@ -31,7 +31,6 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 timerGroup = await timerService.UpdateNextRun(timerGroup);
             }
-            timerGroupSetEnabled.TimerGroupName = timerGroup.Name;
             timerGroup.Active = timerGroupSetEnabled.IsEnabled;
             await timerService.UpdateTimerGroup(timerGroup);
             var state = timerGroupSetEnabled.IsEnabled ? "enabled" : "disabled";

@@ -141,7 +141,8 @@ namespace PenguinTwitchBot.Tests
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var audiCommand = new AudioCommand { Id = 1, CommandName = "TestCommand" };
+            var audioCommandId = Guid.NewGuid();
+            var audiCommand = new AudioCommand { Id = audioCommandId, CommandName = "TestCommand" };
             var queryable = new List<AudioCommand> { audiCommand }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
@@ -151,7 +152,7 @@ namespace PenguinTwitchBot.Tests
 
 
             // Act
-            var testAudioCommand = await audioCommands.GetAudioCommand(1);
+            var testAudioCommand = await audioCommands.GetAudioCommand(audioCommandId);
 
             // Assert
             Assert.Equal(audiCommand, testAudioCommand);

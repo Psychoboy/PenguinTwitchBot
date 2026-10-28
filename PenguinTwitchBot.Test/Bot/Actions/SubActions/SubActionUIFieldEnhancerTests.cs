@@ -22,10 +22,12 @@ public class SubActionUIFieldEnhancerTests
     {
         var services = new ServiceCollection();
         var timerService = Substitute.For<IAutoTimers>();
+        var timer1Id = Guid.CreateVersion7();
+        var timer2Id = Guid.CreateVersion7();
         timerService.GetTimerGroupsAsync().Returns(new List<TimerGroup>
         {
-            new TimerGroup { Id = 1, Name = "Ad Timers" },
-            new TimerGroup { Id = 2, Name = "Social Timers" }
+            new TimerGroup { Id = timer1Id, Name = "Ad Timers" },
+            new TimerGroup { Id = timer2Id, Name = "Social Timers" }
         });
         services.AddSingleton(timerService);
         var provider = services.BuildServiceProvider();
@@ -61,9 +63,10 @@ public class SubActionUIFieldEnhancerTests
 
         obs.GetInputList(Arg.Any<string>()).Returns(inputList);
 
+        var connectionId = Guid.CreateVersion7();
         var connectionConfig = new OBSConnection
         {
-            Id = 1,
+            Id = connectionId,
             Name = "Main",
             Url = "ws://localhost:4455",
             Password = "test",
@@ -78,7 +81,7 @@ public class SubActionUIFieldEnhancerTests
         services.AddSingleton(connectionManager);
         var provider = services.BuildServiceProvider();
 
-        var subAction = new ObsSetBrowserSourceUrlType { OBSConnectionId = 1 };
+        var subAction = new ObsSetBrowserSourceUrlType { OBSConnectionId = connectionId };
         var fields = new List<SubActionUIField>
         {
             new() { PropertyName = nameof(ObsSetBrowserSourceUrlType.InputName) }
@@ -120,10 +123,12 @@ public class SubActionUIFieldEnhancerTests
         var fishingService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingService>();
         var shopService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingShopService>();
 
+        var fish1Id = Guid.CreateVersion7();
+        var fish2Id = Guid.CreateVersion7();
         fishingService.GetAllFishTypes().Returns(new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishType>
         {
-            new() { Id = 1, Name = "Salmon", Rarity = PenguinTwitchBot.Database.Bot.Models.Fishing.FishRarity.Common, BaseGold = 10, Enabled = true },
-            new() { Id = 2, Name = "Tuna", Rarity = PenguinTwitchBot.Database.Bot.Models.Fishing.FishRarity.Rare, BaseGold = 75, Enabled = true }
+            new() { Id = fish1Id, Name = "Salmon", Rarity = PenguinTwitchBot.Database.Bot.Models.Fishing.FishRarity.Common, BaseGold = 10, Enabled = true },
+            new() { Id = fish2Id, Name = "Tuna", Rarity = PenguinTwitchBot.Database.Bot.Models.Fishing.FishRarity.Rare, BaseGold = 75, Enabled = true }
         });
         fishingService.GetSettings().Returns(new PenguinTwitchBot.Database.Bot.Models.Fishing.FishingSettings
         {
@@ -141,7 +146,7 @@ public class SubActionUIFieldEnhancerTests
         var subAction = new FishingModifyType
         {
             TargetType = FishingModifyTargetType.Fish,
-            TargetFish = "1"
+            TargetFish = fish1Id.ToString()
         };
 
         var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
@@ -149,7 +154,7 @@ public class SubActionUIFieldEnhancerTests
         var targetFishField = result.First(f => f.PropertyName == nameof(FishingModifyType.TargetFish));
         Assert.NotNull(targetFishField.SelectOptions);
         Assert.Equal(2, targetFishField.SelectOptions.Count);
-        Assert.Contains(targetFishField.SelectOptions, o => o.Id == 1 && o.Name.Contains("Salmon"));
+        Assert.Contains(targetFishField.SelectOptions, o => o.Id == fish1Id && o.Name.Contains("Salmon"));
 
         var rarityField = result.First(f => f.PropertyName == nameof(FishingModifyType.RarityMode));
         Assert.NotNull(rarityField.HelperText);
@@ -163,10 +168,12 @@ public class SubActionUIFieldEnhancerTests
         var fishingService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingService>();
         var shopService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingShopService>();
 
+        var shopItem1Id = Guid.CreateVersion7();
+        var shopItem2Id = Guid.CreateVersion7();
         shopService.GetAllShopItems().Returns(new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishingShopItem>
         {
-            new() { Id = 10, Name = "Basic Rod", Cost = 100, Enabled = true },
-            new() { Id = 20, Name = "Golden Reel", Cost = 500, Enabled = false }
+            new() { Id = shopItem1Id, Name = "Basic Rod", Cost = 100, Enabled = true },
+            new() { Id = shopItem2Id, Name = "Golden Reel", Cost = 500, Enabled = false }
         });
 
         services.AddSingleton(fishingService);
@@ -176,7 +183,7 @@ public class SubActionUIFieldEnhancerTests
         var subAction = new FishingModifyType
         {
             TargetType = FishingModifyTargetType.ShopItem,
-            TargetShopItem = "10"
+            TargetShopItem = shopItem1Id.ToString()
         };
 
         var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
@@ -184,7 +191,7 @@ public class SubActionUIFieldEnhancerTests
         var targetShopField = result.First(f => f.PropertyName == nameof(FishingModifyType.TargetShopItem));
         Assert.NotNull(targetShopField.SelectOptions);
         Assert.Equal(2, targetShopField.SelectOptions.Count);
-        Assert.Contains(targetShopField.SelectOptions, o => o.Id == 10 && o.Name.Contains("Basic Rod"));
+        Assert.Contains(targetShopField.SelectOptions, o => o.Id == shopItem1Id && o.Name.Contains("Basic Rod"));
     }
 
     [Fact]

@@ -216,7 +216,7 @@ public sealed class StarshipEventVoteSnapshot
 
 public sealed class StarshipUnbankedBalanceSnapshot
 {
-    public int PointTypeId { get; init; }
+    public Guid PointTypeId { get; init; }
     public string PointTypeName { get; init; } = string.Empty;
     public long Amount { get; set; }
 }
@@ -225,7 +225,7 @@ public sealed class StarshipRewardOutcomeSnapshot
 {
     public string UserId { get; init; } = string.Empty;
     public string DisplayName { get; init; } = string.Empty;
-    public int PointTypeId { get; init; }
+    public Guid PointTypeId { get; init; }
     public string PointTypeName { get; init; } = string.Empty;
     public string Outcome { get; init; } = string.Empty;
     public string Rarity { get; init; } = string.Empty;
@@ -242,7 +242,7 @@ public sealed class StarshipBankedPayoutSnapshot
     public string UserId { get; init; } = string.Empty;
     public string UserName { get; init; } = string.Empty;
     public string DisplayName { get; init; } = string.Empty;
-    public int PointTypeId { get; init; }
+    public Guid PointTypeId { get; init; }
     public string PointTypeName { get; init; } = string.Empty;
     public long Amount { get; init; }
     public bool IsPaid { get; set; }
@@ -252,7 +252,7 @@ public sealed class StarshipBankedPayoutSnapshot
 public sealed class StarshipPendingActionSnapshot
 {
     public string OperationId { get; init; } = string.Empty;
-    public int ActionId { get; init; }
+    public Guid ActionId { get; init; }
     public string ActionName { get; init; } = string.Empty;
     public string Timing { get; init; } = StarshipActionTimings.Immediate;
     public Guid EventId { get; init; }
@@ -268,7 +268,7 @@ public sealed class StarshipRiskConfirmationSnapshot
     public string UserId { get; init; } = string.Empty;
     public string ChoiceId { get; init; } = string.Empty;
     public DateTimeOffset ExpiresAtUtc { get; init; }
-    public int PointTypeId { get; init; }
+    public Guid PointTypeId { get; init; }
     public string PointTypeName { get; init; } = string.Empty;
     public long ExposedBalance { get; init; }
     public long MaximumLoss { get; init; }
@@ -614,7 +614,7 @@ public sealed record StarshipOverlayEventResult(
     }
 }
 
-public sealed record StarshipOverlayBankedAmount(int PointTypeId, string PointTypeName, long Amount, bool IsPaid)
+public sealed record StarshipOverlayBankedAmount(Guid PointTypeId, string PointTypeName, long Amount, bool IsPaid)
 {
     public decimal? AveragePerCrewMember { get; init; }
 }

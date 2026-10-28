@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
@@ -16,7 +17,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             SubActionTypes = SubActionTypes.ObsSetScene;
         }
 
-        public int? OBSConnectionId { get; set; }
+        public Guid? OBSConnectionId { get; set; }
 
         [Column(TypeName = "TEXT")]
         public string SceneName { get; set; } = string.Empty;
@@ -66,10 +67,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (values.TryGetValue(nameof(OBSConnectionId), out var connectionId))
             {
-                if (connectionId is string strId && int.TryParse(strId, out var id))
+                if (connectionId is Guid guidId)
+                    OBSConnectionId = guidId;
+                else if (UuidMigrationHelper.TryParseGuidOrLegacyInt(connectionId?.ToString(), out var id) && id != Guid.Empty)
                     OBSConnectionId = id;
-                else if (connectionId is int intId)
-                    OBSConnectionId = intId;
             }
 
             if (values.TryGetValue(nameof(SceneName), out var scene))

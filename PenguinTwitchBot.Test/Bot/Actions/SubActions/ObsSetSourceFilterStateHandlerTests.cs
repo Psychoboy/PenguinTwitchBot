@@ -12,7 +12,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
     public class ObsSetSourceFilterStateHandlerTests
     {
-        private static (ManagedOBSConnection Connection, IOBSWebsocket MockObs) CreateConnectedConnection(int id, string name)
+        private static (ManagedOBSConnection Connection, IOBSWebsocket MockObs) CreateConnectedConnection(Guid id, string name)
         {
             var config = new OBSConnection { Id = id, Name = name, Url = "ws://localhost:4455", Password = "test", Enabled = true };
             var mockObs = Substitute.For<IOBSWebsocket>();
@@ -29,15 +29,16 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetSourceFilterStateHandler>>();
             var handler = new ObsSetSourceFilterStateHandler(connectionManager, logger);
 
-            var (connection, mockObs) = CreateConnectedConnection(1, "Main");
-            connectionManager.GetManagedConnection(1).Returns(connection);
+            var connectionId = Guid.CreateVersion7();
+            var (connection, mockObs) = CreateConnectedConnection(connectionId, "Main");
+            connectionManager.GetManagedConnection(connectionId).Returns(connection);
 
-            var type = new ObsSetSourceFilterStateType { OBSConnectionId = 1, SourceName = "Mic", FilterName = "NoiseSuppression", FilterEnabled = true };
+            var type = new ObsSetSourceFilterStateType { OBSConnectionId = connectionId, SourceName = "Mic", FilterName = "NoiseSuppression", FilterEnabled = true };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
-            connectionManager.Received(1).GetManagedConnection(1);
+            connectionManager.Received(1).GetManagedConnection(connectionId);
             mockObs.Received(1).SetSourceFilterEnabled("Mic", "NoiseSuppression", true);
         }
 
@@ -61,7 +62,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetSourceFilterStateHandler>>();
             var handler = new ObsSetSourceFilterStateHandler(connectionManager, logger);
 
-            var type = new ObsSetSourceFilterStateType { OBSConnectionId = 1, SourceName = "", FilterName = "NoiseSuppression", FilterEnabled = true };
+            var type = new ObsSetSourceFilterStateType { OBSConnectionId = Guid.CreateVersion7(), SourceName = "", FilterName = "NoiseSuppression", FilterEnabled = true };
             var variables = new ConcurrentDictionary<string, string>();
 
             await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));

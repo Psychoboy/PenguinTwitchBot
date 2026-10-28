@@ -95,9 +95,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [InlineData("Racing", SubActionTypes.RacingStartSession)]
         public void MinigameSubActionMigrationHelper_UpgradesLegacyStartSession(string gameType, SubActionTypes expectedType)
         {
+            var id = Guid.CreateVersion7();
             var legacy = new StartDropGameSessionType
             {
-                Id = 42,
+                Id = id,
                 Index = 3,
                 Enabled = true,
                 Text = "legacy",
@@ -108,7 +109,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             var upgraded = MinigameSubActionMigrationHelper.UpgradeLegacySubAction(legacy);
             Assert.Equal(expectedType, upgraded.SubActionTypes);
-            Assert.Equal(42, upgraded.Id);
+            Assert.Equal(id, upgraded.Id);
             Assert.Equal(3, upgraded.Index);
             Assert.True(upgraded.Enabled);
 
@@ -128,9 +129,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [InlineData("All", SubActionTypes.StopDropGameSession)]
         public void MinigameSubActionMigrationHelper_UpgradesLegacyStopSession(string gameType, SubActionTypes expectedType)
         {
+            var id = Guid.CreateVersion7();
             var legacy = new StopDropGameSessionType
             {
-                Id = 99,
+                Id = id,
                 Index = 1,
                 Enabled = true,
                 GameType = gameType
@@ -138,7 +140,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             var upgraded = MinigameSubActionMigrationHelper.UpgradeLegacySubAction(legacy);
             Assert.Equal(expectedType, upgraded.SubActionTypes);
-            Assert.Equal(99, upgraded.Id);
+            Assert.Equal(id, upgraded.Id);
             Assert.Equal(1, upgraded.Index);
 
             if (upgraded is PenguinTwitchBot.Database.Bot.Actions.SubActions.UI.ISubActionUIProvider provider &&

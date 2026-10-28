@@ -9,9 +9,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class KnownBot
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
         public string Username { get; set; } = "";
     }
 }

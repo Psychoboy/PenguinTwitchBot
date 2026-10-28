@@ -294,9 +294,9 @@
     private List<FishType> allFishTypes = new();
     private bool isLoading = true;
     private const int eligibleFishCollapsedCount = 3;
-    private readonly HashSet<int> expandedEligibleFishTournamentIds = [];
-    private readonly Dictionary<int, List<FishingTournamentStanding>> tournamentStandings = new();
-    private readonly Dictionary<int, Dictionary<int, FishingTournamentRewardStanding>> tournamentRewardStandings = new();
+    private readonly HashSet<Guid> expandedEligibleFishTournamentIds = [];
+    private readonly Dictionary<Guid, List<FishingTournamentStanding>> tournamentStandings = new();
+    private readonly Dictionary<Guid, Dictionary<Guid, FishingTournamentRewardStanding>> tournamentRewardStandings = new();
 
     private RenderFragment RenderRewardHolder(FishingTournament tournament, FishingTournamentRewardRule rewardRule) => __builder =>
     {
@@ -397,14 +397,14 @@
         };
     }
 
-    private List<FishingTournamentStanding> GetStandings(int tournamentId)
+    private List<FishingTournamentStanding> GetStandings(Guid tournamentId)
     {
         return tournamentStandings.TryGetValue(tournamentId, out var standings)
             ? standings
             : [];
     }
 
-    private FishingTournamentRewardStanding? GetRewardStanding(int tournamentId, int rewardRuleId)
+    private FishingTournamentRewardStanding? GetRewardStanding(Guid tournamentId, Guid rewardRuleId)
     {
         return tournamentRewardStandings.TryGetValue(tournamentId, out var rewards)
             && rewards.TryGetValue(rewardRuleId, out var standing)
@@ -438,7 +438,7 @@
         return [.. names.OrderBy(name => name)];
     }
 
-    private void ToggleEligibleFishExpansion(int tournamentId)
+    private void ToggleEligibleFishExpansion(Guid tournamentId)
     {
         if (!expandedEligibleFishTournamentIds.Add(tournamentId))
         {

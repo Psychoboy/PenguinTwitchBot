@@ -64,7 +64,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            testPrize = new Setting { Name = "GiveawayPrize", StringSetting = "Test Prize", Id = 1 };
+            testPrize = new Setting { Name = "GiveawayPrize", StringSetting = "Test Prize", Id = Guid.CreateVersion7() };
             prizeQueryable = new List<Setting> { testPrize }.BuildMockDbSet().AsQueryable();
             emptyPrizeQueryable = new List<Setting> { }.BuildMockDbSet().AsQueryable();
 

@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
@@ -21,7 +22,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         // Keep this mapped for backward compatibility with existing saved rows.
         public string PlayerUserId { get; set; } = string.Empty;
-        public int? ShopItemId { get; set; }
+        public Guid? ShopItemId { get; set; }
         public string ShopItemName { get; set; } = string.Empty;
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
@@ -74,8 +75,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             }
 
             if (values.TryGetValue(nameof(ShopItemId), out var shopItemId)
-                && int.TryParse(shopItemId?.ToString(), out var parsedShopItemId)
-                && parsedShopItemId > 0)
+                && UuidMigrationHelper.TryParseGuidOrLegacyInt(shopItemId?.ToString(), out var parsedShopItemId)
+                && parsedShopItemId != Guid.Empty)
             {
                 ShopItemId = parsedShopItemId;
             }
@@ -104,8 +105,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             }
 
             if (!values.TryGetValue(nameof(ShopItemId), out var shopItemId)
-                || !int.TryParse(shopItemId?.ToString(), out var parsedShopItemId)
-                || parsedShopItemId <= 0)
+                || !UuidMigrationHelper.TryParseGuidOrLegacyInt(shopItemId?.ToString(), out var parsedShopItemId)
+                || parsedShopItemId == Guid.Empty)
             {
                 return "Fishing Item is required";
             }

@@ -108,8 +108,8 @@ namespace PenguinTwitchBot.Controllers
         }
 
         /// <summary>Returns a single layout with all widgets for the editor.</summary>
-        [HttpGet("layouts/{id:int}")]
-        public async Task<IActionResult> GetLayout(int id)
+        [HttpGet("layouts/{id:guid}")]
+        public async Task<IActionResult> GetLayout(Guid id)
         {
             var layout = await _unitOfWork.OverlayLayouts.GetByIdWithWidgetsAsync(id);
             if (layout == null) return NotFound();
@@ -149,8 +149,8 @@ namespace PenguinTwitchBot.Controllers
         }
 
         /// <summary>Saves the full widget list for a layout (replaces all widgets).</summary>
-        [HttpPut("layouts/{id:int}/widgets")]
-        public async Task<IActionResult> SaveWidgets(int id, [FromBody] List<SaveWidgetRequest> widgets)
+        [HttpPut("layouts/{id:guid}/widgets")]
+        public async Task<IActionResult> SaveWidgets(Guid id, [FromBody] List<SaveWidgetRequest> widgets)
         {
             var layout = await _unitOfWork.OverlayLayouts.GetByIdWithWidgetsAsync(id);
             if (layout == null) return NotFound();
@@ -181,8 +181,8 @@ namespace PenguinTwitchBot.Controllers
         }
 
         /// <summary>Sets a layout as the default.</summary>
-        [HttpPost("layouts/{id:int}/set-default")]
-        public async Task<IActionResult> SetDefault(int id)
+        [HttpPost("layouts/{id:guid}/set-default")]
+        public async Task<IActionResult> SetDefault(Guid id)
         {
             var all = await _unitOfWork.OverlayLayouts.GetAllWithWidgetsAsync();
             foreach (var l in all)
@@ -195,8 +195,8 @@ namespace PenguinTwitchBot.Controllers
         }
 
         /// <summary>Deletes a layout and all its widgets (cascade).</summary>
-        [HttpDelete("layouts/{id:int}")]
-        public async Task<IActionResult> DeleteLayout(int id)
+        [HttpDelete("layouts/{id:guid}")]
+        public async Task<IActionResult> DeleteLayout(Guid id)
         {
             var layout = await _unitOfWork.OverlayLayouts.GetByIdWithWidgetsAsync(id);
             if (layout == null) return NotFound();
@@ -346,9 +346,9 @@ namespace PenguinTwitchBot.Controllers
 
     public record OverlayConfigResponse(string Name, int CanvasWidth, int CanvasHeight, List<OverlayWidgetResponse> Widgets);
     public record OverlayWidgetResponse(string WidgetType, string SourcePath, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex);
-    public record OverlayLayoutSummary(int Id, string Name, bool IsDefault);
+    public record OverlayLayoutSummary(Guid Id, string Name, bool IsDefault);
     public record CreateLayoutRequest(string Name, bool IsDefault);
     public record SaveWidgetRequest(string WidgetType, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex, string? CustomSettings);
-    public record FishingTournamentOverlayResponse(int Id, string Name, string ScoreCategory, List<FishingTournamentStandingOverlayResponse> Standings);
+    public record FishingTournamentOverlayResponse(Guid Id, string Name, string ScoreCategory, List<FishingTournamentStandingOverlayResponse> Standings);
     public record FishingTournamentStandingOverlayResponse(int Rank, string Username, double Score, int CatchCount);
 }

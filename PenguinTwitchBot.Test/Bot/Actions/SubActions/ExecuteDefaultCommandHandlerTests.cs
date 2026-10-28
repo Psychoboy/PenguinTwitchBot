@@ -19,7 +19,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var handler = new ExecuteDefaultCommandHandler(commandHandler, serviceBackbone);
 
-            var defaultCommand = new DefaultCommand { Id = 1, CommandName = "testcmd", CustomCommandName = "!test" };
+            var defaultCommand = new DefaultCommand { Id = Guid.CreateVersion7(), CommandName = "testcmd", CustomCommandName = "!test" };
             commandHandler.GetDefaultCommandByDefaultCommandName("testcmd").Returns(defaultCommand);
             serviceBackbone.BroadcasterName.Returns("broadcaster");
 

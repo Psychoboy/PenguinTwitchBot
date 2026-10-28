@@ -17,6 +17,7 @@ public interface IScheduledJobSettingsService
     public const string PostScheduleJobName = "PostSchedule";
     public const string UpdatePostedScheduleJobName = "UpdatePostedSchedule";
     public const string ValidationSanityCheckJobName = "ValidationSanityCheck";
+    public const string RefreshEmoteCacheJobName = "RefreshEmoteCache";
 
     Task<bool> GetJobEnabledAsync(string jobName, bool defaultValue = true);
     Task<string> GetJobCronAsync(string jobName, string defaultValue);

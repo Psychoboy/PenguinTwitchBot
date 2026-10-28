@@ -13,6 +13,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleGuidJsonConverter(), new PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleNullableGuidJsonConverter() },
             PropertyNameCaseInsensitive = true
         };
         private DropGamesSettings? _cachedSettings;

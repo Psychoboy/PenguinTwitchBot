@@ -1013,7 +1013,7 @@
     private int DisplayCanvasHeightPx => (int)(_canvasHeight * Scale);
 
     private List<LayoutListItem> _layouts = [];
-    private int? _currentLayoutId;
+    private Guid? _currentLayoutId;
     private int  _canvasWidth  = 1920;
     private int  _canvasHeight = 1080;
     private List<WidgetModel> _widgets = [];
@@ -1024,7 +1024,7 @@
     private bool _showNewLayoutDialog;
     private string _newLayoutName = "";
     private bool _showRenameDialog;
-    private int _renameLayoutId;
+    private Guid _renameLayoutId;
     private string _renameLayoutName = "";
     private int _zoomPercent = 100;
     private bool _pendingWheelZoomAnchor;
@@ -1151,7 +1151,7 @@
         _layouts = all.Select(l => new LayoutListItem(l.Id, l.Name, l.IsDefault)).ToList();
     }
 
-    private async Task LoadLayout(int id)
+    private async Task LoadLayout(Guid id)
     {
         await using var scope = ScopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -1288,7 +1288,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         Snackbar.Add($"Layout '{layout.Name}' created.", Severity.Success);
     }
 
-    private async Task SetDefault(int id)
+    private async Task SetDefault(Guid id)
     {
         await using var scope = ScopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -1303,7 +1303,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         Snackbar.Add("Default layout updated.", Severity.Success);
     }
 
-    private async Task DuplicateLayout(int id)
+    private async Task DuplicateLayout(Guid id)
     {
         await using var scope = ScopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -1344,7 +1344,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         Snackbar.Add($"Duplicated as '{copy.Name}'.", Severity.Success);
     }
 
-    private async Task DeleteLayout(int id)
+    private async Task DeleteLayout(Guid id)
     {
         await using var scope = ScopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -1447,7 +1447,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         if (e.Key == "Escape") _showNewLayoutDialog = false;
     }
 
-    private void ShowRenameDialog(int id, string currentName)
+    private void ShowRenameDialog(Guid id, string currentName)
     {
         _renameLayoutId   = id;
         _renameLayoutName = currentName;
@@ -1780,7 +1780,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     }
     // ---- Inner types ----
 
-    private record LayoutListItem(int Id, string Name, bool IsDefault);
+    private record LayoutListItem(Guid Id, string Name, bool IsDefault);
 
     private sealed class WidgetModel
     {

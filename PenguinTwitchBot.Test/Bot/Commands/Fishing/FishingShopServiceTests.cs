@@ -51,9 +51,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             // Arrange
             var items = new List<FishingShopItem>
             {
-                new() { Id = 1, Name = "Basic Rod", Cost = 100, Enabled = true },
-                new() { Id = 2, Name = "Advanced Rod", Cost = 500, Enabled = true },
-                new() { Id = 3, Name = "Disabled Rod", Cost = 1000, Enabled = false }
+                new() { Id = Guid.CreateVersion7(), Name = "Basic Rod", Cost = 100, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Advanced Rod", Cost = 500, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Disabled Rod", Cost = 1000, Enabled = false }
             };
             _context.FishingShopItems.AddRange(items);
             await _context.SaveChangesAsync();
@@ -70,9 +70,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         public async Task GetShopItemById_ReturnsCorrectItem()
         {
             // Arrange
+            var itemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 1,
+                Id = itemId,
                 Name = "Test Rod",
                 Cost = 250,
                 EquipmentSlot = EquipmentSlot.Rod,
@@ -84,7 +85,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _shopService.GetShopItemById(1);
+            var result = await _shopService.GetShopItemById(itemId);
 
             // Assert
             Assert.NotNull(result);
@@ -97,7 +98,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         public async Task GetShopItemById_NonExistent_ReturnsNull()
         {
             // Act
-            var result = await _shopService.GetShopItemById(999);
+            var result = await _shopService.GetShopItemById(Guid.NewGuid());
 
             // Assert
             Assert.Null(result);
@@ -131,9 +132,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         public async Task UpdateShopItem_ModifiesExistingItem()
         {
             // Arrange
+            var itemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 1,
+                Id = itemId,
                 Name = "Old Name",
                 Cost = 100,
                 Enabled = true
@@ -147,7 +149,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _shopService.UpdateShopItem(item);
 
             // Assert
-            var updated = await _context.FishingShopItems.FindAsync(1);
+            var updated = await _context.FishingShopItems.FindAsync(itemId);
             Assert.NotNull(updated);
             Assert.Equal("New Name", updated.Name);
             Assert.Equal(200, updated.Cost);
@@ -157,9 +159,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         public async Task DeleteShopItem_RemovesItem()
         {
             // Arrange
+            var itemId = Guid.CreateVersion7();
             var item = new FishingShopItem
             {
-                Id = 1,
+                Id = itemId,
                 Name = "To Delete",
                 Cost = 100,
                 Enabled = true
@@ -168,10 +171,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             // Act
-            await _shopService.DeleteShopItem(1);
+            await _shopService.DeleteShopItem(itemId);
 
             // Assert - Use service method to check deletion
-            var deleted = await _shopService.GetShopItemById(1);
+            var deleted = await _shopService.GetShopItemById(itemId);
             Assert.Null(deleted);
         }
 
@@ -185,9 +188,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             // Arrange
             var items = new List<FishingShopItem>
             {
-                new() { Id = 1, Name = "Item 1", Cost = 100, Enabled = true },
-                new() { Id = 2, Name = "Item 2", Cost = 200, Enabled = true },
-                new() { Id = 3, Name = "Item 3", Cost = 300, Enabled = true }
+                new() { Id = Guid.CreateVersion7(), Name = "Item 1", Cost = 100, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Item 2", Cost = 200, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Item 3", Cost = 300, Enabled = true }
             };
             _context.FishingShopItems.AddRange(items);
             await _context.SaveChangesAsync();
@@ -209,9 +212,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             // Arrange
             var items = new List<FishingShopItem>
             {
-                new() { Id = 1, Name = "Rod", Cost = 100, EquipmentSlot = EquipmentSlot.Rod, Enabled = true },
-                new() { Id = 2, Name = "Reel", Cost = 200, EquipmentSlot = EquipmentSlot.Reel, Enabled = true },
-                new() { Id = 3, Name = "Hook", Cost = 300, EquipmentSlot = EquipmentSlot.Hook, Enabled = true }
+                new() { Id = Guid.CreateVersion7(), Name = "Rod", Cost = 100, EquipmentSlot = EquipmentSlot.Rod, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Reel", Cost = 200, EquipmentSlot = EquipmentSlot.Reel, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Hook", Cost = 300, EquipmentSlot = EquipmentSlot.Hook, Enabled = true }
             };
             _context.FishingShopItems.AddRange(items);
             await _context.SaveChangesAsync();
@@ -233,9 +236,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             // Arrange
             var items = new List<FishingShopItem>
             {
-                new() { Id = 1, Name = "Basic Rod", Cost = 100, Enabled = true },
-                new() { Id = 2, Name = "Advanced Rod", Cost = 500, Enabled = true },
-                new() { Id = 3, Name = "Pro Rod", Cost = 1000, Enabled = true }
+                new() { Id = Guid.CreateVersion7(), Name = "Basic Rod", Cost = 100, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Advanced Rod", Cost = 500, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Pro Rod", Cost = 1000, Enabled = true }
             };
             _context.FishingShopItems.AddRange(items);
             await _context.SaveChangesAsync();
@@ -305,9 +308,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         public async Task ShopItems_SupportMultipleBoostTypes()
         {
             // Arrange
+            var itemId = Guid.CreateVersion7();
             var tackleBox = new FishingShopItem
             {
-                Id = 1,
+                Id = itemId,
                 Name = "Multi-Boost Tackle Box",
                 Cost = 1000,
                 EquipmentSlot = EquipmentSlot.TackleBox,
@@ -323,7 +327,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             // Act
-            var retrieved = await _shopService.GetShopItemById(1);
+            var retrieved = await _shopService.GetShopItemById(itemId);
 
             // Assert
             Assert.NotNull(retrieved);
@@ -339,9 +343,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         public async Task ShopItems_ConsumableWithMaxUses_StoresCorrectly()
         {
             // Arrange
+            var itemId = Guid.CreateVersion7();
             var bait = new FishingShopItem
             {
-                Id = 1,
+                Id = itemId,
                 Name = "Premium Bait",
                 Cost = 50,
                 IsConsumable = true,
@@ -354,7 +359,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             // Act
-            var retrieved = await _shopService.GetShopItemById(1);
+            var retrieved = await _shopService.GetShopItemById(itemId);
 
             // Assert
             Assert.NotNull(retrieved);

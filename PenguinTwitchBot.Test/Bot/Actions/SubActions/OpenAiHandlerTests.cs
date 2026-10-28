@@ -149,9 +149,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public async Task ExecuteAsync_PassesAndPersistsPreviousResponseId_WhenSavePreviousResponseIsTrue()
         {
             var handler = new OpenAiHandler(_unitOfWork, _logger, _openAiResponseService);
+            var subActionId = Guid.CreateVersion7();
             var subAction = new OpenAiType
             {
-                Id = 10,
+                Id = subActionId,
                 Text = "Follow up question",
                 SavePreviousResponse = true,
                 SessionKey = "%UserId%",
@@ -165,7 +166,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             _dbResponseCodes.Add(new OpenAiResponseCode
             {
-                SessionKey = "10:user_42",
+                SessionKey = $"{subActionId}:user_42",
                 PreviousResponseId = "prev-resp-111"
             });
 
@@ -183,7 +184,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             await handler.ExecuteAsync(subAction, variables);
 
             Assert.Equal("Second answer", variables["AiResponse"]);
-            var saved = _dbResponseCodes.FirstOrDefault(x => x.SessionKey == "10:user_42");
+            var saved = _dbResponseCodes.FirstOrDefault(x => x.SessionKey == $"{subActionId}:user_42");
             Assert.NotNull(saved);
             Assert.Equal("new-resp-222", saved.PreviousResponseId);
         }
@@ -279,7 +280,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var handler = new OpenAiHandler(_unitOfWork, _logger, _openAiResponseService);
             var subAction = new OpenAiType
             {
-                Id = 99,
+                Id = Guid.CreateVersion7(),
                 Text = "Concurrent test",
                 SavePreviousResponse = true,
                 SessionKey = "%UserId%",

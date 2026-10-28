@@ -49,7 +49,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             FishType? fish = null;
-            if (int.TryParse(target, out var fishId) && fishId > 0)
+            if (Guid.TryParse(target, out var fishId) && fishId != Guid.Empty)
             {
                 fish = await fishingService.GetFishTypeById(fishId);
             }
@@ -138,7 +138,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             FishingShopItem? item = null;
-            if (int.TryParse(target, out var itemId) && itemId > 0)
+            if (Guid.TryParse(target, out var itemId) && itemId != Guid.Empty)
             {
                 item = await fishingShopService.GetShopItemById(itemId);
             }
@@ -220,7 +220,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 else
                 {
                     var allFish = await fishingService.GetAllFishTypes();
-                    var matchedFish = (int.TryParse(targetFish, out var targetFishId) && targetFishId > 0)
+                    var matchedFish = (Guid.TryParse(targetFish, out var targetFishId) && targetFishId != Guid.Empty)
                         ? allFish.FirstOrDefault(f => f.Id == targetFishId)
                         : (allFish.FirstOrDefault(f => string.Equals(f.Name, targetFish, StringComparison.OrdinalIgnoreCase))
                            ?? allFish.FirstOrDefault(f => f.Id.ToString() == targetFish));

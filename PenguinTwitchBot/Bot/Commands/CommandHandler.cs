@@ -70,12 +70,12 @@ namespace PenguinTwitchBot.Bot.Commands
 
         public async Task UpdateDefaultCommand(DefaultCommand defaultCommand)
         {
-            if (defaultCommand.Id == null)
+            if (defaultCommand.Id == Guid.Empty)
             {
                 logger.LogWarning("Command was missing id! This should not happen");
                 return;
             }
-            var originalCommand = await GetDefaultCommandById((int)defaultCommand.Id);
+            var originalCommand = await GetDefaultCommandById(defaultCommand.Id);
             if (originalCommand == null)
             {
                 logger.LogWarning("Could not find the default command name {defaultCommandId}", defaultCommand.Id);
@@ -106,7 +106,7 @@ namespace PenguinTwitchBot.Bot.Commands
             return await db.DefaultCommands.Find(x => x.CommandName.Equals(defaultCommandName)).FirstOrDefaultAsync();
         }
 
-        public async Task<DefaultCommand?> GetDefaultCommandById(int id)
+        public async Task<DefaultCommand?> GetDefaultCommandById(Guid id)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -157,7 +157,7 @@ namespace PenguinTwitchBot.Bot.Commands
             return await db.ExternalCommands.GetAllAsync();
         }
 
-        public async Task<ExternalCommands?> GetExternalCommand(int id)
+        public async Task<ExternalCommands?> GetExternalCommand(Guid id)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

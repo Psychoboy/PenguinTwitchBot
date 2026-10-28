@@ -72,10 +72,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
                     {
-                        Id = 0,
+                        Id = Guid.Empty,
                         UserId = userId,
                         Username = username,
-                        FishTypeId = 0,
+                        FishTypeId = Guid.Empty,
                         FishName = "REEL JAMMED",
                         FishRarity = "Accident",
                         FishImageFileName = "",
@@ -111,10 +111,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
                     {
-                        Id = 0,
+                        Id = Guid.Empty,
                         UserId = userId,
                         Username = username,
-                        FishTypeId = 0,
+                        FishTypeId = Guid.Empty,
                         FishName = "TACKLE BOX LOST",
                         FishRarity = "Accident",
                         FishImageFileName = "",
@@ -150,10 +150,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
                     {
-                        Id = 0,
+                        Id = Guid.Empty,
                         UserId = userId,
                         Username = username,
-                        FishTypeId = 0,
+                        FishTypeId = Guid.Empty,
                         FishName = "NET BROKEN",
                         FishRarity = "Accident",
                         FishImageFileName = "",
@@ -189,10 +189,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
                     {
-                        Id = 0,
+                        Id = Guid.Empty,
                         UserId = userId,
                         Username = username,
-                        FishTypeId = 0,
+                        FishTypeId = Guid.Empty,
                         FishName = "ROD SNAPPED",
                         FishRarity = "Accident",
                         FishImageFileName = "",
@@ -234,10 +234,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
                     {
-                        Id = 0,
+                        Id = Guid.Empty,
                         UserId = userId,
                         Username = username,
-                        FishTypeId = 0,
+                        FishTypeId = Guid.Empty,
                         FishName = "LINE SNAPPED",
                         FishRarity = "Accident",
                         FishImageFileName = "",

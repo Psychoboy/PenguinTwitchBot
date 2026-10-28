@@ -102,13 +102,13 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "counterId")]
-    public int? CounterIdFromQuery { get; set; }
+    public Guid? CounterIdFromQuery { get; set; }
 
     private List<Counter> _counters = [];
     private bool _loading = true;
     private HubConnection? _hubConnection;
     private Task? _initialLoadTask;
-    private int? _openedCounterId;
+    private Guid? _openedCounterId;
     private bool _disposed;
 
     protected override async Task OnInitializedAsync()
@@ -132,14 +132,14 @@
         var uri = new Uri(e.Location);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var counterIdStr = query["counterId"];
-        if (int.TryParse(counterIdStr, out var counterId) && counterId != _openedCounterId)
+        if (Guid.TryParse(counterIdStr, out var counterId) && counterId != _openedCounterId)
         {
             _ = OpenCounterFromQueryAsync(counterId);
             InvokeAsync(StateHasChanged);
         }
     }
 
-    private async Task OpenCounterFromQueryAsync(int counterId)
+    private async Task OpenCounterFromQueryAsync(Guid counterId)
     {
         var counter = _counters.FirstOrDefault(c => c.Id == counterId);
         if (counter == null) return;
@@ -353,9 +353,9 @@
             yesText: "Delete",
             cancelText: "Cancel");
 
-        if (confirmed == true && counter.Id.HasValue)
+        if (confirmed == true && counter.Id != Guid.Empty)
         {
-            await CounterService.DeleteCounterAsync(counter.Id.Value);
+            await CounterService.DeleteCounterAsync(counter.Id);
             Snackbar.Add($"Counter '{counter.CounterName}' deleted.", Severity.Success);
             await LoadCountersAsync();
         }

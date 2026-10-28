@@ -78,6 +78,42 @@ public class EmoteServiceTests
     }
 
     [Fact]
+    public async Task RefreshEmotesAsync_KeepsCachedEmotesAvailableWhileFetching()
+    {
+        _twitchServiceMock.Setup(t => t.GetBroadcasterUserId()).ReturnsAsync("123456");
+        var refreshStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completeRefresh = new TaskCompletionSource<Dictionary<string, string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _twitchServiceMock.Setup(t => t.GetChatEmotesAsync()).Returns(async () =>
+        {
+            refreshStarted.TrySetResult(true);
+            return await completeRefresh.Task;
+        });
+
+        var service = CreateService();
+        const string oldUrl = "https://example.test/old-emote";
+        const string newUrl = "https://example.test/new-emote";
+        _memoryCache.Set("chat_emotes_v1", new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["CachedEmote"] = oldUrl
+        });
+
+        var refreshTask = service.RefreshEmotesAsync();
+        await refreshStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var resolvedUrl = await service.ResolveEmoteUrlAsync("CachedEmote");
+        Assert.Equal(oldUrl, resolvedUrl);
+
+        completeRefresh.SetResult(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["FreshEmote"] = newUrl
+        });
+        var refreshedEmotes = await refreshTask;
+
+        Assert.Equal(newUrl, refreshedEmotes["FreshEmote"]);
+        Assert.Equal(newUrl, (await service.GetEmotesAsync())["FreshEmote"]);
+    }
+
+    [Fact]
     public async Task TrackEmote_ResolvesImmediately_WithoutUpstreamFetch()
     {
         var service = CreateService();

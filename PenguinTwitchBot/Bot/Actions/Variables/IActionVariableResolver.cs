@@ -20,9 +20,9 @@ public interface IActionVariableResolver
     /// <param name="visitedActionIds">Set of visited action IDs to prevent recursion loops across ExecuteAction call chains.</param>
     /// <returns>A deduplicated list of unique variables with active sources.</returns>
     Task<List<ActionVariableInfo>> ResolveVariablesAsync(
-        int? currentActionId,
+        Guid? currentActionId,
         IEnumerable<TriggerType>? triggers,
         IEnumerable<SubActionType>? previousSubActions,
         bool isCatchSubAction = false,
-        HashSet<int>? visitedActionIds = null);
+        HashSet<Guid>? visitedActionIds = null);
 }

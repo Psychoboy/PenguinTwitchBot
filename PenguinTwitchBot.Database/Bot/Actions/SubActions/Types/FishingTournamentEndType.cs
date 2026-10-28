@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
@@ -15,7 +16,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             SubActionTypes = SubActionTypes.FishingTournamentEnd;
         }
 
-        public int TournamentId { get; set; }
+        public Guid TournamentId { get; set; }
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
@@ -50,7 +51,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(TournamentId), out var tournamentId) && int.TryParse(tournamentId?.ToString(), out var parsedTournamentId))
+            if (values.TryGetValue(nameof(TournamentId), out var tournamentId) &&
+                UuidMigrationHelper.TryParseGuidOrLegacyInt(tournamentId?.ToString(), out var parsedTournamentId))
             {
                 TournamentId = parsedTournamentId;
             }
@@ -64,8 +66,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         public string? Validate(Dictionary<string, object?> values)
         {
             if (!values.TryGetValue(nameof(TournamentId), out var tournamentId) ||
-                !int.TryParse(tournamentId?.ToString(), out var parsedTournamentId) ||
-                parsedTournamentId <= 0)
+                !UuidMigrationHelper.TryParseGuidOrLegacyInt(tournamentId?.ToString(), out var parsedTournamentId) ||
+                parsedTournamentId == Guid.Empty)
             {
                 return "Tournament ID is required";
             }

@@ -60,8 +60,8 @@
     private List<Song>? songRequests;
     private HubConnection? hubConnection;
     private CancellationTokenSource? _hubConnectionCts;
-    private int? defaultPlaylistId;
-    private List<int> additionalPlaylistIds = new();
+    private Guid? defaultPlaylistId;
+    private List<Guid> additionalPlaylistIds = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
@@ -120,9 +120,9 @@
 
     private async Task SetDefaultPlaylist(MusicPlaylist musicPlaylist)
     {
-        if (musicPlaylist != null && musicPlaylist.Id != null)
+        if (musicPlaylist != null && musicPlaylist.Id != Guid.Empty)
         {
-            var newDefaultId = musicPlaylist.Id.Value;
+            var newDefaultId = musicPlaylist.Id;
             additionalPlaylistIds.Remove(newDefaultId);
             await YtPlayer.SetPlaylists(newDefaultId, additionalPlaylistIds);
             defaultPlaylistId = newDefaultId;
@@ -134,7 +134,7 @@
     private async Task ToggleAdditionalPlaylist((MusicPlaylist, bool) args)
     {
         var (playlist, isChecked) = args;
-        if (playlist == null || playlist.Id == null || defaultPlaylistId == playlist.Id) return;
+        if (playlist == null || playlist.Id == Guid.Empty || defaultPlaylistId == playlist.Id) return;
         if (defaultPlaylistId == null)
         {
             Snackbar.Add("Set a default playlist before enabling additional playlists.", Severity.Warning);
@@ -142,12 +142,12 @@
         }
         if (isChecked)
         {
-            if (!additionalPlaylistIds.Contains(playlist.Id.Value))
-                additionalPlaylistIds.Add(playlist.Id.Value);
+            if (!additionalPlaylistIds.Contains(playlist.Id))
+                additionalPlaylistIds.Add(playlist.Id);
         }
         else
         {
-            additionalPlaylistIds.Remove(playlist.Id.Value);
+            additionalPlaylistIds.Remove(playlist.Id);
         }
         await YtPlayer.SetPlaylists(defaultPlaylistId, additionalPlaylistIds);
         currentPlayList = await YtPlayer.CurrentPlaylist();
@@ -193,7 +193,7 @@
         await YtPlayer.RemoveSong(song);
     }
 
-    private async Task RemoveSongFromPlaylist((Song song, int playlistId) args)
+    private async Task RemoveSongFromPlaylist((Song song, Guid playlistId) args)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
@@ -205,7 +205,7 @@
         }
     }
 
-    private async Task<Dictionary<int, string>> GetPlaylistsForSong(Song song)
+    private async Task<Dictionary<Guid, string>> GetPlaylistsForSong(Song song)
     {
         var result = await YtPlayer.GetPlaylistsContainingSong(song.SongId, null);
         return result;
@@ -235,9 +235,9 @@
             "Delete Playlist",
             $"Are you sure you want to delete '{playlist.Name}'? This cannot be undone!",
             yesText: "Delete", cancelText: "Cancel");
-        if (result != null && playlist.Id != null)
+        if (result != null && playlist.Id != Guid.Empty)
         {
-            await YtPlayer.DeletePlaylist((int)playlist.Id);
+            await YtPlayer.DeletePlaylist(playlist.Id);
             musicPlaylists = await YtPlayer.Playlists();
             Snackbar.Add($"Playlist '{playlist.Name}' deleted.", Severity.Success);
             StateHasChanged();

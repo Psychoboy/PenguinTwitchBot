@@ -37,11 +37,11 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             _ctx.Services.AddSingleton(featureCoordinator);
             var variableResolver = Substitute.For<PenguinTwitchBot.Bot.Actions.Variables.IActionVariableResolver>();
             variableResolver.ResolveVariablesAsync(
-                Arg.Any<int?>(),
+                Arg.Any<Guid?>(),
                 Arg.Any<IEnumerable<PenguinTwitchBot.Database.Bot.Models.Actions.Triggers.TriggerType>?>(),
                 Arg.Any<IEnumerable<SubActionType>?>(),
                 Arg.Any<bool>(),
-                Arg.Any<HashSet<int>?>())
+                Arg.Any<HashSet<Guid>?>())
                 .Returns(Task.FromResult(new List<PenguinTwitchBot.Bot.Actions.Variables.ActionVariableInfo>()));
             _ctx.Services.AddSingleton(variableResolver);
         }

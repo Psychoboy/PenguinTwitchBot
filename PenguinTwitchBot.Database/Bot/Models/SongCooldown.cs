@@ -9,8 +9,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     public class SongCooldown
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         /// <summary>YouTube video id (11 characters), stored without surrounding URL.</summary>
         [Required]

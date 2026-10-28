@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Application.Alert.Notification;
+using PenguinTwitchBot.Application.Alert.Notification;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
@@ -99,7 +99,7 @@ namespace PenguinTwitchBot.Bot.Commands.AudioCommand
             return (await db.AudioCommands.GetAllAsync()).ToList();
         }
 
-        public async Task<PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand?> GetAudioCommand(int id)
+        public async Task<PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand?> GetAudioCommand(Guid id)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

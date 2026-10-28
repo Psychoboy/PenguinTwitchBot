@@ -612,14 +612,14 @@
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                                         Select shop items to simulate their effects
                                     </MudText>
-                                    <MudSelect T="int"
+                                    <MudSelect T="Guid"
                                                @bind-SelectedValues="simSelectedItems" 
                                                Label="Select Items" 
                                                MultiSelection="true"
                                                Variant="Variant.Outlined">
                                         @foreach (var item in shopItems.Where(i => i.Enabled))
                                         {
-                                            <MudSelectItem T="int" Value="@item.Id">
+                                            <MudSelectItem T="Guid" Value="@item.Id">
                                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                                     <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(item.BoostType)</MudChip>
                                                     <MudText>@item.Name</MudText>
@@ -991,7 +991,7 @@
                                                    Adornment="Adornment.Start">
                                             @foreach (var item in shopItems.Where(i => i.Enabled))
                                             {
-                                                <MudSelectItem T="int?" Value="@((int?)item.Id)">
+                                                <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">
                                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                                         @if (item.IsAdminOnly)
                                                         {
@@ -1040,8 +1040,8 @@
 <MudDialog @bind-Visible="fishDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudIcon Icon="@(editingFish?.Id == 0 ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">@(editingFish?.Id == 0 ? "Add" : "Edit") Fish Type</MudText>
+            <MudIcon Icon="@(editingFish?.Id == Guid.Empty ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@(editingFish?.Id == Guid.Empty ? "Add" : "Edit") Fish Type</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
@@ -1201,8 +1201,8 @@
 <MudDialog @bind-Visible="shopItemDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudIcon Icon="@(editingShopItem?.Id == 0 ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">@(editingShopItem?.Id == 0 ? "Add" : "Edit") Shop Item</MudText>
+            <MudIcon Icon="@(editingShopItem?.Id == Guid.Empty ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@(editingShopItem?.Id == Guid.Empty ? "Add" : "Edit") Shop Item</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
@@ -1312,10 +1312,10 @@
                     <MudSelect @bind-Value="editingShopItem.TargetFishTypeId" 
                                Label="Target Fish"
                                Variant="Variant.Outlined">
-                        <MudSelectItem Value="@((int?)null)">None</MudSelectItem>
+                        <MudSelectItem Value="@((Guid?)null)">None</MudSelectItem>
                         @foreach (var fish in fishTypes)
                         {
-                            <MudSelectItem Value="@((int?)fish.Id)">
+                            <MudSelectItem Value="@((Guid?)fish.Id)">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                     <MudChip T="string" Color="GetRarityColor(fish.Rarity)" Size="Size.Small">@fish.Rarity</MudChip>
                                     <MudText>@fish.Name</MudText>
@@ -1648,7 +1648,7 @@
     // Simulator state
     private bool isSimulating = false;
     private int simIterations = 100;
-    private IReadOnlyCollection<int> simSelectedItems = new HashSet<int>();
+    private IReadOnlyCollection<Guid> simSelectedItems = new HashSet<Guid>();
     private FishingSimulationResult? simulationResult;
 
     // Shop item dialog state
@@ -1662,7 +1662,7 @@
     private List<FishingGold> allPlayers = new();
     private FishingGold? selectedPlayer;
     private int goldAmount = 0;
-    private int? selectedItemToGive;
+    private Guid? selectedItemToGive;
     private bool isProcessing = false;
     private bool goldConfirmVisible = false;
     private string goldConfirmAction = "";
@@ -1722,7 +1722,7 @@
         editingFish.Categories = editingFishCategoriesList
             .Select(name => existingByName.TryGetValue(name, out var existing)
                 ? new FishCategory { Id = existing.Id, Category = name }
-                : new FishCategory { Id = 0, Category = name })
+                : new FishCategory { Id = Guid.Empty, Category = name })
             .ToList();
     }
 
@@ -1909,7 +1909,7 @@
 
             SyncEditingFishCategories();
 
-            if (editingFish.Id == 0)
+            if (editingFish.Id == Guid.Empty)
             {
                 await fishingService.AddFishType(editingFish);
                 Snackbar.Add("Fish type added successfully", Severity.Success);
@@ -2023,7 +2023,7 @@
             editingShopItem.MaxDurability = hasDurability ? Math.Max(1, maxDurabilityValue) : null;
             editingShopItem.DurabilityLossPerUse = hasDurability ? Math.Max(0.01, durabilityLossValue) : null;
 
-            if (editingShopItem.Id == 0)
+            if (editingShopItem.Id == Guid.Empty)
             {
                 await shopService.AddShopItem(editingShopItem);
                 Snackbar.Add("Shop item added successfully", Severity.Success);

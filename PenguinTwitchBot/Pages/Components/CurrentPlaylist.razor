@@ -90,8 +90,8 @@
     [Parameter] public MusicPlaylist? Playlist { get; set; }
     [Parameter] public EventCallback<Song> OnQueueSong { get; set; }
     [Parameter] public EventCallback<Song> OnRemoveSong { get; set; }
-    [Parameter] public EventCallback<(Song song, int playlistId)> OnRemoveSongFrom { get; set; }
-    [Parameter] public Func<Song, Task<Dictionary<int, string>>>? OnGetPlaylistsForSong { get; set; }
+    [Parameter] public EventCallback<(Song song, Guid playlistId)> OnRemoveSongFrom { get; set; }
+    [Parameter] public Func<Song, Task<Dictionary<Guid, string>>>? OnGetPlaylistsForSong { get; set; }
 
     private string _searchString = string.Empty;
     private string SearchString
@@ -157,14 +157,14 @@
         }
         else
         {
-            await OnRemoveSongFrom.InvokeAsync((_removingSong, Playlist?.Id ?? 0));
+            await OnRemoveSongFrom.InvokeAsync((_removingSong, Playlist?.Id ?? Guid.Empty));
         }
         CloseRemoveDialog();
     }
 
     private class PlaylistCheckItem
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; } = "";
         public bool IsChecked { get; set; }
     }

@@ -114,7 +114,7 @@
             {
                 <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
                     <MudStack Spacing="3">
-                        @if (!_isNewCommand && _selectedCommand?.Id.HasValue == true)
+                        @if (!_isNewCommand && _selectedCommand?.Id != Guid.Empty)
                         {
                             <MudPaper Class="pa-4" Elevation="0" Outlined="true">
                                 <MudStack Spacing="2">
@@ -185,7 +185,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "commandId")]
-    public int? CommandIdFromQuery { get; set; }
+    public Guid? CommandIdFromQuery { get; set; }
     public string None => "None";
 
     private List<ActionCommand> _commands = new();
@@ -217,7 +217,7 @@
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var commandIdStr = query["commandId"];
 
-        if (int.TryParse(commandIdStr, out var commandId))
+        if (Guid.TryParse(commandIdStr, out var commandId))
         {
             // Select the command from the URL
             var commandToSelect = _commands.FirstOrDefault(c => c.Id == commandId);
@@ -312,22 +312,22 @@
         _ = LoadTriggeredActionsAsync();
 
         // Update URL with commandId for browser history support (only if not already navigating via back/forward)
-        if (command.Id.HasValue && !_isNavigating)
+        if (command.Id != Guid.Empty && !_isNavigating)
         {
-            NavigationManager.NavigateTo($"/actions/commands?commandId={command.Id.Value}", false);
+            NavigationManager.NavigateTo($"/actions/commands?commandId={command.Id}", false);
         }
     }
 
     private async Task LoadTriggeredActionsAsync()
     {
-        if (_selectedCommand?.Id == null)
+        if (_selectedCommand == null || _selectedCommand.Id == Guid.Empty)
         {
             _triggeredActions = new List<ActionType>();
             return;
         }
 
         // Capture the command ID to detect if selection changes during async operations
-        var commandId = _selectedCommand.Id.Value;
+        var commandId = _selectedCommand.Id;
 
         try
         {
@@ -366,7 +366,7 @@
                     return;
 
                 _triggeredActions = allActions
-                    .Where(a => actionIds.Contains(a.Id!.Value))
+                    .Where(a => actionIds.Contains(a.Id))
                     .OrderBy(a => a.Name)
                     .ToList();
             }
@@ -466,7 +466,7 @@
 
     private async Task DeleteCommand(ActionCommand command)
     {
-        if (command == null || !command.Id.HasValue) return;
+        if (command == null || command.Id == Guid.Empty) return;
 
         bool? result = await DialogService.ShowMessageBoxAsync(
             "Delete Command",
@@ -478,7 +478,7 @@
         {
             try
             {
-                await CommandService.DeleteAsync(command.Id.Value);
+                await CommandService.DeleteAsync(command.Id);
                 Snackbar.Add($"Command '!{command.CommandName}' deleted successfully", Severity.Success);
                 _selectedCommand = null;
                 _triggeredActions = null;

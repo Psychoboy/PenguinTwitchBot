@@ -133,13 +133,13 @@
 
 @code {
     [Parameter] public FishingShopItem? ShopItem { get; set; }
-    [Parameter] public List<int> CurrentEquippedItemIds { get; set; } = new();
+    [Parameter] public List<Guid> CurrentEquippedItemIds { get; set; } = new();
     [Parameter] public List<FishingShopItem> CurrentEquippedItems { get; set; } = new();
 
     private RarityProbability? currentRarityPreview;
     private RarityProbability? newRarityPreview;
-    private Dictionary<int, FishProbability>? currentFishPreview;
-    private Dictionary<int, FishProbability>? newFishPreview;
+    private Dictionary<Guid, FishProbability>? currentFishPreview;
+    private Dictionary<Guid, FishProbability>? newFishPreview;
     private bool isLoading = false;
     private List<FishType> allFishTypes = new();
 

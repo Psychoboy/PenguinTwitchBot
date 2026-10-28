@@ -84,7 +84,7 @@
                                                 <MudChip T="string" Size="Size.Small" Color="Color.Warning">Once</MudChip>
                                             }
                                         </MudStack>
-                                        @if (timerGroup.Id.HasValue)
+                                        @if (timerGroup.Id != Guid.Empty)
                                         {
                                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                 Next: <ToLocal DateTime="timerGroup.NextRun" Format="shortTime"  />
@@ -132,7 +132,7 @@
                 <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
                     <MudStack Spacing="3">
                         <!-- Actions associated with this timer -->
-                        @if (!_isNewTimerGroup && _selectedTimerGroup?.Id.HasValue == true)
+                        @if (!_isNewTimerGroup && _selectedTimerGroup?.Id != Guid.Empty)
                         {
                             <MudPaper Class="pa-4" Elevation="0" Outlined="true">
                                 <MudStack Spacing="2">
@@ -219,7 +219,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "timerGroupId")]
-    public int? TimerGroupIdFromQuery { get; set; }
+    public Guid? TimerGroupIdFromQuery { get; set; }
 
     private List<TimerGroup> _timerGroups = new();
     private List<TimerGroup> _filteredTimerGroups = new();
@@ -229,7 +229,6 @@
     private bool _isNavigating = false;
     private string _searchString = "";
     private List<ActionType>? _associatedActions = null;
-    private string? _originalTimerGroupName = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -248,7 +247,7 @@
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var timerGroupIdStr = query["timerGroupId"];
 
-        if (int.TryParse(timerGroupIdStr, out var timerGroupId))
+        if (Guid.TryParse(timerGroupIdStr, out var timerGroupId))
         {
             // Select the timer group from the URL
             var timerGroupToSelect = _timerGroups.FirstOrDefault(tg => tg.Id == timerGroupId);
@@ -256,7 +255,6 @@
             {
                 _isNavigating = true;
                 _selectedTimerGroup = timerGroupToSelect;
-                _originalTimerGroupName = _selectedTimerGroup.Name;
                 _isNewTimerGroup = false;
                 _isNavigating = false;
 
@@ -275,7 +273,6 @@
                 _selectedTimerGroup = null;
                 _isNewTimerGroup = false;
                 _associatedActions = null;
-                _originalTimerGroupName = null;
                 _isNavigating = false;
                 InvokeAsync(StateHasChanged);
             }
@@ -325,35 +322,34 @@
     {
         if (timerGroup == null) return;
         _selectedTimerGroup = timerGroup;
-        _originalTimerGroupName = timerGroup.Name;
         _isNewTimerGroup = false;
 
         // Load associated actions for this timer group
         _ = LoadAssociatedActionsAsync();
 
         // Update URL with timerGroupId for browser history support (only if not already navigating via back/forward)
-        if (timerGroup.Id.HasValue && !_isNavigating)
+        if (timerGroup.Id != Guid.Empty && !_isNavigating)
         {
             var uri = new Uri(NavigationManager.Uri);
             var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
             var currentTimerGroupId = query["timerGroupId"];
-            if (currentTimerGroupId != timerGroup.Id.Value.ToString())
+            if (currentTimerGroupId != timerGroup.Id.ToString())
             {
-                NavigationManager.NavigateTo($"/actions/timers?timerGroupId={timerGroup.Id.Value}", false);
+                NavigationManager.NavigateTo($"/actions/timers?timerGroupId={timerGroup.Id}", false);
             }
         }
     }
 
     private async Task LoadAssociatedActionsAsync()
     {
-        if (_selectedTimerGroup?.Id == null)
+        if (_selectedTimerGroup == null || _selectedTimerGroup.Id == Guid.Empty)
         {
             _associatedActions = new List<ActionType>();
             return;
         }
 
         // Capture the timer group ID to detect if selection changes during async operations
-        var timerGroupId = _selectedTimerGroup.Id.Value;
+        var timerGroupId = _selectedTimerGroup.Id;
 
         try
         {
@@ -407,7 +403,6 @@
         };
         _isNewTimerGroup = true;
         _associatedActions = null;
-        _originalTimerGroupName = null;
 
         // Clear URL parameter when creating a new timer group
         _isNavigating = true;
@@ -447,12 +442,6 @@
             }
             else
             {
-                // Check if name changed
-                if (_originalTimerGroupName != null && !_originalTimerGroupName.Equals(timerGroup.Name, StringComparison.OrdinalIgnoreCase))
-                {
-                    await TimerService.UpdateTimerGroup(timerGroup, _originalTimerGroupName, timerGroup.Name);
-                }
-                
                 await TimerService.UpdateTimerGroup(timerGroup);
                 Snackbar.Add($"Timer group '{timerGroup.Name}' updated successfully", Severity.Success);
             }
@@ -462,7 +451,6 @@
             // Clear selection and URL after save
             _selectedTimerGroup = null;
             _associatedActions = null;
-            _originalTimerGroupName = null;
             NavigationManager.NavigateTo("/actions/timers", false);
         }
         catch (Exception ex)
@@ -473,7 +461,7 @@
 
     private async Task DeleteTimerGroup(TimerGroup timerGroup)
     {
-        if (timerGroup == null || !timerGroup.Id.HasValue) return;
+        if (timerGroup == null || timerGroup.Id == Guid.Empty) return;
 
         bool? result = await DialogService.ShowMessageBoxAsync(
             "Delete Timer Group",
@@ -489,7 +477,6 @@
                 Snackbar.Add($"Timer group '{timerGroup.Name}' deleted successfully", Severity.Success);
                 _selectedTimerGroup = null;
                 _associatedActions = null;
-                _originalTimerGroupName = null;
                 await LoadTimerGroups();
 
                 // Clear URL after delete
@@ -507,7 +494,6 @@
         _selectedTimerGroup = null;
         _isNewTimerGroup = false;
         _associatedActions = null;
-        _originalTimerGroupName = null;
 
         // Clear URL when canceling
         NavigationManager.NavigateTo("/actions/timers", false);
@@ -515,12 +501,12 @@
 
     private async Task AddActionToTimerGroup()
     {
-        if (_selectedTimerGroup?.Id == null) return;
+        if (_selectedTimerGroup == null || _selectedTimerGroup.Id == Guid.Empty) return;
 
         var allActions = await ActionService.GetAllActionsAsync();
-        var currentActionIds = _associatedActions?.Select(a => a.Id).Where(id => id.HasValue).Select(id => id!.Value).ToHashSet() 
-            ?? new HashSet<int>();
-        var availableActions = allActions.Where(a => a.Id.HasValue && !currentActionIds.Contains(a.Id.Value)).ToList();
+        var currentActionIds = _associatedActions?.Select(a => a.Id).Where(id => id != Guid.Empty).ToHashSet() 
+            ?? new HashSet<Guid>();
+        var availableActions = allActions.Where(a => a.Id != Guid.Empty && !currentActionIds.Contains(a.Id)).ToList();
 
         if (availableActions.Count == 0)
         {
@@ -536,11 +522,11 @@
         var dialog = await DialogService.ShowAsync<ActionSelectionDialog>("Select Action", parameters);
         var dialogResult = await dialog.Result;
 
-        if (dialogResult != null && !dialogResult.Canceled && dialogResult.Data is ActionType selectedAction && selectedAction.Id.HasValue)
+        if (dialogResult != null && !dialogResult.Canceled && dialogResult.Data is ActionType selectedAction && selectedAction.Id != Guid.Empty)
         {
             try
             {
-                await TimerService.AddActionToTimerGroup(_selectedTimerGroup.Id.Value, selectedAction.Id.Value);
+                await TimerService.AddActionToTimerGroup(_selectedTimerGroup.Id, selectedAction.Id);
                 Snackbar.Add($"Action '{selectedAction.Name}' added to timer group", Severity.Success);
                 await LoadAssociatedActionsAsync();
             }
@@ -553,7 +539,7 @@
 
     private async Task RemoveActionFromTimerGroup(ActionType action)
     {
-        if (_selectedTimerGroup?.Id == null || action?.Id == null) return;
+        if (_selectedTimerGroup == null || _selectedTimerGroup.Id == Guid.Empty || action == null || action.Id == Guid.Empty) return;
 
         bool? result = await DialogService.ShowMessageBoxAsync(
             "Remove Action",
@@ -565,7 +551,7 @@
         {
             try
             {
-                await TimerService.RemoveActionFromTimerGroup(_selectedTimerGroup.Id.Value, action.Id.Value);
+                await TimerService.RemoveActionFromTimerGroup(_selectedTimerGroup.Id, action.Id);
                 Snackbar.Add($"Action '{action.Name}' removed from timer group", Severity.Success);
                 await LoadAssociatedActionsAsync();
             }
@@ -587,13 +573,12 @@
             await LoadTimerGroups();
             
             // Refresh the selected timer to show updated LastRun/NextRun
-            if (_selectedTimerGroup.Id.HasValue)
+            if (_selectedTimerGroup.Id != Guid.Empty)
             {
-                var updated = await TimerService.GetTimerGroupAsync(_selectedTimerGroup.Id.Value);
+                var updated = await TimerService.GetTimerGroupAsync(_selectedTimerGroup.Id);
                 if (updated != null)
                 {
                     _selectedTimerGroup = updated;
-                    _originalTimerGroupName = updated.Name;
                 }
             }
         }

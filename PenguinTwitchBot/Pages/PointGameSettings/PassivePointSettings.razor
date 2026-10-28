@@ -144,8 +144,8 @@
             pointType.PassivePointsSubscribers = 0;
         }
 
-        var persisted = pointType.Id.HasValue
-            ? await PointSystem.GetPointTypeById(pointType.Id.Value) ?? pointType
+        var persisted = pointType.Id != Guid.Empty
+            ? await PointSystem.GetPointTypeById(pointType.Id) ?? pointType
             : pointType;
 
         persisted.PassivePointsEnabled = pointType.PassivePointsEnabled;

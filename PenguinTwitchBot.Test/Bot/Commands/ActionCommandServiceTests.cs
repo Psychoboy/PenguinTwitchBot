@@ -32,7 +32,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands
         public async Task DeleteAsync_ShouldDeleteCommandTriggersBeforeDeletingCommand()
         {
             // Arrange
-            var commandId = 1;
+            var commandId = Guid.NewGuid();
             var command = new ActionCommand
             {
                 Id = commandId,
@@ -56,7 +56,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands
         public async Task DeleteAsync_ShouldDeleteCommandEvenIfTriggerDeletionFails()
         {
             // Arrange
-            var commandId = 1;
+            var commandId = Guid.NewGuid();
             var command = new ActionCommand
             {
                 Id = commandId,
@@ -81,14 +81,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands
         public async Task DeleteAsync_ShouldNotDeleteWhenCommandNotFound()
         {
             // Arrange
-            var commandId = 1;
+            var commandId = Guid.NewGuid();
             _unitOfWork.ActionCommands.GetByIdAsync(commandId).Returns((ActionCommand?)null);
 
             // Act
             await _service.DeleteAsync(commandId);
 
             // Assert
-            await _actionManagementService.DidNotReceive().DeleteTriggersForCommandAsync(Arg.Any<int>());
+            await _actionManagementService.DidNotReceive().DeleteTriggersForCommandAsync(Arg.Any<Guid>());
             _unitOfWork.ActionCommands.DidNotReceive().Remove(Arg.Any<ActionCommand>());
             await _unitOfWork.DidNotReceive().SaveChangesAsync();
         }

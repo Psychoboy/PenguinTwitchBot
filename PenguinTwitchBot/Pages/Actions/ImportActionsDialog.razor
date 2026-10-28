@@ -828,6 +828,7 @@
             }
 
             var createdActions = new List<ActionType>();
+            var oldToNewIdMap = new Dictionary<Guid, Guid>();
 
             foreach (var dto in _importedPackage.Actions)
             {
@@ -835,15 +836,6 @@
                 {
                     var subActions = NormalizeAndRewriteSubActions(dto.SubActions ?? [], resolvedResources);
                     var catchSubActions = NormalizeAndRewriteSubActions(dto.CatchSubActions ?? [], resolvedResources);
-
-                    foreach (var executeAction in GetAllExecuteActionSubActions(subActions))
-                        executeAction.ActionId = null;
-                    foreach (var executeAction in GetAllExecuteActionSubActions(catchSubActions))
-                        executeAction.ActionId = null;
-                    foreach (var forEachViewer in GetAllForEachViewerSubActions(subActions))
-                        forEachViewer.ActionId = null;
-                    foreach (var forEachViewer in GetAllForEachViewerSubActions(catchSubActions))
-                        forEachViewer.ActionId = null;
 
                     var triggers = new List<TriggerType>();
                     if (_importTriggers && _fileHasTriggers && dto.Triggers?.Count > 0)
@@ -853,6 +845,7 @@
 
                     var action = new ActionType
                     {
+                        Id = Guid.CreateVersion7(),
                         Name = dto.Name,
                         Group = ResolveGroup(dto.Group),
                         Enabled = dto.Enabled,
@@ -877,7 +870,7 @@
 
             try
             {
-                await RelinkExecuteActionsAsync(createdActions);
+                await RelinkExecuteActionsAsync(createdActions, oldToNewIdMap);
             }
             catch (Exception ex)
             {
@@ -1018,9 +1011,10 @@
                     var command = resolved.Command!;
                     triggers.Add(new TriggerType
                     {
+                        Id = Guid.CreateVersion7(),
                         Name = $"!{command.CommandName}",
                         Type = TriggerTypes.Command,
-                        Configuration = JsonSerializer.Serialize(new { CommandId = command.Id, CommandName = command.CommandName }),
+                        Configuration = JsonSerializer.Serialize(new { CommandId = command.Id }),
                         Enabled = trigger.Enabled,
                         CommandId = command.Id
                     });
@@ -1040,9 +1034,10 @@
                     var keyword = resolved.Keyword!;
                     triggers.Add(new TriggerType
                     {
+                        Id = Guid.CreateVersion7(),
                         Name = keyword.CommandName,
                         Type = TriggerTypes.Keyword,
-                        Configuration = JsonSerializer.Serialize(new { KeywordId = keyword.Id, KeywordName = keyword.CommandName }),
+                        Configuration = JsonSerializer.Serialize(new { KeywordId = keyword.Id }),
                         Enabled = trigger.Enabled,
                         KeywordId = keyword.Id
                     });
@@ -1060,7 +1055,7 @@
                         continue;
                     }
                     var timerGroup = resolved.TimerGroup!;
-                    if (!timerGroup.Id.HasValue)
+                    if (timerGroup.Id == Guid.Empty)
                     {
                         _importErrors.Add($"Dropped timer trigger '{trigger.Name}' because timer group '{timerGroup.Name}' has no ID after resolution.");
                         continue;
@@ -1068,11 +1063,12 @@
 
                     triggers.Add(new TriggerType
                     {
-                        Name = $"TimerGroup_{timerGroup.Id.Value}",
+                        Id = Guid.CreateVersion7(),
+                        Name = $"TimerGroup_{timerGroup.Id}",
                         Type = TriggerTypes.Timer,
-                        Configuration = JsonSerializer.Serialize(new { TimerGroupId = timerGroup.Id.Value, TimerGroupName = timerGroup.Name }),
+                        Configuration = JsonSerializer.Serialize(new { TimerGroupId = timerGroup.Id }),
                         Enabled = trigger.Enabled,
-                        TimerGroupId = timerGroup.Id.Value
+                        TimerGroupId = timerGroup.Id
                     });
                     break;
                 }
@@ -1094,6 +1090,7 @@
 
                     triggers.Add(new TriggerType
                     {
+                        Id = Guid.CreateVersion7(),
                         Name = triggerName,
                         Type = TriggerTypes.DefaultCommand,
                         Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
@@ -1116,6 +1113,7 @@
 
                     triggers.Add(new TriggerType
                     {
+                        Id = Guid.CreateVersion7(),
                         Name = triggerName,
                         Type = TriggerTypes.TwitchEvent,
                         Configuration = trigger.Configuration,
@@ -1126,6 +1124,7 @@
                 default:
                     triggers.Add(new TriggerType
                     {
+                        Id = Guid.CreateVersion7(),
                         Name = trigger.Name,
                         Type = trigger.Type,
                         Configuration = trigger.Configuration,
@@ -1152,7 +1151,7 @@
 
     private static void NormalizeSubAction(SubActionType subAction, int index, Dictionary<string, ResolvedImportResource> resolvedResources)
     {
-        subAction.Id = 0;
+        subAction.Id = Guid.CreateVersion7();
         subAction.Index = index;
 
         switch (subAction)
@@ -1169,13 +1168,6 @@
             }
             case TimerGroupSetEnabledStateType timerGroupToggle:
             {
-                if (!string.IsNullOrWhiteSpace(timerGroupToggle.TimerGroupName) &&
-                    resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.TimerGroup, timerGroupToggle.TimerGroupName), out var resolvedTimerGroup) &&
-                    resolvedTimerGroup.TimerGroup?.Id.HasValue == true)
-                {
-                    timerGroupToggle.TimerGroupId = resolvedTimerGroup.TimerGroup.Id;
-                    timerGroupToggle.TimerGroupName = resolvedTimerGroup.TimerGroup.Name;
-                }
                 break;
             }
             case ExecuteDefaultCommandType executeDefaultCommand:
@@ -1204,18 +1196,10 @@
         }
     }
 
-    private async Task RelinkExecuteActionsAsync(List<ActionType> createdActions)
+    private async Task RelinkExecuteActionsAsync(List<ActionType> createdActions, Dictionary<Guid, Guid> oldToNewIdMap)
     {
-        if (createdActions.Count == 0)
+        if (createdActions.Count == 0 || oldToNewIdMap.Count == 0)
             return;
-
-        var nameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var created in createdActions.Where(action => action.Id.HasValue))
-            nameToId[created.Name] = created.Id!.Value;
-
-        var allExisting = await ActionService.GetAllActionsAsync();
-        foreach (var existing in allExisting.Where(action => action.Id.HasValue && !nameToId.ContainsKey(action.Name)))
-            nameToId[existing.Name] = existing.Id!.Value;
 
         foreach (var created in createdActions)
         {
@@ -1230,25 +1214,27 @@
             var relinkedForAction = 0;
             foreach (var executeAction in executeActions)
             {
-                if (!string.IsNullOrWhiteSpace(executeAction.ActionName) &&
-                    nameToId.TryGetValue(executeAction.ActionName, out var resolvedId) &&
-                    executeAction.ActionId != resolvedId)
+                if (executeAction.ActionId.HasValue && oldToNewIdMap.TryGetValue(executeAction.ActionId.Value, out var mappedId))
                 {
-                    executeAction.ActionId = resolvedId;
-                    needsUpdate = true;
-                    relinkedForAction++;
+                    if (executeAction.ActionId != mappedId)
+                    {
+                        executeAction.ActionId = mappedId;
+                        needsUpdate = true;
+                        relinkedForAction++;
+                    }
                 }
             }
 
             foreach (var forEachViewer in forEachViewerSubActions)
             {
-                if (!string.IsNullOrWhiteSpace(forEachViewer.ActionName) &&
-                    nameToId.TryGetValue(forEachViewer.ActionName, out var resolvedId) &&
-                    forEachViewer.ActionId != resolvedId)
+                if (forEachViewer.ActionId.HasValue && oldToNewIdMap.TryGetValue(forEachViewer.ActionId.Value, out var mappedId))
                 {
-                    forEachViewer.ActionId = resolvedId;
-                    needsUpdate = true;
-                    relinkedForAction++;
+                    if (forEachViewer.ActionId != mappedId)
+                    {
+                        forEachViewer.ActionId = mappedId;
+                        needsUpdate = true;
+                        relinkedForAction++;
+                    }
                 }
             }
 

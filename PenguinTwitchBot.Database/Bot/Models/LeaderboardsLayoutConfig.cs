@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace PenguinTwitchBot.Database.Bot.Models;
 
 public sealed class LeaderboardsLayoutConfig
@@ -13,7 +15,8 @@ public sealed class LeaderboardWidgetConfig
 
     public string? Title { get; set; }
 
-    public int? PointTypeId { get; set; }
+    [JsonConverter(typeof(LegacyIntCompatibleNullableGuidJsonConverter))]
+    public Guid? PointTypeId { get; set; }
 }
 
 public sealed class LeaderboardWidgetDefinition
@@ -64,7 +67,7 @@ public static class LeaderboardsWidgetCatalog
             supportsTitle: true),
     ];
 
-    public static LeaderboardWidgetConfig CreateDefaultWidget(string type, int? defaultPointTypeId = null, string? defaultTitle = null)
+    public static LeaderboardWidgetConfig CreateDefaultWidget(string type, Guid? defaultPointTypeId = null, string? defaultTitle = null)
     {
         return type switch
         {
@@ -88,7 +91,7 @@ public static class LeaderboardsWidgetCatalog
         };
     }
 
-    public static LeaderboardsLayoutConfig CreateDefaultLayout(int? defaultPointTypeId = null)
+    public static LeaderboardsLayoutConfig CreateDefaultLayout(Guid? defaultPointTypeId = null)
     {
         return new LeaderboardsLayoutConfig
         {

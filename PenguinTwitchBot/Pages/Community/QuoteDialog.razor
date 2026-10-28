@@ -1,0 +1,73 @@
+@using MudBlazor
+@using PenguinTwitchBot.Database.Bot.Models
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">@(IsEditMode ? $"Edit Quote #{Number}" : "Add Quote")</MudText>
+
+            <MudTextField @bind-Value="QuoteText" Label="Quote" Variant="Variant.Outlined" Required="true"
+                          Lines="3" MaxLength="1000"
+                          HelperText="The text of the quote." />
+
+            <MudTextField @bind-Value="Game" Label="Game (Optional)" Variant="Variant.Outlined" MaxLength="200"
+                          HelperText="The game being played when this quote occurred." />
+
+            <MudTextField @bind-Value="CreatedBy" Label="Created By" Variant="Variant.Outlined" MaxLength="100"
+                          ReadOnly="@IsEditMode"
+                          HelperText="Username who recorded this quote." />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="@(string.IsNullOrWhiteSpace(QuoteText))">
+            @(IsEditMode ? "Save Changes" : "Add Quote")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public bool IsEditMode { get; set; }
+
+    [Parameter]
+    public int Number { get; set; }
+
+    [Parameter]
+    public string QuoteText { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Game { get; set; } = string.Empty;
+
+    [Parameter]
+    public string CreatedBy { get; set; } = "Streamer";
+
+    private void Save()
+    {
+        if (string.IsNullOrWhiteSpace(QuoteText))
+            return;
+
+        MudDialog.Close(DialogResult.Ok(new QuoteModel
+        {
+            Quote = QuoteText.Trim(),
+            Game = Game?.Trim() ?? string.Empty,
+            CreatedBy = string.IsNullOrWhiteSpace(CreatedBy) ? "Streamer" : CreatedBy.Trim()
+        }));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    public class QuoteModel
+    {
+        public string Quote { get; set; } = string.Empty;
+        public string Game { get; set; } = string.Empty;
+        public string CreatedBy { get; set; } = string.Empty;
+    }
+}
+

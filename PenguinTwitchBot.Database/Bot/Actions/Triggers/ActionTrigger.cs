@@ -8,11 +8,10 @@ namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
     public class ActionTrigger
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int ActionId { get; set; }
-        public int TriggerId { get; set; }
+        public Guid ActionId { get; set; }
+        public Guid TriggerId { get; set; }
 
         public int Priority { get; set; } = 0; // Execution priority when multiple triggers fire
         public bool Enabled { get; set; } = true; // Can be disabled on a per-action basis while trigger remains globally enabled

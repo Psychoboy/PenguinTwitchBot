@@ -306,7 +306,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 x.SettingName == PointTypeId)).FirstOrDefault();
             if(setting != null)
             {
-                pointType = await dbContext.PointTypes.GetByIdAsync(setting.SettingIntValue);
+                if (Guid.TryParse(setting.SettingStringValue, out var ptGuid))
+                {
+                    pointType = await dbContext.PointTypes.GetByIdAsync(ptGuid);
+                }
+                else
+                {
+                    pointType = (await dbContext.PointTypes.GetAllAsync()).FirstOrDefault();
+                }
+
                 if(pointType != null)
                     return pointType;
                 else
@@ -315,7 +323,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 }
             }
             logger.LogWarning("PointType not found for game {gameName}, using default.", gameName);
-            await SetPointTypeForGame(gameName, 1);
+            var firstPt = (await dbContext.PointTypes.GetAllAsync()).FirstOrDefault();
+            if (firstPt != null)
+            {
+                await SetPointTypeForGame(gameName, firstPt.Id);
+                return firstPt;
+            }
             return PointsSystem.GetDefaultPointType();
         }
 
@@ -324,11 +337,16 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var settings = await dbContext.GameSettings.Find(x => x.SettingName.Equals(PointTypeId)).ToListAsync();
-            var defaultPointType = await dbContext.PointTypes.Find(x => x.Id == 1).FirstAsync();
+            var allPointTypes = await dbContext.PointTypes.GetAllAsync();
+            var defaultPointType = allPointTypes.FirstOrDefault() ?? PointsSystem.GetDefaultPointType();
             List<PointGamePair> result = [];
             foreach (var setting in settings)
             {
-                var pointType = await dbContext.PointTypes.GetByIdAsync(setting.SettingIntValue);
+                PointType? pointType = null;
+                if (Guid.TryParse(setting.SettingStringValue, out var ptId))
+                {
+                    pointType = allPointTypes.FirstOrDefault(p => p.Id == ptId);
+                }
                 if(pointType == null)
                 {
                     await RegisterDefaultPointForGame(setting.GameName);
@@ -356,11 +374,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 x.SettingName == PointTypeId)).FirstOrDefault();
             if (setting == null)
             {
-                await SetPointTypeForGame(gameName, 1);
+                var defaultPointType = (await dbContext.PointTypes.GetAllAsync()).FirstOrDefault();
+                if (defaultPointType != null)
+                {
+                    await SetPointTypeForGame(gameName, defaultPointType.Id);
+                }
             }
         }
 
-        public async Task SetPointTypeForGame(string gameName, int pointTypeId)
+        public async Task SetPointTypeForGame(string gameName, Guid pointTypeId)
         {
             gameName = NormalizeGameName(gameName);
             using var scope = scopeFactory.CreateScope();
@@ -370,7 +392,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 x.SettingName == PointTypeId)).FirstOrDefault();
             if (setting != null)
             {
-                setting.SettingIntValue = pointTypeId;
+                setting.SettingStringValue = pointTypeId.ToString();
             }
             else
             {
@@ -378,7 +400,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 {
                     GameName = gameName,
                     SettingName = "PointTypeId",
-                    SettingIntValue = pointTypeId
+                    SettingStringValue = pointTypeId.ToString()
                 };
             }
             dbContext.GameSettings.Update(setting);

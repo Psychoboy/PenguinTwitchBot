@@ -63,7 +63,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return equipped.ToDictionary(e => e.ShopItem!.EquipmentSlot!.Value, e => e);
         }
 
-        public async Task PurchaseBoost(string userId, int shopItemId, int quantity = 1)
+        public async Task PurchaseBoost(string userId, Guid shopItemId, int quantity = 1)
         {
             if (quantity < 1)
             {
@@ -106,7 +106,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
-        public async Task GiveItemToUser(string userId, int shopItemId)
+        public async Task GiveItemToUser(string userId, Guid shopItemId)
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -121,7 +121,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
-        public async Task SellItem(string userId, int userBoostId)
+        public async Task SellItem(string userId, Guid userBoostId)
         {
             using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
@@ -143,7 +143,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
-        public async Task EquipItem(string userId, int userBoostId)
+        public async Task EquipItem(string userId, Guid userBoostId)
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -173,7 +173,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
-        public async Task UnequipItem(string userId, int userBoostId)
+        public async Task UnequipItem(string userId, Guid userBoostId)
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -185,13 +185,13 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
-        public Task ConsumeItemUse(string userId, int userBoostId)
+        public Task ConsumeItemUse(string userId, Guid userBoostId)
         {
             return ConsumeItemUses(userId, new[] { userBoostId });
         }
 
         // Batches uses across all equipped items in a single query/save instead of one round trip per item.
-        public async Task ConsumeItemUses(string userId, IEnumerable<int> userBoostIds)
+        public async Task ConsumeItemUses(string userId, IEnumerable<Guid> userBoostIds)
         {
             var ids = userBoostIds.Distinct().ToList();
             if (ids.Count == 0)
@@ -229,7 +229,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
-        public async Task<List<FishingBrokenItemInfo>> ConsumeItemDurability(string userId, IEnumerable<int> userBoostIds, double repairCostMultiplier)
+        public async Task<List<FishingBrokenItemInfo>> ConsumeItemDurability(string userId, IEnumerable<Guid> userBoostIds, double repairCostMultiplier)
         {
             var ids = userBoostIds.Distinct().ToList();
             if (ids.Count == 0)
@@ -334,7 +334,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return Math.Max(1, (int)Math.Ceiling(shopItem.Cost * missingRatio * repairCostMultiplier));
         }
 
-        public async Task<int> RepairItem(string userId, int userBoostId, double? repairCostMultiplier = null, string? username = null)
+        public async Task<int> RepairItem(string userId, Guid userBoostId, double? repairCostMultiplier = null, string? username = null)
         {
             using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
@@ -615,7 +615,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return false;
         }
 
-        private static Task<UserFishingBoost?> FindUserBoost(IUnitOfWork db, string userId, int userBoostId)
+        private static Task<UserFishingBoost?> FindUserBoost(IUnitOfWork db, string userId, Guid userBoostId)
         {
             return db.UserFishingBoosts
                 .Find(b => b.Id == userBoostId && b.UserId == userId)

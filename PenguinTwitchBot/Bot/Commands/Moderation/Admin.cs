@@ -41,11 +41,27 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
         public async Task RestoreDatabase(string fileName)
         {
             var backupDirectory = Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString());
-            ZipFile.ExtractToDirectory(fileName, backupDirectory);
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            await backupTools.RestoreDatabase(db, backupDirectory, logger);
-            Directory.Delete(backupDirectory, true);
+            try
+            {
+                ZipFile.ExtractToDirectory(fileName, backupDirectory);
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await backupTools.RestoreDatabase(db, backupDirectory, logger);
+            }
+            finally
+            {
+                if (Directory.Exists(backupDirectory))
+                {
+                    try
+                    {
+                        Directory.Delete(backupDirectory, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to clean up temporary restore directory {BackupDirectory}", backupDirectory);
+                    }
+                }
+            }
         }
 
         public override async Task Register()

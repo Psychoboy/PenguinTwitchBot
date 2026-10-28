@@ -258,8 +258,8 @@
             <MudItem xs="12" lg="5">
                 <MudPaper Elevation="2" Class="pa-4">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
-                        <MudIcon Icon="@(wordFilter.Id == 0 ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
-                        <MudText Typo="Typo.h6">@(wordFilter.Id == 0 ? "Add Word Filter" : $"Edit Filter #{wordFilter.Id}")</MudText>
+                        <MudIcon Icon="@(wordFilter.Id == Guid.Empty ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6">@(wordFilter.Id == Guid.Empty ? "Add Word Filter" : $"Edit Filter: {wordFilter.Phrase}")</MudText>
                     </MudStack>
 
                     <EditForm Model="@wordFilter" OnValidSubmit="OnSubmit">
@@ -331,7 +331,7 @@
                             </MudStack>
 
                             <MudStack Row="true" Spacing="2" Class="mt-3" Justify="Justify.FlexEnd">
-                                @if (wordFilter.Id != 0)
+                                @if (wordFilter.Id != Guid.Empty)
                                 {
                                     <MudButton Variant="Variant.Outlined"
                                                Color="Color.Default"
@@ -345,7 +345,7 @@
                                            Color="Color.Primary"
                                            StartIcon="@Icons.Material.Filled.Save"
                                            Disabled="_isSaving">
-                                    @(_isSaving ? "Saving..." : (wordFilter.Id == 0 ? "Add Filter" : "Save Changes"))
+                                    @(_isSaving ? "Saving..." : (wordFilter.Id == Guid.Empty ? "Add Filter" : "Save Changes"))
                                 </MudButton>
                             </MudStack>
                         </MudStack>
@@ -523,7 +523,7 @@
         _isSaving = true;
         try
         {
-            if (wordFilter.Id == 0)
+            if (wordFilter.Id == Guid.Empty)
             {
                 await BlacklistApi.AddBlacklist(wordFilter);
                 Snackbar.Add($"Added filter '{wordFilter.Phrase}' to blacklist.", Severity.Success);

@@ -10,7 +10,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private readonly ILogger<FishingShopService> _logger;
 
         // Cached on this singleton service; invalidated whenever shop items are mutated.
-        private volatile Dictionary<int, EquipmentTier>? _tierMapCache;
+        private volatile Dictionary<Guid, EquipmentTier>? _tierMapCache;
 
         public FishingShopService(IServiceScopeFactory scopeFactory, ILogger<FishingShopService> logger)
         {
@@ -25,7 +25,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return await db.FishingShopItems.GetAsync(includeProperties: "TargetFishType");
         }
 
-        public async Task<FishingShopItem?> GetShopItemById(int id)
+        public async Task<FishingShopItem?> GetShopItemById(Guid id)
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -55,7 +55,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             InvalidateTierCache();
         }
 
-        public async Task DeleteShopItem(int id)
+        public async Task DeleteShopItem(Guid id)
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -157,7 +157,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         /// Returns the cached tier map, computing and caching it on first use or after invalidation.
         /// Guaranteed to contain an entry for every non-deleted shop item, so callers never need a fallback.
         /// </summary>
-        public async Task<Dictionary<int, EquipmentTier>> GetTierMap()
+        public async Task<Dictionary<Guid, EquipmentTier>> GetTierMap()
         {
             var cached = _tierMapCache;
             if (cached != null)
@@ -177,7 +177,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         /// Calculates dynamic tiers for all shop items based on price rankings within each equipment slot.
         /// Returns a dictionary mapping item ID to its calculated tier.
         /// </summary>
-        public async Task<Dictionary<int, EquipmentTier>> CalculateDynamicTiers()
+        public async Task<Dictionary<Guid, EquipmentTier>> CalculateDynamicTiers()
         {
             var allItems = await GetAllShopItems();
             return CalculateDynamicTiers(allItems);
@@ -188,9 +188,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         /// Pre-groups by slot to avoid O(n�) complexity.
         /// Guarantees every item in <paramref name="allItems"/> gets a tier entry (no fallback needed).
         /// </summary>
-        public Dictionary<int, EquipmentTier> CalculateDynamicTiers(List<FishingShopItem> allItems)
+        public Dictionary<Guid, EquipmentTier> CalculateDynamicTiers(List<FishingShopItem> allItems)
         {
-            var tierMap = new Dictionary<int, EquipmentTier>();
+            var tierMap = new Dictionary<Guid, EquipmentTier>();
 
             // Pre-group by equipment slot to avoid O(n�) - each slot is sorted once
             var itemsBySlot = allItems

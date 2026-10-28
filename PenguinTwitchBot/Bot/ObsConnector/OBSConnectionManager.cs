@@ -12,12 +12,12 @@ namespace PenguinTwitchBot.Bot.ObsConnector
     public interface IOBSConnectionManager
     {
         Task<List<OBSConnection>> GetAllConnectionsAsync();
-        Task<OBSConnection?> GetConnectionAsync(int id);
+        Task<OBSConnection?> GetConnectionAsync(Guid id);
         Task<OBSConnection> CreateConnectionAsync(OBSConnection connection);
         Task<OBSConnection> UpdateConnectionAsync(OBSConnection connection);
-        Task DeleteConnectionAsync(int id);
+        Task DeleteConnectionAsync(Guid id);
         Task<bool> TestConnectionAsync(string url, string password);
-        ManagedOBSConnection? GetManagedConnection(int id);
+        ManagedOBSConnection? GetManagedConnection(Guid id);
         ManagedOBSConnection? GetManagedConnection(string name);
         List<ManagedOBSConnection> GetAllManagedConnections();
         Task ReloadConnectionsAsync();
@@ -27,7 +27,7 @@ namespace PenguinTwitchBot.Bot.ObsConnector
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<OBSConnectionManager> _logger;
-        private readonly Dictionary<int, ManagedOBSConnection> _connections = new();
+        private readonly Dictionary<Guid, ManagedOBSConnection> _connections = new();
         private readonly SemaphoreSlim _lock = new(1, 1);
         private bool _isDisposed;
 
@@ -52,7 +52,7 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             return await db.OBSConnections.GetAsync(orderBy: q => q.OrderBy(c => c.Name));
         }
 
-        public async Task<OBSConnection?> GetConnectionAsync(int id)
+        public async Task<OBSConnection?> GetConnectionAsync(Guid id)
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -109,7 +109,7 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             return existing;
         }
 
-        public async Task DeleteConnectionAsync(int id)
+        public async Task DeleteConnectionAsync(Guid id)
         {
             // Stop and remove managed connection
             await _lock.WaitAsync();
@@ -205,7 +205,7 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             }
         }
 
-        public ManagedOBSConnection? GetManagedConnection(int id)
+        public ManagedOBSConnection? GetManagedConnection(Guid id)
         {
             _lock.Wait();
             try

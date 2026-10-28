@@ -103,7 +103,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
-            var top = await db.UserPoints.GetRankedPoints(pointType.Id.GetValueOrDefault(), limit: topN).ToListAsync();
+            var top = await db.UserPoints.GetRankedPoints(pointType.Id, limit: topN).ToListAsync();
             var names = string.Join(", ", top.Select(x => x.Ranking + ". " + x.Username + " " + x.Points.ToString("N0")));
             await ServiceBackbone.SendChatMessage(string.Format("Top {0} in {1}: {2}", topN, pointType.Name, names));
         }

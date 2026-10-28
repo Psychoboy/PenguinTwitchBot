@@ -296,10 +296,11 @@ public class StarshipEventCatalogEditorTests
     public async Task OwnedRewardProfile_IsAppliedAtomicallyWithEvent()
     {
         await using var context = CreateContext();
+        var pointTypeId = Guid.CreateVersion7();
         var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
         var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters
             .Add(component => component.Settings, settings)
-            .Add(component => component.PointTypes, new Dictionary<int, string> { [7] = "Credits" }));
+            .Add(component => component.PointTypes, new Dictionary<Guid, string> { [pointTypeId] = "Credits" }));
         Click(editor, "Add Event");
         Click(editor, "Create Event Reward Profile");
         Assert.Equal(4, settings.RewardProfiles.Count);
@@ -308,7 +309,7 @@ public class StarshipEventCatalogEditorTests
         {
             var added = settings.EventCatalog.Single(definition => definition.EventType == "custom-event");
             var profile = settings.RewardProfiles.Single(item => item.Id == added.RewardProfileId);
-            Assert.Equal(7, profile.Tiers[0].Rewards[0].PointTypeId);
+            Assert.Equal(pointTypeId, profile.Tiers[0].Rewards[0].PointTypeId);
             Assert.Equal(5, settings.RewardProfiles.Count);
         });
     }

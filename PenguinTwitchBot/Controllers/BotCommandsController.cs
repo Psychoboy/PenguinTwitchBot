@@ -71,7 +71,7 @@ namespace PenguinTwitchBot.Controllers
                 return new StatusCodeResult(403);
             }
 
-            var actionType = int.TryParse(idOrName, out var actionId)
+            var actionType = Guid.TryParse(idOrName, out var actionId)
                 ? await actionManagementService.GetActionByIdAsync(actionId)
                 : (await actionManagementService.GetAllActionsAsync())
                     .FirstOrDefault(a => a.Name.Equals(idOrName, StringComparison.OrdinalIgnoreCase));

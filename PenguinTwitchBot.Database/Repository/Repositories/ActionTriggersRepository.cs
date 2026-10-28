@@ -1,6 +1,4 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
-using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Database.Repository.Repositories
 {
@@ -13,53 +11,39 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         {
         }
 
-        public new async Task<ActionTrigger?> GetByIdAsync(int id)
+        public new Task<ActionTrigger?> GetByIdAsync(Guid id)
         {
             throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
-        public async Task<List<ActionTrigger>> GetByActionIdAsync(int actionId)
+        public Task<List<ActionTrigger>> GetByActionIdAsync(Guid actionId)
         {
             throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
-        public async Task<List<ActionTrigger>> GetByTriggerIdAsync(int triggerId)
+        public Task<List<ActionTrigger>> GetByTriggerIdAsync(Guid triggerId)
         {
             throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
-        public new async Task<ActionTrigger> AddAsync(ActionTrigger actionTrigger)
+        public new Task<ActionTrigger> AddAsync(ActionTrigger actionTrigger)
         {
             throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
-        public async Task DeleteAsync(int id)
+        public Task DeleteAsync(Guid id)
         {
             throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
-        public async Task DeleteByActionAndTriggerAsync(int actionId, int triggerId)
+        public Task DeleteByActionAndTriggerAsync(Guid actionId, Guid triggerId)
         {
             throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
-        public async Task<bool> ExistsAsync(int actionId, int triggerId)
+        public Task<bool> ExistsAsync(Guid actionId, Guid triggerId)
         {
             throw new NotImplementedException("ActionTrigger junction table has been removed.");
-        }
-
-        public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            // No-op: ActionTrigger junction table no longer exists
-            logger?.LogDebug("Skipping ActionTrigger backup - entity deprecated");
-            await Task.CompletedTask;
-        }
-
-        public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            // No-op: ActionTrigger junction table no longer exists
-            logger?.LogDebug("Skipping ActionTrigger restore - entity deprecated");
-            await Task.CompletedTask;
         }
     }
 }

@@ -96,11 +96,11 @@ else
 
                                         @if (definition.SupportsPointType)
                                         {
-                                            <MudSelect T="int?" Label="Point Type" @bind-Value="widget.PointTypeId">
-                                                <MudSelectItem T="int?" Value="@((int?)null)">Select a point type</MudSelectItem>
+                                            <MudSelect T="Guid?" Label="Point Type" @bind-Value="widget.PointTypeId">
+                                                <MudSelectItem T="Guid?" Value="@((Guid?)null)">Select a point type</MudSelectItem>
                                                 @foreach (var pointType in PointTypes)
                                                 {
-                                                    <MudSelectItem T="int?" Value="@(pointType.GetId())">@pointType.Name</MudSelectItem>
+                                                    <MudSelectItem T="Guid?" Value="@((Guid?)pointType.Id)">@pointType.Name</MudSelectItem>
                                                 }
                                             </MudSelect>
                                         }

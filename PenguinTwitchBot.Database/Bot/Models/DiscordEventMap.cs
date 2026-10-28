@@ -6,9 +6,7 @@ namespace PenguinTwitchBot.Database.Bot.Models
     {
 
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
-        public int? Id { get; set; }
+        public Guid Id { get; set; }
 
         public ulong DiscordEventId { get; set; }
         public string TwitchEventId { get; set; } = "";

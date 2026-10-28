@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Events.Chat;
 
 namespace PenguinTwitchBot.Bot.Commands.Features
 {
@@ -10,7 +10,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         Task<Follower?> GetFollowerAsync(string username);
         Task<string> GetNameWithTitle(string username);
         Task<DateTime?> GetUserCreatedAsync(string username);
-        Task<Viewer?> GetViewerById(int id);
+        Task<Viewer?> GetViewerById(Guid id);
         Task<Viewer?> GetViewerByUserName(string username);
         Task<Viewer?> GetViewerByUserId(string userId);
         Task<string?> GetViewerId(string username);

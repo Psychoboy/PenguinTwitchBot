@@ -8,9 +8,9 @@ namespace PenguinTwitchBot.Database.Bot.Models.Overlay
     public class OverlayWidget
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int OverlayLayoutId { get; set; }
+        public Guid OverlayLayoutId { get; set; }
 
         [JsonIgnore]
         public OverlayLayout Layout { get; set; } = null!;

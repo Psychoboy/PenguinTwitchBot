@@ -83,7 +83,7 @@
     }
 
     private List<ActionType> GetLinkedActions(TriggerItemInfo outcome) => _actions
-        .Where(action => action.Id.HasValue && action.Triggers.Any(trigger => IsMatchingTrigger(trigger, outcome)))
+        .Where(action => action.Id != Guid.Empty && action.Triggers.Any(trigger => IsMatchingTrigger(trigger, outcome)))
         .OrderBy(action => action.Name)
         .ToList();
 
@@ -124,7 +124,7 @@
             FullWidth = true
         });
         var result = await dialog.Result;
-        if (result is { Canceled: false, Data: int actionId })
+        if (result is { Canceled: false, Data: Guid actionId })
         {
             await LoadActions();
             var action = _actions.FirstOrDefault(candidate => candidate.Id == actionId);
@@ -136,7 +136,7 @@
 
     private void OpenAction(ActionType action)
     {
-        if (action.Id.HasValue)
-            NavigationManager.NavigateTo($"/actions/manage?actionId={action.Id.Value}");
+        if (action.Id != Guid.Empty)
+            NavigationManager.NavigateTo($"/actions/manage?actionId={action.Id}");
     }
 }

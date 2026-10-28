@@ -101,7 +101,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -129,7 +129,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: previousSubActions,
                 isCatchSubAction: false);
@@ -155,7 +155,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: null,
                 previousSubActions: new List<SubActionType> { ifElseSubAction },
                 isCatchSubAction: false);
@@ -168,7 +168,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         public async Task ResolveVariablesAsync_CatchBlock_IncludesActionErrorMessage()
         {
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: null,
                 previousSubActions: null,
                 isCatchSubAction: true);
@@ -181,33 +181,35 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         [Fact]
         public async Task ResolveVariablesAsync_ResolvesCallerActions_WithoutInfiniteLoop()
         {
+            var action1Id = Guid.CreateVersion7();
+            var action2Id = Guid.CreateVersion7();
             var action1 = new ActionType
             {
-                Id = 1,
+                Id = action1Id,
                 Name = "Parent Action",
                 Triggers = new List<TriggerType> { new TriggerType { Type = TriggerTypes.Command, Name = "!parent" } },
                 SubActions = new List<SubActionType>
                 {
                     new SetVariableType { Text = "ParentVar", Value = "123" },
-                    new ExecuteActionType { ActionId = 2, Text = "hello" }
+                    new ExecuteActionType { ActionId = action2Id, Text = "hello" }
                 }
             };
 
             var action2 = new ActionType
             {
-                Id = 2,
+                Id = action2Id,
                 Name = "Child Action",
                 Triggers = new List<TriggerType>(),
                 SubActions = new List<SubActionType>
                 {
-                    new ExecuteActionType { ActionId = 1 }
+                    new ExecuteActionType { ActionId = action1Id }
                 }
             };
 
             _unitOfWork.Actions.GetAllWithDetailsAsync().Returns(new List<ActionType> { action1, action2 });
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 2,
+                currentActionId: action2Id,
                 triggers: null,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -250,7 +252,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -278,7 +280,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -305,7 +307,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -330,7 +332,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -343,18 +345,19 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         [Fact]
         public async Task ResolveVariablesAsync_TimerTrigger_IncludesTimerVariables()
         {
+            var timerGroupId = Guid.CreateVersion7();
             var triggers = new List<TriggerType>
             {
                 new()
                 {
                     Type = TriggerTypes.Timer,
                     Name = "TimerGroup_Socials",
-                    Configuration = "{\"TimerGroupId\":5,\"TimerGroupName\":\"Socials\"}"
+                    Configuration = $"{{\"TimerGroupId\":\"{timerGroupId}\",\"TimerGroupName\":\"Socials\"}}"
                 }
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -366,7 +369,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             var timerName = result.First(v => v.Name.Equals("timer_name", System.StringComparison.OrdinalIgnoreCase));
             Assert.Equal("Socials", timerName.ExampleValue);
             var timerId = result.First(v => v.Name.Equals("timer_id", System.StringComparison.OrdinalIgnoreCase));
-            Assert.Equal("5", timerId.ExampleValue);
+            Assert.Equal(timerGroupId.ToString(), timerId.ExampleValue);
         }
 
         [Fact]
@@ -382,7 +385,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -406,7 +409,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -429,7 +432,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -452,7 +455,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: triggers,
                 previousSubActions: null,
                 isCatchSubAction: false);
@@ -471,7 +474,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             };
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 1,
+                currentActionId: Guid.CreateVersion7(),
                 triggers: null,
                 previousSubActions: previousSubActions,
                 isCatchSubAction: false);
@@ -483,9 +486,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         [Fact]
         public async Task ResolveVariablesAsync_CallerInNestedIfElseOrCatch_ResolvesCallerVariables()
         {
+            var callerId = Guid.CreateVersion7();
+            var childId = Guid.CreateVersion7();
             var callerAction = new ActionType
             {
-                Id = 10,
+                Id = callerId,
                 Name = "ParentAction",
                 SubActions = new List<SubActionType>
                 {
@@ -494,7 +499,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
                     {
                         TrueSubActions = new List<SubActionType>
                         {
-                            new ExecuteActionType { ActionId = 20 }
+                            new ExecuteActionType { ActionId = childId }
                         }
                     }
                 }
@@ -503,7 +508,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             _unitOfWork.Actions.GetAllWithDetailsAsync().Returns(new List<ActionType> { callerAction });
 
             var result = await _resolver.ResolveVariablesAsync(
-                currentActionId: 20,
+                currentActionId: childId,
                 triggers: null,
                 previousSubActions: null,
                 isCatchSubAction: false);

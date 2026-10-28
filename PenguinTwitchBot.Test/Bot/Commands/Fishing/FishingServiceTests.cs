@@ -41,7 +41,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var fishingLogger = Substitute.For<ILogger<FishingService>>();
             var analyticsLogger = Substitute.For<ILogger<FishingAnalyticsService>>();
             _pointsSystem = Substitute.For<IPointsSystem>();
-            _pointsSystem.AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>())
+            _pointsSystem.AddPointsByUserId(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<long>())
                 .Returns(Task.FromResult(0L));
             _fishingService = new FishingService(_scopeFactory, fishingLogger, _pointsSystem);
             _analyticsService = new FishingAnalyticsService(_scopeFactory, analyticsLogger, _fishingService);
@@ -58,18 +58,18 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             var fishTypes = new List<FishType>
             {
-                new() { Id = 1, Name = "Common Bass", Rarity = FishRarity.Common, BaseWeight = 10.0, BaseGold = 50, Enabled = true },
-                new() { Id = 2, Name = "Uncommon Trout", Rarity = FishRarity.Uncommon, BaseWeight = 15.0, BaseGold = 100, Enabled = true },
-                new() { Id = 3, Name = "Rare Salmon", Rarity = FishRarity.Rare, BaseWeight = 20.0, BaseGold = 200, Enabled = true },
-                new() { Id = 4, Name = "Epic Tuna", Rarity = FishRarity.Epic, BaseWeight = 50.0, BaseGold = 500, Enabled = true },
-                new() { Id = 5, Name = "Legendary Marlin", Rarity = FishRarity.Legendary, BaseWeight = 100.0, BaseGold = 1000, Enabled = true },
-                new() { Id = 6, Name = "Invalid Fish", Rarity = FishRarity.Common, BaseWeight = 0, BaseGold = 10, Enabled = true }
+                new() { Id = Guid.CreateVersion7(), Name = "Common Bass", Rarity = FishRarity.Common, BaseWeight = 10.0, BaseGold = 50, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Uncommon Trout", Rarity = FishRarity.Uncommon, BaseWeight = 15.0, BaseGold = 100, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Rare Salmon", Rarity = FishRarity.Rare, BaseWeight = 20.0, BaseGold = 200, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Epic Tuna", Rarity = FishRarity.Epic, BaseWeight = 50.0, BaseGold = 500, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Legendary Marlin", Rarity = FishRarity.Legendary, BaseWeight = 100.0, BaseGold = 1000, Enabled = true },
+                new() { Id = Guid.CreateVersion7(), Name = "Invalid Fish", Rarity = FishRarity.Common, BaseWeight = 0, BaseGold = 10, Enabled = true }
             };
             _context.FishTypes.AddRange(fishTypes);
 
             var settings = new FishingSettings
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Enabled = true,
                 BoostMode = false,
                 BoostModeRarityMultiplier = 2.0, // Default in FishingSettings.cs is 2.0
@@ -90,9 +90,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
+            var rodId = Guid.CreateVersion7();
             var rod = new FishingShopItem
             {
-                Id = 1,
+                Id = rodId,
                 Name = "Test Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 Cost = 100,
@@ -105,7 +106,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             // Retrieve and verify
-            var retrieved = await _context.FishingShopItems.FindAsync(1);
+            var retrieved = await _context.FishingShopItems.FindAsync(rodId);
             Assert.NotNull(retrieved);
             Assert.Equal(FishingBoostType.GeneralRarityBoost, retrieved.BoostType);
             Assert.Equal(0.5, retrieved.BoostAmount);
@@ -180,7 +181,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int>());
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid>());
 
             Assert.NotNull(result);
             // Base weights: Common=50, Uncommon=30, Rare=15, Epic=4, Legendary=1
@@ -201,9 +202,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
+            var rodId = Guid.CreateVersion7();
             var rod = new FishingShopItem
             {
-                Id = 1,
+                Id = rodId,
                 Name = "Basic Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 Cost = 100,
@@ -214,7 +216,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(rod);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { rod.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid> { rod.Id });
 
             // With +50% boost: Uncommon=30*1.5=45, Rare=15*1.5=22.5, Epic=4*1.5=6, Legendary=1*1.5=1.5
             // Common stays 50
@@ -244,9 +246,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             // Tackle box with GeneralRarityBoost + WeightBoost
             // WeightBoost should NOT affect rarity probabilities
+            var tackleBoxId = Guid.CreateVersion7();
             var tackleBox = new FishingShopItem
             {
-                Id = 1,
+                Id = tackleBoxId,
                 Name = "Advanced Tackle Box",
                 EquipmentSlot = EquipmentSlot.TackleBox,
                 Cost = 500,
@@ -259,7 +262,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(tackleBox);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { tackleBox.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid> { tackleBox.Id });
 
             // With +30% boost: Uncommon=30*1.3=39, Rare=15*1.3=19.5, Epic=4*1.3=5.2, Legendary=1*1.3=1.3
             // Common stays 50
@@ -278,9 +281,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await SeedTestData();
 
             // Item with 3 boosts: 2 GeneralRarityBoosts + 1 WeightBoost
+            var ultimateBoxId = Guid.CreateVersion7();
             var ultimateBox = new FishingShopItem
             {
-                Id = 1,
+                Id = ultimateBoxId,
                 Name = "Ultimate Tackle Box",
                 EquipmentSlot = EquipmentSlot.TackleBox,
                 Cost = 1000,
@@ -295,7 +299,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(ultimateBox);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { ultimateBox.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid> { ultimateBox.Id });
 
             // Boosts stack multiplicatively: 1.4 * 1.2 = 1.68
             // Uncommon=30*1.68=50.4, Rare=15*1.68=25.2, Epic=4*1.68=6.72, Legendary=1*1.68=1.68
@@ -320,7 +324,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var rod = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Master Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 Cost = 300,
@@ -331,7 +335,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var reel = new FishingShopItem
             {
-                Id = 2,
+                Id = Guid.CreateVersion7(),
                 Name = "Precision Reel",
                 EquipmentSlot = EquipmentSlot.Reel,
                 Cost = 250,
@@ -345,7 +349,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.AddRange(rod, reel);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { rod.Id, reel.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid> { rod.Id, reel.Id });
 
             // Rod: +30% -> *1.3
             // Reel BoostType2: +10% -> *1.1
@@ -370,7 +374,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(true, 5.0, new List<int>());
+            var result = await _analyticsService.CalculateRarityProbabilities(true, 5.0, new List<Guid>());
 
             // With 5x global boost: Uncommon=30*5=150, Rare=15*5=75, Epic=4*5=20, Legendary=1*5=5
             // Common stays 50
@@ -390,7 +394,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var rod = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Epic Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 Cost = 500,
@@ -401,7 +405,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(rod);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(true, 3.0, new List<int> { rod.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(true, 3.0, new List<Guid> { rod.Id });
 
             // Global boost applies first: Uncommon=30*3=90, Rare=15*3=45, Epic=4*3=12, Legendary=1*3=3
             // Then equipment boost: Uncommon=90*1.5=135, Rare=45*1.5=67.5, Epic=12*1.5=18, Legendary=3*1.5=4.5
@@ -426,7 +430,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var rod = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Test Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 Cost = 100,
@@ -437,8 +441,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(rod);
             await _context.SaveChangesAsync();
 
-            var rarityProbs = await _analyticsService.CalculateRarityProbabilities(true, 5.0, new List<int> { rod.Id });
-            var fishProbs = await _analyticsService.CalculateCatchProbabilities(true, 5.0, new List<int> { rod.Id });
+            var rarityProbs = await _analyticsService.CalculateRarityProbabilities(true, 5.0, new List<Guid> { rod.Id });
+            var fishProbs = await _analyticsService.CalculateCatchProbabilities(true, 5.0, new List<Guid> { rod.Id });
 
             Assert.NotNull(rarityProbs);
             Assert.NotNull(fishProbs);
@@ -463,7 +467,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var tackleBox = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Pro Tackle Box",
                 EquipmentSlot = EquipmentSlot.TackleBox,
                 Cost = 750,
@@ -478,7 +482,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(tackleBox);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { tackleBox.Id });
+            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<Guid> { tackleBox.Id });
 
             Assert.NotNull(result);
             Assert.NotEmpty(result);
@@ -499,22 +503,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
+            var rareSalmonFish = await _context.FishTypes.FirstAsync(f => f.Name == "Rare Salmon");
             var salmonBait = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Salmon Bait",
                 EquipmentSlot = EquipmentSlot.Bait,
                 Cost = 100,
                 BoostType = FishingBoostType.SpecificFishBoost,
                 BoostAmount = 1.0, // +100% within-rarity weight for salmon
-                TargetFishTypeId = 3, // Rare Salmon
+                TargetFishTypeId = rareSalmonFish.Id, // Rare Salmon
                 IsConsumable = true,
                 MaxUses = 5
             };
             _context.FishingShopItems.Add(salmonBait);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { salmonBait.Id });
+            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<Guid> { salmonBait.Id });
 
             var rareSalmon = result.Values.FirstOrDefault(f => f.FishName == "Rare Salmon");
             Assert.NotNull(rareSalmon);
@@ -534,10 +539,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            // Add a second Common fish so the within-rarity boost is meaningful
+            var commonBassFish = await _context.FishTypes.FirstAsync(f => f.Name == "Common Bass");
+            var commonBass2Id = Guid.CreateVersion7();
             var commonBass2 = new FishType
             {
-                Id = 10,
+                Id = commonBass2Id,
                 Name = "Common Bass 2",
                 Rarity = FishRarity.Common,
                 BaseWeight = 2.0,
@@ -549,23 +555,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var bassBait = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Bass Bait",
                 EquipmentSlot = EquipmentSlot.Bait,
                 Cost = 100,
                 BoostType = FishingBoostType.SpecificFishBoost,
                 BoostAmount = 1.0, // +100% within-rarity weight for bass (ID 1)
-                TargetFishTypeId = 1, // Common Bass
+                TargetFishTypeId = commonBassFish.Id, // Common Bass
                 IsConsumable = true,
                 MaxUses = 5
             };
             _context.FishingShopItems.Add(bassBait);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { bassBait.Id });
+            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<Guid> { bassBait.Id });
 
-            var bass = result.Values.FirstOrDefault(f => f.FishId == 1);
-            var bass2 = result.Values.FirstOrDefault(f => f.FishId == 10);
+            var bass = result.Values.FirstOrDefault(f => f.FishId == commonBassFish.Id);
+            var bass2 = result.Values.FirstOrDefault(f => f.FishId == commonBass2Id);
             Assert.NotNull(bass);
             Assert.NotNull(bass2);
 
@@ -586,10 +592,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            // Add a second Common fish so within-rarity weighting is meaningful
+            var commonBassFish = await _context.FishTypes.FirstAsync(f => f.Name == "Common Bass");
+            var commonBass2Id = Guid.CreateVersion7();
             var commonBass2 = new FishType
             {
-                Id = 10,
+                Id = commonBass2Id,
                 Name = "Common Bass 2",
                 Rarity = FishRarity.Common,
                 BaseWeight = 2.0,
@@ -600,26 +607,26 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var bassBait = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Bass Bait",
                 EquipmentSlot = EquipmentSlot.Bait,
                 Cost = 100,
                 BoostType = FishingBoostType.SpecificFishBoost,
                 BoostAmount = 0.5, // +50% weight multiplier
-                TargetFishTypeId = 1,
+                TargetFishTypeId = commonBassFish.Id,
                 IsConsumable = true,
                 MaxUses = 5
             };
 
             var bassLure = new FishingShopItem
             {
-                Id = 2,
+                Id = Guid.CreateVersion7(),
                 Name = "Bass Lure",
                 EquipmentSlot = EquipmentSlot.Lure,
                 Cost = 150,
                 BoostType = FishingBoostType.SpecificFishBoost,
                 BoostAmount = 0.75, // +75% weight multiplier
-                TargetFishTypeId = 1,
+                TargetFishTypeId = commonBassFish.Id,
                 IsConsumable = true,
                 MaxUses = 3
             };
@@ -628,12 +635,12 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             // Single bait only
-            var resultSingle = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { bassBait.Id });
+            var resultSingle = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<Guid> { bassBait.Id });
             // Both bait + lure stacked
-            var resultStacked = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { bassBait.Id, bassLure.Id });
+            var resultStacked = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<Guid> { bassBait.Id, bassLure.Id });
 
-            var bassSingle = resultSingle.Values.First(f => f.FishId == 1);
-            var bassStacked = resultStacked.Values.First(f => f.FishId == 1);
+            var bassSingle = resultSingle.Values.First(f => f.FishId == commonBassFish.Id);
+            var bassStacked = resultStacked.Values.First(f => f.FishId == commonBassFish.Id);
 
             // Stacking two boosts should increase within-rarity chance further
             Assert.True(bassStacked.WithinRarityChance > bassSingle.WithinRarityChance,
@@ -652,7 +659,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int>());
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid>());
 
             Assert.NotNull(result);
             Assert.Equal(50.0, result.Probabilities[FishRarity.Common], 2);
@@ -664,7 +671,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { 999, 1000 });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid> { Guid.NewGuid(), Guid.NewGuid() });
 
             Assert.NotNull(result);
             Assert.Equal(50.0, result.Probabilities[FishRarity.Common], 2);
@@ -698,12 +705,12 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             // Simulate a full loadout with multiple items
             var items = new List<FishingShopItem>
             {
-                new() { Id = 1, Name = "Epic Rod", EquipmentSlot = EquipmentSlot.Rod, Cost = 500,
+                new() { Id = Guid.CreateVersion7(), Name = "Epic Rod", EquipmentSlot = EquipmentSlot.Rod, Cost = 500,
                     BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.35, MaxUses = null },
-                new() { Id = 2, Name = "Pro Reel", EquipmentSlot = EquipmentSlot.Reel, Cost = 400,
+                new() { Id = Guid.CreateVersion7(), Name = "Pro Reel", EquipmentSlot = EquipmentSlot.Reel, Cost = 400,
                     BoostType = FishingBoostType.StarBoost, BoostAmount = 0.25,
                     BoostType2 = FishingBoostType.GeneralRarityBoost, BoostAmount2 = 0.15, MaxUses = null },
-                new() { Id = 3, Name = "Ultimate Tackle Box", EquipmentSlot = EquipmentSlot.TackleBox, Cost = 1000,
+                new() { Id = Guid.CreateVersion7(), Name = "Ultimate Tackle Box", EquipmentSlot = EquipmentSlot.TackleBox, Cost = 1000,
                     BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.3,
                     BoostType2 = FishingBoostType.WeightBoost, BoostAmount2 = 0.25,
                     BoostType3 = FishingBoostType.GeneralRarityBoost, BoostAmount3 = 0.1, MaxUses = null }
@@ -733,7 +740,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var rod = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Legendary Rod",
                 EquipmentSlot = EquipmentSlot.Rod,
                 Cost = 1000,
@@ -744,7 +751,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var tackleBox = new FishingShopItem
             {
-                Id = 2,
+                Id = Guid.CreateVersion7(),
                 Name = "Legendary Tackle Box",
                 EquipmentSlot = EquipmentSlot.TackleBox,
                 Cost = 1500,
@@ -760,7 +767,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.AddRange(rod, tackleBox);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateRarityProbabilities(true, 10.0, new List<int> { rod.Id, tackleBox.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(true, 10.0, new List<Guid> { rod.Id, tackleBox.Id });
 
             // Global boost: 10x
             // Equipment: 1.5 * 1.4 * 1.25 = 2.625
@@ -785,29 +792,31 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
+            var id10 = Guid.CreateVersion7();
+            var id11 = Guid.CreateVersion7();
             // Add two fish with the same name but different IDs to test the dictionary key collision fix
             var duplicateNameFish = new List<FishType>
             {
-                new() { Id = 10, Name = "Duplicate Bass", Rarity = FishRarity.Common, BaseWeight = 8.0, BaseGold = 40, Enabled = true },
-                new() { Id = 11, Name = "Duplicate Bass", Rarity = FishRarity.Uncommon, BaseWeight = 12.0, BaseGold = 80, Enabled = true }
+                new() { Id = id10, Name = "Duplicate Bass", Rarity = FishRarity.Common, BaseWeight = 8.0, BaseGold = 40, Enabled = true },
+                new() { Id = id11, Name = "Duplicate Bass", Rarity = FishRarity.Uncommon, BaseWeight = 12.0, BaseGold = 80, Enabled = true }
             };
             _context.FishTypes.AddRange(duplicateNameFish);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateCatchProbabilities(new List<int>());
+            var result = await _analyticsService.CalculateCatchProbabilities(new List<Guid>());
 
             // Verify that both fish are present in the result using fish ID as key (not name)
-            Assert.True(result.ContainsKey(10), "Fish with ID 10 should be present in results");
-            Assert.True(result.ContainsKey(11), "Fish with ID 11 should be present in results");
+            Assert.True(result.ContainsKey(id10), "Fish with ID 10 should be present in results");
+            Assert.True(result.ContainsKey(id11), "Fish with ID 11 should be present in results");
 
             // Verify that both fish maintain their distinct properties
-            Assert.Equal("Duplicate Bass", result[10].FishName);
-            Assert.Equal("Duplicate Bass", result[11].FishName);
-            Assert.Equal(FishRarity.Common, result[10].Rarity);
-            Assert.Equal(FishRarity.Uncommon, result[11].Rarity);
+            Assert.Equal("Duplicate Bass", result[id10].FishName);
+            Assert.Equal("Duplicate Bass", result[id11].FishName);
+            Assert.Equal(FishRarity.Common, result[id10].Rarity);
+            Assert.Equal(FishRarity.Uncommon, result[id11].Rarity);
 
             // Verify no data loss - both fish should have different probabilities due to different rarities
-            Assert.NotEqual(result[10].OverallChance, result[11].OverallChance);
+            Assert.NotEqual(result[id10].OverallChance, result[id11].OverallChance);
         }
 
         [Fact]
@@ -815,10 +824,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
+            var commonBassFish = await _context.FishTypes.FirstAsync(f => f.Name == "Common Bass");
             // Create specific fish boost item with BoostType2
             var specificFishBoost = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Bass Hunter Lure",
                 EquipmentSlot = EquipmentSlot.Hook,
                 Cost = 200,
@@ -826,7 +836,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 BoostAmount = 0.1,
                 BoostType2 = FishingBoostType.SpecificFishBoost, // Secondary boost: specific fish
                 BoostAmount2 = 2.0, // +200% within-rarity weight for bass
-                TargetFishTypeId = 1, // Common Bass (ID 1)
+                TargetFishTypeId = commonBassFish.Id, // Common Bass
                 MaxUses = null
             };
             _context.FishingShopItems.Add(specificFishBoost);
@@ -850,10 +860,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
+            var commonBassFish = await _context.FishTypes.FirstAsync(f => f.Name == "Common Bass");
             // Create specific fish boost item with BoostType3
             var specificFishBoost = new FishingShopItem
             {
-                Id = 1,
+                Id = Guid.CreateVersion7(),
                 Name = "Bass Hunter Lure",
                 EquipmentSlot = EquipmentSlot.Hook,
                 Cost = 200,
@@ -861,7 +872,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 BoostAmount = 0.1,
                 BoostType3 = FishingBoostType.SpecificFishBoost, // Tertiary boost: specific fish
                 BoostAmount3 = 2.0, // +200% within-rarity weight for bass
-                TargetFishTypeId = 1, // Common Bass (ID 1)
+                TargetFishTypeId = commonBassFish.Id, // Common Bass
                 MaxUses = null
             };
             _context.FishingShopItems.Add(specificFishBoost);
@@ -885,10 +896,12 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
+            var commonBassFish = await _context.FishTypes.FirstAsync(f => f.Name == "Common Bass");
+            var commonBass2Id = Guid.CreateVersion7();
             // Add a second Common fish so within-rarity weighting is meaningful
             var commonBass2 = new FishType
             {
-                Id = 10,
+                Id = commonBass2Id,
                 Name = "Common Bass 2",
                 Rarity = FishRarity.Common,
                 BaseWeight = 2.0,
@@ -897,23 +910,24 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             };
             _context.FishTypes.Add(commonBass2);
 
+            var specificFishBoostId = Guid.CreateVersion7();
             // Add a specific fish boost to test consistency
             var specificFishBoost = new FishingShopItem
             {
-                Id = 1,
+                Id = specificFishBoostId,
                 Name = "Bass Targeting Lure",
                 EquipmentSlot = null, // Consumable
                 Cost = 100,
                 BoostType = FishingBoostType.SpecificFishBoost,
                 BoostAmount = 3.0, // 300% within-rarity weight for bass
-                TargetFishTypeId = 1, // Common Bass (ID 1)
+                TargetFishTypeId = commonBassFish.Id, // Common Bass
                 MaxUses = 5
             };
             _context.FishingShopItems.Add(specificFishBoost);
             await _context.SaveChangesAsync();
 
             // Get probability calculations
-            var probabilities = await _analyticsService.CalculateCatchProbabilities(new List<int> { 1 });
+            var probabilities = await _analyticsService.CalculateCatchProbabilities(new List<Guid> { specificFishBoostId });
 
             // Verify the result uses fish ID as key and includes all enabled fish
             var enabledFishIds = _context.FishTypes.Where(f => f.Enabled).Select(f => f.Id).ToList();
@@ -924,8 +938,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             }
 
             // Rarity chances are unchanged by SpecificFishBoost
-            var bassProb = probabilities[1];   // Common Bass (boosted)
-            var bass2Prob = probabilities[10]; // Common Bass 2 (unboosted, same rarity)
+            var bassProb = probabilities[commonBassFish.Id];   // Common Bass (boosted)
+            var bass2Prob = probabilities[commonBass2Id]; // Common Bass 2 (unboosted, same rarity)
             Assert.Equal(bassProb.RarityChance, bass2Prob.RarityChance, 1);
 
             // The within-rarity boost should make bass significantly more likely than bass2

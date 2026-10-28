@@ -37,7 +37,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             Assert.NotNull(method);
 
-            var group = new TimerGroup { Id = null, MinimumMessages = 10 };
+            var group = new TimerGroup { Id = Guid.Empty, MinimumMessages = 10 };
             var result = method!.Invoke(autoTimers, [group]) as bool?;
             Assert.False(result);
         }
@@ -55,7 +55,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             var method = typeof(AutoTimers).GetMethod("CheckEnoughMessagesAndUpdate", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-            var group = new TimerGroup { Id = 1, MinimumMessages = 10 };
+            var group = new TimerGroup { Id = Guid.CreateVersion7(), MinimumMessages = 10 };
             var result = method!.Invoke(autoTimers, [group]) as bool?;
             Assert.True(result);
         }
