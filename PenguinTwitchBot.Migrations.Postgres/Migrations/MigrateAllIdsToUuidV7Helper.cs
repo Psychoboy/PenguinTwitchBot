@@ -183,6 +183,8 @@ BEGIN
             SELECT 1 FROM information_schema.columns
             WHERE table_schema = current_schema() AND lower(table_name) = lower('{table}') AND lower(column_name) = lower('{col}') AND data_type != 'uuid'
         ) THEN
+            -- An integer default (e.g. 0) cannot be cast to uuid automatically.
+            ALTER TABLE ""{table}"" ALTER COLUMN ""{col}"" DROP DEFAULT;
             ALTER TABLE ""{table}"" ALTER COLUMN ""{col}"" TYPE uuid USING (
                 CASE
                     WHEN ""{col}"" IS NULL THEN NULL
