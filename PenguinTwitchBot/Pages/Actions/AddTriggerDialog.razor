@@ -277,6 +277,20 @@
                                       HelperText="Only fire when the winning prize label matches exactly (case-insensitive). Leave empty for any prize." />
                     }
 
+                    @if (IsGolfShotOutcomeTrigger())
+                    {
+                        <MudPaper Outlined="true" Class="pa-3 mt-3">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">Golf Trigger Filter (Optional)</MudText>
+                            <MudSelect T="string" @bind-Value="_golfHoleInOneFilter"
+                                       Label="Hole-in-One" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       HelperText="Choose whether this trigger fires for a hole-in-one, other shots, or either.">
+                                <MudSelectItem Value="@("Any")">Either (Any Shot)</MudSelectItem>
+                                <MudSelectItem Value="@("HoleInOne")">Hole-in-One Only</MudSelectItem>
+                                <MudSelectItem Value="@("NotHoleInOne")">Not a Hole-in-One</MudSelectItem>
+                            </MudSelect>
+                        </MudPaper>
+                    }
+
                     @if (!string.IsNullOrEmpty(_selectedEventType))
                     {
                         var vars = GetDefaultCommandVariablesSummary(_selectedEventType);
@@ -556,6 +570,7 @@
     private string _racingOutcomeFilter = "Any";
     private int? _racingMinKnockouts;
     private string? _prizeLabel;
+    private string _golfHoleInOneFilter = "Any";
 
     private IReadOnlyCollection<Guid> _fishCatchFishTypeIds = new HashSet<Guid>();
     private IReadOnlyCollection<string> _fishCatchCategories = new HashSet<string>();
@@ -651,6 +666,7 @@
                     _racingOutcomeFilter = string.IsNullOrWhiteSpace(config.RacingOutcomeFilter) ? "Any" : config.RacingOutcomeFilter;
                     _racingMinKnockouts = config.MinKnockouts;
                     _prizeLabel = config.PrizeLabel;
+                    _golfHoleInOneFilter = string.IsNullOrWhiteSpace(config.GolfHoleInOneFilter) ? "Any" : config.GolfHoleInOneFilter;
 
                     // Infer preset
                     if (_racingPlacements.Count == 1 && _racingPlacements.Contains(1) && _racingMinPlacement == null && _racingMaxPlacement == null)
@@ -1002,6 +1018,12 @@
          _selectedDefaultCommand?.CommandName?.Equals("timetrial", StringComparison.OrdinalIgnoreCase) == true ||
          (!string.IsNullOrEmpty(_selectedEventType) && _selectedEventType.StartsWith("Racing.", StringComparison.OrdinalIgnoreCase)));
 
+    private bool IsGolfShotOutcomeTrigger() =>
+        _selectedType == TriggerTypes.DefaultCommand &&
+        (_selectedEventType == DefaultCommandEventTypes.GolfBullseye ||
+         _selectedEventType == DefaultCommandEventTypes.GolfWin ||
+         _selectedEventType == DefaultCommandEventTypes.GolfLose);
+
     private void OnRacingPlacementPresetChanged(string preset)
     {
         _racingPlacementPreset = preset;
@@ -1058,6 +1080,7 @@
         {
             OnRacingPlacementPresetChanged("Any");
         }
+        _golfHoleInOneFilter = "Any";
     }
 
     private void UpdateDefaultCommandTriggerName()
@@ -1082,6 +1105,8 @@
             else if (_racingPlacementPreset == "First" || _racingPlacementPreset == "Podium")
                 OnRacingPlacementPresetChanged("Any");
         }
+        if (!IsGolfShotOutcomeTrigger())
+            _golfHoleInOneFilter = "Any";
     }
 
     private List<string> GetEventTypesForCommand(string commandName)
@@ -1431,6 +1456,12 @@
                 {
                     defaultCmdConfig.MinKnockouts = _racingMinKnockouts;
                 }
+            }
+
+            if (IsGolfShotOutcomeTrigger() && !string.IsNullOrWhiteSpace(_golfHoleInOneFilter) &&
+                !string.Equals(_golfHoleInOneFilter, "Any", StringComparison.OrdinalIgnoreCase))
+            {
+                defaultCmdConfig.GolfHoleInOneFilter = _golfHoleInOneFilter;
             }
 
             configuration = System.Text.Json.JsonSerializer.Serialize(defaultCmdConfig);

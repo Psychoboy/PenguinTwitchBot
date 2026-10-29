@@ -412,4 +412,26 @@ public sealed class DefaultCommandTriggerServiceTests : IDisposable
         var lowKOs = new Dictionary<string, string>(matchingVars) { ["KnockoutCount"] = "1" };
         Assert.False(config.MatchesVariables(lowKOs));
     }
+
+    [Fact]
+    public void DefaultCommandTriggerConfiguration_MatchesVariables_FiltersGolfHoleInOne()
+    {
+        var config = new DefaultCommandTriggerConfiguration
+        {
+            DefaultCommandName = "golf",
+            EventType = DefaultCommandEventTypes.GolfWin,
+            GolfHoleInOneFilter = "HoleInOne"
+        };
+
+        Assert.True(config.MatchesVariables(new Dictionary<string, string> { ["IsHoleInOne"] = "true" }));
+        Assert.False(config.MatchesVariables(new Dictionary<string, string> { ["IsHoleInOne"] = "false" }));
+        Assert.False(config.MatchesVariables(new Dictionary<string, string>()));
+
+        config.GolfHoleInOneFilter = "NotHoleInOne";
+        Assert.True(config.MatchesVariables(new Dictionary<string, string> { ["IsHoleInOne"] = "false" }));
+        Assert.False(config.MatchesVariables(new Dictionary<string, string> { ["IsHoleInOne"] = "true" }));
+
+        config.GolfHoleInOneFilter = "Any";
+        Assert.True(config.MatchesVariables(new Dictionary<string, string>()));
+    }
 }

@@ -43,11 +43,34 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public string? PrizeLabel { get; set; }
 
         /// <summary>
+        /// Golf shot filter: "HoleInOne", "NotHoleInOne", or null/"Any".
+        /// </summary>
+        public string? GolfHoleInOneFilter { get; set; }
+
+        /// <summary>
         /// Evaluates whether this trigger configuration matches the execution context variables.
         /// When a filter is actively configured, the required context variable must be present and valid.
         /// </summary>
         public bool MatchesVariables(IReadOnlyDictionary<string, string>? variables)
         {
+            if (!string.IsNullOrWhiteSpace(GolfHoleInOneFilter) && !string.Equals(GolfHoleInOneFilter, "Any", StringComparison.OrdinalIgnoreCase))
+            {
+                if (variables == null ||
+                    !variables.TryGetValue("IsHoleInOne", out var isHoleInOneStr) ||
+                    !bool.TryParse(isHoleInOneStr, out var isHoleInOne))
+                    return false;
+
+                if (string.Equals(GolfHoleInOneFilter, "HoleInOne", StringComparison.OrdinalIgnoreCase) && !isHoleInOne)
+                    return false;
+
+                if (string.Equals(GolfHoleInOneFilter, "NotHoleInOne", StringComparison.OrdinalIgnoreCase) && isHoleInOne)
+                    return false;
+
+                if (!string.Equals(GolfHoleInOneFilter, "HoleInOne", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(GolfHoleInOneFilter, "NotHoleInOne", StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+
             if (variables == null) return true;
 
             // 1. Placement filter
