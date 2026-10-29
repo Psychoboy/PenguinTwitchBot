@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Repository;
 using System.Text.Json;
 
@@ -19,12 +20,15 @@ namespace PenguinTwitchBot.Bot.Overlay
         public const string DefaultTimerName = "Default";
         public const string DirectionUp = "up";
         public const string DirectionDown = "down";
+        public const string ZeroTriggerNamePrefix = "StreamTimer.Zero.";
 
         private const string LegacySettingName = "StreamTimerState";
         private const string TimersSettingName = "StreamTimers";
 
         /// <summary>How often a running timer flushes its value, so a crash loses at most this much.</summary>
         private static readonly TimeSpan PersistInterval = TimeSpan.FromSeconds(15);
+
+        private static readonly TimeSpan ZeroCheckInterval = TimeSpan.FromMilliseconds(250);
 
         private readonly Lock _lock = new();
         private readonly SemaphoreSlim _persistLock = new(1, 1);
@@ -35,16 +39,24 @@ namespace PenguinTwitchBot.Bot.Overlay
         };
 
         private Timer? _persistTimer;
+        private Timer? _zeroTimer;
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await RestoreAsync();
 
             _persistTimer = new Timer(state => _ = PersistTickAsync(), null, PersistInterval, PersistInterval);
+            _zeroTimer = new Timer(state => _ = ZeroTickAsync(), null, ZeroCheckInterval, ZeroCheckInterval);
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
+            if (_zeroTimer != null)
+            {
+                await _zeroTimer.DisposeAsync();
+                _zeroTimer = null;
+            }
+
             if (_persistTimer != null)
             {
                 await _persistTimer.DisposeAsync();
@@ -203,6 +215,18 @@ namespace PenguinTwitchBot.Bot.Overlay
             return PublishAsync(entry);
         }
 
+        public Task SetHiddenAsync(string timerName, bool hidden)
+        {
+            TimerEntry entry;
+            lock (_lock)
+            {
+                entry = GetOrCreateTimerLocked(timerName);
+                entry.IsHidden = hidden;
+            }
+
+            return PublishAsync(entry);
+        }
+
         public Task AddTimeAsync(string timerName, double seconds) => AdjustAsync(timerName, seconds);
 
         public Task RemoveTimeAsync(string timerName, double seconds) => AdjustAsync(timerName, -seconds);
@@ -283,6 +307,57 @@ namespace PenguinTwitchBot.Bot.Overlay
             }
         }
 
+        private async Task ZeroTickAsync()
+        {
+            List<string> due = [];
+            lock (_lock)
+            {
+                foreach (var entry in _timers.Values)
+                {
+                    if (!entry.IsRunning || entry.Direction != DirectionDown)
+                        continue;
+
+                    // Positive countdown time re-arms; re-anchoring at zero must not.
+                    if (entry.CurrentSeconds() > 0)
+                    {
+                        entry.ZeroFired = false;
+                        continue;
+                    }
+
+                    if (entry.ZeroFired) continue;
+
+                    entry.ZeroFired = true;
+                    due.Add(entry.Name);
+                }
+            }
+
+            foreach (var name in due)
+            {
+                try
+                {
+                    await using var scope = scopeFactory.CreateAsyncScope();
+                    var actionService = scope.ServiceProvider.GetRequiredService<Actions.IActionManagementService>();
+                    var actionRunner = scope.ServiceProvider.GetRequiredService<Actions.IAction>();
+
+                    var toRun = await actionService.GetActionsByTriggerTypeAndNameEnabledAsync(
+                        TriggerTypes.StreamTimerZero, ZeroTriggerNamePrefix + name);
+
+                    foreach (var actionItem in toRun)
+                    {
+                        var variables = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["timerName"] = name
+                        };
+                        await actionRunner.EnqueueAction(variables, actionItem);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed running zero actions for timer {Timer}", name);
+                }
+            }
+        }
+
         private async Task PersistTickAsync()
         {
             bool anyRunning;
@@ -296,10 +371,10 @@ namespace PenguinTwitchBot.Bot.Overlay
 
         private async Task PersistAsync(bool force = false)
         {
-            List<(TimerEntry Entry, double Seconds, string Direction)> snapshots;
+            List<(TimerEntry Entry, double Seconds, string Direction, bool Hidden)> snapshots;
             lock (_lock)
             {
-                snapshots = _timers.Values.Select(t => (t, t.CurrentSeconds(), t.Direction)).ToList();
+                snapshots = _timers.Values.Select(t => (t, t.CurrentSeconds(), t.Direction, t.IsHidden)).ToList();
             }
 
             if (!force)
@@ -321,9 +396,9 @@ namespace PenguinTwitchBot.Bot.Overlay
                 var dict = new Dictionary<string, PersistedTimerState>(StringComparer.OrdinalIgnoreCase);
                 PersistedTimerState? defaultState = null;
 
-                foreach (var (entry, seconds, direction) in snapshots)
+                foreach (var (entry, seconds, direction, hidden) in snapshots)
                 {
-                    var persisted = new PersistedTimerState(direction, seconds);
+                    var persisted = new PersistedTimerState(direction, seconds, hidden);
                     dict[entry.Name] = persisted;
                     if (entry.Name.Equals(DefaultTimerName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -408,6 +483,7 @@ namespace PenguinTwitchBot.Bot.Overlay
                             var entry = new TimerEntry(kvp.Key)
                             {
                                 IsRunning = false,
+                                IsHidden = kvp.Value.Hidden,
                                 Direction = kvp.Value.Direction == DirectionDown ? DirectionDown : DirectionUp,
                                 AnchorSeconds = double.IsFinite(kvp.Value.Seconds) && kvp.Value.Seconds > 0 ? kvp.Value.Seconds : 0,
                                 AnchorUtc = DateTime.UtcNow
@@ -448,6 +524,8 @@ namespace PenguinTwitchBot.Bot.Overlay
             public string Direction { get; set; } = DirectionUp;
             public double AnchorSeconds { get; set; }
             public DateTime AnchorUtc { get; set; } = DateTime.UtcNow;
+            public bool IsHidden { get; set; }
+            public bool ZeroFired { get; set; }
 
             public double LastPersistedSeconds { get; set; } = -1;
             public string LastPersistedDirection { get; set; } = "";
@@ -477,9 +555,9 @@ namespace PenguinTwitchBot.Bot.Overlay
             }
 
             public StreamTimerState BuildState()
-                => new(IsRunning, Direction, AnchorSeconds, AnchorUtc, DateTime.UtcNow, Name);
+                => new(IsRunning, Direction, AnchorSeconds, AnchorUtc, DateTime.UtcNow, Name, IsHidden);
         }
 
-        private sealed record PersistedTimerState(string Direction, double Seconds);
+        private sealed record PersistedTimerState(string Direction, double Seconds, bool Hidden = false);
     }
 }

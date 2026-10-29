@@ -6,7 +6,8 @@ namespace PenguinTwitchBot.Bot.Overlay
         double Seconds,
         DateTime UpdatedAtUtc,
         DateTime ServerNowUtc,
-        string Name = "Default");
+        string Name = "Default",
+        bool IsHidden = false);
 
     public interface IStreamTimerService
     {
@@ -25,6 +26,9 @@ namespace PenguinTwitchBot.Bot.Overlay
 
         /// <summary>Starts (or resumes) the specified timer. Direction is "up" or "down".</summary>
         Task StartTimerAsync(string timerName, string? direction = null, double? startSeconds = null, bool reset = false);
+
+        /// <summary>Shows or hides the timer on overlays.</summary>
+        Task SetHiddenAsync(string timerName, bool hidden);
 
         /// <summary>Sets the direction and/or value without changing whether the timer is running.</summary>
         Task ConfigureTimerAsync(string timerName, string? direction = null, double? seconds = null);

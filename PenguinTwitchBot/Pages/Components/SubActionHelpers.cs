@@ -34,6 +34,7 @@ namespace PenguinTwitchBot.Pages.Components
                 OverlayTimerStopType timerStop => $"Overlay Timer{(string.IsNullOrWhiteSpace(timerStop.TimerName) || timerStop.TimerName.Equals("Default", StringComparison.OrdinalIgnoreCase) ? "" : $" ({timerStop.TimerName})")}: stop{(timerStop.ResetOnStop ? " and reset" : "")}",
                 OverlayTimerAddTimeType timerAdd => $"Overlay Timer{(string.IsNullOrWhiteSpace(timerAdd.TimerName) || timerAdd.TimerName.Equals("Default", StringComparison.OrdinalIgnoreCase) ? "" : $" ({timerAdd.TimerName})")}: add {timerAdd.Amount}",
                 OverlayTimerRemoveTimeType timerRemove => $"Overlay Timer{(string.IsNullOrWhiteSpace(timerRemove.TimerName) || timerRemove.TimerName.Equals("Default", StringComparison.OrdinalIgnoreCase) ? "" : $" ({timerRemove.TimerName})")}: remove {timerRemove.Amount}",
+                OverlayTimerVisibilityType timerVis => $"Overlay Timer{(string.IsNullOrWhiteSpace(timerVis.TimerName) || timerVis.TimerName.Equals("Default", StringComparison.OrdinalIgnoreCase) ? "" : $" ({timerVis.TimerName})")}: {timerVis.Visibility}",
                 ExecuteDefaultCommandType execCmd => $"Execute Default Command: {execCmd.CommandName}",
                 ExecuteCommandType execCmd => string.IsNullOrWhiteSpace(execCmd.Text) ? $"Execute Command: {execCmd.CommandName}" : $"Execute Command: {execCmd.CommandName} ({execCmd.Text})",
                 FishingTournamentStartType tournamentStart => $"Fishing Tournament Start: {Name(SubActionReferenceKind.Tournament, tournamentStart.TournamentId)}",

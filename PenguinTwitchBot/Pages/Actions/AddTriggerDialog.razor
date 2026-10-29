@@ -471,6 +471,20 @@
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
                                   Required="true" ReadOnly="true" />
                 }
+                else if (_selectedType == TriggerTypes.StreamTimerZero)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Fires when the selected stream timer counts down to zero.
+                        Variables added: %timerName%.
+                    </MudAlert>
+
+                    <MudSelect T="string" @bind-Value="_streamTimerName" Label="Timer" Variant="Variant.Outlined">
+                        @foreach (var timerName in StreamTimerService.GetTimerNames())
+                        {
+                            <MudSelectItem Value="@timerName">@timerName</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
                 else if (_selectedType == TriggerTypes.BannedSongRequest)
                 {
                     <MudAlert Severity="Severity.Info" Dense="true">
@@ -531,6 +545,7 @@
     [Inject] private ICommandHandler CommandHandler { get; set; } = null!;
     [Inject] private IFeatureRuntimeCoordinator FeatureRuntimeCoordinator { get; set; } = null!;
     [Inject] private IFishingService FishingService { get; set; } = null!;
+    [Inject] private PenguinTwitchBot.Bot.Overlay.IStreamTimerService StreamTimerService { get; set; } = null!;
 
     private enum WizardStep
     {
@@ -560,6 +575,7 @@
     private Bot.Actions.Triggers.TwitchEventTriggerConfig _twitchEventConfig = new();
     private FishingTournamentCatchTriggerConfiguration _fishingTournamentCatchConfig = new();
     private string _triggerName = "";
+    private string _streamTimerName = "Default";
 
     // Racing Trigger Filters
     private string _racingPlacementPreset = "Any";
@@ -756,6 +772,14 @@
             {
                 _fishingAccidentOutcomes = new HashSet<FishingAttemptOutcome>();
             }
+            _selectedItem = TriggerCatalog.FindItem(trigger.Type);
+        }
+        else if (trigger.Type == TriggerTypes.StreamTimerZero)
+        {
+            var prefix = PenguinTwitchBot.Bot.Overlay.StreamTimerService.ZeroTriggerNamePrefix;
+            _streamTimerName = trigger.Name.StartsWith(prefix, StringComparison.Ordinal) && trigger.Name.Length > prefix.Length
+                ? trigger.Name[prefix.Length..]
+                : "Default";
             _selectedItem = TriggerCatalog.FindItem(trigger.Type);
         }
         else
@@ -1512,6 +1536,10 @@
             };
             configuration = System.Text.Json.JsonSerializer.Serialize(config);
             _triggerName = "Fishing.Accident";
+        }
+        else if (_selectedType == TriggerTypes.StreamTimerZero)
+        {
+            _triggerName = PenguinTwitchBot.Bot.Overlay.StreamTimerService.ZeroTriggerNamePrefix + (string.IsNullOrWhiteSpace(_streamTimerName) ? "Default" : _streamTimerName.Trim());
         }
         else if (_selectedType == TriggerTypes.BannedSongRequest)
         {

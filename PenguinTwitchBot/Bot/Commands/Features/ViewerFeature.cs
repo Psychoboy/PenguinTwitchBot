@@ -578,7 +578,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Starting {moduledname}", ModuleName);
-            await UpdateSubscribers();
+            // Large on a clean database, so don't block startup; errors are handled inside.
+            _ = Task.Run(UpdateSubscribers, CancellationToken.None);
             await UpdateChatters();
             await Register();
         }

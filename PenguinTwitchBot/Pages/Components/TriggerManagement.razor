@@ -581,6 +581,7 @@
             TriggerTypes.FishingItemBroken => "Fishing Item Broken",
             TriggerTypes.FishingAccident => "Fishing Accident",
             TriggerTypes.BannedSongRequest => "Banned Song Requested",
+            TriggerTypes.StreamTimerZero => $"Stream timer reached zero ({trigger.Name.Replace(PenguinTwitchBot.Bot.Overlay.StreamTimerService.ZeroTriggerNamePrefix, "")})",
             _ => trigger.Name
         };
     }

@@ -9,7 +9,7 @@ namespace PenguinTwitchBot.Bot.Actions.Variables.Triggers;
 public class MiscellaneousTriggerVariableResolver : ITriggerVariableResolver
 {
     public bool CanHandle(TriggerTypes triggerType) =>
-        triggerType is TriggerTypes.BannedSongRequest or TriggerTypes.Manual;
+        triggerType is TriggerTypes.BannedSongRequest or TriggerTypes.Manual or TriggerTypes.StreamTimerZero;
 
     public void ResolveVariables(
         TriggerType trigger,
@@ -32,6 +32,13 @@ public class MiscellaneousTriggerVariableResolver : ITriggerVariableResolver
                 variables.SetVariable("banned_song_banned_by", "Streamer or moderator who banned the song", source, category, "streamer");
                 variables.SetVariable("banned_song_url", "YouTube URL of the banned song", source, category, "https://youtu.be/dQw4w9WgXcQ");
                 variables.SetVariable("banned_song_request", "Original song request input string from chat", source, category, "!sr dQw4w9WgXcQ");
+                break;
+            }
+
+            case TriggerTypes.StreamTimerZero:
+            {
+                var source = sourcePrefix != null ? $"{sourcePrefix} (Stream Timer: {triggerName})" : $"Trigger: Stream Timer Zero ({triggerName})";
+                variables.SetVariable("timerName", "Name of the stream timer that reached zero", source, category, "Default");
                 break;
             }
 

@@ -65,6 +65,7 @@
     // Server-authoritative anchor; the browser interpolates between updates.
     let state = {
         isRunning: false,
+        isHidden: false,
         direction: "up",
         seconds: 0,
         anchorClientMs: performance.now()
@@ -99,6 +100,7 @@
 
         state = {
             isRunning: !!payload.isRunning,
+            isHidden: !!payload.isHidden,
             direction: direction,
             seconds: seconds,
             anchorClientMs: performance.now()
@@ -143,7 +145,8 @@
 
     function render() {
         const value = currentSeconds();
-        const shouldHide = (settings.hideWhenStopped && !state.isRunning)
+        const shouldHide = state.isHidden
+            || (settings.hideWhenStopped && !state.isRunning)
             || (settings.hideWhenZero && value < 1 && !state.isRunning);
 
         containerEl.classList.toggle("hidden", shouldHide);

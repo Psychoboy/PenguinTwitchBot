@@ -60,7 +60,7 @@ public static class SubActionUIFieldEnhancer
             SetGlobalVariableType setGlobalVariable => EnhanceGlobalVariableNames(fields, setGlobalVariable, scope.ServiceProvider),
             GetGlobalVariableType getGlobalVariable => EnhanceGlobalVariableNames(fields, getGlobalVariable, scope.ServiceProvider),
             OpenAiType openAi => EnhanceOpenAiModels(fields, openAi, scope.ServiceProvider),
-            OverlayTimerStartType or OverlayTimerStopType or OverlayTimerAddTimeType or OverlayTimerRemoveTimeType => EnhanceOverlayTimer(fields, scope.ServiceProvider),
+            OverlayTimerStartType or OverlayTimerStopType or OverlayTimerAddTimeType or OverlayTimerRemoveTimeType or OverlayTimerVisibilityType => EnhanceOverlayTimer(fields, scope.ServiceProvider),
             _ => fields
         };
     }
