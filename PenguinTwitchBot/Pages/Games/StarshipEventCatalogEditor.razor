@@ -4,15 +4,7 @@
 @inject IJSRuntime JSRuntime
 
 <MudStack Spacing="3">
-    @if (!string.IsNullOrEmpty(_operationError))
-    {
-        <MudAlert Severity="Severity.Error" Dense="true">@_operationError</MudAlert>
-    }
-    @if (!string.IsNullOrEmpty(_notice))
-    {
-        <MudAlert Severity="Severity.Success" Dense="true">@_notice</MudAlert>
-    }
-    <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
+        <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
         <MudTextField T="string" Label="Search Events" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_search" Immediate="true" />
         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="NewEvent">Add Event</MudButton>
     </MudStack>
@@ -38,6 +30,14 @@
             }
         </tbody>
     </MudSimpleTable>
+    @if (!string.IsNullOrEmpty(_operationError))
+    {
+        <MudAlert Severity="Severity.Error" Dense="true">@_operationError</MudAlert>
+    }
+    @if (!string.IsNullOrEmpty(_notice))
+    {
+        <MudAlert Severity="Severity.Success" Dense="true">@_notice</MudAlert>
+    }
     @if (_deleteId != null)
     {
         <MudAlert Severity="Severity.Warning">Delete @_deleteId?
@@ -372,6 +372,9 @@
         <MudButton StartIcon="@Icons.Material.Filled.Upload" OnClick="ImportJson">Import as Draft</MudButton>
         <MudFileUpload T="IBrowserFile" FilesChanged="ImportFileAsync" Accept=".json,application/json">
             <CustomContent><MudButton StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="@context.OpenFilePickerAsync">Open JSON File</MudButton></CustomContent>
+            <SelectedTemplate>
+                @* Leaving this template block empty completely hides the file name pill *@
+            </SelectedTemplate>
         </MudFileUpload>
     </MudStack>
 </MudStack>
@@ -422,6 +425,7 @@
     {
         if (!_dirty) return true;
         _operationError = "Apply or discard the current draft before opening another event.";
+        _notice = "";
         return false;
     }
 
@@ -527,6 +531,7 @@
             if (addedProfileId.Length > 0)
                 Settings.RewardProfiles.RemoveAll(profile => profile.Id == addedProfileId);
             _operationError = ex.Message;
+            _notice = "";
         }
         finally
         {
@@ -759,6 +764,7 @@
         catch (Exception ex)
         {
             _operationError = ex.Message;
+            _notice = "";
         }
     }
 
@@ -874,6 +880,7 @@
         catch (ArgumentException ex)
         {
             _operationError = ex.Message;
+            _notice = "";
         }
     }
     private async Task ImportFileAsync(IBrowserFile file)
@@ -889,6 +896,7 @@
         catch (Exception ex) when (ex is IOException or ArgumentException)
         {
             _operationError = ex.Message;
+            _notice = "";
         }
     }
 }
