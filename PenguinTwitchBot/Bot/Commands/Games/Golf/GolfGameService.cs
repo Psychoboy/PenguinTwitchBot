@@ -815,6 +815,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 ["IsLipOut"] = record.IsLipOut.ToString().ToLowerInvariant(),
                 ["IsWin"] = record.IsWin.ToString().ToLowerInvariant(),
                 ["IsBullseye"] = record.IsBullseye.ToString().ToLowerInvariant(),
+                ["IsHoleInOne"] = (record.IsBullseye && record.StrokeNumber == 1).ToString().ToLowerInvariant(),
                 ["IsHit"] = record.IsHit.ToString().ToLowerInvariant(),
                 ["LandingX"] = record.LandingX.ToString("F4", CultureInfo.InvariantCulture),
                 ["Condition"] = record.ConditionLabel,

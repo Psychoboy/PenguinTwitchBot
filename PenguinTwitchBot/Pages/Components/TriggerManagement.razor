@@ -1060,6 +1060,14 @@
             {
                 filterParts.Add($">={config.MinKnockouts.Value} KOs");
             }
+            if (string.Equals(config.GolfHoleInOneFilter, "HoleInOne", StringComparison.OrdinalIgnoreCase))
+            {
+                filterParts.Add("Hole-in-One only");
+            }
+            else if (string.Equals(config.GolfHoleInOneFilter, "NotHoleInOne", StringComparison.OrdinalIgnoreCase))
+            {
+                filterParts.Add("Not a Hole-in-One");
+            }
 
             var filterSummary = filterParts.Count > 0 ? $" ({string.Join(", ", filterParts)})" : "";
             return $"Event: {eventDisplayName}{filterSummary}";
