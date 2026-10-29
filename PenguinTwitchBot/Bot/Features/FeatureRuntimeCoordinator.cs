@@ -283,7 +283,7 @@ namespace PenguinTwitchBot.Bot.Features
             }
 
             await service.StartAsync(cancellationToken);
-            logger.LogInformation("Started feature service {FeatureKey}", registration.Key);
+            logger.LogInformation("Started feature service {FeatureName}", registration.DisplayName);
         }
 
         private async Task StopFeatureInternalAsync(RuntimeFeatureRegistration registration, CancellationToken cancellationToken)
