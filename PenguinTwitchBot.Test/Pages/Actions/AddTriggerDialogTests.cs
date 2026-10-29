@@ -75,6 +75,10 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             fishingService.GetAllFishTypes().Returns(Task.FromResult(new List<FishType>()));
             _ctx.Services.AddSingleton(fishingService);
 
+            var timerService = Substitute.For<PenguinTwitchBot.Bot.Overlay.IStreamTimerService>();
+            timerService.GetTimerNames().Returns(new[] { "Default" });
+            _ctx.Services.AddSingleton(timerService);
+
             var twitchService = Substitute.For<ITwitchService>();
             twitchService.GetChannelPointRewards().Returns(Task.FromResult(System.Linq.Enumerable.Empty<ChannelPointReward>()));
             _ctx.Services.AddSingleton(twitchService);

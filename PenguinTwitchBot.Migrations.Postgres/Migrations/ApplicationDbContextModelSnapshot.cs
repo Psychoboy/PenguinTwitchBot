@@ -3730,6 +3730,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("OnZeroActionId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("ResetOnStart")
                         .HasColumnType("boolean");
 
@@ -3756,6 +3759,21 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.ToTable("subactions_overlay_timer_stop", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.OverlayTimerVisibilityType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("TimerName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_overlay_timer_visibility", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ParachuteDropType", b =>

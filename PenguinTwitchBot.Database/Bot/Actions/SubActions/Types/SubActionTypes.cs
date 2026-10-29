@@ -97,6 +97,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         GolfStopSession,
         RacingStartSession,
         RacingStopSession,
-        RacingJoin
+        RacingJoin,
+        OverlayTimerVisibility
     }
 }

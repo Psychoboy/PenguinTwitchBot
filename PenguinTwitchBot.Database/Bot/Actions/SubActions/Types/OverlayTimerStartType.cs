@@ -26,6 +26,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public bool ResetOnStart { get; set; }
 
+        /// <summary>Action to run when a counting-down timer reaches zero.</summary>
+        public Guid? OnZeroActionId { get; set; }
+
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             return
@@ -67,6 +70,15 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 },
                 new()
                 {
+                    PropertyName = nameof(OnZeroActionId),
+                    Label = "Action when timer reaches zero",
+                    FieldType = UIFieldType.Select,
+                    SelectOptions = [],
+                    Clearable = true,
+                    HelperText = "Count down only. Runs when the timer hits zero."
+                },
+                new()
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
@@ -81,6 +93,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             { nameof(Direction), Direction },
             { nameof(StartTime), StartTime },
             { nameof(ResetOnStart), ResetOnStart },
+            { nameof(OnZeroActionId), OnZeroActionId },
             { nameof(Enabled), Enabled }
         };
 
@@ -90,6 +103,12 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             if (values.TryGetValue(nameof(Direction), out var direction)) Direction = direction as string ?? "up";
             if (values.TryGetValue(nameof(StartTime), out var startTime)) StartTime = startTime as string ?? "";
             if (values.TryGetValue(nameof(ResetOnStart), out var reset)) ResetOnStart = reset as bool? ?? false;
+            if (values.TryGetValue(nameof(OnZeroActionId), out var onZero)) OnZeroActionId = onZero switch
+            {
+                Guid g when g != Guid.Empty => g,
+                string s when Guid.TryParse(s, out var parsed) && parsed != Guid.Empty => parsed,
+                _ => null
+            };
             if (values.TryGetValue(nameof(Enabled), out var enabled)) Enabled = enabled as bool? ?? true;
         }
 

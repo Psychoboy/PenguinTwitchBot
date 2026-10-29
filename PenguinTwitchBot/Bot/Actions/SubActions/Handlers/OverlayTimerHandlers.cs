@@ -31,7 +31,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 }
             }
 
-            await timerService.StartTimerAsync(timerName, start.Direction, startSeconds, start.ResetOnStart);
+            await timerService.StartTimerAsync(timerName, start.Direction, startSeconds, start.ResetOnStart, start.OnZeroActionId);
             context?.LogMessage(subActionIndex, $"Started overlay timer '{timerName}' counting {start.Direction}");
         }
     }
@@ -50,6 +50,30 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             await timerService.StopTimerAsync(timerName, stop.ResetOnStop);
             context?.LogMessage(subActionIndex, stop.ResetOnStop ? $"Stopped and reset overlay timer '{timerName}'" : $"Stopped overlay timer '{timerName}'");
+        }
+    }
+
+    public class OverlayTimerVisibilityHandler(IStreamTimerService timerService) : ISubActionHandler
+    {
+        public SubActionTypes SupportedType => SubActionTypes.OverlayTimerVisibility;
+
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
+        {
+            if (subAction is not OverlayTimerVisibilityType visibility)
+                throw new SubActionHandlerException(subAction, $"Expected {nameof(OverlayTimerVisibilityType)} but got {subAction.GetType().Name}");
+
+            var timerName = VariableReplacer.ReplaceVariables(visibility.TimerName, variables);
+            if (string.IsNullOrWhiteSpace(timerName)) timerName = "Default";
+
+            var hidden = visibility.Visibility switch
+            {
+                OverlayTimerVisibilityType.Show => false,
+                OverlayTimerVisibilityType.Toggle => !timerService.GetState(timerName).IsHidden,
+                _ => true
+            };
+
+            await timerService.SetHiddenAsync(timerName, hidden);
+            context?.LogMessage(subActionIndex, $"{(hidden ? "Hid" : "Showed")} overlay timer '{timerName}'");
         }
     }
 

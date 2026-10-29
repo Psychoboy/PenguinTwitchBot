@@ -60,7 +60,7 @@ public static class SubActionUIFieldEnhancer
             SetGlobalVariableType setGlobalVariable => EnhanceGlobalVariableNames(fields, setGlobalVariable, scope.ServiceProvider),
             GetGlobalVariableType getGlobalVariable => EnhanceGlobalVariableNames(fields, getGlobalVariable, scope.ServiceProvider),
             OpenAiType openAi => EnhanceOpenAiModels(fields, openAi, scope.ServiceProvider),
-            OverlayTimerStartType or OverlayTimerStopType or OverlayTimerAddTimeType or OverlayTimerRemoveTimeType => EnhanceOverlayTimer(fields, scope.ServiceProvider),
+            OverlayTimerStartType or OverlayTimerStopType or OverlayTimerAddTimeType or OverlayTimerRemoveTimeType or OverlayTimerVisibilityType => EnhanceOverlayTimer(fields, scope.ServiceProvider),
             _ => fields
         };
     }
@@ -1030,6 +1030,18 @@ public static class SubActionUIFieldEnhancer
 
     private static List<SubActionUIField> EnhanceOverlayTimer(List<SubActionUIField> fields, IServiceProvider serviceProvider)
     {
+        var zeroField = fields.FirstOrDefault(f => f.PropertyName == nameof(OverlayTimerStartType.OnZeroActionId));
+        if (zeroField != null)
+        {
+            var actionService = serviceProvider.GetRequiredService<IActionManagementService>();
+            var actions = Task.Run(async () => await actionService.GetActionSummariesAsync()).GetAwaiter().GetResult();
+            zeroField.SelectOptions = actions
+                .Where(a => a.Id != Guid.Empty)
+                .Select(a => new SelectOption { Name = a.Name, Id = a.Id })
+                .OrderBy(a => a.Name)
+                .ToList();
+        }
+
         var timerService = serviceProvider.GetService<Overlay.IStreamTimerService>();
         if (timerService == null)
             return fields;

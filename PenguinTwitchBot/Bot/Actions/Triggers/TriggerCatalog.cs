@@ -1402,6 +1402,17 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 Color = Color.Info,
                 FeatureKey = FeatureKeys.AutoTimer
             },
+            new()
+            {
+                Id = "timer-streamtimerzero",
+                Type = TriggerTypes.StreamTimerZero,
+                CategoryId = "timers",
+                CategoryName = "Timers & Schedules",
+                DisplayName = "Stream Timer Reached Zero",
+                Description = "Triggers when a counting-down stream timer reaches zero",
+                Icon = Icons.Material.Filled.TimerOff,
+                Color = Color.Info
+            },
 
             // === Media & Audio ===
             new()
