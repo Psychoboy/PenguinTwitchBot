@@ -159,7 +159,7 @@ namespace PenguinTwitchBot.Bot.Overlay
             return true;
         }
 
-        public Task StartTimerAsync(string timerName, string? direction = null, double? startSeconds = null, bool reset = false, Guid? onZeroActionId = null)
+        public Task StartTimerAsync(string timerName, string? direction = null, double? startSeconds = null, bool reset = false)
         {
             TimerEntry entry;
             lock (_lock)
@@ -167,7 +167,6 @@ namespace PenguinTwitchBot.Bot.Overlay
                 entry = GetOrCreateTimerLocked(timerName);
                 entry.Anchor();
                 entry.ApplyDirection(direction);
-                entry.ZeroActionId = entry.Direction == DirectionDown ? onZeroActionId : null;
 
                 if (startSeconds.HasValue)
                 {
@@ -310,22 +309,29 @@ namespace PenguinTwitchBot.Bot.Overlay
 
         private async Task ZeroTickAsync()
         {
-            List<(string Name, Guid? ActionId)> due = [];
+            List<string> due = [];
             lock (_lock)
             {
                 foreach (var entry in _timers.Values)
                 {
-                    if (entry.ZeroFired || !entry.IsRunning || entry.Direction != DirectionDown)
+                    if (!entry.IsRunning || entry.Direction != DirectionDown)
                         continue;
 
-                    if (entry.CurrentSeconds() > 0) continue;
+                    // Positive countdown time re-arms; re-anchoring at zero must not.
+                    if (entry.CurrentSeconds() > 0)
+                    {
+                        entry.ZeroFired = false;
+                        continue;
+                    }
+
+                    if (entry.ZeroFired) continue;
 
                     entry.ZeroFired = true;
-                    due.Add((entry.Name, entry.ZeroActionId));
+                    due.Add(entry.Name);
                 }
             }
 
-            foreach (var (name, actionId) in due)
+            foreach (var name in due)
             {
                 try
                 {
@@ -335,15 +341,6 @@ namespace PenguinTwitchBot.Bot.Overlay
 
                     var toRun = await actionService.GetActionsByTriggerTypeAndNameEnabledAsync(
                         TriggerTypes.StreamTimerZero, ZeroTriggerNamePrefix + name);
-
-                    if (actionId.HasValue)
-                    {
-                        var actionItem = await actionService.GetActionByIdAsync(actionId.Value);
-                        if (actionItem == null)
-                            logger.LogWarning("Zero action {ActionId} for timer {Timer} no longer exists", actionId, name);
-                        else if (toRun.All(a => a.Id != actionItem.Id))
-                            toRun.Add(actionItem);
-                    }
 
                     foreach (var actionItem in toRun)
                     {
@@ -374,10 +371,10 @@ namespace PenguinTwitchBot.Bot.Overlay
 
         private async Task PersistAsync(bool force = false)
         {
-            List<(TimerEntry Entry, double Seconds, string Direction, bool Hidden, Guid? ZeroActionId)> snapshots;
+            List<(TimerEntry Entry, double Seconds, string Direction, bool Hidden)> snapshots;
             lock (_lock)
             {
-                snapshots = _timers.Values.Select(t => (t, t.CurrentSeconds(), t.Direction, t.IsHidden, t.ZeroActionId)).ToList();
+                snapshots = _timers.Values.Select(t => (t, t.CurrentSeconds(), t.Direction, t.IsHidden)).ToList();
             }
 
             if (!force)
@@ -399,9 +396,9 @@ namespace PenguinTwitchBot.Bot.Overlay
                 var dict = new Dictionary<string, PersistedTimerState>(StringComparer.OrdinalIgnoreCase);
                 PersistedTimerState? defaultState = null;
 
-                foreach (var (entry, seconds, direction, hidden, zeroActionId) in snapshots)
+                foreach (var (entry, seconds, direction, hidden) in snapshots)
                 {
-                    var persisted = new PersistedTimerState(direction, seconds, hidden, zeroActionId);
+                    var persisted = new PersistedTimerState(direction, seconds, hidden);
                     dict[entry.Name] = persisted;
                     if (entry.Name.Equals(DefaultTimerName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -487,7 +484,6 @@ namespace PenguinTwitchBot.Bot.Overlay
                             {
                                 IsRunning = false,
                                 IsHidden = kvp.Value.Hidden,
-                                ZeroActionId = kvp.Value.ZeroActionId,
                                 Direction = kvp.Value.Direction == DirectionDown ? DirectionDown : DirectionUp,
                                 AnchorSeconds = double.IsFinite(kvp.Value.Seconds) && kvp.Value.Seconds > 0 ? kvp.Value.Seconds : 0,
                                 AnchorUtc = DateTime.UtcNow
@@ -529,7 +525,6 @@ namespace PenguinTwitchBot.Bot.Overlay
             public double AnchorSeconds { get; set; }
             public DateTime AnchorUtc { get; set; } = DateTime.UtcNow;
             public bool IsHidden { get; set; }
-            public Guid? ZeroActionId { get; set; }
             public bool ZeroFired { get; set; }
 
             public double LastPersistedSeconds { get; set; } = -1;
@@ -545,7 +540,6 @@ namespace PenguinTwitchBot.Bot.Overlay
 
             public void Anchor()
             {
-                ZeroFired = false;
                 AnchorSeconds = CurrentSeconds();
                 AnchorUtc = DateTime.UtcNow;
             }
@@ -564,6 +558,6 @@ namespace PenguinTwitchBot.Bot.Overlay
                 => new(IsRunning, Direction, AnchorSeconds, AnchorUtc, DateTime.UtcNow, Name, IsHidden);
         }
 
-        private sealed record PersistedTimerState(string Direction, double Seconds, bool Hidden = false, Guid? ZeroActionId = null);
+        private sealed record PersistedTimerState(string Direction, double Seconds, bool Hidden = false);
     }
 }

@@ -1030,18 +1030,6 @@ public static class SubActionUIFieldEnhancer
 
     private static List<SubActionUIField> EnhanceOverlayTimer(List<SubActionUIField> fields, IServiceProvider serviceProvider)
     {
-        var zeroField = fields.FirstOrDefault(f => f.PropertyName == nameof(OverlayTimerStartType.OnZeroActionId));
-        if (zeroField != null)
-        {
-            var actionService = serviceProvider.GetRequiredService<IActionManagementService>();
-            var actions = Task.Run(async () => await actionService.GetActionSummariesAsync()).GetAwaiter().GetResult();
-            zeroField.SelectOptions = actions
-                .Where(a => a.Id != Guid.Empty)
-                .Select(a => new SelectOption { Name = a.Name, Id = a.Id })
-                .OrderBy(a => a.Name)
-                .ToList();
-        }
-
         var timerService = serviceProvider.GetService<Overlay.IStreamTimerService>();
         if (timerService == null)
             return fields;

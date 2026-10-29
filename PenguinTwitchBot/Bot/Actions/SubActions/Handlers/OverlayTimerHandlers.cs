@@ -31,7 +31,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 }
             }
 
-            await timerService.StartTimerAsync(timerName, start.Direction, startSeconds, start.ResetOnStart, start.OnZeroActionId);
+            await timerService.StartTimerAsync(timerName, start.Direction, startSeconds, start.ResetOnStart);
             context?.LogMessage(subActionIndex, $"Started overlay timer '{timerName}' counting {start.Direction}");
         }
     }

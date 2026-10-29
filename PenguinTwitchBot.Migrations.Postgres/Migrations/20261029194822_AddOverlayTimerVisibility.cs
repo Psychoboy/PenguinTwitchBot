@@ -6,17 +6,11 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 {
     /// <inheritdoc />
-    public partial class AddOverlayTimerVisibilityAndZeroAction : Migration
+    public partial class AddOverlayTimerVisibility : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<Guid>(
-                name: "OnZeroActionId",
-                table: "subactions_overlay_timer_start",
-                type: "uuid",
-                nullable: true);
-
             migrationBuilder.CreateTable(
                 name: "subactions_overlay_timer_visibility",
                 columns: table => new
@@ -64,10 +58,6 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
         {
             migrationBuilder.DropTable(
                 name: "subactions_overlay_timer_visibility");
-
-            migrationBuilder.DropColumn(
-                name: "OnZeroActionId",
-                table: "subactions_overlay_timer_start");
         }
     }
 }

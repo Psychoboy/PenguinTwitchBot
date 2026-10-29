@@ -3730,9 +3730,6 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("OnZeroActionId")
-                        .HasColumnType("uuid");
-
                     b.Property<bool>("ResetOnStart")
                         .HasColumnType("boolean");
 

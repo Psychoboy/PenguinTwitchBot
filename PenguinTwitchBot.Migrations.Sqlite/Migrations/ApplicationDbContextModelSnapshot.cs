@@ -3724,9 +3724,6 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("OnZeroActionId")
-                        .HasColumnType("TEXT");
-
                     b.Property<bool>("ResetOnStart")
                         .HasColumnType("INTEGER");
 

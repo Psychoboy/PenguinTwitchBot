@@ -24,8 +24,8 @@ namespace PenguinTwitchBot.Bot.Overlay
 
         Task<bool> DeleteTimerAsync(string timerName);
 
-        /// <summary>Starts (or resumes) the specified timer. Direction is "up" or "down". The zero action only applies when counting down.</summary>
-        Task StartTimerAsync(string timerName, string? direction = null, double? startSeconds = null, bool reset = false, Guid? onZeroActionId = null);
+        /// <summary>Starts (or resumes) the specified timer. Direction is "up" or "down".</summary>
+        Task StartTimerAsync(string timerName, string? direction = null, double? startSeconds = null, bool reset = false);
 
         /// <summary>Shows or hides the timer on overlays.</summary>
         Task SetHiddenAsync(string timerName, bool hidden);
