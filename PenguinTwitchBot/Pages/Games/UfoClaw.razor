@@ -47,7 +47,7 @@
             {
                 <MudAlert Severity="Severity.Success" Class="mb-3">@grab.Winner.Label · @grab.PrizeSetName</MudAlert>
             }
-            <MudTabs KeepPanelsAlive="true">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <MudTabPanel Text="Prize Sets">
                     <MudStack Row="true" Class="my-3">
                         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddSet">Add Prize Set</MudButton>
