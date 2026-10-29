@@ -4284,6 +4284,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                     variables != null &&
                     variables["StrokeNumber"] == "1" &&
                     variables["Strokes"] == "1" &&
+                    variables["IsHoleInOne"] == "true" &&
                     variables["GreenCondition"] == "Fast Links" &&
                     variables["PinDistance"] == "84.0")), Times.Once());
         }
