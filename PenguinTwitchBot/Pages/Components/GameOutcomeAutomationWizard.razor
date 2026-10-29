@@ -42,6 +42,12 @@
                 }
             </MudSelect>
 
+            @if (_selectedEventType is DefaultCommandEventTypes.WheelSpinResult or DefaultCommandEventTypes.UfoClawResult)
+            {
+                <MudTextField T="string" Label="Prize Filter (Optional)" Variant="Variant.Outlined" @bind-Value="_prizeLabel"
+                              HelperText="Only run for this exact prize label (case-insensitive). Leave empty for any prize." />
+            }
+
             <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_createNewAction" Label="Create a new action" />
 
             @if (_createNewAction)
@@ -131,6 +137,7 @@
     private string _amountExpression = "%Score%";
     private string _messageTemplate = string.Empty;
     private string _error = string.Empty;
+    private string? _prizeLabel;
     private Guid? _selectedActionId;
     private ManagePointsOperation _operation = ManagePointsOperation.Add;
     private bool _createNewAction = true;
@@ -167,6 +174,7 @@
     private void OnOutcomeChanged(string? eventType)
     {
         _selectedEventType = eventType ?? string.Empty;
+        _prizeLabel = null;
         UpdateOutcomeDefaults();
     }
 
@@ -426,7 +434,7 @@
         var actionId = selectedAction.Id;
 
         var actionTriggers = await ActionService.GetTriggersForActionAsync(actionId);
-        var matchingTriggers = actionTriggers.Where(trigger => IsSameOutcome(trigger, defaultCommandName, eventType)).ToList();
+        var matchingTriggers = actionTriggers.Where(trigger => IsSameOutcome(trigger, defaultCommandName, eventType, CurrentPrizeFilter)).ToList();
         if (matchingTriggers.Count > 1)
         {
             _error = "This action already has multiple matching triggers. Review them in Manage Actions before adding another.";
@@ -461,13 +469,19 @@
         Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
         {
             DefaultCommandName = outcome.DefaultCommandName!,
-            EventType = outcome.DefaultCommandEventType!
+            EventType = outcome.DefaultCommandEventType!,
+            PrizeLabel = CurrentPrizeFilter
         }),
         DefaultCommandId = defaultCommandId,
         Enabled = true
     };
 
-    private static bool IsSameOutcome(TriggerType trigger, string commandName, string eventType)
+    private string? CurrentPrizeFilter =>
+        _selectedEventType is DefaultCommandEventTypes.WheelSpinResult or DefaultCommandEventTypes.UfoClawResult && !string.IsNullOrWhiteSpace(_prizeLabel)
+            ? _prizeLabel.Trim()
+            : null;
+
+    private static bool IsSameOutcome(TriggerType trigger, string commandName, string eventType, string? prizeLabel)
     {
         if (trigger.Type != TriggerTypes.DefaultCommand) return false;
         try
@@ -475,7 +489,8 @@
             var config = JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(trigger.Configuration);
             return config != null &&
                    string.Equals(config.DefaultCommandName, commandName, StringComparison.OrdinalIgnoreCase) &&
-                   string.Equals(config.EventType, eventType, StringComparison.OrdinalIgnoreCase);
+                   string.Equals(config.EventType, eventType, StringComparison.OrdinalIgnoreCase) &&
+                   string.Equals(config.PrizeLabel?.Trim() ?? string.Empty, prizeLabel ?? string.Empty, StringComparison.OrdinalIgnoreCase);
         }
         catch (JsonException)
         {
