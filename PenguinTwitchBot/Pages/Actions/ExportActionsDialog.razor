@@ -139,8 +139,10 @@
         var package = new ActionsImportExportPackage
         {
             ExportedAt = DateTime.UtcNow,
+            IncludesTriggers = _includeTriggers,
             Actions = actionsToExport.Select(a => new ActionImportExportDto
             {
+                Id = a.Id,
                 Name = a.Name,
                 Group = _includeGroup ? a.Group : null,
                 Enabled = a.Enabled,

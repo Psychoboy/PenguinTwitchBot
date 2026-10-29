@@ -4,6 +4,7 @@
 @using PenguinTwitchBot.Database.Bot.Actions
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
+@using PenguinTwitchBot.Database.Bot.DatabaseTools
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @using PenguinTwitchBot.Database.Bot.Models.Timers
@@ -516,7 +517,7 @@
 
             _importedPackage = package;
             _sourceLabel = sourceLabel;
-            _fileHasTriggers = package.Actions.Any(action => action.Triggers?.Count > 0);
+            _fileHasTriggers = package.IncludesTriggers ?? package.Actions.Any(action => action.Triggers?.Count > 0);
             _fileHasQueueNames = package.Actions.Any(action => !string.IsNullOrWhiteSpace(action.QueueName));
             _fileHasGroups = package.Actions.Any(action => action.Group != null);
 
@@ -827,27 +828,31 @@
                 return;
             }
 
-            var createdActions = new List<ActionType>();
+            var importedActions = new List<ActionType>();
             var oldToNewIdMap = new Dictionary<Guid, Guid>();
 
             foreach (var dto in _importedPackage.Actions)
             {
                 try
                 {
+                    var existingAction = dto.Id == Guid.Empty ? null : await ActionService.GetActionByIdAsync(dto.Id);
                     var subActions = NormalizeAndRewriteSubActions(dto.SubActions ?? [], resolvedResources);
                     var catchSubActions = NormalizeAndRewriteSubActions(dto.CatchSubActions ?? [], resolvedResources);
 
                     var triggers = new List<TriggerType>();
-                    if (_importTriggers && _fileHasTriggers && dto.Triggers?.Count > 0)
+                    var shouldImportTriggers = _importTriggers && _fileHasTriggers;
+                    if (shouldImportTriggers)
                     {
-                        triggers = BuildTriggers(dto.Triggers, resolvedResources);
+                        triggers = BuildTriggers(dto.Triggers ?? [], resolvedResources);
                     }
 
                     var action = new ActionType
                     {
-                        Id = Guid.CreateVersion7(),
+                        Id = dto.Id == Guid.Empty ? Guid.CreateVersion7() : dto.Id,
                         Name = dto.Name,
-                        Group = ResolveGroup(dto.Group),
+                        Group = existingAction != null && !_fileHasGroups && string.IsNullOrWhiteSpace(_overrideGroup)
+                            ? existingAction.Group
+                            : ResolveGroup(dto.Group),
                         Enabled = dto.Enabled,
                         RandomAction = dto.RandomAction,
                         ConcurrentAction = dto.ConcurrentAction,
@@ -855,11 +860,15 @@
                         QueueName = ResolveQueueName(dto.QueueName),
                         SubActions = subActions,
                         CatchSubActions = catchSubActions,
-                        Triggers = triggers
+                        Triggers = shouldImportTriggers ? triggers : existingAction?.Triggers ?? []
                     };
 
-                    var created = await ActionService.CreateActionAsync(action);
-                    createdActions.Add(created);
+                    var imported = existingAction == null
+                        ? await ActionService.CreateActionAsync(action)
+                        : await ActionService.UpdateActionAsync(action);
+                    importedActions.Add(imported);
+                    if (dto.Id != Guid.Empty)
+                        oldToNewIdMap[dto.Id] = imported.Id;
                     _importedCount++;
                 }
                 catch (Exception ex)
@@ -870,7 +879,7 @@
 
             try
             {
-                await RelinkExecuteActionsAsync(createdActions, oldToNewIdMap);
+                await RelinkExecuteActionsAsync(importedActions, oldToNewIdMap);
             }
             catch (Exception ex)
             {
@@ -1333,7 +1342,12 @@
         return new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
-            TypeInfoResolver = new SubActionTypeResolver()
+            TypeInfoResolver = new SubActionTypeResolver(),
+            Converters =
+            {
+                new LegacyIntCompatibleGuidJsonConverter(),
+                new LegacyIntCompatibleNullableGuidJsonConverter()
+            }
         };
     }
 
