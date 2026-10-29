@@ -9,13 +9,15 @@ namespace PenguinTwitchBot.Models.Actions;
 
 public class ActionsImportExportPackage
 {
-    public string Version { get; set; } = "1.1";
+    public string Version { get; set; } = "1.2";
     public DateTime ExportedAt { get; set; }
+    public bool? IncludesTriggers { get; set; }
     public List<ActionImportExportDto> Actions { get; set; } = [];
 }
 
 public class ActionImportExportDto
 {
+    public Guid Id { get; set; }
     public string Name { get; set; } = "";
     public string? Group { get; set; }
     public bool Enabled { get; set; } = true;
