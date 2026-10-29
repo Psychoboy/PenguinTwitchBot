@@ -79,7 +79,7 @@ public class StarshipSectorSelectionTests
             It.Is<StarshipExpeditionSettings>(value => value.EventCatalog.Any(definition => definition.Title == "Page Save Draft") &&
                 value.LegCount != 12), It.IsAny<CancellationToken>()), Times.Once));
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
-        Assert.Single(page.FindComponents<StarshipEventCatalogEditor>());
+        Assert.Empty(page.FindComponents<StarshipEventCatalogEditor>());
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(4));
         await page.WaitForAssertionAsync(() =>
         {
@@ -87,8 +87,8 @@ public class StarshipSectorSelectionTests
             Assert.Contains(page.FindAll("button"), button => button.TextContent.Trim() == "Save Appearance");
         });
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
-        await page.WaitForAssertionAsync(() => Assert.Contains(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
-        Assert.Single(page.FindComponents<StarshipEventCatalogEditor>());
+        await page.WaitForAssertionAsync(() => Assert.DoesNotContain(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
+        Assert.Empty(page.FindComponents<StarshipEventCatalogEditor>());
     }
 
     [Fact]
