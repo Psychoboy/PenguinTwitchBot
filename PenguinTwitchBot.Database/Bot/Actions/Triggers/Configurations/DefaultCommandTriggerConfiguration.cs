@@ -38,6 +38,11 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public int? MinKnockouts { get; set; }
 
         /// <summary>
+        /// Wheel Spin / UFO Claw: only fire when the winning prize label equals this (case-insensitive). Empty = any prize.
+        /// </summary>
+        public string? PrizeLabel { get; set; }
+
+        /// <summary>
         /// Evaluates whether this trigger configuration matches the execution context variables.
         /// When a filter is actively configured, the required context variable must be present and valid.
         /// </summary>
@@ -115,6 +120,13 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
             if (MinKnockouts.HasValue && MinKnockouts.Value > 0)
             {
                 if (!variables.TryGetValue("KnockoutCount", out var koStr) || !int.TryParse(koStr, out var knockouts) || knockouts < MinKnockouts.Value)
+                    return false;
+            }
+
+            // 5. Prize label filter
+            if (!string.IsNullOrWhiteSpace(PrizeLabel))
+            {
+                if (!variables.TryGetValue("WinningLabel", out var label) || !string.Equals(label?.Trim(), PrizeLabel.Trim(), StringComparison.OrdinalIgnoreCase))
                     return false;
             }
 

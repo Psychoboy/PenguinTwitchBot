@@ -271,6 +271,12 @@
                         </MudPaper>
                     }
 
+                    @if (_selectedEventType is DefaultCommandEventTypes.WheelSpinResult or DefaultCommandEventTypes.UfoClawResult)
+                    {
+                        <MudTextField T="string" @bind-Value="_prizeLabel" Label="Prize Filter (Optional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3"
+                                      HelperText="Only fire when the winning prize label matches exactly (case-insensitive). Leave empty for any prize." />
+                    }
+
                     @if (!string.IsNullOrEmpty(_selectedEventType))
                     {
                         var vars = GetDefaultCommandVariablesSummary(_selectedEventType);
@@ -549,6 +555,7 @@
     private IReadOnlyCollection<string> _racingGameModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private string _racingOutcomeFilter = "Any";
     private int? _racingMinKnockouts;
+    private string? _prizeLabel;
 
     private IReadOnlyCollection<Guid> _fishCatchFishTypeIds = new HashSet<Guid>();
     private IReadOnlyCollection<string> _fishCatchCategories = new HashSet<string>();
@@ -643,6 +650,7 @@
                     _racingGameModes = new HashSet<string>(config.RacingGameModes ?? [], StringComparer.OrdinalIgnoreCase);
                     _racingOutcomeFilter = string.IsNullOrWhiteSpace(config.RacingOutcomeFilter) ? "Any" : config.RacingOutcomeFilter;
                     _racingMinKnockouts = config.MinKnockouts;
+                    _prizeLabel = config.PrizeLabel;
 
                     // Infer preset
                     if (_racingPlacements.Count == 1 && _racingPlacements.Contains(1) && _racingMinPlacement == null && _racingMaxPlacement == null)
@@ -1393,6 +1401,11 @@
                 DefaultCommandName = _selectedDefaultCommand.CommandName,
                 EventType = _selectedEventType
             };
+
+            if (_selectedEventType is DefaultCommandEventTypes.WheelSpinResult or DefaultCommandEventTypes.UfoClawResult && !string.IsNullOrWhiteSpace(_prizeLabel))
+            {
+                defaultCmdConfig.PrizeLabel = _prizeLabel.Trim();
+            }
 
             if (IsRacingTrigger())
             {
