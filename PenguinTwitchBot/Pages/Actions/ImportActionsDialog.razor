@@ -850,7 +850,9 @@
                     {
                         Id = dto.Id == Guid.Empty ? Guid.CreateVersion7() : dto.Id,
                         Name = dto.Name,
-                        Group = ResolveGroup(dto.Group),
+                        Group = existingAction != null && !_fileHasGroups && string.IsNullOrWhiteSpace(_overrideGroup)
+                            ? existingAction.Group
+                            : ResolveGroup(dto.Group),
                         Enabled = dto.Enabled,
                         RandomAction = dto.RandomAction,
                         ConcurrentAction = dto.ConcurrentAction,
