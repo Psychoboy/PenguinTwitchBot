@@ -151,6 +151,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         private async Task UpdateViewer(Viewer viewer)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(viewer.UserId);
             var isNew = viewer.Id == Guid.Empty;
             var locked = isNew;
             if (locked) await _viewerCreateLock.WaitAsync();

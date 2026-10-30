@@ -153,8 +153,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
 
             modelBuilder.Entity<Viewer>()
                 .HasIndex(v => v.UserId)
-                .IsUnique()
-                .HasFilter("\"UserId\" <> ''");
+                .IsUnique();
+
+            modelBuilder.Entity<Viewer>()
+                .ToTable(t => t.HasCheckConstraint("CK_Viewers_UserId_NotEmpty", "\"UserId\" <> ''"));
 
             modelBuilder.Entity<Viewer>()
                 .Property(v => v.Username)

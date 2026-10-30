@@ -50,7 +50,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            testViewer = new Viewer { Id = Guid.CreateVersion7(), Username = "test", DisplayName = "Test", Title = "Test Title" };
+            testViewer = new Viewer { Id = Guid.CreateVersion7(), UserId = "1", Username = "test", DisplayName = "Test", Title = "Test Title" };
             viewerQueryable = new List<Viewer> { testViewer }.BuildMockDbSet().AsQueryable();
             emptyViewerQueryable = new List<Viewer> { }.BuildMockDbSet().AsQueryable();
 

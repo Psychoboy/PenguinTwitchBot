@@ -10,7 +10,7 @@ namespace PenguinTwitchBot.Database.Repository
         {
             return exception.InnerException switch
             {
-                SqliteException sqlite => sqlite.SqliteExtendedErrorCode == 2067 || sqlite.SqliteErrorCode == 19,
+                SqliteException sqlite => sqlite.SqliteExtendedErrorCode is 2067 or 1555,
                 PostgresException postgres => postgres.SqlState == PostgresErrorCodes.UniqueViolation,
                 _ => false
             };
