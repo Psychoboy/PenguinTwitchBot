@@ -818,7 +818,32 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         public async Task<string> Enter(string sender, string amount, bool fromUi)
         {
-            using var userLock = await UserLocks.AcquireAsync(sender, CancellationToken.None);
+            var viewer = await viewerFeature.GetViewerByUserName(sender);
+            if (viewer == null)
+            {
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again.");
+                if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
+                throw new SkipCooldownException(message);
+            }
+
+            return await EnterCore(viewer.UserId, viewer.Username, amount, fromUi);
+        }
+
+        public async Task<string> EnterByUserId(string userId, string amount, bool fromUi)
+        {
+            var viewer = await viewerFeature.GetViewerByUserId(userId);
+            if (viewer == null)
+            {
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again.");
+                throw new SkipCooldownException(message);
+            }
+
+            return await EnterCore(viewer.UserId, viewer.Username, amount, fromUi);
+        }
+
+        private async Task<string> EnterCore(string userId, string sender, string amount, bool fromUi)
+        {
+            using var userLock = await UserLocks.AcquireAsync(userId, CancellationToken.None);
             if (isClosed) 
             {
                 var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.closed", "the giveaway is closed and not accepting entries."); 
@@ -828,7 +853,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
             var pointsPerEntry = await GetPointsPerEntry();
             amount = amount.ToLower();
-            var viewerPoints = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points;
+            var viewerPoints = (await pointsSystem.GetUserPointsByUserIdAndGame(userId, ModuleName)).Points;
 
             // max/all: calculate the maximum whole entries the viewer can afford (floor division)
             if (amount == "max" || amount == "all")
@@ -864,7 +889,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                 throw new SkipCooldownException(message);
             }
 
-            if (!(await pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, ModuleName, pointCost)))
+            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(userId, ModuleName, pointCost)))
             {
                 var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again.");
                 if (!fromUi)
@@ -878,11 +903,35 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var giveawayEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
-                giveawayEntries ??= new GiveawayEntry
+                var giveawayEntries = await db.GiveawayEntries.Find(x => x.UserId == userId).FirstOrDefaultAsync();
+                var holder = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
+                if (holder != null && !ReferenceEquals(holder, giveawayEntries))
                 {
-                    Username = sender
-                };
+                    if (string.IsNullOrEmpty(holder.UserId) && giveawayEntries == null)
+                    {
+                        // Legacy row stored by name only.
+                        giveawayEntries = holder;
+                    }
+                    else if (string.IsNullOrEmpty(holder.UserId))
+                    {
+                        giveawayEntries!.Tickets += holder.Tickets;
+                        db.GiveawayEntries.Remove(holder);
+                        await db.SaveChangesAsync();
+                    }
+                    else if (holder.UserId != userId)
+                    {
+                        // The name now belongs to someone else; keep the old owner's tickets under their current name.
+                        var previousOwner = await viewerFeature.GetViewerByUserId(holder.UserId);
+                        holder.Username = previousOwner != null && !previousOwner.Username.Equals(sender, StringComparison.OrdinalIgnoreCase)
+                            ? previousOwner.Username
+                            : holder.UserId;
+                        db.GiveawayEntries.Update(holder);
+                        await db.SaveChangesAsync();
+                    }
+                }
+                giveawayEntries ??= new GiveawayEntry();
+                giveawayEntries.UserId = userId;
+                giveawayEntries.Username = sender;
                 giveawayEntries.Tickets += entries;
                 db.GiveawayEntries.Update(giveawayEntries);
                 await db.SaveChangesAsync();
@@ -895,6 +944,21 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                 return message;
             }
         }
+        public async Task<long> GetEntriesCountByUserId(string userId)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var giveawayEntries = await db.GiveawayEntries.Find(x => x.UserId == userId).FirstOrDefaultAsync();
+            if (giveawayEntries != null) return giveawayEntries.Tickets;
+
+            // Legacy rows were stored without a UserId.
+            var viewer = await viewerFeature.GetViewerByUserId(userId);
+            if (viewer == null) return 0;
+
+            var legacyEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
+            return legacyEntries != null && string.IsNullOrEmpty(legacyEntries.UserId) ? legacyEntries.Tickets : 0;
+        }
+
         public async Task<long> GetEntriesCount(string sender)
         {
             await using var scope = scopeFactory.CreateAsyncScope();

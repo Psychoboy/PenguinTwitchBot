@@ -182,8 +182,22 @@ internal class Program
         builder.Services.AddSingleton<SettingsFileManager>();
         builder.Services.AddSingleton<ILanguage, Language>();
 
+        builder.Services.AddSingleton<PenguinTwitchBot.Circuit.SessionRevocationService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Circuit.ISessionRevocationService>(sp => sp.GetRequiredService<PenguinTwitchBot.Circuit.SessionRevocationService>());
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<PenguinTwitchBot.Circuit.SessionRevocationService>());
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie();
+    .AddCookie(options =>
+    {
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var revocations = context.HttpContext.RequestServices.GetRequiredService<PenguinTwitchBot.Circuit.ISessionRevocationService>();
+            if (revocations.IsRevoked(context.Principal))
+            {
+                context.RejectPrincipal();
+                await Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions.SignOutAsync(context.HttpContext, CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
+    });
 
         builder.Services.AddRazorPages();
 

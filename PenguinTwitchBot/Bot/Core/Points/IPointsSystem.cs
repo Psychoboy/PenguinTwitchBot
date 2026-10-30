@@ -8,6 +8,8 @@ namespace PenguinTwitchBot.Bot.Core.Points
 {
     public interface IPointsSystem
     {
+        /// <summary>Raised with the user ID after that user's balance changes.</summary>
+        event Action<string>? PointsChanged;
         Task<long> AddPointsByUserId(string userId, Guid pointType, long points);
         Task<bool> AddPointsByUserIdOnce(string userId, Guid pointType, long points, string operationId);
         Task<long> SetPointsByUserId(string userId, Guid pointType, long points);

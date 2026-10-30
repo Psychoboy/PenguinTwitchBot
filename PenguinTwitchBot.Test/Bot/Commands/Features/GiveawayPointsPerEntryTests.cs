@@ -100,6 +100,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
                 .Returns("the giveaway is closed and not accepting entries.");
 
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns(DisplayName);
+            var testViewer = new Viewer { UserId = "1", Username = Sender };
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(testViewer);
+            viewerFeature.GetViewerByUserId(Arg.Any<string>()).Returns(testViewer);
         }
 
         // ── helpers ───────────────────────────────────────────────────────────────
@@ -114,14 +117,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
         /// <summary>Sets the viewer's giveaway balance.</summary>
         private void SetupBalance(long balance)
         {
-            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature")
+            pointsSystem.GetUserPointsByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature")
                 .Returns(new UserPoints { Points = balance });
         }
 
         /// <summary>Configures RemovePoints to succeed for the exact expected cost.</summary>
         private void SetupRemoveSuccess(long expectedCost)
         {
-            pointsSystem.RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature", expectedCost)
+            pointsSystem.RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature", expectedCost)
                 .Returns(true);
         }
 
@@ -144,7 +147,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             // Assert
             Assert.Contains("100", result);
             await pointsSystem.Received(1)
-                .RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature", 100);
+                .RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature", 100);
             dbContext.GiveawayEntries.Received(1)
                 .Update(Arg.Is<GiveawayEntry>(e => e.Tickets == 100));
         }
@@ -206,7 +209,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             // Assert
             Assert.Contains(expectedEntries.ToString(), result);
             await pointsSystem.Received(1)
-                .RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature", pointCost);
+                .RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature", pointCost);
             dbContext.GiveawayEntries.Received(1)
                 .Update(Arg.Is<GiveawayEntry>(e => e.Tickets == expectedEntries));
         }
@@ -262,7 +265,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
 
             Assert.Contains("3", result);
             await pointsSystem.Received(1)
-                .RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature", 150);
+                .RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature", 150);
         }
 
         [Fact]
@@ -278,7 +281,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
 
             Assert.Contains("not have enough", ex.Message, StringComparison.OrdinalIgnoreCase);
             await pointsSystem.DidNotReceive()
-                .RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
+                .RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
         }
 
         [Fact]
@@ -369,7 +372,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
 
             Assert.Contains("dumb", ex.Message, StringComparison.OrdinalIgnoreCase);
             await pointsSystem.DidNotReceive()
-                .RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
+                .RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
@@ -413,7 +416,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
 
             Assert.Contains("closed", ex.Message, StringComparison.OrdinalIgnoreCase);
             await pointsSystem.DidNotReceive()
-                .RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
+                .RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
         }
 
         [Fact]
@@ -442,7 +445,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             SetupPointsPerEntry(50);
             SetupBalance(500);
             // Simulate the points system returning false (race, concurrency, etc.)
-            pointsSystem.RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature", Arg.Any<long>())
+            pointsSystem.RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature", Arg.Any<long>())
                 .Returns(false);
 
             var ex = await Assert.ThrowsAsync<SkipCooldownException>(
@@ -664,7 +667,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             await giveawayFeature.Enter(Sender, "max", fromUi: true);
 
             await pointsSystem.Received(1)
-                .GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature");
+                .GetUserPointsByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature");
         }
 
         // ═══════════════════════════════════════════════════════════════════════════

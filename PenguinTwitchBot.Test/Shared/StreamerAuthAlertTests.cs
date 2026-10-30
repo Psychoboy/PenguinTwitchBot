@@ -44,6 +44,7 @@ public class StreamerAuthAlertTests
 
         ctx.Services.AddSingleton(_twitchService);
         ctx.Services.AddSingleton(_circuitUserService);
+        ctx.Services.AddSingleton(Substitute.For<ISessionRevocationService>());
         ctx.Services.AddSingleton(_serviceBackbone);
         ctx.Services.AddSingleton(_versionCheckService);
         ctx.Services.AddSingleton(_featureCoordinator);
