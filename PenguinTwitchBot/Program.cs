@@ -290,7 +290,6 @@ internal class Program
 
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
 
-        builder.Configuration.GetRequiredSection("OpenAI");
         builder.Services.AddSingleton<PenguinTwitchBot.Bot.Ai.IOpenAiClientProvider, PenguinTwitchBot.Bot.Ai.OpenAiClientProvider>();
         builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IStarCitizenAI, PenguinTwitchBot.Bot.Ai.StarCitizenAI>();
         builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IShoutoutAi, PenguinTwitchBot.Bot.Ai.ShoutoutAi>();

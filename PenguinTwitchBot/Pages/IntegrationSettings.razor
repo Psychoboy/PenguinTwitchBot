@@ -8,6 +8,7 @@
 @inject SettingsFileManager SettingsFileManager
 @inject ISnackbar Snackbar
 @inject IDiscordService DiscordService
+@inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntime
 @inject DiscordLookupService DiscordLookupSvc
 @inject IIntegrationTestService IntegrationTester
 @inject IDialogService DialogService
@@ -800,7 +801,7 @@
             await SettingsFileManager.AddOrUpdateAppSetting("Discord:PingRoleWhenLive", ParseUlong(_discordPingRoleId));
             await SettingsFileManager.AddOrUpdateAppSetting("Discord:RoleIdToAssignMemberWhenLive", ParseUlong(_discordMemberRoleId));
 
-            if (_restartDiscordAfterSave || tokenChanged)
+            if ((_restartDiscordAfterSave || tokenChanged) && FeatureRuntime.IsEnabled(PenguinTwitchBot.Bot.Features.FeatureKeys.DiscordService))
             {
                 await DiscordService.RestartAsync();
                 _discordConnected = DiscordService.ServiceStatus() == Discord.ConnectionState.Connected;
@@ -851,7 +852,6 @@
                 new("Weather:ApiKey", _weatherEnabled ? _weatherApiKey.Trim() : ""),
                 new("Weather:DefaultLocation", _testWeatherLocation)
             });
-            await SettingsFileManager.AddOrUpdateMainAppSetting("Weather:DefaultLocation", _testWeatherLocation);
             Snackbar.Add("Weather settings saved.", Severity.Success);
         }
         catch (Exception ex)
