@@ -58,6 +58,30 @@
                                           HelperText="Obtain a key from the Google Cloud Console with YouTube Data API v3 enabled"
                                           Variant="Variant.Outlined" />
 
+                            <MudTextField @bind-Value="_songLookupUrl"
+                                          Label="Song Search Lookup URL"
+                                          Placeholder="@DefaultSongLookupUrl"
+                                          HelperText="Used by !sr when the viewer gives a title instead of a link. Leave blank for the default."
+                                          Variant="Variant.Outlined" />
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+                                <MudText Typo="Typo.body2">
+                                    The URL is requested with GET. <code>{0}</code> is replaced with the URL-encoded search text.
+                                    Must start with http:// or https://. Default: <code>@DefaultSongLookupUrl</code><br />
+                                    With no JSON path, the response body must be <b>only</b> the YouTube video ID (or a youtube.com/watch?v= link).
+                                    With a JSON path, the value at that path is used, e.g. <code>items[0].id.videoId</code>
+                                    (YouTube API), <code>[0].videoId</code> (Invidious), <code>items[0].url</code> (Piped).
+                                </MudText>
+                            </MudAlert>
+
+                            <MudTextField @bind-Value="_songLookupJsonPath"
+                                          Label="Response JSON Path (optional)"
+                                          HelperText="Leave blank if the URL returns just the video ID as plain text."
+                                          Variant="Variant.Outlined" />
+
+                            <MudSwitch T="bool" Value="_songLookupApiFallback" ValueChanged="@(v => _songLookupApiFallback = v)"
+                                       Color="Color.Primary"
+                                       Label="Fall back to YouTube API search when the lookup fails (uses 100 quota units per search)" />
+
                             <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                            StartIcon="@Icons.Material.Filled.Save"
@@ -544,6 +568,10 @@
 
     // YouTube
     private string _youtubeApiKey = "";
+    private string _songLookupUrl = "";
+    private string _songLookupJsonPath = "";
+    private bool _songLookupApiFallback = true;
+    private const string DefaultSongLookupUrl = PenguinTwitchBot.Bot.Commands.Music.YtPlayer.DefaultSongLookupUrl;
 
     // Discord
     private bool _discordEnabled = false;
@@ -573,6 +601,9 @@
     protected override async Task OnInitializedAsync()
     {
         _youtubeApiKey = Configuration["youtubeApi"] ?? "";
+        _songLookupUrl = Configuration[PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupUrlSetting] ?? "";
+        _songLookupJsonPath = Configuration[PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupJsonPathSetting] ?? "";
+        _songLookupApiFallback = Configuration.GetValue(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupApiFallbackSetting, true);
 
         _discordToken = Configuration["Discord:discordToken"] ?? "";
         _discordServerId = Configuration["Discord:DiscordServerId"] ?? "0";
@@ -728,8 +759,20 @@
 
     private async Task SaveYoutubeAsync()
     {
+        var lookupUrl = _songLookupUrl.Trim();
+        if (lookupUrl.Length > 0 && (!lookupUrl.Contains("{0}")
+            || !Uri.TryCreate(lookupUrl.Replace("{0}", "test"), UriKind.Absolute, out var parsed)
+            || (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps)))
+        {
+            Snackbar.Add("Lookup URL must be an http(s) URL containing {0}.", Severity.Error);
+            return;
+        }
+
         _saving = true;
         await SettingsFileManager.AddOrUpdateAppSetting("youtubeApi", _youtubeApiKey.Trim());
+        await SettingsFileManager.AddOrUpdateAppSetting(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupUrlSetting, lookupUrl);
+        await SettingsFileManager.AddOrUpdateAppSetting(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupJsonPathSetting, _songLookupJsonPath.Trim());
+        await SettingsFileManager.AddOrUpdateAppSetting(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupApiFallbackSetting, _songLookupApiFallback);
         _saving = false;
         Snackbar.Add("YouTube settings saved. Restart the bot for changes to take effect.", Severity.Success);
     }

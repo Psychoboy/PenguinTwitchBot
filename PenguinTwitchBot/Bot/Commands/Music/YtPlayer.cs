@@ -1310,16 +1310,91 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         // Shared so TCP/TLS connections are reused; a new client per request is slow on high-latency links.
         private static readonly HttpClient SearchClient = new() { Timeout = TimeSpan.FromSeconds(15) };
 
-        private static async Task<string> GetSongId(string searchTerm)
+        public const string DefaultSongLookupUrl = "https://decapi.me/youtube/videoid?search={0}";
+        public const string SongLookupUrlSetting = "YouTube:SongLookupUrl";
+
+        public const string SongLookupJsonPathSetting = "YouTube:SongLookupJsonPath";
+        public const string SongLookupApiFallbackSetting = "YouTube:SongLookupApiFallback";
+
+        private static readonly System.Text.RegularExpressions.Regex WatchIdRegex = new(@"[?&]v=([A-Za-z0-9_-]{11})", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private async Task<string> GetSongId(string searchTerm)
         {
+            var id = await LookupViaUrlAsync(searchTerm);
+            if (id != null) return id;
+
+            if (_configuration.GetValue(SongLookupApiFallbackSetting, false))
+            {
+                try
+                {
+                    var request = _youtubeService.Search.List("id");
+                    request.Q = searchTerm;
+                    request.Type = "video";
+                    request.MaxResults = 1;
+                    var response = await request.ExecuteAsync();
+                    return response.Items?.FirstOrDefault()?.Id?.VideoId ?? string.Empty;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "YouTube API search fallback failed");
+                }
+            }
+            return string.Empty;
+        }
+
+        private async Task<string?> LookupViaUrlAsync(string searchTerm)
+        {
+            var template = _configuration[SongLookupUrlSetting];
+            if (string.IsNullOrWhiteSpace(template) || !template.Contains("{0}"))
+                template = DefaultSongLookupUrl;
             try
             {
-                return await SearchClient.GetStringAsync(string.Format("https://decapi.me/youtube/videoid?search={0}", Uri.EscapeDataString(searchTerm)));
+                var url = template.Trim().Replace("{0}", Uri.EscapeDataString(searchTerm));
+                var body = (await SearchClient.GetStringAsync(url)).Trim();
+                var jsonPath = _configuration[SongLookupJsonPathSetting];
+                var value = string.IsNullOrWhiteSpace(jsonPath) ? body : ReadJsonPath(body, jsonPath.Trim());
+                return NormalizeVideoId(value);
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or UriFormatException or System.Text.Json.JsonException)
             {
-                return string.Empty;
+                _logger.LogWarning(ex, "Song lookup request failed");
+                return null;
             }
+        }
+
+        public static string? NormalizeVideoId(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            var match = WatchIdRegex.Match(value);
+            return match.Success ? match.Groups[1].Value : YouTubeUrlHelper.ExtractVideoId(value);
+        }
+
+        /// <summary>Reads a value using a path like items[0].id.videoId.</summary>
+        public static string? ReadJsonPath(string json, string path)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var current = doc.RootElement;
+            foreach (var part in path.Split('.', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var bracket = part.IndexOf('[');
+                var name = bracket >= 0 ? part[..bracket] : part;
+                if (name.Length > 0)
+                {
+                    if (current.ValueKind != System.Text.Json.JsonValueKind.Object || !current.TryGetProperty(name, out current))
+                        return null;
+                }
+                while (bracket >= 0)
+                {
+                    var end = part.IndexOf(']', bracket);
+                    if (end < 0 || !int.TryParse(part[(bracket + 1)..end], out var index)
+                        || current.ValueKind != System.Text.Json.JsonValueKind.Array
+                        || index < 0 || index >= current.GetArrayLength())
+                        return null;
+                    current = current[index];
+                    bracket = part.IndexOf('[', end);
+                }
+            }
+            return current.ValueKind == System.Text.Json.JsonValueKind.String ? current.GetString() : current.ToString();
         }
 
         private async Task<Song?> GetSong(string youtubeId, string? displayName = null, bool sendChatResponse = true)
