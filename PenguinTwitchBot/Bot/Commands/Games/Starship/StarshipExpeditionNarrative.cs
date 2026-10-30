@@ -40,7 +40,7 @@ public static class StarshipExpeditionNarrative
         }));
 
     public static string FormatStationChoices(IReadOnlyList<StarshipShipChoiceDisclosure> choices) =>
-        string.Join(" ", choices.Select((choice, index) =>
+        string.Join(" ", choices.Where(choice => choice.Number != null).Select(choice =>
         {
             var effect = choice.ChoiceId switch
             {
@@ -50,7 +50,7 @@ public static class StarshipExpeditionNarrative
                     $"+{choice.NextEventSuccessBonusPercent} percentage points to next event success",
                 _ => choice.Describe()
             };
-            return $"{index + 1}) {choice.Label} ({effect})";
+            return $"{choice.Number}) {choice.Label} ({effect})";
         }));
 
     public static string FormatPath(StarshipExpeditionEventSnapshot expeditionEvent) =>

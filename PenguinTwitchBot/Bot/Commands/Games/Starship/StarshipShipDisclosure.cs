@@ -33,8 +33,16 @@ public sealed record StarshipShipEventDisclosure(int Hull, int MaximumHull, int 
         if (snapshot.ShipSystems is not { IntegrationEnabled: true } ship) return null;
         var pool = expeditionEvent.ChoicePool.Count > 0 ? expeditionEvent.ChoicePool : expeditionEvent.Choices;
         var disclosures = new List<StarshipShipChoiceDisclosure>();
-        foreach (var choice in pool.Where(choice => string.IsNullOrEmpty(choice.GrantsFlag) ||
-                     !expeditionEvent.Flags.Contains(choice.GrantsFlag, StringComparer.OrdinalIgnoreCase)))
+        // Displayed (shuffled) choices first so chat and overlay share one order; unavailable ones last.
+        var ordered = pool.Where(choice => string.IsNullOrEmpty(choice.GrantsFlag) ||
+                !expeditionEvent.Flags.Contains(choice.GrantsFlag, StringComparer.OrdinalIgnoreCase))
+            .OrderBy(choice =>
+            {
+                var position = expeditionEvent.Choices.FindIndex(item => item.ChoiceId == choice.ChoiceId);
+                return position < 0 ? int.MaxValue : position;
+            })
+            .ToList();
+        foreach (var choice in ordered)
         {
             var index = expeditionEvent.Choices.FindIndex(item => item.ChoiceId == choice.ChoiceId);
             var station = expeditionEvent.EventType == "StationStop";
