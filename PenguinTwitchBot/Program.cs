@@ -182,22 +182,16 @@ internal class Program
         builder.Services.AddSingleton<SettingsFileManager>();
         builder.Services.AddSingleton<ILanguage, Language>();
 
-        builder.Services.AddSingleton<PenguinTwitchBot.Circuit.ISessionRevocationService, PenguinTwitchBot.Circuit.SessionRevocationService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Circuit.SessionRevocationService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Circuit.ISessionRevocationService>(sp => sp.GetRequiredService<PenguinTwitchBot.Circuit.SessionRevocationService>());
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<PenguinTwitchBot.Circuit.SessionRevocationService>());
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.Events.OnValidatePrincipal = async context =>
         {
-            var userId = context.Principal?.FindFirst("UserId")?.Value;
-            if (string.IsNullOrEmpty(userId)) return;
-
-            // The claim survives sliding renewal, unlike the ticket's IssuedUtc; cookies without it predate revocation support.
-            DateTimeOffset? loginAt = long.TryParse(context.Principal?.FindFirst("SessionIssued")?.Value, out var seconds)
-                ? DateTimeOffset.FromUnixTimeSeconds(seconds)
-                : null;
-
             var revocations = context.HttpContext.RequestServices.GetRequiredService<PenguinTwitchBot.Circuit.ISessionRevocationService>();
-            if (revocations.IsRevoked(userId, loginAt))
+            if (revocations.IsRevoked(context.Principal))
             {
                 context.RejectPrincipal();
                 await Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions.SignOutAsync(context.HttpContext, CookieAuthenticationDefaults.AuthenticationScheme);

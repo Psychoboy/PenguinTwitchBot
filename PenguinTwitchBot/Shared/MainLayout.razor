@@ -187,6 +187,11 @@
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
         Navigation.LocationChanged += HandleLocationChanged;
         SessionRevocation.SessionRevoked += HandleSessionRevoked;
+        if (SessionRevocation.IsRevoked(user))
+        {
+            Navigation.NavigateTo("/session-ended", true);
+            return;
+        }
         twitchService.ServiceStatusChanged += HandleServiceStatusChanged;
         _statusCheckTimer = new System.Timers.Timer(10000);
         _statusCheckTimer.Elapsed += (s, e) => RefreshStateSafe();
@@ -245,7 +250,7 @@
     {
         if (userId != UserId) return;
 
-        _ = InvokeAsync(() => Navigation.NavigateTo("/signout", true));
+        _ = InvokeAsync(() => Navigation.NavigateTo("/session-ended", true));
     }
 
     private void RefreshStateSafe()

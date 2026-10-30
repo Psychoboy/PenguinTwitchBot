@@ -202,7 +202,7 @@ namespace PenguinTwitchBot.Controllers
                     new Claim("DisplayName", user.DisplayName),
                     new Claim("UserId", user.Id),
                     new Claim(ClaimTypes.NameIdentifier, user.Id),
-                    new Claim("SessionIssued", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
+                    new Claim("SessionIssued", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString())
                 };
 
                 if (await viewerFeature.IsFollowerByUsername(user.Login))
@@ -237,6 +237,19 @@ namespace PenguinTwitchBot.Controllers
             }
 
             return LocalRedirect(NormalizeLocalRedirect(redirect));
+        }
+
+        [HttpGet("/session-ended")]
+        public async Task<IActionResult> SessionEnded()
+        {
+            // A circuit with a revoked session may belong to a browser that has since signed in again; keep that cookie.
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                return Redirect("/");
+            }
+
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return Redirect("/");
         }
 
         [HttpGet("/signout")]

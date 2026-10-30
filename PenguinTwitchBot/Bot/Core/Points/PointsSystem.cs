@@ -903,6 +903,10 @@ namespace PenguinTwitchBot.Bot.Core.Points
             var points = await db.UserPoints.Find(x => x.PointTypeId == pointType.Id).ToListAsync();
             db.UserPoints.RemoveRange(points);
             await db.SaveChangesAsync();
+            foreach (var affectedUserId in points.Select(x => x.UserId).Distinct())
+            {
+                NotifyPointsChanged(affectedUserId);
+            }
             try
             {
                 NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Set(0);

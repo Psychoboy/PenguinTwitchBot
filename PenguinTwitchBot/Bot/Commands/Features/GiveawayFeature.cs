@@ -903,7 +903,32 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var giveawayEntries = await db.GiveawayEntries.Find(x => x.UserId == userId || x.Username.Equals(sender)).FirstOrDefaultAsync();
+                var giveawayEntries = await db.GiveawayEntries.Find(x => x.UserId == userId).FirstOrDefaultAsync();
+                var holder = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
+                if (holder != null && !ReferenceEquals(holder, giveawayEntries))
+                {
+                    if (string.IsNullOrEmpty(holder.UserId) && giveawayEntries == null)
+                    {
+                        // Legacy row stored by name only.
+                        giveawayEntries = holder;
+                    }
+                    else if (string.IsNullOrEmpty(holder.UserId))
+                    {
+                        giveawayEntries!.Tickets += holder.Tickets;
+                        db.GiveawayEntries.Remove(holder);
+                        await db.SaveChangesAsync();
+                    }
+                    else if (holder.UserId != userId)
+                    {
+                        // The name now belongs to someone else; keep the old owner's tickets under their current name.
+                        var previousOwner = await viewerFeature.GetViewerByUserId(holder.UserId);
+                        holder.Username = previousOwner != null && !previousOwner.Username.Equals(sender, StringComparison.OrdinalIgnoreCase)
+                            ? previousOwner.Username
+                            : holder.UserId;
+                        db.GiveawayEntries.Update(holder);
+                        await db.SaveChangesAsync();
+                    }
+                }
                 giveawayEntries ??= new GiveawayEntry();
                 giveawayEntries.UserId = userId;
                 giveawayEntries.Username = sender;
@@ -928,7 +953,10 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
             // Legacy rows were stored without a UserId.
             var viewer = await viewerFeature.GetViewerByUserId(userId);
-            return viewer == null ? 0 : await GetEntriesCount(viewer.Username);
+            if (viewer == null) return 0;
+
+            var legacyEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
+            return legacyEntries != null && string.IsNullOrEmpty(legacyEntries.UserId) ? legacyEntries.Tickets : 0;
         }
 
         public async Task<long> GetEntriesCount(string sender)

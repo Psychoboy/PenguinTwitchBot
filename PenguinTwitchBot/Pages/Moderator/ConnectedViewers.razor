@@ -140,9 +140,9 @@
         circuits = UserService.Circuits;
     }
 
-    private void RevokeSession(CircuitUser user)
+    private async Task RevokeSession(CircuitUser user)
     {
-        SessionRevocation.Revoke(user.UserId);
+        await SessionRevocation.RevokeAsync(user.UserId);
         Snackbar.Add($"{user.UserName} was signed out and must sign in again.", Severity.Success);
     }
 
