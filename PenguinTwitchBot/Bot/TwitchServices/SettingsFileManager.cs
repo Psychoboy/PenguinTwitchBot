@@ -63,6 +63,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
                     await WriteSettingsFileAtomically(filePath, output);
                 }, operationDescription, filePath);
+
+                // Don't wait for the file watcher; apply the change immediately.
+                (_configuration as IConfigurationRoot)?.Reload();
             }
             catch (Exception ex)
             {

@@ -371,8 +371,8 @@
 
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                     <MudTextField @bind-Value="_testWeatherLocation"
-                                                  Label="Test Location"
-                                                  HelperText="Location used for test probe (e.g. London, Seattle, 85234)"
+                                                  Label="Default Location"
+                                                  HelperText="Default location for !weather and the test probe (e.g. London, Seattle, 85234)"
                                                   Variant="Variant.Outlined"
                                                   Margin="Margin.Dense"
                                                   Style="max-width: 300px;" />
@@ -769,12 +769,22 @@
         }
 
         _saving = true;
-        await SettingsFileManager.AddOrUpdateAppSetting("youtubeApi", _youtubeApiKey.Trim());
-        await SettingsFileManager.AddOrUpdateAppSetting(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupUrlSetting, lookupUrl);
-        await SettingsFileManager.AddOrUpdateAppSetting(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupJsonPathSetting, _songLookupJsonPath.Trim());
-        await SettingsFileManager.AddOrUpdateAppSetting(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupApiFallbackSetting, _songLookupApiFallback);
-        _saving = false;
-        Snackbar.Add("YouTube settings saved. Restart the bot for changes to take effect.", Severity.Success);
+        try
+        {
+            await SettingsFileManager.AddOrUpdateAppSetting("youtubeApi", _youtubeApiKey.Trim());
+            await SettingsFileManager.AddOrUpdateAppSetting(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupUrlSetting, lookupUrl);
+            await SettingsFileManager.AddOrUpdateAppSetting(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupJsonPathSetting, _songLookupJsonPath.Trim());
+            await SettingsFileManager.AddOrUpdateAppSetting(PenguinTwitchBot.Bot.Commands.Music.YtPlayer.SongLookupApiFallbackSetting, _songLookupApiFallback);
+            Snackbar.Add("YouTube settings saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save YouTube settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private async Task SaveDiscordAsync()
@@ -832,17 +842,43 @@
     private async Task SaveWeatherAsync()
     {
         _saving = true;
-        await SettingsFileManager.AddOrUpdateAppSetting("Weather:ApiKey", _weatherEnabled ? _weatherApiKey.Trim() : "");
-        _saving = false;
-        Snackbar.Add("Weather API key saved. Restart the bot for changes to take effect.", Severity.Success);
+        try
+        {
+            _testWeatherLocation = _testWeatherLocation.Trim();
+            await SettingsFileManager.AddOrUpdateAppSettings(new KeyValuePair<string, object?>[]
+            {
+                new("Weather:ApiKey", _weatherEnabled ? _weatherApiKey.Trim() : ""),
+                new("Weather:DefaultLocation", _testWeatherLocation)
+            });
+            await SettingsFileManager.AddOrUpdateMainAppSetting("Weather:DefaultLocation", _testWeatherLocation);
+            Snackbar.Add("Weather settings saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save weather settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private async Task SaveOpenAiAsync()
     {
         _saving = true;
-        await SettingsFileManager.AddOrUpdateAppSetting("OpenAI:ApiKey", _openAiEnabled ? _openAiApiKey.Trim() : "");
-        _saving = false;
-        Snackbar.Add("OpenAI settings saved. Restart the bot for changes to take effect.", Severity.Success);
+        try
+        {
+            await SettingsFileManager.AddOrUpdateAppSetting("OpenAI:ApiKey", _openAiEnabled ? _openAiApiKey.Trim() : "");
+            Snackbar.Add("OpenAI settings saved. Restart the bot for changes to take effect.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save OpenAI settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private static ulong ParseUlong(string? value) =>
