@@ -430,15 +430,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
-            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "", UserId = "123", Username = "user" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            pointsSystem.GetUserPointsByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
             {
                 Points = 10
             });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
+            pointsSystem.RemovePointsFromUserByUserIdAndGame("123", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user", UserId = "123" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -459,7 +459,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             // Arrange
             var sender = $"user-{Guid.NewGuid():N}";
             dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(emptyTestGiveawayEntriesQueryable);
-            pointsSystem.GetUserPointsByUsernameAndGame(sender, "GiveawayFeature").Returns(new UserPoints { Points = 100 });
+            viewerFeature.GetViewerByUserName(sender).Returns(new Viewer { UserId = sender, Username = sender });
+            pointsSystem.GetUserPointsByUserIdAndGame(sender, "GiveawayFeature").Returns(new UserPoints { Points = 100 });
             viewerFeature.GetDisplayNameByUsername(sender).Returns(sender);
 
             var concurrentCount = 0;
@@ -481,7 +482,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
                 return true;
             }
 
-            pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, "GiveawayFeature", 5)
+            pointsSystem.RemovePointsFromUserByUserIdAndGame(sender, "GiveawayFeature", 5)
                 .Returns(SimulateSlowPointsRemoval);
 
             // Act
@@ -500,7 +501,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             var senderA = $"user-{Guid.NewGuid():N}";
             var senderB = $"user-{Guid.NewGuid():N}";
             dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(emptyTestGiveawayEntriesQueryable);
-            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints { Points = 100 });
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(callInfo => new Viewer { UserId = callInfo.Arg<string>(), Username = callInfo.Arg<string>() });
+            pointsSystem.GetUserPointsByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints { Points = 100 });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns(callInfo => callInfo.Arg<string>());
 
             var bothEntered = new TaskCompletionSource();
@@ -516,7 +518,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
                 return true;
             }
 
-            pointsSystem.RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature", 5)
+            pointsSystem.RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature", 5)
                 .Returns(SimulateSlowPointsRemoval);
 
             // Act
@@ -535,15 +537,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
-            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "", UserId = "123", Username = "user" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            pointsSystem.GetUserPointsByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
             {
                 Points = 10
             });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
+            pointsSystem.RemovePointsFromUserByUserIdAndGame("123", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -562,15 +564,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
-            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "", UserId = "123", Username = "user" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            pointsSystem.GetUserPointsByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
             {
                 Points = 10
             });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
+            pointsSystem.RemovePointsFromUserByUserIdAndGame("123", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -589,15 +591,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
-            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "", UserId = "123", Username = "user" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            pointsSystem.GetUserPointsByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
             {
                 Points = 10
             });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
+            pointsSystem.RemovePointsFromUserByUserIdAndGame("123", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -640,15 +642,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
-            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "", UserId = "123", Username = "user" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            pointsSystem.GetUserPointsByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
             {
                 Points = 10
             });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(false);
+            pointsSystem.RemovePointsFromUserByUserIdAndGame("123", "GiveawayFeature", 10).Returns(false);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { "10" }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -666,16 +668,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
-            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "", UserId = "123", Username = "user" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            //pointsSystem.GetViewerTickets(Arg.Any<string>()).Returns(1000000);
-            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            pointsSystem.GetUserPointsByUserIdAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
             {
                 Points = 1000000
             });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
+            pointsSystem.RemovePointsFromUserByUserIdAndGame("123", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");

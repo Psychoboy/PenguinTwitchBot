@@ -10,6 +10,7 @@
 @inject ISnackbar Snackbar
 @inject ILogger<GiveawayEntryPanel> logger
 @inject IConfiguration AppConfiguration
+@inject PenguinTwitchBot.Bot.Commands.Features.IViewerFeature ViewerFeature
 @implements IAsyncDisposable
 
 <MudPaper Class="pa-4 stat-card" Elevation="2">
@@ -158,8 +159,9 @@
 
     private HubConnection? hubConnection;
     private CancellationTokenSource? _hubConnectionCts;
-    private System.Threading.Timer? _userTicketsRefreshTimer;
     private bool _disposed;
+    private string _userId = "";
+    private bool _subscribed;
 
     private string Username = "";
     private long userTickets;
@@ -213,6 +215,7 @@
         if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
         {
             Username = user.Identity.Name;
+            _userId = user.FindFirst("UserId")?.Value ?? "";
         }
 
         isClosed = GiveawayFeature.IsClosed();
@@ -238,9 +241,8 @@
             .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
             .Build();
 
-        // Per-viewer balance changes only from this user's own actions (handled directly) or passive
-        // earnings (polled below); the global "UpdateTickets" broadcast fires every 5s for all viewers
-        // and isn't needed here.
+        // Per-viewer balance changes arrive via IPointsSystem.PointsChanged; the global "UpdateTickets"
+        // broadcast fires every 5s for all viewers and isn't needed here.
         hubConnection.On<bool>("GiveawayIsClosed", (closed) =>
         {
             InvokeAsync(() =>
@@ -252,11 +254,14 @@
 
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
 
-        if (!string.IsNullOrEmpty(Username))
-        {
-            // Passive earnings (bits, subs, etc.) don't push updates, so poll the viewer's own balance periodically.
-            _userTicketsRefreshTimer = new System.Threading.Timer(_ => InvokeAsync(RefreshUserTicketsAsync), null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
-        }
+    }
+
+    private void OnPointsChanged(string userId)
+    {
+        if (_disposed || userId != _userId)
+            return;
+
+        _ = InvokeAsync(RefreshUserTicketsAsync);
     }
 
     private async Task RefreshUserTicketsAsync()
@@ -266,8 +271,22 @@
 
         try
         {
-            userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
-            userEntries = await GiveawayFeature.GetEntriesCount(Username);
+            // Sessions without a UserId claim or viewer record are stale: sign out so the next login recreates them.
+            if (string.IsNullOrEmpty(_userId) || await ViewerFeature.GetViewerByUserId(_userId) == null)
+            {
+                _disposed = true;
+                Navigation.NavigateTo("/signout", true);
+                return;
+            }
+
+            if (!_subscribed)
+            {
+                _subscribed = true;
+                PointSystem.PointsChanged += OnPointsChanged;
+            }
+
+            userTickets = (await PointSystem.GetUserPointsByUserIdAndGame(_userId, "GiveawayFeature")).Points;
+            userEntries = await GiveawayFeature.GetEntriesCountByUserId(_userId);
             maxAffordableEntries = pointsPerEntry > 0 ? userTickets / pointsPerEntry : 0;
 
             if (pointsPerEntry > 1)
@@ -327,7 +346,7 @@
         isSubmitting = true;
         try
         {
-            var result = await GiveawayFeature.Enter(Username, model.EnterAmount.ToString(), true);
+            var result = await GiveawayFeature.EnterByUserId(_userId, model.EnterAmount.ToString(), true);
             AlertText = result;
             AlertSeverity = Severity.Success;
             await RefreshUserTicketsAsync();
@@ -352,7 +371,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
-        _userTicketsRefreshTimer?.Dispose();
+        PointSystem.PointsChanged -= OnPointsChanged;
 
         _hubConnectionCts?.Cancel();
 

@@ -6,6 +6,8 @@
 @implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @inject ICircuitUserService UserService
+@inject ISessionRevocationService SessionRevocation
+@inject ISnackbar Snackbar
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Connected Viewers</PageTitle>
 
@@ -86,6 +88,15 @@
                                            Size="Size.Small"
                                            Href="@($"/community/viewers/edit?name={Uri.EscapeDataString(context.Value.UserName)}")" />
                         </MudTooltip>
+                        @if (!string.IsNullOrEmpty(context.Value.UserId))
+                        {
+                            <MudTooltip Text="Sign out and force re-login">
+                                <MudIconButton Icon="@Icons.Material.Filled.Logout"
+                                               Color="Color.Warning"
+                                               Size="Size.Small"
+                                               OnClick="() => RevokeSession(context.Value)" />
+                            </MudTooltip>
+                        }
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
@@ -127,6 +138,12 @@
         UserService.CircuitsChanged += UserService_CircuitsChanged;
         UserService.UserRemoved += UserService_UserRemoved;
         circuits = UserService.Circuits;
+    }
+
+    private void RevokeSession(CircuitUser user)
+    {
+        SessionRevocation.Revoke(user.UserId);
+        Snackbar.Add($"{user.UserName} was signed out and must sign in again.", Severity.Success);
     }
 
     private void UserService_UserRemoved(object sender, UserRemovedEventArgs e)

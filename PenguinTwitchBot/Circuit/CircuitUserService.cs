@@ -26,12 +26,16 @@ namespace PenguinTwitchBot.Circuit
             if (string.IsNullOrEmpty(UserName)) UserName = "Anonymous";
             if (string.IsNullOrEmpty(userIp)) userIp = "Unknown";
             if (Circuits.ContainsKey(CircuitId))
+            {
                 Circuits[CircuitId].UserName = UserName;
+                Circuits[CircuitId].UserId = userId;
+            }
             else
             {
                 var circuitUser = new CircuitUser
                 {
                     UserName = UserName,
+                    UserId = userId,
                     CircuitId = CircuitId,
                     UserIp = userIp
                 };

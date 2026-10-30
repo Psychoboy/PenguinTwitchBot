@@ -201,7 +201,8 @@ namespace PenguinTwitchBot.Controllers
                     new Claim("ProfilePicture", user.ProfileImageUrl),
                     new Claim("DisplayName", user.DisplayName),
                     new Claim("UserId", user.Id),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id)
+                    new Claim(ClaimTypes.NameIdentifier, user.Id),
+                    new Claim("SessionIssued", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
                 };
 
                 if (await viewerFeature.IsFollowerByUsername(user.Login))

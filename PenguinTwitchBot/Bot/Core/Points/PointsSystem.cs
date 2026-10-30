@@ -31,6 +31,20 @@ namespace PenguinTwitchBot.Bot.Core.Points
         private static readonly KeyedSemaphore UserLocks = new();
         private static readonly Prometheus.Gauge NumberOfPoints = Prometheus.Metrics.CreateGauge("points", "Number of points", ["username", "pointTypeId"]);
         private static readonly Prometheus.Gauge NumberOfPointsByGame = Prometheus.Metrics.CreateGauge("points_by_game", "Number of points by game", ["game", "pointTypeId"]);
+        public event Action<string>? PointsChanged;
+
+        private void NotifyPointsChanged(string userId)
+        {
+            try
+            {
+                PointsChanged?.Invoke(userId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error notifying points change for {userId}", userId);
+            }
+        }
+
         public async Task<long> AddPointsByUserId(string userId, Guid pointType, long points)
         {
             using var userLock = await UserLocks.AcquireAsync($"{userId}:{pointType}", CancellationToken.None);
@@ -81,6 +95,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
                     logger.LogError(ex, "Error updating metric");
                 }
                 await db.SaveChangesAsync();
+                NotifyPointsChanged(userId);
                 return userPoints.Points;
             }
             catch(Exception ex)
@@ -141,6 +156,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
                 StringSetting = $"{userId}:{pointType}:{points.ToString(CultureInfo.InvariantCulture)}"
             });
             await db.SaveChangesAsync();
+            NotifyPointsChanged(userId);
             try
             {
                 NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Inc(points);
@@ -191,6 +207,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             }
 
             await db.SaveChangesAsync();
+            NotifyPointsChanged(userId);
             try
             {
                 var delta = points - previousPoints;
@@ -449,6 +466,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.UserPoints.Update(userPoints);
             await db.SaveChangesAsync();
+            NotifyPointsChanged(userId);
             try
             {
                 NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Dec(points);

@@ -9,6 +9,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject ICircuitUserService UserService
+@inject ISessionRevocationService SessionRevocation
 @inject PenguinTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject CircuitHandler BlazorCircuitHandler
 @implements IAsyncDisposable
@@ -185,6 +186,7 @@
         await UserService.Connect(handler.CircuitId, Username, UserId, BlazorAppContext?.CurrentUserIP);
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
         Navigation.LocationChanged += HandleLocationChanged;
+        SessionRevocation.SessionRevoked += HandleSessionRevoked;
         twitchService.ServiceStatusChanged += HandleServiceStatusChanged;
         _statusCheckTimer = new System.Timers.Timer(10000);
         _statusCheckTimer.Elapsed += (s, e) => RefreshStateSafe();
@@ -239,6 +241,13 @@
         RefreshStateSafe();
     }
 
+    private void HandleSessionRevoked(string userId)
+    {
+        if (userId != UserId) return;
+
+        _ = InvokeAsync(() => Navigation.NavigateTo("/signout", true));
+    }
+
     private void RefreshStateSafe()
     {
         try
@@ -289,6 +298,7 @@
     {
         UserThemeService.OnThemeChanged -= HandleThemeChanged;
         Navigation.LocationChanged -= HandleLocationChanged;
+        SessionRevocation.SessionRevoked -= HandleSessionRevoked;
         twitchService.ServiceStatusChanged -= HandleServiceStatusChanged;
 
         if (_statusCheckTimer is not null)
