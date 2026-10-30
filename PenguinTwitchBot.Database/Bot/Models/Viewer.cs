@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 namespace PenguinTwitchBot.Database.Bot.Models
 {
     [IndexAttribute(nameof(Username))]
-    [IndexAttribute(nameof(UserId))]
     public class Viewer
     {
         [Key]

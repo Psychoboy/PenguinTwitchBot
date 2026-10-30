@@ -2594,11 +2594,15 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
                     b.HasIndex("Username");
 
-                    b.ToTable("Viewers");
+                    b.ToTable("Viewers", t =>
+                        {
+                            t.HasCheckConstraint("CK_Viewers_UserId_NotEmpty", "\"UserId\" <> ''");
+                        });
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.ViewerChatHistory", b =>
