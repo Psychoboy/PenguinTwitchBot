@@ -78,7 +78,23 @@ internal static class Program
 
             Console.WriteLine($"Recovery bundle created: {recoveryFile}");
 
-            ApplyUpdate(packagePath, appRoot, entries);
+            try
+            {
+                ApplyUpdate(packagePath, appRoot, entries);
+            }
+            catch (Exception applyEx)
+            {
+                Console.Error.WriteLine($"Update failed, rolling back: {applyEx.Message}");
+                RestoreFromRecoveryBundle(appRoot, recoveryFile);
+                Console.Error.WriteLine("Rollback completed.");
+                if (!string.IsNullOrWhiteSpace(options.RestartCommand))
+                {
+                    StartProcess(options.RestartCommand!, appRoot);
+                }
+
+                return 7;
+            }
+
             Console.WriteLine("Update applied successfully.");
 
             if (!string.IsNullOrWhiteSpace(options.RestartCommand))
@@ -169,25 +185,55 @@ internal static class Program
 
     private static void ApplyUpdate(string packagePath, string appRoot, IReadOnlyList<string> safeEntries)
     {
-        using var archive = ZipFile.OpenRead(packagePath);
-        foreach (var relativePath in safeEntries)
+        var staged = new List<(string Temp, string Dest)>();
+        try
         {
-            var entry = archive.GetEntry(relativePath.Replace('\\', '/'));
-            if (entry is null)
+            // Phase 1: extract and verify every file next to its destination; live files are untouched.
+            using (var archive = ZipFile.OpenRead(packagePath))
             {
-                continue;
+                foreach (var relativePath in safeEntries)
+                {
+                    var entry = archive.GetEntry(relativePath.Replace('\\', '/'));
+                    if (entry is null)
+                    {
+                        continue;
+                    }
+
+                    GetSafeArchiveEntryPath(entry.FullName);
+
+                    var destinationPath = GetSafeDestinationPath(appRoot, relativePath);
+                    var destinationDir = Path.GetDirectoryName(destinationPath);
+                    if (!string.IsNullOrWhiteSpace(destinationDir))
+                    {
+                        Directory.CreateDirectory(destinationDir);
+                    }
+
+                    var tempPath = destinationPath + ".ptbnew";
+                    staged.Add((tempPath, destinationPath));
+                    entry.ExtractToFile(tempPath, overwrite: true);
+
+                    if (new FileInfo(tempPath).Length != entry.Length)
+                    {
+                        throw new InvalidDataException($"Size mismatch after extracting {relativePath}");
+                    }
+                }
             }
 
-            GetSafeArchiveEntryPath(entry.FullName);
-
-            var destinationPath = GetSafeDestinationPath(appRoot, relativePath);
-            var destinationDir = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrWhiteSpace(destinationDir))
+            // Phase 2: swap each file in with an atomic rename.
+            foreach (var (temp, dest) in staged)
             {
-                Directory.CreateDirectory(destinationDir);
+                File.Move(temp, dest, overwrite: true);
             }
-
-            entry.ExtractToFile(destinationPath, overwrite: true);
+        }
+        finally
+        {
+            foreach (var (temp, _) in staged)
+            {
+                if (File.Exists(temp))
+                {
+                    File.Delete(temp);
+                }
+            }
         }
     }
 
