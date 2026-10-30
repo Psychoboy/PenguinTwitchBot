@@ -4,7 +4,8 @@ namespace PenguinTwitchBot.Bot.Ai
 {
     public class OpenAiModelService : IOpenAiModelService
     {
-        private readonly OpenAIClient? _client;
+        private readonly IOpenAiClientProvider? _clientProvider;
+        private OpenAIClient? _cachedForClient;
         private readonly ILogger<OpenAiModelService> _logger;
         private readonly SemaphoreSlim _cacheLock = new(1, 1);
         private IReadOnlyList<string>? _cachedModels;
@@ -24,17 +25,30 @@ namespace PenguinTwitchBot.Bot.Ai
             "o1"
         ];
 
-        public OpenAiModelService(ILogger<OpenAiModelService> logger, OpenAIClient? client = null)
+        public OpenAiModelService(ILogger<OpenAiModelService> logger, IOpenAiClientProvider? clientProvider = null)
         {
             _logger = logger;
-            _client = client;
+            _clientProvider = clientProvider;
+        }
+
+        // Drops cached models when the API key (and therefore the client) changed.
+        private OpenAIClient? CurrentClient()
+        {
+            var client = _clientProvider?.Client;
+            if (!ReferenceEquals(client, _cachedForClient))
+            {
+                _cachedForClient = client;
+                _cachedModels = null;
+                _cacheExpiresAt = DateTime.MinValue;
+            }
+            return client;
         }
 
         public IReadOnlyList<string>? CachedModels
         {
             get
             {
-                if (_client == null)
+                if (CurrentClient() == null)
                 {
                     return DefaultTextModels;
                 }
@@ -51,12 +65,13 @@ namespace PenguinTwitchBot.Bot.Ai
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            var client = CurrentClient();
             if (_cachedModels != null && DateTime.UtcNow < _cacheExpiresAt)
             {
                 return _cachedModels;
             }
 
-            if (_client == null)
+            if (client == null)
             {
                 _cachedModels = DefaultTextModels;
                 _cacheExpiresAt = DateTime.UtcNow.Add(CacheDuration);
@@ -71,7 +86,7 @@ namespace PenguinTwitchBot.Bot.Ai
                     return _cachedModels;
                 }
 
-                var modelClient = _client.GetOpenAIModelClient();
+                var modelClient = client.GetOpenAIModelClient();
                 var result = await modelClient.GetModelsAsync(cancellationToken);
 
                 var textModels = result.Value

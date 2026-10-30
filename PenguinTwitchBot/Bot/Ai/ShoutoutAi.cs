@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 namespace PenguinTwitchBot.Bot.Ai
 {
     public partial class ShoutoutAi(
-        OpenAIClient openAIClient,
+        IOpenAiClientProvider clientProvider,
         ILogger<ShoutoutAi> logger
         ) : IShoutoutAi
     {
@@ -19,6 +19,12 @@ namespace PenguinTwitchBot.Bot.Ai
             if (string.IsNullOrWhiteSpace(streamerName))
             {
                 logger.LogWarning("Streamer name is empty.");
+                return "";
+            }
+
+            var openAIClient = clientProvider.Client;
+            if (openAIClient == null)
+            {
                 return "";
             }
 

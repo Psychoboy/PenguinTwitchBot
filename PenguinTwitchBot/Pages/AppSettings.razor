@@ -806,8 +806,9 @@
         try
         {
             _weatherDefaultLocation = _weatherDefaultLocation.Trim();
+            await SettingsFileManager.AddOrUpdateAppSetting("Weather:DefaultLocation", _weatherDefaultLocation);
             await SettingsFileManager.AddOrUpdateMainAppSetting("Weather:DefaultLocation", _weatherDefaultLocation);
-            Snackbar.Add("Weather default location saved to appsettings.json. Restart the bot for changes to take effect.", Severity.Success);
+            Snackbar.Add("Weather default location saved.", Severity.Success);
         }
         catch (Exception ex)
         {

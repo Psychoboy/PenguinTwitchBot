@@ -4,9 +4,8 @@ using System.Text.RegularExpressions;
 
 namespace PenguinTwitchBot.Bot.Ai
 {
-    public partial class StarCitizenAI(OpenAIClient openAIClient, IUnitOfWork unitOfWork, ILogger<StarCitizenAI> logger) : IStarCitizenAI
+    public partial class StarCitizenAI(IOpenAiClientProvider clientProvider, IUnitOfWork unitOfWork, ILogger<StarCitizenAI> logger) : IStarCitizenAI
     {
-        private readonly OpenAIClient client = openAIClient;
         [GeneratedRegex(@"\(\s*\[[^\]]+\]\([^)]+\)\s*\)",
             RegexOptions.Compiled | RegexOptions.IgnoreCase)]
         private static partial Regex LinkPatternRegex();
@@ -16,6 +15,12 @@ namespace PenguinTwitchBot.Bot.Ai
             if (string.IsNullOrWhiteSpace(prompt))
             {
                 return "Prompt cannot be empty.";
+            }
+
+            var client = clientProvider.Client;
+            if (client == null)
+            {
+                return "OpenAI is not configured.";
             }
 
             var respClient = client.GetResponsesClient();

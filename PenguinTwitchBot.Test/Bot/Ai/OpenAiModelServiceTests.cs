@@ -57,8 +57,9 @@ namespace PenguinTwitchBot.Test.Bot.Ai
         public async Task GetAvailableTextModelsAsync_WhenCanceled_ThrowsOperationCanceledException()
         {
             var logger = Substitute.For<ILogger<OpenAiModelService>>();
-            var client = new OpenAI.OpenAIClient("test-key");
-            var service = new OpenAiModelService(logger, client);
+            var provider = Substitute.For<IOpenAiClientProvider>();
+            provider.Client.Returns(new OpenAI.OpenAIClient("test-key"));
+            var service = new OpenAiModelService(logger, provider);
 
             using var cts = new CancellationTokenSource();
             cts.Cancel();

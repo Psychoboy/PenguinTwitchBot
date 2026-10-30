@@ -20,6 +20,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         private readonly IBannedSongService _bannedSongService;
         private readonly ISongCooldownService _songCooldownService;
         private YouTubeService _youtubeService;
+        private string? _youtubeApiKey;
         private readonly ICollector<IGauge> SongRequestsInQueue;
 
         public IGauge SongsInBackupQueueMetric { get; }
@@ -73,6 +74,14 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             _bannedSongService = bannedSongService;
             _songCooldownService = songCooldownService;
             _youtubeService = CreateYouTubeService();
+            _youtubeApiKey = _configuration["youtubeApi"];
+            Microsoft.Extensions.Primitives.ChangeToken.OnChange(_configuration.GetReloadToken, () =>
+            {
+                var key = _configuration["youtubeApi"];
+                if (key == _youtubeApiKey) return;
+                _youtubeApiKey = key;
+                _youtubeService = CreateYouTubeService();
+            });
             SongRequestsInQueue = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(2)).CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: ["viewer"]).WithExtendLifetimeOnUse();
             SongsInBackupQueueMetric = Prometheus.Metrics.CreateGauge("songs_in_backup_queue", "Songs in Backup Queue");
         }
