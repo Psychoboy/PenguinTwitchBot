@@ -5,6 +5,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         /// <summary>
         /// Fish type IDs to match. Empty = any fish type.
         /// </summary>
+        [System.Text.Json.Serialization.JsonConverter(typeof(PenguinTwitchBot.Database.Bot.DatabaseTools.LegacyIntCompatibleGuidListJsonConverter))]
         public List<Guid> FishTypeIds { get; set; } = [];
 
         /// <summary>
