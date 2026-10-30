@@ -867,6 +867,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 End = ResolveSound(settings.EndSound, theme.RacingEndSound, mediaService),
                 RacingStart = ResolveSound(settings.StartSound, theme.RacingStartSound, mediaService),
                 RacingEnd = ResolveSound(settings.EndSound, theme.RacingEndSound, mediaService),
+                RacingCountdown = ResolveSound(settings.CountdownSound, null, mediaService),
                 RacingEngine = ResolveSound(settings.EngineSound, theme.RacingEngineSound, mediaService),
                 RacingScreech = ResolveSound(settings.ScreechSound, theme.RacingScreechSound, mediaService),
                 RacingCrash = ResolveSound(settings.CrashSound, theme.RacingCrashSound, mediaService),

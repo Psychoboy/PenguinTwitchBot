@@ -64,11 +64,6 @@
         return null;
     }
 
-    // Audio synthesizer via DropGamesAudio
-    const audio = (typeof DropGamesAudio !== 'undefined' && DropGamesAudio.createAudioEngine)
-        ? DropGamesAudio.createAudioEngine()
-        : null;
-
     let soundBundleManager = null;
     if (typeof DropGamesAudio !== 'undefined' && typeof DropGamesAudio.createSoundBundleManager === 'function') {
         soundBundleManager = DropGamesAudio.createSoundBundleManager();
@@ -85,24 +80,6 @@
                 a.volume = volFrac;
                 a.play().catch(() => {});
                 return;
-            } catch (_) {}
-        }
-
-        if (audio) {
-            try {
-                if (synthType === 'slide' && typeof audio.playCurlingSlide === 'function') {
-                    audio.playCurlingSlide(volFrac);
-                } else if (synthType === 'sweep' && typeof audio.playCurlingSweep === 'function') {
-                    audio.playCurlingSweep(volFrac);
-                } else if (synthType === 'hit' && typeof audio.playCurlingHit === 'function') {
-                    audio.playCurlingHit(volFrac);
-                } else if (synthType === 'score' && typeof audio.playCurlingScore === 'function') {
-                    audio.playCurlingScore(volFrac);
-                } else if (synthType === 'win' && typeof audio.playBullseyeFanfare === 'function') {
-                    audio.playBullseyeFanfare(volFrac);
-                } else if (typeof audio.playProceduralChime === 'function') {
-                    audio.playProceduralChime(defaultFreq, volFrac);
-                }
             } catch (_) {}
         }
     }
