@@ -583,6 +583,7 @@ PenguinTwitchBot/wwwroot/media/*
 !PenguinTwitchBot/wwwroot/media/golf_lipout.wav
 !PenguinTwitchBot/wwwroot/media/golf_win.wav
 !PenguinTwitchBot/wwwroot/media/racing_start.wav
+!PenguinTwitchBot/wwwroot/media/racing_countdown.wav
 !PenguinTwitchBot/wwwroot/media/racing_end.wav
 !PenguinTwitchBot/wwwroot/media/racing_engine.wav
 !PenguinTwitchBot/wwwroot/media/racing_screech.wav

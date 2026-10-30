@@ -36,8 +36,6 @@
     // Audio & Common dependencies
     const soundManager = (typeof DropGamesAudio !== 'undefined' && DropGamesAudio.createSoundManager)
         ? DropGamesAudio.createSoundManager() : null;
-    const audioEngine = (typeof DropGamesAudio !== 'undefined' && DropGamesAudio.createAudioEngine)
-        ? DropGamesAudio.createAudioEngine() : null;
     const commonModule = typeof DropGamesCommon !== 'undefined' ? DropGamesCommon : null;
 
     // WebSocket connection & completion queue
@@ -161,7 +159,9 @@
             let isHighPriority = false;
 
             if (currentSounds) {
-                if (type === 'start' || type === 'countdown_go') {
+                if (type === 'countdown_beep') {
+                    soundDto = currentSounds.racingCountdown;
+                } else if (type === 'start' || type === 'countdown_go') {
                     soundDto = currentSounds.racingStart || currentSounds.start;
                     isHighPriority = true;
                 } else if (type === 'end') {
@@ -198,30 +198,6 @@
                     audio.play().catch(() => {});
                     return;
                 }
-            }
-
-            // 3. Fallback to procedural Web Audio engine synthesizer
-            if (!audioEngine) return;
-            const volume = (soundDto && typeof soundDto.volume === 'number')
-                ? Math.max(0, Math.min(1, soundDto.volume / 100))
-                : 0.6;
-
-            if (type === 'countdown_beep' && audioEngine.playRaceCountdownBeep) {
-                audioEngine.playRaceCountdownBeep(false, volume);
-            } else if (type === 'countdown_go' && audioEngine.playRaceCountdownBeep) {
-                audioEngine.playRaceCountdownBeep(true, volume);
-            } else if ((type === 'bump' || type === 'crash') && audioEngine.playCarBump) {
-                audioEngine.playCarBump(volume);
-            } else if (type === 'screech' && audioEngine.playTireScreech) {
-                audioEngine.playTireScreech(volume);
-            } else if (type === 'boost' && audioEngine.playBoostPad) {
-                audioEngine.playBoostPad(volume);
-            } else if (type === 'win' && audioEngine.playRaceWin) {
-                audioEngine.playRaceWin(volume);
-            } else if (type === 'end' && audioEngine.playRaceWin) {
-                audioEngine.playRaceWin(volume);
-            } else if (type === 'engine' && audioEngine.playEngineRev) {
-                audioEngine.playEngineRev(volume);
             }
         } catch (_) { }
     }

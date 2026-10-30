@@ -60,11 +60,6 @@
         return null;
     }
 
-    // Audio synthesizer via DropGamesAudio
-    const audio = (typeof DropGamesAudio !== 'undefined' && DropGamesAudio.createAudioEngine)
-        ? DropGamesAudio.createAudioEngine()
-        : null;
-
     function playSound(soundDto, synthType = 'chime', defaultFreq = 440) {
         if (!soundDto || soundDto.enabled === false) return;
         const vol = (typeof soundDto.volume === 'number') ? soundDto.volume : 65;
@@ -76,27 +71,6 @@
                 a.volume = volFrac;
                 a.play().catch(() => {});
                 return;
-            } catch (_) {}
-        }
-        if (audio) {
-            try {
-                if (synthType === 'launch' && typeof audio.playBalloonLaunch === 'function') {
-                    audio.playBalloonLaunch(volFrac);
-                } else if (synthType === 'pop' && typeof audio.playDartPop === 'function') {
-                    audio.playDartPop(volFrac);
-                } else if (synthType === 'bonk' && typeof audio.playAnvilBonk === 'function') {
-                    audio.playAnvilBonk(volFrac);
-                } else if (synthType === 'nudge' && typeof audio.playNudgeBump === 'function') {
-                    audio.playNudgeBump(volFrac);
-                } else if (synthType === 'wind' && typeof audio.playWindGust === 'function') {
-                    audio.playWindGust(volFrac);
-                } else if (synthType === 'land' && typeof audio.playCloudLanding === 'function') {
-                    audio.playCloudLanding(volFrac);
-                } else if (synthType === 'bullseye' && typeof audio.playBullseyeFanfare === 'function') {
-                    audio.playBullseyeFanfare(volFrac);
-                } else if (typeof audio.playProceduralChime === 'function') {
-                    audio.playProceduralChime(defaultFreq, volFrac);
-                }
             } catch (_) {}
         }
     }
@@ -1179,7 +1153,7 @@
             b.isBullseye = false;
 
             // Miss popup & miss sound for losers
-            playSound(b.sounds?.balloonLose || { enabled: true }, 'miss', 320);
+            playSound(b.sounds?.balloonLose || b.sounds?.balloonBonk || { enabled: true }, 'miss', 320);
 
             scorePopups.push({
                 x: b.x,

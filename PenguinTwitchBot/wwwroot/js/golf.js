@@ -65,10 +65,6 @@
         return null;
     }
 
-    const audio = (typeof DropGamesAudio !== 'undefined' && DropGamesAudio.createAudioEngine)
-        ? DropGamesAudio.createAudioEngine()
-        : null;
-
     let soundBundleManager = null;
     if (typeof DropGamesAudio !== 'undefined' && typeof DropGamesAudio.createSoundBundleManager === 'function') {
         soundBundleManager = DropGamesAudio.createSoundBundleManager();
@@ -85,28 +81,6 @@
                 a.volume = volFrac;
                 a.play().catch(() => {});
                 return;
-            } catch (_) {}
-        }
-
-        if (audio) {
-            try {
-                if (synthType === 'strike' && typeof audio.playGolfStrike === 'function') {
-                    audio.playGolfStrike(volFrac);
-                } else if (synthType === 'bounce' && typeof audio.playGolfBounce === 'function') {
-                    audio.playGolfBounce(volFrac);
-                } else if (synthType === 'cup' && typeof audio.playGolfCup === 'function') {
-                    audio.playGolfCup(volFrac);
-                } else if (synthType === 'lipout' && typeof audio.playGolfLipOut === 'function') {
-                    audio.playGolfLipOut(volFrac);
-                } else if (synthType === 'win' && typeof audio.playGolfWin === 'function') {
-                    audio.playGolfWin(volFrac);
-                } else if (synthType === 'fanfare' && typeof audio.playBullseyeFanfare === 'function') {
-                    audio.playBullseyeFanfare(volFrac);
-                } else if (synthType === 'hit' && typeof audio.playCurlingHit === 'function') {
-                    audio.playCurlingHit(volFrac);
-                } else if (typeof audio.playProceduralChime === 'function') {
-                    audio.playProceduralChime(defaultFreq, volFrac);
-                }
             } catch (_) {}
         }
     }
@@ -786,7 +760,7 @@
                         const now = nowMs();
                         if (!res.separating && now - lastCollisionSoundMs > 90) {
                             lastCollisionSoundMs = now;
-                            playSound(sessionState.sounds?.collision || { enabled: true }, 'hit');
+                            playSound(sessionState.sounds?.collision || sessionState.sounds?.golfBounce || { enabled: true }, 'hit');
                         }
                     }
                 }

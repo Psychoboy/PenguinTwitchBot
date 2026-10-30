@@ -381,6 +381,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameEffectiveSoundDto? GolfWin { get; set; }
         public DropGameEffectiveSoundDto? RacingStart { get; set; }
         public DropGameEffectiveSoundDto? RacingEnd { get; set; }
+        public DropGameEffectiveSoundDto? RacingCountdown { get; set; }
         public DropGameEffectiveSoundDto? RacingEngine { get; set; }
         public DropGameEffectiveSoundDto? RacingScreech { get; set; }
         public DropGameEffectiveSoundDto? RacingCrash { get; set; }
@@ -609,6 +610,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         // Sound Effects
         public DropGameSoundConfig StartSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_start.wav", Volume = 70 };
         public DropGameSoundConfig EndSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_end.wav", Volume = 70 };
+        public DropGameSoundConfig CountdownSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_countdown.wav", Volume = 60 };
         public DropGameSoundConfig EngineSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_engine.wav", Volume = 55 };
         public DropGameSoundConfig ScreechSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_screech.wav", Volume = 60 };
         public DropGameSoundConfig CrashSound { get; set; } = new() { Enabled = true, AudioFile = "/media/racing_crash.wav", Volume = 65 };

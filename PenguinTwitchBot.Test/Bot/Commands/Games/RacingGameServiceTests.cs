@@ -470,6 +470,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var files = new[]
             {
                 "racing_start.wav",
+                "racing_countdown.wav",
                 "racing_end.wav",
                 "racing_engine.wav",
                 "racing_screech.wav",
@@ -505,6 +506,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var rSettings = new RacingGameSettings();
 
             Assert.Equal("/media/racing_start.wav", rSettings.StartSound.AudioFile);
+            Assert.Equal("/media/racing_countdown.wav", rSettings.CountdownSound.AudioFile);
             Assert.Equal("/media/racing_end.wav", rSettings.EndSound.AudioFile);
             Assert.Equal("/media/racing_engine.wav", rSettings.EngineSound.AudioFile);
             Assert.Equal("/media/racing_screech.wav", rSettings.ScreechSound.AudioFile);
@@ -520,6 +522,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             Assert.NotNull(bundle.RacingStart);
             Assert.Equal("/media/racing_start.wav", bundle.RacingStart.Url);
+            Assert.NotNull(bundle.RacingCountdown);
+            Assert.Equal("/media/racing_countdown.wav", bundle.RacingCountdown.Url);
             Assert.NotNull(bundle.RacingEnd);
             Assert.Equal("/media/racing_end.wav", bundle.RacingEnd.Url);
             Assert.NotNull(bundle.RacingEngine);
