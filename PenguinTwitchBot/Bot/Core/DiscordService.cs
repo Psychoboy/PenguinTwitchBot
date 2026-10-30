@@ -49,6 +49,15 @@ namespace PenguinTwitchBot.Bot.Core
             _featureRuntimeCoordinator = featureRuntimeCoordinator;
 
             _settings = LoadSettings();
+            // Server/channel/role IDs apply live; the token only takes effect on (re)connect.
+            Microsoft.Extensions.Primitives.ChangeToken.OnChange(_configuration.GetReloadToken, () =>
+            {
+                var latest = LoadSettings();
+                _settings.DiscordServerId = latest.DiscordServerId;
+                _settings.BroadcastChannel = latest.BroadcastChannel;
+                _settings.PingRoleWhenLive = latest.PingRoleWhenLive;
+                _settings.RoleIdToAssignMemberWhenLive = latest.RoleIdToAssignMemberWhenLive;
+            });
             _broadcaster = configuration["broadcaster"] ?? "";
             var config = new DiscordSocketConfig
             {

@@ -32,7 +32,7 @@
         </MudStack>
 
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-1">
-            After updating configuration values, restart the bot (or the relevant service) for changes to take full effect.
+            Changes are applied when you save. Discord restarts automatically when the token changes.
         </MudAlert>
 
         <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Surface">
@@ -793,13 +793,14 @@
         try
         {
             var token = _discordEnabled ? _discordToken.Trim() : "";
+            var tokenChanged = token != (Configuration["Discord:discordToken"] ?? "");
             await SettingsFileManager.AddOrUpdateAppSetting("Discord:discordToken", token);
             await SettingsFileManager.AddOrUpdateAppSetting("Discord:DiscordServerId", ParseUlong(_discordServerId));
             await SettingsFileManager.AddOrUpdateAppSetting("Discord:BroadcastChannel", ParseUlong(_discordBroadcastChannel));
             await SettingsFileManager.AddOrUpdateAppSetting("Discord:PingRoleWhenLive", ParseUlong(_discordPingRoleId));
             await SettingsFileManager.AddOrUpdateAppSetting("Discord:RoleIdToAssignMemberWhenLive", ParseUlong(_discordMemberRoleId));
 
-            if (_restartDiscordAfterSave)
+            if (_restartDiscordAfterSave || tokenChanged)
             {
                 await DiscordService.RestartAsync();
                 _discordConnected = DiscordService.ServiceStatus() == Discord.ConnectionState.Connected;
@@ -807,7 +808,7 @@
             }
             else
             {
-                Snackbar.Add("Discord settings saved. Restart Discord service (or the bot) for changes to take effect.", Severity.Success);
+                Snackbar.Add("Discord settings saved and applied.", Severity.Success);
             }
         }
         catch (Exception ex)
@@ -869,7 +870,7 @@
         try
         {
             await SettingsFileManager.AddOrUpdateAppSetting("OpenAI:ApiKey", _openAiEnabled ? _openAiApiKey.Trim() : "");
-            Snackbar.Add("OpenAI settings saved. Restart the bot for changes to take effect.", Severity.Success);
+            Snackbar.Add("OpenAI settings saved.", Severity.Success);
         }
         catch (Exception ex)
         {

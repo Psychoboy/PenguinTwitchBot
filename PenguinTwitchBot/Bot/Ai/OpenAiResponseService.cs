@@ -7,15 +7,15 @@ namespace PenguinTwitchBot.Bot.Ai
 #pragma warning disable OPENAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
     public class OpenAiResponseService : IOpenAiResponseService
     {
-        private readonly OpenAIClient? _client;
+        private readonly IOpenAiClientProvider? _clientProvider;
         private readonly ILogger<OpenAiResponseService> _logger;
 
-        public bool IsConfigured => _client != null;
+        public bool IsConfigured => _clientProvider?.Client != null;
 
-        public OpenAiResponseService(ILogger<OpenAiResponseService> logger, OpenAIClient? client = null)
+        public OpenAiResponseService(ILogger<OpenAiResponseService> logger, IOpenAiClientProvider? clientProvider = null)
         {
             _logger = logger;
-            _client = client;
+            _clientProvider = clientProvider;
         }
 
         public async Task<OpenAiGenerationResult> GenerateResponseAsync(
@@ -34,12 +34,13 @@ namespace PenguinTwitchBot.Bot.Ai
                 return new OpenAiGenerationResult("", null, false, "Prompt cannot be empty.");
             }
 
-            if (_client == null)
+            var client = _clientProvider?.Client;
+            if (client == null)
             {
                 return new OpenAiGenerationResult("", null, false, "OpenAI client is not configured.");
             }
 
-            var respClient = _client.GetResponsesClient();
+            var respClient = client.GetResponsesClient();
 
             var responseOptions = new CreateResponseOptions
             {

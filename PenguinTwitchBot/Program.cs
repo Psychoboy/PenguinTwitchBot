@@ -290,30 +290,18 @@ internal class Program
 
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
 
-        var openAiConf = builder.Configuration.GetRequiredSection("OpenAI").Get<OpenAiSettings>();
-        if (openAiConf != null && !string.IsNullOrEmpty(openAiConf.ApiKey))
-        {
-            builder.Services.AddSingleton<OpenAIClient>(serviceProvider =>
-            {
-                return new OpenAIClient(openAiConf.ApiKey);
-            });
-            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IStarCitizenAI, PenguinTwitchBot.Bot.Ai.StarCitizenAI>();
-            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IShoutoutAi, PenguinTwitchBot.Bot.Ai.ShoutoutAi>();
-            builder.Services.AddSingleton<PenguinTwitchBot.Bot.Ai.IOpenAiModelService, PenguinTwitchBot.Bot.Ai.OpenAiModelService>();
-            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService, PenguinTwitchBot.Bot.Ai.OpenAiResponseService>();
-            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiViewerContextService, PenguinTwitchBot.Bot.Ai.OpenAiViewerContextService>();
-            builder.Services.AddRuntimeFeatureRegistration<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService>(
-                PenguinTwitchBot.Bot.Features.FeatureKeys.OpenAI,
-                "OpenAI",
-                isCore: false,
-                description: "OpenAI integration for custom AI subactions and chat features.");
-        }
-        else
-        {
-            builder.Services.AddSingleton<PenguinTwitchBot.Bot.Ai.IOpenAiModelService, PenguinTwitchBot.Bot.Ai.OpenAiModelService>();
-            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService, PenguinTwitchBot.Bot.Ai.OpenAiResponseService>();
-            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiViewerContextService, PenguinTwitchBot.Bot.Ai.OpenAiViewerContextService>();
-        }
+        builder.Configuration.GetRequiredSection("OpenAI");
+        builder.Services.AddSingleton<PenguinTwitchBot.Bot.Ai.IOpenAiClientProvider, PenguinTwitchBot.Bot.Ai.OpenAiClientProvider>();
+        builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IStarCitizenAI, PenguinTwitchBot.Bot.Ai.StarCitizenAI>();
+        builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IShoutoutAi, PenguinTwitchBot.Bot.Ai.ShoutoutAi>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Bot.Ai.IOpenAiModelService, PenguinTwitchBot.Bot.Ai.OpenAiModelService>();
+        builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService, PenguinTwitchBot.Bot.Ai.OpenAiResponseService>();
+        builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiViewerContextService, PenguinTwitchBot.Bot.Ai.OpenAiViewerContextService>();
+        builder.Services.AddRuntimeFeatureRegistration<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService>(
+            PenguinTwitchBot.Bot.Features.FeatureKeys.OpenAI,
+            "OpenAI",
+            isCore: false,
+            description: "OpenAI integration for custom AI subactions and chat features.");
 
             builder.Services.AddHealthChecks()
                 .AddCheck<TwitchBotHealthCheck>("TwitchChatBot")
