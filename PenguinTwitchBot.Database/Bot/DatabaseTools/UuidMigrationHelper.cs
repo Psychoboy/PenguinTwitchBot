@@ -158,4 +158,40 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             }
         }
     }
+
+    public sealed class LegacyIntCompatibleGuidListJsonConverter : JsonConverter<List<Guid>>
+    {
+        private static readonly LegacyIntCompatibleGuidJsonConverter ElementConverter = new();
+
+        public override List<Guid>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Null)
+            {
+                return null;
+            }
+
+            if (reader.TokenType != JsonTokenType.StartArray)
+            {
+                throw new JsonException($"Unable to convert JSON token {reader.TokenType} to List<Guid>.");
+            }
+
+            var list = new List<Guid>();
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+            {
+                list.Add(ElementConverter.Read(ref reader, typeof(Guid), options));
+            }
+
+            return list;
+        }
+
+        public override void Write(Utf8JsonWriter writer, List<Guid> value, JsonSerializerOptions options)
+        {
+            writer.WriteStartArray();
+            foreach (var id in value)
+            {
+                writer.WriteStringValue(id);
+            }
+            writer.WriteEndArray();
+        }
+    }
 }
