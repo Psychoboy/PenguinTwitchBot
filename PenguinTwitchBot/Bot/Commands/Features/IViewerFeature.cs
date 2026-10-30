@@ -14,7 +14,6 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         Task<Viewer?> GetViewerByUserName(string username);
         Task<Viewer?> GetViewerByUserId(string userId);
         Task<string?> GetViewerId(string username);
-        Task<Viewer?> GetViewerByUserIdOrName(string userId, string username);
         Task<bool> IsFollowerByUsername(string username);
         Task<bool> IsModerator(string username);
         Task<bool> IsSubscriber(string username);

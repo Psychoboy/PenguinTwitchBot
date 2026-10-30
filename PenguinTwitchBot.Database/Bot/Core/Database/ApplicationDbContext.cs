@@ -152,6 +152,11 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .IsUnique();
 
             modelBuilder.Entity<Viewer>()
+                .HasIndex(v => v.UserId)
+                .IsUnique()
+                .HasFilter("\"UserId\" <> ''");
+
+            modelBuilder.Entity<Viewer>()
                 .Property(v => v.Username)
                 .HasMaxLength(255)
                 .HasConversion(

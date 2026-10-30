@@ -249,7 +249,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            await viewerFeature.OnChatMessage(new ChatMessageEventArgs { Name = "test", IsBroadcaster = true, IsMod = true, IsSub = true, DisplayName = "NewDisplayName", IsVip = true });
+            await viewerFeature.OnChatMessage(new ChatMessageEventArgs { Name = "test", UserId = "1", IsBroadcaster = true, IsMod = true, IsSub = true, DisplayName = "NewDisplayName", IsVip = true });
 
             //Assert
             dbContext.Viewers.Received(1).Update(Arg.Any<Viewer>());

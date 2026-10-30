@@ -136,19 +136,62 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             }
         }
 
+        private static readonly SemaphoreSlim _viewerCreateLock = new(1, 1);
+
+        private static async Task<bool> TryReuseExistingRow(IUnitOfWork db, Viewer viewer)
+        {
+            if (string.IsNullOrEmpty(viewer.UserId)) return false;
+            var existing = await db.Viewers.Find(x => x.UserId == viewer.UserId).AsNoTracking().FirstOrDefaultAsync();
+            if (existing == null) return false;
+            viewer.Id = existing.Id;
+            viewer.Title = existing.Title;
+            viewer.isEditor |= existing.isEditor;
+            return true;
+        }
+
         private async Task UpdateViewer(Viewer viewer)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            if (viewer.Id == Guid.Empty)
+            var isNew = viewer.Id == Guid.Empty;
+            var locked = isNew;
+            if (locked) await _viewerCreateLock.WaitAsync();
+            try
             {
-                await db.Viewers.AddAsync(viewer);
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                if (isNew && await TryReuseExistingRow(db, viewer))
+                {
+                    isNew = false;
+                }
+
+                if (isNew)
+                {
+                    await db.Viewers.AddAsync(viewer);
+                }
+                else
+                {
+                    db.Viewers.Update(viewer);
+                }
+
+                try
+                {
+                    await db.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex) when (isNew && ex.IsUniqueViolation())
+                {
+                    // Another writer (e.g. a second instance) inserted this UserId first; update that row instead.
+                    _logger.LogWarning("Viewer {UserId} was created concurrently; updating the existing row.", viewer.UserId);
+                    await using var retryScope = _scopeFactory.CreateAsyncScope();
+                    var retryDb = retryScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    viewer.Id = Guid.Empty;
+                    if (!await TryReuseExistingRow(retryDb, viewer)) throw;
+                    retryDb.Viewers.Update(viewer);
+                    await retryDb.SaveChangesAsync();
+                }
             }
-            else
+            finally
             {
-                db.Viewers.Update(viewer);
+                if (locked) _viewerCreateLock.Release();
             }
-            await db.SaveChangesAsync();
             if (!string.IsNullOrEmpty(viewer.Username))
             {
                 _viewerCache.TryRemove(viewer.Username, out _);
@@ -256,25 +299,6 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             return await db.Viewers.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
         }
 
-        public async Task<Viewer?> GetViewerByUserIdOrName(string userId, string username)
-        {
-            var normalizedUsername = UsernameNormalizer.Normalize(username);
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var viewer =  await db.Viewers.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
-            viewer ??= await db.Viewers.Find(x => x.Username.Equals(normalizedUsername)).FirstOrDefaultAsync();
-            if(viewer == null)
-            {
-                var twitchViewer = await _twitchService.GetUserByName(username);
-                if (twitchViewer != null)
-                {
-                    await AddOrUpdateLastSeen(twitchViewer.Id);
-                    viewer = await GetViewerByUserId(twitchViewer.Id);
-                }
-            }
-            return viewer;
-        }
-
         public async Task<string> GetDisplayNameByUsername(string username)
         {
             var viewer = await GetViewerByUserName(username);
@@ -373,7 +397,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         public async Task OnChatMessage(ChatMessageEventArgs e)
         {
             UpdateLastActive(e.Name);
-            Viewer? viewer = await GetViewerByUserIdOrName(e.UserId, e.Name);
+            if (string.IsNullOrWhiteSpace(e.UserId)) return;
+            Viewer? viewer = await GetViewerByUserId(e.UserId);
 
             viewer ??= new Viewer
             {
@@ -420,7 +445,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                     {
                         try
                         {
-                            var viewer = await GetViewerByUserIdOrName(subscriber.UserId,subscriber.UserLogin);
+                            var viewer = await GetViewerByUserId(subscriber.UserId);
                             viewer ??= new Viewer
                             {
                                 UserId = subscriber.UserId
@@ -433,7 +458,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                             viewer.Username = UsernameNormalizer.Normalize(subscriber.UserLogin);
                             viewer.DisplayName = subscriber.UserName;
                             viewer.isSub = true;
-                            db.Viewers.Update(viewer);
+                            if (viewer.Id == Guid.Empty) await UpdateViewer(viewer);
+                            else db.Viewers.Update(viewer);
                         }
                         catch (Exception ex)
                         {
@@ -494,7 +520,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                     {
                         try
                         {
-                            var viewer = await GetViewerByUserIdOrName(editor.UserId, editor.UserName);
+                            var viewer = await GetViewerByUserId(editor.UserId);
                             viewer ??= new Viewer
                             {
                                 UserId = editor.UserId
@@ -502,7 +528,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                             viewer.Username = UsernameNormalizer.Normalize(editor.UserName);
                             viewer.DisplayName = editor.UserName;
                             viewer.isEditor = true;
-                            db.Viewers.Update(viewer);
+                            if (viewer.Id == Guid.Empty) await UpdateViewer(viewer);
+                            else db.Viewers.Update(viewer);
                         }
                         catch (Exception ex)
                         {
