@@ -66,9 +66,18 @@
             </MudStack>
         </MudPaper>
 
-        <MudText Typo="Typo.h6">Existing Backups (@_backups.Count)</MudText>
+        <MudText Typo="Typo.h6">Existing Backups@(_loading ? "" : $" ({_backups.Count})")</MudText>
 
-        @if (_backups.Count == 0)
+        @if (_loading)
+        {
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6" Style="text-align: center;">
+                <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Loading backups...</MudText>
+                </MudStack>
+            </MudPaper>
+        }
+        else if (_backups.Count == 0)
         {
             <MudPaper Elevation="0" Outlined="true" Class="pa-6" Style="text-align: center;">
                 <MudStack AlignItems="AlignItems.Center" Spacing="2">
@@ -153,6 +162,7 @@
     private int _chatHistoryMonthsToBackup = 12;
     private bool _saving;
     private bool _uploading;
+    private bool _loading = true;
 
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
@@ -171,7 +181,7 @@
 
         try
         {
-            var manifest = BackupTools.ValidateBackupArchive(fileInfo.FullName);
+            var manifest = BackupTools.ReadBackupManifest(fileInfo.FullName);
             _manifestCache[fileInfo.FullName] = manifest;
             return manifest;
         }
@@ -283,10 +293,30 @@
 
     private async Task RefreshBackupsAsync()
     {
+        _loading = true;
         _manifestCache.Clear();
-        _backups = BackupTools.GetBackupFiles(BackupTools.BackupDirectory)
-            .OrderByDescending(x => x.CreationTime)
-            .ToList();
+        await InvokeAsync(StateHasChanged);
+
+        var loaded = await Task.Run(() =>
+        {
+            var files = BackupTools.GetBackupFiles(BackupTools.BackupDirectory)
+                .OrderByDescending(x => x.CreationTime)
+                .ToList();
+            var manifests = new Dictionary<string, BackupManifest?>(StringComparer.OrdinalIgnoreCase);
+            foreach (var file in files)
+            {
+                try { manifests[file.FullName] = BackupTools.ReadBackupManifest(file.FullName); }
+                catch { manifests[file.FullName] = null; }
+            }
+            return (files, manifests);
+        });
+
+        _backups = loaded.files;
+        foreach (var (key, value) in loaded.manifests)
+        {
+            _manifestCache[key] = value;
+        }
+        _loading = false;
         await InvokeAsync(StateHasChanged);
     }
 

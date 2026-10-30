@@ -15,6 +15,7 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
         Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger, bool createPreRestoreBackup = true);
         BackupManifest ValidateBackupDirectory(string backupDirectory);
         BackupManifest ValidateBackupArchive(string zipFilePath);
+        BackupManifest ReadBackupManifest(string zipFilePath);
         Task DeleteOldBackupsAsync(string directory, int maxCount, int maxDays, ILogger? logger);
     }
 }

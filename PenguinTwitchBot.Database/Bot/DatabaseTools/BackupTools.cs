@@ -533,6 +533,27 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             return manifest;
         }
 
+        // Reads only manifest.json (no checksum or entry verification) for fast listing.
+        public BackupManifest ReadBackupManifest(string zipFilePath)
+        {
+            using var fileStream = _fs.File.Open(zipFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var archive = new ZipArchive(fileStream, ZipArchiveMode.Read, leaveOpen: false);
+
+            var manifestEntry = archive.GetEntry(BackupManifest.ManifestFileName)
+                ?? throw new InvalidOperationException("Backup archive does not contain a manifest.json file.");
+
+            using var entryStream = manifestEntry.Open();
+            var manifest = JsonSerializer.Deserialize<BackupManifest>(entryStream)
+                ?? throw new InvalidDataException("Failed to deserialize manifest.json from archive.");
+
+            if (manifest.FormatVersion != BackupManifest.CurrentFormatVersion)
+            {
+                throw new InvalidOperationException($"Unsupported backup format version {manifest.FormatVersion}.");
+            }
+
+            return manifest;
+        }
+
         public BackupManifest ValidateBackupArchive(string zipFilePath)
         {
             if (!_fs.File.Exists(zipFilePath))
