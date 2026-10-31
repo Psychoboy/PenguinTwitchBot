@@ -218,6 +218,19 @@
                                                @bind-Value="_settings.Plinko.SessionModeEnabled"
                                                Label="Enable Timed Session Mode (When disabled, drops run anytime in free-play mode)" />
 
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="Rank" Label="Control Command Minimum Rank" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Plinko.ControlCommandMinimumRank"
+                                                       HelperText="Minimum rank required to run !plinko start and !plinko stop in chat.">
+                                                @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
+                                                {
+                                                    <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+
                                     @if (_settings.Plinko.SessionModeEnabled)
                                     {
                                         <div>

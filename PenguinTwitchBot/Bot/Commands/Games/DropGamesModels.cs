@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Database.Bot.Models;
 
 namespace PenguinTwitchBot.Bot.Commands.Games
 {
@@ -415,6 +416,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         bool AutoStartOnCommand { get; set; }
         int DefaultSessionDurationSeconds { get; set; }
         int MaxDropsPerUserPerSession { get; set; }
+        Rank ControlCommandMinimumRank { get; set; }
     }
 
     public class BalloonAscentGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
@@ -473,6 +475,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool AutoStartOnCommand { get; set; } = true;
         public int DefaultSessionDurationSeconds { get; set; } = 100;
         public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
+        public Rank ControlCommandMinimumRank { get; set; } = Rank.Moderator;
         public bool AnnounceSessionStatusInChat { get; set; } = true;
         public string SessionStartChatMessageTemplate { get; set; } = "Balloon Ascent is now OPEN for {duration}s! Type !balloon [emote] to join!";
         public string SessionEndChatMessageTemplate { get; set; } = "Balloon Ascent round is now CLOSED! {count} total balloons launched!";
@@ -633,6 +636,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             set => _lobbyDurationSeconds = Math.Clamp(value, 15, 180);
         }
         public int MaxDropsPerUserPerSession { get; set; } = 1;
+        public Rank ControlCommandMinimumRank { get; set; } = Rank.Moderator;
         public bool AnnounceSessionStatusInChat { get; set; } = true;
         public string SessionStartChatMessageTemplate
         {
@@ -787,6 +791,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool AutoStartOnCommand { get; set; } = true;
         public int DefaultSessionDurationSeconds { get; set; } = 90;
         public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
+        public Rank ControlCommandMinimumRank { get; set; } = Rank.Moderator;
         public bool AnnounceSessionStatusInChat { get; set; } = true;
         public string SessionStartChatMessageTemplate { get; set; } = "Curling is now OPEN for {duration}s! Condition: {condition} | Target: {distance}m. Type !curl [power] [emote] to slide!";
         public string SessionEndChatMessageTemplate { get; set; } = "Curling round is now CLOSED! {count} total stones delivered!";
@@ -955,6 +960,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool AutoStartOnCommand { get; set; } = true;
         public int DefaultSessionDurationSeconds { get; set; } = 90;
         public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
+        public Rank ControlCommandMinimumRank { get; set; } = Rank.Moderator;
         public bool AnnounceSessionStatusInChat { get; set; } = true;
         public string SessionStartChatMessageTemplate { get; set; } = "Golf Chip & Putt is now OPEN for {duration}s! Green: {condition} | Pin: {distance}yd. Type !golf [power] [emote] to tee off!";
         public string SessionEndChatMessageTemplate { get; set; } = "Golf round is now CLOSED! {count} total shots played!";
@@ -1052,6 +1058,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool AutoStartOnCommand { get; set; } = true;
         public int DefaultSessionDurationSeconds { get; set; } = 100;
         public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
+        public Rank ControlCommandMinimumRank { get; set; } = Rank.Moderator;
         public bool AnnounceSessionStatusInChat { get; set; } = true;
         public string SessionStartChatMessageTemplate { get; set; } = "Parachute Drop is now OPEN for {duration}s! Type !drop [emote] to join!";
         public string SessionEndChatMessageTemplate { get; set; } = "Parachute Drop round is now CLOSED! {count} total parachutists dropped!";
@@ -1139,6 +1146,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool AutoStartOnCommand { get; set; } = true;
         public int DefaultSessionDurationSeconds { get; set; } = 100;
         public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
+        public Rank ControlCommandMinimumRank { get; set; } = Rank.Moderator;
         public bool AnnounceSessionStatusInChat { get; set; } = true;
         public string SessionStartChatMessageTemplate { get; set; } = "Plinko Bounce is now OPEN for {duration}s! Type !plinko [emote] to join!";
         public string SessionEndChatMessageTemplate { get; set; } = "Plinko Bounce round is now CLOSED! {count} total tokens dropped!";

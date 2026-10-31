@@ -1011,6 +1011,301 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task ParachuteDrop_EnforcesConfigurableControlCommandMinimumRank_FromChat()
+        {
+            var settingsService = CreateSettingsService();
+            var parachuteService = CreateParachuteService(settingsService);
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Parachute.ControlCommandMinimumRank = Rank.Moderator;
+            await settingsService.SaveSettingsAsync(settings);
+
+            _commandHandler.Setup(x => x.GetCommand("drop")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "drop" }, parachuteService));
+
+            // VIP tries to start -> rejected under Moderator requirement
+            var vipArgs = new CommandEventArgs
+            {
+                Command = "drop",
+                Arg = "start",
+                Args = ["start"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await parachuteService.OnCommand(this, vipArgs);
+            Assert.Null(parachuteService.GetCurrentSession());
+
+            // Change rank to VIP
+            settings.Parachute.ControlCommandMinimumRank = Rank.Vip;
+            await settingsService.SaveSettingsAsync(settings);
+
+            // VIP tries to start -> session starts!
+            await parachuteService.OnCommand(this, vipArgs);
+            Assert.NotNull(parachuteService.GetCurrentSession());
+
+            // Regular viewer tries to stop -> rejected
+            var viewerArgs = new CommandEventArgs
+            {
+                Command = "drop",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vieweruser",
+                DisplayName = "ViewerUser",
+                UserId = "viewer-1"
+            };
+            await parachuteService.OnCommand(this, viewerArgs);
+            Assert.NotNull(parachuteService.GetCurrentSession());
+
+            // VIP tries to stop -> stopped!
+            var vipStopArgs = new CommandEventArgs
+            {
+                Command = "drop",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await parachuteService.OnCommand(this, vipStopArgs);
+            Assert.Null(parachuteService.GetCurrentSession());
+        }
+
+        [Fact]
+        public async Task PlinkoDrop_EnforcesConfigurableControlCommandMinimumRank_FromChat()
+        {
+            var settingsService = CreateSettingsService();
+            var plinkoService = CreatePlinkoService(settingsService);
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Plinko.ControlCommandMinimumRank = Rank.Moderator;
+            await settingsService.SaveSettingsAsync(settings);
+
+            _commandHandler.Setup(x => x.GetCommand("plinko")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "plinko" }, plinkoService));
+
+            // VIP tries to start -> rejected under Moderator requirement
+            var vipArgs = new CommandEventArgs
+            {
+                Command = "plinko",
+                Arg = "start",
+                Args = ["start"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await plinkoService.OnCommand(this, vipArgs);
+            Assert.Null(plinkoService.GetCurrentSession());
+
+            // Change rank to VIP
+            settings.Plinko.ControlCommandMinimumRank = Rank.Vip;
+            await settingsService.SaveSettingsAsync(settings);
+
+            // VIP starts -> success
+            await plinkoService.OnCommand(this, vipArgs);
+            Assert.NotNull(plinkoService.GetCurrentSession());
+
+            // Viewer stop -> rejected
+            var viewerArgs = new CommandEventArgs
+            {
+                Command = "plinko",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vieweruser",
+                DisplayName = "ViewerUser",
+                UserId = "viewer-1"
+            };
+            await plinkoService.OnCommand(this, viewerArgs);
+            Assert.NotNull(plinkoService.GetCurrentSession());
+
+            // VIP stop -> success
+            var vipStopArgs = new CommandEventArgs
+            {
+                Command = "plinko",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await plinkoService.OnCommand(this, vipStopArgs);
+            Assert.Null(plinkoService.GetCurrentSession());
+        }
+
+        [Fact]
+        public async Task BalloonAscent_EnforcesConfigurableControlCommandMinimumRank_FromChat()
+        {
+            var settingsService = CreateSettingsService();
+            var balloonService = CreateBalloonService(settingsService: settingsService);
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Balloon.ControlCommandMinimumRank = Rank.Moderator;
+            await settingsService.SaveSettingsAsync(settings);
+
+            _commandHandler.Setup(x => x.GetCommand("balloon")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "balloon" }, balloonService));
+
+            var vipArgs = new CommandEventArgs
+            {
+                Command = "balloon",
+                Arg = "start",
+                Args = ["start"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await balloonService.OnCommand(this, vipArgs);
+            Assert.Null(balloonService.GetCurrentSession());
+
+            settings.Balloon.ControlCommandMinimumRank = Rank.Vip;
+            await settingsService.SaveSettingsAsync(settings);
+
+            await balloonService.OnCommand(this, vipArgs);
+            Assert.NotNull(balloonService.GetCurrentSession());
+
+            var viewerArgs = new CommandEventArgs
+            {
+                Command = "balloon",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vieweruser",
+                DisplayName = "ViewerUser",
+                UserId = "viewer-1"
+            };
+            await balloonService.OnCommand(this, viewerArgs);
+            Assert.NotNull(balloonService.GetCurrentSession());
+
+            var vipStopArgs = new CommandEventArgs
+            {
+                Command = "balloon",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await balloonService.OnCommand(this, vipStopArgs);
+            Assert.Null(balloonService.GetCurrentSession());
+        }
+
+        [Fact]
+        public async Task Curling_EnforcesConfigurableControlCommandMinimumRank_FromChat()
+        {
+            var settingsService = CreateSettingsService();
+            var curlingService = CreateCurlingService(CreateDropRegistry(), settingsService);
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Curling.ControlCommandMinimumRank = Rank.Moderator;
+            await settingsService.SaveSettingsAsync(settings);
+
+            _commandHandler.Setup(x => x.GetCommand("curling")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "curling" }, curlingService));
+
+            var vipArgs = new CommandEventArgs
+            {
+                Command = "curling",
+                Arg = "start",
+                Args = ["start"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await curlingService.OnCommand(this, vipArgs);
+            Assert.Null(curlingService.GetCurrentSession());
+
+            settings.Curling.ControlCommandMinimumRank = Rank.Vip;
+            await settingsService.SaveSettingsAsync(settings);
+
+            await curlingService.OnCommand(this, vipArgs);
+            Assert.NotNull(curlingService.GetCurrentSession());
+
+            var viewerArgs = new CommandEventArgs
+            {
+                Command = "curling",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vieweruser",
+                DisplayName = "ViewerUser",
+                UserId = "viewer-1"
+            };
+            await curlingService.OnCommand(this, viewerArgs);
+            Assert.NotNull(curlingService.GetCurrentSession());
+
+            var vipStopArgs = new CommandEventArgs
+            {
+                Command = "curling",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await curlingService.OnCommand(this, vipStopArgs);
+            Assert.Null(curlingService.GetCurrentSession());
+        }
+
+        [Fact]
+        public async Task Golf_EnforcesConfigurableControlCommandMinimumRank_FromChat()
+        {
+            var settingsService = CreateSettingsService();
+            var golfService = CreateGolfService(CreateDropRegistry(), settingsService);
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Golf.ControlCommandMinimumRank = Rank.Moderator;
+            await settingsService.SaveSettingsAsync(settings);
+
+            _commandHandler.Setup(x => x.GetCommand("golf")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "golf" }, golfService));
+
+            var vipArgs = new CommandEventArgs
+            {
+                Command = "golf",
+                Arg = "start",
+                Args = ["start"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await golfService.OnCommand(this, vipArgs);
+            Assert.Null(golfService.GetCurrentSession());
+
+            settings.Golf.ControlCommandMinimumRank = Rank.Vip;
+            await settingsService.SaveSettingsAsync(settings);
+
+            await golfService.OnCommand(this, vipArgs);
+            Assert.NotNull(golfService.GetCurrentSession());
+
+            var viewerArgs = new CommandEventArgs
+            {
+                Command = "golf",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vieweruser",
+                DisplayName = "ViewerUser",
+                UserId = "viewer-1"
+            };
+            await golfService.OnCommand(this, viewerArgs);
+            Assert.NotNull(golfService.GetCurrentSession());
+
+            var vipStopArgs = new CommandEventArgs
+            {
+                Command = "golf",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await golfService.OnCommand(this, vipStopArgs);
+            Assert.Null(golfService.GetCurrentSession());
+        }
+
+        [Fact]
         public void DropRegistry_TryBeginCompletion_And_AcknowledgeCompletion_WorkAsExpected()
         {
             var registry = CreateDropRegistry();

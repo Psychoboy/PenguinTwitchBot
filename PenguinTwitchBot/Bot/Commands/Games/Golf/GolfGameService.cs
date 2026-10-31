@@ -884,7 +884,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     return;
                 }
 
-                if (e.IsModOrHigher() && firstArg.Equals("start", StringComparison.OrdinalIgnoreCase))
+                if (e.MeetsRank(gSettings.ControlCommandMinimumRank) && firstArg.Equals("start", StringComparison.OrdinalIgnoreCase))
                 {
                     int? customDuration = null;
                     if (e.Args.Count > 1 && int.TryParse(e.Args[1], out var parsedDuration))
@@ -900,7 +900,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     return;
                 }
 
-                if (e.IsModOrHigher() && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
+                if (e.MeetsRank(gSettings.ControlCommandMinimumRank) && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
                 {
                     await StopSessionAsync(triggeredBy: e.DisplayName);
                     return;
