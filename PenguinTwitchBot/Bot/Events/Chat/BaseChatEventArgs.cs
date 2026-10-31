@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using PenguinTwitchBot.Bot.Models.Chat;
+using PenguinTwitchBot.Database.Bot.Models;
 
 namespace PenguinTwitchBot.Bot.Events.Chat
 {
@@ -47,6 +48,20 @@ namespace PenguinTwitchBot.Bot.Events.Chat
         public bool IsModOrHigher()
         {
             return IsMod || IsBroadcaster;
+        }
+
+        public bool MeetsRank(Rank minimumRank)
+        {
+            return minimumRank switch
+            {
+                Rank.Viewer or Rank.Regular => true,
+                Rank.Follower => true,
+                Rank.Subscriber => IsSubOrHigher(),
+                Rank.Vip => IsVipOrHigher(),
+                Rank.Moderator => IsModOrHigher(),
+                Rank.Streamer => IsBroadcaster,
+                _ => false
+            };
         }
     }
 }

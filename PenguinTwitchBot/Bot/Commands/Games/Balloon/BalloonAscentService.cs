@@ -696,7 +696,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             {
                 var firstArg = e.Args.Count > 0 ? e.Args[0] : (e.Arg ?? "").Trim();
 
-                if (e.IsModOrHigher() && firstArg.Equals("start", StringComparison.OrdinalIgnoreCase))
+                if (e.MeetsRank(bSettings.ControlCommandMinimumRank) && firstArg.Equals("start", StringComparison.OrdinalIgnoreCase))
                 {
                     int? customDuration = null;
                     if (e.Args.Count > 1 && int.TryParse(e.Args[1], out var parsedDuration))
@@ -712,7 +712,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                     return;
                 }
 
-                if (e.IsModOrHigher() && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
+                if (e.MeetsRank(bSettings.ControlCommandMinimumRank) && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
                 {
                     await StopSessionAsync(triggeredBy: e.DisplayName);
                     return;

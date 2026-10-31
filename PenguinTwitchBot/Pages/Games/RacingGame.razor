@@ -179,6 +179,15 @@
 
                                     <MudSwitch T="bool" Color="Color.Primary" Label="Auto-Open Lobby when a Viewer types !race"
                                                @bind-Value="_settings.Racing.AutoStartOnCommand" />
+
+                                    <MudSelect T="Rank" Label="Control Command Minimum Rank" Variant="Variant.Outlined"
+                                               @bind-Value="_settings.Racing.ControlCommandMinimumRank"
+                                               HelperText="Minimum rank required to run !race start, !race stop, and !race launch from chat.">
+                                        @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
+                                        {
+                                            <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                                        }
+                                    </MudSelect>
                                 </MudStack>
                             </MudPaper>
                         </MudItem>
@@ -188,8 +197,9 @@
                                 <MudText Typo="Typo.h6" Class="mb-3">Chat Commands</MudText>
                                 <MudList T="string" Dense="true">
                                     <MudListItem Text="!race [emote] — Join open starting grid (or open lobby)" Icon="@Icons.Material.Filled.SportsScore" />
-                                    <MudListItem Text="!race start [seconds] — Mod/Streamer command to open registration" Icon="@Icons.Material.Filled.PlayArrow" />
-                                    <MudListItem Text="!race stop / !race cancel — Abort active lobby or race" Icon="@Icons.Material.Filled.Stop" />
+                                    <MudListItem Text="!race start [seconds] — Open race registration (requires configured control rank)" Icon="@Icons.Material.Filled.PlayArrow" />
+                                    <MudListItem Text="!race stop / !race cancel — Abort active lobby or race (requires configured control rank)" Icon="@Icons.Material.Filled.Stop" />
+                                    <MudListItem Text="!race launch / !race go — Launch race immediately (requires configured control rank)" Icon="@Icons.Material.Filled.FastForward" />
                                     <MudListItem Text="!timetrial [emote] / !tt — Instant solo hot lap with ghost car" Icon="@Icons.Material.Filled.Timer" />
                                 </MudList>
                             </MudPaper>

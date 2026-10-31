@@ -17,6 +17,7 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Bot.Models.Points;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Services;
@@ -3205,6 +3206,41 @@ public class StarshipExpeditionServiceTests
         helpArgs.Args = ["help"];
         await service.OnCommand(null, helpArgs);
         Assert.Equal("CUSTOM HELP: Type !sj or !sv.", replies[^1]);
+    }
+
+    [Fact]
+    public async Task StarshipExpeditionService_EnforcesConfigurableControlCommandMinimumRank_FromChat()
+    {
+        var backbone = new Mock<IServiceBackbone>();
+        var replies = new List<string>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns<string, string, bool>((user, msg, src) =>
+            {
+                replies.Add(msg);
+                return Task.CompletedTask;
+            });
+
+        var customSettings = new StarshipExpeditionSettings
+        {
+            GameEnabled = true,
+            ControlCommandMinimumRank = Rank.Vip
+        };
+
+        var store = new InMemorySettingsStore(customSettings);
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone, settingsStore: store);
+
+        // Viewer (not VIP) tries to start -> rejected
+        var viewerArgs = CreateArgs("viewer-1", "ViewerOne");
+        viewerArgs.Args = ["start"];
+        await service.OnCommand(null, viewerArgs);
+        Assert.Contains("Only a moderator or broadcaster", replies[^1]);
+
+        // VIP tries to start -> accepted
+        var vipArgs = CreateArgs("vip-1", "VipOne");
+        vipArgs.IsVip = true;
+        vipArgs.Args = ["start"];
+        await service.OnCommand(null, vipArgs);
+        Assert.Contains("boarding is open", replies[^1]);
     }
 
     private static CommandEventArgs CreateArgs(string userId, string displayName) => new()

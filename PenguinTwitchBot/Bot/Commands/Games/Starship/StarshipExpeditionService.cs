@@ -128,16 +128,23 @@ public sealed class StarshipExpeditionService(
         try
         {
             var messages = await GetMessageSettingsAsync();
+            var expeditionSettings = await settingsStore.LoadAsync();
+            var authReplacements = new Dictionary<string, string>
+            {
+                ["rank"] = expeditionSettings.ControlCommandMinimumRank.ToString(),
+                ["requiredRank"] = expeditionSettings.ControlCommandMinimumRank.ToString()
+            };
+
             switch (subCommand)
             {
                 case "start":
-                    if (!eventArgs.IsModOrHigher())
+                    if (!eventArgs.MeetsRank(expeditionSettings.ControlCommandMinimumRank))
                     {
-                        await RespondFormattedAsync(eventArgs, messages.StartNotAuthorized, StarshipMessageSettings.DefaultStartNotAuthorized);
+                        await RespondFormattedAsync(eventArgs, messages.StartNotAuthorized, StarshipMessageSettings.DefaultStartNotAuthorized, authReplacements);
                         return;
                     }
 
-                    if (!(await settingsStore.LoadAsync()).GameEnabled)
+                    if (!expeditionSettings.GameEnabled)
                     {
                         logger.LogInformation("Ignored !starship start from {User} because Starship Expedition is disabled", eventArgs.DisplayName);
                         return;
@@ -155,9 +162,9 @@ public sealed class StarshipExpeditionService(
                     return;
 
                 case "stop":
-                    if (!eventArgs.IsModOrHigher())
+                    if (!eventArgs.MeetsRank(expeditionSettings.ControlCommandMinimumRank))
                     {
-                        await RespondFormattedAsync(eventArgs, messages.StopNotAuthorized, StarshipMessageSettings.DefaultStopNotAuthorized);
+                        await RespondFormattedAsync(eventArgs, messages.StopNotAuthorized, StarshipMessageSettings.DefaultStopNotAuthorized, authReplacements);
                         return;
                     }
 
@@ -173,9 +180,9 @@ public sealed class StarshipExpeditionService(
                     return;
 
                 case "advance":
-                    if (!eventArgs.IsModOrHigher())
+                    if (!eventArgs.MeetsRank(expeditionSettings.ControlCommandMinimumRank))
                     {
-                        await RespondFormattedAsync(eventArgs, messages.AdvanceNotAuthorized, StarshipMessageSettings.DefaultAdvanceNotAuthorized);
+                        await RespondFormattedAsync(eventArgs, messages.AdvanceNotAuthorized, StarshipMessageSettings.DefaultAdvanceNotAuthorized, authReplacements);
                         return;
                     }
 

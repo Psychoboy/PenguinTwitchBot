@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Database.Bot.Models;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
@@ -30,6 +31,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public int StationIntervalLegs { get; set; } = StarshipExpeditionService.DefaultStationIntervalLegs;
     public int EventVoteDurationSeconds { get; set; } = StarshipExpeditionService.DefaultVoteDurationSeconds;
     public int BoardingDurationSeconds { get; set; } = StarshipExpeditionService.DefaultBoardingDurationSeconds;
+    public Rank ControlCommandMinimumRank { get; set; } = Rank.Moderator;
     public bool GameEnabled { get; set; }
     public bool ActiveCrewRewardsOnly { get; set; } = true;
     public List<string> DisabledBuiltInSectors { get; set; } = [];
@@ -72,6 +74,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
             throw new ArgumentOutOfRangeException(nameof(settings.EventVoteDurationSeconds), "Event vote duration must be between 10 and 300 seconds.");
         if (settings.BoardingDurationSeconds is < 10 or > 300)
             throw new ArgumentOutOfRangeException(nameof(settings.BoardingDurationSeconds), "Crew boarding duration must be between 10 and 300 seconds.");
+        if (!Enum.IsDefined(typeof(Rank), settings.ControlCommandMinimumRank))
+            settings.ControlCommandMinimumRank = Rank.Moderator;
         settings.SessionStartChatMessageTemplate ??= string.Empty;
         settings.SessionEndChatMessageTemplate ??= string.Empty;
         settings.Messages = StarshipMessageSettings.Normalize(settings.Messages);

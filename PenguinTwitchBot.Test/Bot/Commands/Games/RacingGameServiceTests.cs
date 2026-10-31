@@ -18,6 +18,7 @@ using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Bot.Services.Chat;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.Models;
 using PenguinTwitchBot.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
@@ -1073,6 +1074,80 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 expectedMode,
                 expectedTrack,
                 null), Times.Once);
+        }
+
+        [Fact]
+        public async Task RacingGame_EnforcesConfigurableControlCommandMinimumRank_FromChat()
+        {
+            using var service = CreateService();
+            _commandHandler.Setup(x => x.GetCommand("race"))
+                .Returns(new Command(new BaseCommandProperties { CommandName = "race" }, service));
+
+            _settings.Racing.AutoStartOnCommand = false;
+            _settings.Racing.ControlCommandMinimumRank = Rank.Moderator;
+
+            // VIP tries to start when rank requirement is Moderator -> should not start lobby
+            var vipArgs = new CommandEventArgs
+            {
+                Command = "race",
+                Arg = "start",
+                Args = ["start"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true,
+                IsMod = false,
+                IsBroadcaster = false
+            };
+            await service.OnCommand(this, vipArgs);
+            Assert.Null(service.GetCurrentSession());
+
+            // Moderator tries to start -> should start lobby
+            var modArgs = new CommandEventArgs
+            {
+                Command = "race",
+                Arg = "start",
+                Args = ["start"],
+                Name = "moduser",
+                DisplayName = "ModUser",
+                UserId = "mod-1",
+                IsMod = true
+            };
+            await service.OnCommand(this, modArgs);
+            Assert.NotNull(service.GetCurrentSession());
+
+            // Change requirement to VIP
+            _settings.Racing.ControlCommandMinimumRank = Rank.Vip;
+
+            // Viewer tries to stop -> should be ignored (session still active)
+            var viewerArgs = new CommandEventArgs
+            {
+                Command = "race",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vieweruser",
+                DisplayName = "ViewerUser",
+                UserId = "viewer-1",
+                IsMod = false,
+                IsVip = false,
+                IsBroadcaster = false
+            };
+            await service.OnCommand(this, viewerArgs);
+            Assert.NotNull(service.GetCurrentSession());
+
+            // VIP tries to stop -> allowed because minimum rank is now VIP
+            var vipStopArgs = new CommandEventArgs
+            {
+                Command = "race",
+                Arg = "stop",
+                Args = ["stop"],
+                Name = "vipuser",
+                DisplayName = "VipUser",
+                UserId = "vip-1",
+                IsVip = true
+            };
+            await service.OnCommand(this, vipStopArgs);
+            Assert.Null(service.GetCurrentSession());
         }
     }
 }

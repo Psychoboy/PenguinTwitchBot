@@ -1828,7 +1828,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             {
                 var firstArg = e.Args.Count > 0 ? e.Args[0] : (e.Arg ?? "").Trim();
 
-                if (e.IsModOrHigher() && (firstArg.Equals("start", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("derby", StringComparison.OrdinalIgnoreCase)))
+                if (e.MeetsRank(rSettings.ControlCommandMinimumRank) && (firstArg.Equals("start", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("derby", StringComparison.OrdinalIgnoreCase)))
                 {
                     int? customDuration = null;
                     RacingGameMode? modeOverride = firstArg.Equals("derby", StringComparison.OrdinalIgnoreCase) ? RacingGameMode.DestructionDerby : null;
@@ -1863,13 +1863,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     return;
                 }
 
-                if (e.IsModOrHigher() && (firstArg.Equals("launch", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("go", StringComparison.OrdinalIgnoreCase)))
+                if (e.MeetsRank(rSettings.ControlCommandMinimumRank) && (firstArg.Equals("launch", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("go", StringComparison.OrdinalIgnoreCase)))
                 {
                     await LaunchRaceNowAsync(triggeredBy: e.DisplayName);
                     return;
                 }
 
-                if (e.IsModOrHigher() && (firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("cancel", StringComparison.OrdinalIgnoreCase)))
+                if (e.MeetsRank(rSettings.ControlCommandMinimumRank) && (firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase) || firstArg.Equals("cancel", StringComparison.OrdinalIgnoreCase)))
                 {
                     await ClearSessionQueueAsync();
                     await StopSessionAsync(triggeredBy: e.DisplayName);
