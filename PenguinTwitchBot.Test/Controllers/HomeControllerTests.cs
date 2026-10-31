@@ -82,6 +82,8 @@ public class HomeControllerTests
         var redirect = Assert.IsType<LocalRedirectResult>(result);
         Assert.Equal("/dashboard", redirect.Url);
 
+        Assert.NotNull(fakeAuthService.LastProperties);
+        Assert.True(fakeAuthService.LastProperties!.IsPersistent);
         Assert.NotNull(fakeAuthService.LastPrincipal);
         var claims = fakeAuthService.LastPrincipal!.Claims.ToList();
 
@@ -92,6 +94,52 @@ public class HomeControllerTests
         Assert.Contains(claims, c => c.Type == ClaimTypes.Role && c.Value == "Subscriber");
         Assert.Contains(claims, c => c.Type == ClaimTypes.Role && c.Value == "VIP");
         Assert.Contains(claims, c => c.Type == ClaimTypes.Role && c.Value == "Editor");
+        await viewerFeature.Received(1).SaveViewer(Arg.Any<Viewer>());
+    }
+
+    [Fact]
+    public async Task OAuthRedirect_ShouldCreateViewerAndSignIn_WhenViewerDoesNotExistInDb()
+    {
+        var (sut, authClient, viewerFeature, fakeAuthService) = CreateSut();
+
+        var state = "new-user-state";
+        SetState(sut, state, "/giveaway");
+
+        authClient.ExchangeCodeAsync("test-client", "test-secret", "test-code", "http://localhost/redirect")
+            .Returns(new TwitchAuthTokenResponse
+            {
+                AccessToken = "access-token",
+                RefreshToken = "refresh-token",
+                ExpiresIn = 3600
+            });
+
+        authClient.GetAuthenticatedUserAsync("test-client", "access-token")
+            .Returns(new TwitchAuthenticatedUser
+            {
+                Id = "999",
+                Login = "NewViewer",
+                DisplayName = "NewViewer",
+                ProfileImageUrl = "https://cdn.example/viewer.png"
+            });
+
+        viewerFeature.GetViewerByUserId("999").Returns((Viewer?)null);
+
+        var result = await sut.OAuthRedirect("test-code", state, null);
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("/giveaway", redirect.Url);
+
+        await viewerFeature.Received(1).SaveViewer(Arg.Is<Viewer>(v =>
+            v.UserId == "999" &&
+            v.Username == "newviewer" &&
+            v.DisplayName == "NewViewer"));
+
+        Assert.NotNull(fakeAuthService.LastProperties);
+        Assert.True(fakeAuthService.LastProperties!.IsPersistent);
+        Assert.NotNull(fakeAuthService.LastPrincipal);
+        var claims = fakeAuthService.LastPrincipal!.Claims.ToList();
+        Assert.Contains(claims, c => c.Type == ClaimTypes.Name && c.Value == "NewViewer");
+        Assert.Contains(claims, c => c.Type == ClaimTypes.Role && c.Value == "Viewer");
     }
 
     private static void SetState(HomeController controller, string state, string redirect)
@@ -194,6 +242,7 @@ public class HomeControllerTests
     private sealed class FakeAuthenticationService : IAuthenticationService
     {
         public ClaimsPrincipal? LastPrincipal { get; private set; }
+        public AuthenticationProperties? LastProperties { get; private set; }
 
         public Task<AuthenticateResult> AuthenticateAsync(HttpContext context, string? scheme)
         {
@@ -213,6 +262,7 @@ public class HomeControllerTests
         public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties)
         {
             LastPrincipal = principal;
+            LastProperties = properties;
             return Task.CompletedTask;
         }
 

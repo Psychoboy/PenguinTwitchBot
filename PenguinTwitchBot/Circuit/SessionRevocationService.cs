@@ -45,8 +45,8 @@ namespace PenguinTwitchBot.Circuit
         : ISessionRevocationService, IHostedService
     {
         private const string SettingPrefix = "session_revoked:";
-        // Cookies default to a 14-day lifetime, so older revocations can no longer match a live cookie.
-        private static readonly TimeSpan RevocationRetention = TimeSpan.FromDays(15);
+        // Cookies default to a 30-day lifetime, so older revocations can no longer match a live cookie.
+        private static readonly TimeSpan RevocationRetention = TimeSpan.FromDays(35);
         private readonly ConcurrentDictionary<string, DateTimeOffset> _revokedAt = new();
 
         public event Action<string>? SessionRevoked;
