@@ -46,9 +46,36 @@
             z-index: 99999;
             pointer-events: none;
         }
+
+        #ws-status {
+            position: fixed;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #fff;
+            background: #c0392b;
+            opacity: 1;
+            transition: opacity 0.6s ease;
+            pointer-events: none;
+            z-index: 99999;
+            font-family: sans-serif;
+        }
+
+        #ws-status.connected {
+            background: #27ae60;
+        }
+
+        #ws-status.hidden {
+            opacity: 0;
+        }
     </style>
     <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="/js/ws-client.js"></script>
+    <script src="/js/ws-status.js"></script>
     <script>
         (function () {
             const params = new URLSearchParams(window.location.search);
@@ -78,6 +105,16 @@
 
             // Listen for reload events over the websocket
             const ws = createWsSocket(clientName, [window.WS_TOPICS ? window.WS_TOPICS.overlay : 'overlay']);
+            ws.addEventListener('open', function () {
+                if (typeof wsStatusShow === 'function') {
+                    wsStatusShow(true);
+                }
+            });
+            ws.addEventListener('close', function () {
+                if (typeof wsStatusShow === 'function') {
+                    wsStatusShow(false);
+                }
+            });
             ws.addEventListener('message', function (event) {
                 try {
                     const raw = event.data;
@@ -102,6 +139,12 @@
 <body>
     <div id="overlay-canvas"></div>
     <div id="overlay-error"></div>
+    <div id="ws-status" data-overlay="Overlay">Disconnected</div>
+    <script>
+        if (window.__overlayCompositorHub && window.__overlayCompositorHub.physicalSocket && window.__overlayCompositorHub.physicalSocket.readyState === 1) {
+            if (typeof wsStatusShow === 'function') wsStatusShow(true);
+        }
+    </script>
 
     <script>
         (async () => {
@@ -154,6 +197,18 @@
                     iframe.setAttribute('allowtransparency', 'true');
                     iframe.setAttribute('frameborder', '0');
                     iframe.setAttribute('scrolling', 'no');
+                    iframe.addEventListener('load', function () {
+                        try {
+                            const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+                            if (doc) {
+                                const statusEl = doc.getElementById('ws-status');
+                                if (statusEl) statusEl.style.display = 'none';
+                                const hideStyle = doc.createElement('style');
+                                hideStyle.textContent = '#ws-status { display: none !important; }';
+                                (doc.head || doc.documentElement).appendChild(hideStyle);
+                            }
+                        } catch (_) {}
+                    });
                     canvas.appendChild(iframe);
                 }
             } catch (e) {
@@ -176,6 +231,7 @@
             if (key) {
                 url.searchParams.set('key', key);
             }
+            url.searchParams.set('shared', '1');
             return url.origin === window.location.origin
                 ? url.pathname + url.search + url.hash
                 : url.toString();
