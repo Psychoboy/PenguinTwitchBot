@@ -341,10 +341,16 @@
 
             this.physicalSocket.addEventListener('open', function () {
                 self._syncSubscriptions();
+                if (typeof global.wsStatusShow === 'function') {
+                    global.wsStatusShow(true);
+                }
                 self.virtualSockets.forEach(function (vs) { vs._dispatchOpen(); });
             });
 
             this.physicalSocket.addEventListener('close', function (event) {
+                if (typeof global.wsStatusShow === 'function') {
+                    global.wsStatusShow(false);
+                }
                 self.virtualSockets.forEach(function (vs) { vs._dispatchClose(event); });
             });
 
@@ -506,17 +512,25 @@
 
         // Check if running inside overlay compositor hub
         let hub = null;
+        let isChild = false;
         try {
-            if (global.__overlayCompositorHub) {
-                hub = global.__overlayCompositorHub;
-            } else if (global.parent && global.parent !== global && global.parent.__overlayCompositorHub) {
+            if (global.parent && global.parent !== global && global.parent.__overlayCompositorHub) {
                 hub = global.parent.__overlayCompositorHub;
+                isChild = true;
+            } else if (global.__overlayCompositorHub) {
+                hub = global.__overlayCompositorHub;
             }
         } catch (_) {
             hub = null;
         }
 
         if (hub && typeof hub.createVirtualSocket === 'function') {
+            if (isChild) {
+                global.__isSharedWebSocketWidget = true;
+                if (typeof global.wsStatusHide === 'function') {
+                    global.wsStatusHide();
+                }
+            }
             return hub.createVirtualSocket(clientName, topicList, opts);
         }
 

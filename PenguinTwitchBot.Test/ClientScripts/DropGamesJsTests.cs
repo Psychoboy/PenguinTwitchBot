@@ -1636,6 +1636,110 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void WsStatus_StandaloneWidget_ShowsConnectedAndDisconnected()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(@"
+                var statusClasses = [];
+                var statusEl = {
+                    id: 'ws-status',
+                    dataset: { overlay: '🚨 Alerts' },
+                    textContent: 'Disconnected',
+                    style: { display: '' },
+                    classList: {
+                        add: function(c) { if (statusClasses.indexOf(c) === -1) statusClasses.push(c); },
+                        remove: function(c1, c2) {
+                            statusClasses = statusClasses.filter(function(x) { return x !== c1 && x !== c2; });
+                        }
+                    }
+                };
+                document.getElementById = function(id) {
+                    if (id === 'ws-status') return statusEl;
+                    return null;
+                };
+            ");
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-status.js")));
+
+            engine.Execute("window.wsStatusShow(true);");
+            Assert.Equal("🚨 Alerts Connected", engine.Evaluate("statusEl.textContent").AsString());
+            Assert.Contains("connected", engine.Evaluate("statusClasses.join(' ')").AsString());
+
+            engine.Execute("window.wsStatusShow(false);");
+            Assert.Equal("🚨 Alerts Disconnected", engine.Evaluate("statusEl.textContent").AsString());
+            Assert.DoesNotContain("connected", engine.Evaluate("statusClasses.join(' ')").AsString());
+        }
+
+        [Fact]
+        public void WsStatus_SharedChildWidget_SuppressesStatusMessages()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(@"
+                var statusClasses = [];
+                var statusEl = {
+                    id: 'ws-status',
+                    dataset: { overlay: '🚨 Alerts' },
+                    textContent: 'Disconnected',
+                    style: { display: '' },
+                    classList: {
+                        add: function(c) { if (statusClasses.indexOf(c) === -1) statusClasses.push(c); },
+                        remove: function(c1, c2) {
+                            statusClasses = statusClasses.filter(function(x) { return x !== c1 && x !== c2; });
+                        }
+                    }
+                };
+                document.getElementById = function(id) {
+                    if (id === 'ws-status') return statusEl;
+                    return null;
+                };
+                window.parent = { __overlayCompositorHub: {} };
+            ");
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-status.js")));
+
+            Assert.True(engine.Evaluate("window.isSharedWebSocketWidget()").AsBoolean());
+            Assert.Equal("none", engine.Evaluate("statusEl.style.display").AsString());
+
+            engine.Execute("window.wsStatusShow(true);");
+            // textContent remains Disconnected because wsStatusShow was suppressed
+            Assert.Equal("Disconnected", engine.Evaluate("statusEl.textContent").AsString());
+            Assert.Equal("none", engine.Evaluate("statusEl.style.display").AsString());
+        }
+
+        [Fact]
+        public void OverlayHub_UpdatesHostOverlayWsStatus_AndChildVirtualSocketsSuppressed()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(@"
+                var statusCalls = [];
+                window.wsStatusShow = function(connected) {
+                    statusCalls.push(connected);
+                };
+                var ReconnectingWebSocket = function(uri) {
+                    this.readyState = 1;
+                    this.listeners = {};
+                    this.addEventListener = function(evt, fn) { this.listeners[evt] = fn; };
+                    this.send = function() {};
+                };
+            ");
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-client.js")));
+
+            engine.Execute(@"
+                var hub = new window.OverlayHub({ clientName: 'Overlay', topics: ['overlay'] });
+                hub.physicalSocket.listeners['open']();
+            ");
+
+            var openCalls = engine.Evaluate("statusCalls.length").AsNumber();
+            Assert.Equal(1, openCalls);
+            Assert.True(engine.Evaluate("statusCalls[0]").AsBoolean());
+
+            engine.Execute(@"
+                hub.physicalSocket.listeners['close']();
+            ");
+            var totalCalls = engine.Evaluate("statusCalls.length").AsNumber();
+            Assert.Equal(2, totalCalls);
+            Assert.False(engine.Evaluate("statusCalls[1]").AsBoolean());
+        }
+
+        [Fact]
         public void DropGamesCommon_OverlayBus_CoordinatesDropsLocally()
         {
             var engine = CreateMockBrowserEngine(out _);
