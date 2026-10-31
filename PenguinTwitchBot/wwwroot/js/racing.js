@@ -1256,19 +1256,25 @@
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 20px "Fredoka", "Rubik", sans-serif';
         ctx.textAlign = 'center';
-        const titleTpl = (currentMessages && (currentMessages.overlayLobbyTitle || currentMessages.OverlayLobbyTitle)) || '🏁 RACE LOBBY: {mode}';
-        const lobbyTitle = titleTpl.replace('{mode}', currentSettings.gameMode.toUpperCase());
-        ctx.fillText(lobbyTitle, width / 2, by + 26);
+        const titleTpl = currentMessages?.overlayLobbyTitle ?? currentMessages?.OverlayLobbyTitle ?? '🏁 RACE LOBBY: {mode}';
+        const lobbyTitle = titleTpl ? titleTpl.replace('{mode}', currentSettings.gameMode.toUpperCase()) : '';
+        if (lobbyTitle) {
+            ctx.fillText(lobbyTitle, width / 2, by + 26);
+        }
 
         const secLeft = Math.max(0, Math.ceil(lobbyRemainingMs / 1000));
         ctx.font = '14px "Fredoka", "Rubik", sans-serif';
         ctx.fillStyle = '#FFD166';
-        const subTpl = (currentMessages && (currentMessages.overlayLobbySubtitle || currentMessages.OverlayLobbySubtitle)) || 'Starting in {seconds}s  •  Type !race [emote] to join! ({count}/{max})';
+        const subTpl = currentMessages?.overlayLobbySubtitle ?? currentMessages?.OverlayLobbySubtitle ?? 'Starting in {seconds}s  •  Type !race [emote] to join! ({count}/{max})';
         const lobbySubtitle = subTpl
-            .replace('{seconds}', secLeft.toString())
-            .replace('{count}', lobbyRacers.length.toString())
-            .replace('{max}', (currentSettings.maxRacers || 12).toString());
-        ctx.fillText(lobbySubtitle, width / 2, by + 52);
+            ? subTpl
+                .replace('{seconds}', secLeft.toString())
+                .replace('{count}', lobbyRacers.length.toString())
+                .replace('{max}', (currentSettings.maxRacers || 12).toString())
+            : '';
+        if (lobbySubtitle) {
+            ctx.fillText(lobbySubtitle, width / 2, by + 52);
+        }
 
         ctx.restore();
     }
@@ -1494,8 +1500,10 @@
             ctx.fillStyle = '#FFFFFF';
             ctx.font = 'bold 18px "Fredoka", "Rubik", sans-serif';
             ctx.textAlign = 'center';
-            const ttTitle = (currentMessages && (currentMessages.overlayTimeTrialTitle || currentMessages.OverlayTimeTrialTitle)) || '⏱️ TIME TRIAL RESULT';
-            ctx.fillText(ttTitle, width / 2, py + 32, pw - 30);
+            const ttTitle = currentMessages?.overlayTimeTrialTitle ?? currentMessages?.OverlayTimeTrialTitle ?? '⏱️ TIME TRIAL RESULT';
+            if (ttTitle) {
+                ctx.fillText(ttTitle, width / 2, py + 32, pw - 30);
+            }
 
             ctx.fillStyle = r.userColor || '#FFD166';
             ctx.font = 'bold 16px "Fredoka", sans-serif';
@@ -1508,8 +1516,10 @@
             if (r.isNewRecord) {
                 ctx.fillStyle = '#00E676';
                 ctx.font = 'bold 14px "Fredoka", sans-serif';
-                const newRec = (currentMessages && (currentMessages.overlayNewRecord || currentMessages.OverlayNewRecord)) || '🏆 NEW TRACK RECORD! 🏆';
-                ctx.fillText(newRec, width / 2, py + 124, pw - 30);
+                const newRec = currentMessages?.overlayNewRecord ?? currentMessages?.OverlayNewRecord ?? '🏆 NEW TRACK RECORD! 🏆';
+                if (newRec) {
+                    ctx.fillText(newRec, width / 2, py + 124, pw - 30);
+                }
             } else if (r.prevBestMs) {
                 const diff = (r.lapTime - (r.prevBestMs / 1000)).toFixed(2);
                 ctx.fillStyle = '#FF8A80';
@@ -1586,17 +1596,19 @@
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        let podTitle = (currentMessages && (currentMessages.overlayPodiumTitle || currentMessages.OverlayPodiumTitle)) || '🏆 CHAMPIONSHIP FINAL PODIUM 🏆';
+        let podTitle = currentMessages?.overlayPodiumTitle ?? currentMessages?.OverlayPodiumTitle ?? '🏆 CHAMPIONSHIP FINAL PODIUM 🏆';
         if (currentSettings.gameMode === 'Elimination') {
             podTitle = '🏆 ELIMINATION CHAMPION 🏆';
         } else if (currentSettings.gameMode === 'DestructionDerby') {
-            podTitle = (currentMessages && (currentMessages.overlayDerbyPodiumTitle || currentMessages.OverlayDerbyPodiumTitle)) || '🏆 DEMOLITION DERBY CHAMPION 🏆';
+            podTitle = currentMessages?.overlayDerbyPodiumTitle ?? currentMessages?.OverlayDerbyPodiumTitle ?? '🏆 DEMOLITION DERBY CHAMPION 🏆';
         }
 
-        ctx.fillStyle = '#FFD166';
-        ctx.font = 'bold 20px "Fredoka", "Rubik", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(podTitle, width / 2, py + 36, pw - 32);
+        if (podTitle) {
+            ctx.fillStyle = '#FFD166';
+            ctx.font = 'bold 20px "Fredoka", "Rubik", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(podTitle, width / 2, py + 36, pw - 32);
+        }
 
         const displayCount = Math.min(3, finishedRacers.length);
         const colWidth = (pw - 24) / Math.max(1, displayCount);

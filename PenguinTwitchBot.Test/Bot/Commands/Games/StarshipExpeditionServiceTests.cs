@@ -3325,6 +3325,36 @@ public class StarshipExpeditionServiceTests
         Assert.Equal("Nebula Route", resolved.CurrentRoute);
     }
 
+    [Fact]
+    public void BuildEventOpenedMessage_StationStop_ReturnsEmpty_WhenEventOpenedCleared()
+    {
+        var method = typeof(StarshipExpeditionService).GetMethod("BuildEventOpenedMessage",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(method);
+
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            Messages = new StarshipMessageSettings { EventOpened = "" },
+            EventVoteDurationSeconds = 30,
+            ShipSystems = StarshipShipSystems.Create(new() { Enabled = true })
+        };
+        var currentEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventType = "StationStop",
+            Sector = "Station Alpha",
+            Choices = [new StarshipEventChoiceSnapshot { ChoiceId = "resupply", Label = "Resupply" }]
+        };
+
+        var result = method.Invoke(null, [snapshot, currentEvent]) as string;
+        Assert.Equal(string.Empty, result);
+
+        // When EventOpened is not cleared, station stop returns announcement
+        snapshot.Messages.EventOpened = StarshipMessageSettings.DefaultEventOpened;
+        var stationResult = method.Invoke(null, [snapshot, currentEvent]) as string;
+        Assert.False(string.IsNullOrWhiteSpace(stationResult));
+        Assert.Contains("Station stop at", stationResult);
+    }
+
     private sealed class InMemorySettingsStore : IStarshipExpeditionSettingsStore
     {
         public int SaveCount { get; private set; }

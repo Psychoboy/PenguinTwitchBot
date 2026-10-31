@@ -4649,6 +4649,32 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                     It.Is<string>(json => json.Contains("\"type\":\"curling_slide\"") && json.Contains("\"powerVariancePercent\":4.5"))),
                 Times.Once);
         }
+
+        [Fact]
+        public void DropGameMediaResolver_IsCustomEmote_MatchesSingleAndMultiTokenDefaults()
+        {
+            // Empty / whitespace character image is never custom
+            Assert.False(DropGameMediaResolver.IsCustomEmote(null, "sptvJammies"));
+            Assert.False(DropGameMediaResolver.IsCustomEmote("", "sptvJammies"));
+            Assert.False(DropGameMediaResolver.IsCustomEmote("   ", "sptvJammies"));
+
+            // Matches single default token (case-insensitive)
+            Assert.False(DropGameMediaResolver.IsCustomEmote("sptvJammies", "sptvJammies"));
+            Assert.False(DropGameMediaResolver.IsCustomEmote("sptvjammies", "sptvJammies"));
+
+            // Matches any token in multi-token default
+            var multiDefault = "https://cdn.example.com/e1.png, https://cdn.example.com/e2.png; sptvDancing";
+            Assert.False(DropGameMediaResolver.IsCustomEmote("https://cdn.example.com/e1.png", multiDefault));
+            Assert.False(DropGameMediaResolver.IsCustomEmote("https://cdn.example.com/e2.png", multiDefault));
+            Assert.False(DropGameMediaResolver.IsCustomEmote("sptvdancing", multiDefault));
+
+            // Custom emote that does not match any token
+            Assert.True(DropGameMediaResolver.IsCustomEmote("https://cdn.example.com/custom.png", multiDefault));
+            Assert.True(DropGameMediaResolver.IsCustomEmote("sptvPicoDance", multiDefault));
+
+            // If default list is empty, any non-blank image is custom
+            Assert.True(DropGameMediaResolver.IsCustomEmote("sptvCustom", ""));
+        }
     }
 }
 

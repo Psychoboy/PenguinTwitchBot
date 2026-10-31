@@ -30,9 +30,9 @@ namespace PenguinTwitchBot.Extensions
         /// Selects the next element from a keyed shuffle bag (deck randomizer).
         /// Guarantees fair rotation through all candidates before repeating, and prevents consecutive duplicates.
         /// </summary>
-        public static T? NextFromShuffleBag<T>(this IEnumerable<T> list, string bagKey, IEqualityComparer<T>? comparer = null) where T : notnull
+        public static T? NextFromShuffleBag<T>(this IEnumerable<T> list, string bagKey) where T : notnull
         {
-            return ShuffleBag.Next(bagKey, list, comparer);
+            return ShuffleBag.Next(bagKey, list);
         }
 
         /// <summary>

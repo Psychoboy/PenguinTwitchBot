@@ -178,7 +178,7 @@ namespace PenguinTwitchBot.Extensions
         /// <summary>
         /// Draws the next item from the shuffle bag associated with <paramref name="bagKey"/> using default equality.
         /// </summary>
-        public static T? Next<T>(string bagKey, IEnumerable<T> candidates, IEqualityComparer<T>? comparer = null) where T : notnull
+        public static T? Next<T>(string bagKey, IEnumerable<T> candidates) where T : notnull
         {
             return Next(bagKey, candidates, x => x);
         }

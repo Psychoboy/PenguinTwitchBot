@@ -537,7 +537,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 userColor = record.UserColor,
                 color = record.UserColor,
                 characterImageUrl = characterImageUrl ?? "",
-                isCustomEmote = !string.IsNullOrWhiteSpace(characterImageUrl) && !string.Equals(characterImageUrl, theme.DefaultCharacterImageUrl, StringComparison.OrdinalIgnoreCase),
+                isCustomEmote = DropGameMediaResolver.IsCustomEmote(characterImageUrl, theme.DefaultCharacterImageUrl),
                 theme,
                 sounds = soundBundle,
                 nameFontSize = plinkoSettings.NameFontSize,

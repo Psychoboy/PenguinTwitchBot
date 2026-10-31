@@ -417,6 +417,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             return urls[RandomNumberGenerator.GetInt32(urls.Count)];
         }
 
+        /// <summary>
+        /// Checks whether the resolved character image represents a custom user emote rather than one of the theme default character sprites.
+        /// </summary>
+        public static bool IsCustomEmote(string? characterImageUrl, string? defaultCharacterImageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(characterImageUrl)) return false;
+            var tokens = ParseMediaTokens(defaultCharacterImageUrl);
+            if (tokens.Count == 0) return true;
+            return !tokens.Any(token => string.Equals(characterImageUrl, token, StringComparison.OrdinalIgnoreCase));
+        }
+
         private static string? GetFragmentEmoteUrl(ChatOverlayFragment fragment)
         {
             if (!string.IsNullOrWhiteSpace(fragment.EmoteUrl))

@@ -1031,6 +1031,11 @@ public sealed class StarshipExpeditionService(
 
     private static string BuildEventOpenedMessage(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
     {
+        if (snapshot.Messages?.EventOpened == string.Empty)
+        {
+            return string.Empty;
+        }
+
         if (currentEvent.EventType == "StationStop" &&
             StarshipShipEventDisclosure.From(snapshot, currentEvent, null) is { } stationDisclosure)
         {
