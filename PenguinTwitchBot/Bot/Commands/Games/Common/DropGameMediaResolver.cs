@@ -600,8 +600,31 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 return url;
             }
 
-            resolved.DefaultCharacterImageUrl = await ResolveAssetAsync(baseTheme.DefaultCharacterImageUrl);
-            resolved.DefaultDropletImageUrl = await ResolveAssetAsync(baseTheme.DefaultDropletImageUrl);
+            async Task<string> ResolveMultiAssetAsync(string? rawValue)
+            {
+                if (string.IsNullOrWhiteSpace(rawValue)) return string.Empty;
+                var tokens = ParseMediaTokens(rawValue);
+                if (tokens.Count == 0) return string.Empty;
+
+                var resolvedTokens = new List<string>();
+                foreach (var token in tokens)
+                {
+                    var (url, success) = await ResolveThemeAssetAsync(emoteService, token, dropRegistry);
+                    if (success && !string.IsNullOrWhiteSpace(url))
+                    {
+                        resolvedTokens.Add(url);
+                    }
+                    else
+                    {
+                        allResolved = false;
+                    }
+                }
+
+                return resolvedTokens.Count > 0 ? string.Join(", ", resolvedTokens) : string.Empty;
+            }
+
+            resolved.DefaultCharacterImageUrl = await ResolveMultiAssetAsync(baseTheme.DefaultCharacterImageUrl);
+            resolved.DefaultDropletImageUrl = await ResolveMultiAssetAsync(baseTheme.DefaultDropletImageUrl);
             resolved.ParachuteCanopyImageUrl = await ResolveAssetAsync(baseTheme.ParachuteCanopyImageUrl);
             resolved.TargetPlatformImageUrl = await ResolveAssetAsync(baseTheme.TargetPlatformImageUrl);
             resolved.PlinkoBoardBackgroundImageUrl = await ResolveAssetAsync(baseTheme.PlinkoBoardBackgroundImageUrl);
@@ -663,7 +686,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
 
         private static void RegisterIfValid(IDropRegistry registry, string? url)
         {
-            if (!string.IsNullOrWhiteSpace(url))
+            if (string.IsNullOrWhiteSpace(url)) return;
+            var tokens = ParseMediaTokens(url);
+            if (tokens.Count > 1)
+            {
+                foreach (var token in tokens)
+                {
+                    if (IsAllowedPathOrUrl(token))
+                    {
+                        registry.RegisterAllowedProxyUrl(token);
+                    }
+                }
+            }
+            else
             {
                 registry.RegisterAllowedProxyUrl(url);
             }

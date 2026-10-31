@@ -2322,6 +2322,71 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task DropGameMediaResolver_ResolveAndPrepareThemeAsync_MultipleCharacterEmotes_PreservesAllAndPicksRandomlyPerTurn()
+        {
+            DropGameMediaResolver.ClearPreparedThemeCache();
+            var emoteService = new Mock<IEmoteService>();
+            emoteService.Setup(e => e.GetEmotesAsync())
+                .ReturnsAsync(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sptvJammiesRGB"] = "https://static-cdn.jtvnw.net/emoticons/v2/111/default/dark/3.0",
+                    ["sptvJammies"] = "https://static-cdn.jtvnw.net/emoticons/v2/222/default/dark/3.0",
+                    ["sptvDancing"] = "https://static-cdn.jtvnw.net/emoticons/v2/333/default/dark/3.0",
+                    ["sptvPicoDance"] = "https://static-cdn.jtvnw.net/emoticons/v2/444/default/dark/3.0"
+                });
+
+            var dropRegistry = CreateDropRegistry();
+            var settings = new DropGamesSettings();
+            var customTheme = new DropGameTheme
+            {
+                Id = "multi_emote_test",
+                Name = "Multi Emote Test Theme",
+                DefaultCharacterImageUrl = "sptvJammiesRGB, sptvJammies, sptvDancing, sptvPicoDance"
+            };
+            settings.Themes.Add(customTheme);
+
+            var resolved = await DropGameMediaResolver.ResolveAndPrepareThemeAsync(
+                settings,
+                "multi_emote_test",
+                "spring",
+                emoteService.Object,
+                dropRegistry);
+
+            // All 4 URLs should be registered in drop registry
+            Assert.True(dropRegistry.IsProxyUrlAllowed("https://static-cdn.jtvnw.net/emoticons/v2/111/default/dark/3.0"));
+            Assert.True(dropRegistry.IsProxyUrlAllowed("https://static-cdn.jtvnw.net/emoticons/v2/222/default/dark/3.0"));
+            Assert.True(dropRegistry.IsProxyUrlAllowed("https://static-cdn.jtvnw.net/emoticons/v2/333/default/dark/3.0"));
+            Assert.True(dropRegistry.IsProxyUrlAllowed("https://static-cdn.jtvnw.net/emoticons/v2/444/default/dark/3.0"));
+
+            // resolved.DefaultCharacterImageUrl should contain all 4 resolved URLs (not collapsed into 1)
+            var expectedUrls = new HashSet<string>
+            {
+                "https://static-cdn.jtvnw.net/emoticons/v2/111/default/dark/3.0",
+                "https://static-cdn.jtvnw.net/emoticons/v2/222/default/dark/3.0",
+                "https://static-cdn.jtvnw.net/emoticons/v2/333/default/dark/3.0",
+                "https://static-cdn.jtvnw.net/emoticons/v2/444/default/dark/3.0"
+            };
+
+            // Now test minigame turn behavior using the prepared theme's DefaultCharacterImageUrl as fallback:
+            var pickedUrls = new HashSet<string>();
+            for (var i = 0; i < 50; i++)
+            {
+                var picked = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(
+                    emoteService.Object,
+                    eventArgs: null,
+                    emoteOrImageInput: null,
+                    fallbackUrl: resolved.DefaultCharacterImageUrl);
+
+                Assert.NotNull(picked);
+                Assert.Contains(picked, expectedUrls);
+                pickedUrls.Add(picked);
+            }
+
+            // Over 50 turns with 4 distinct emotes, it should have picked all 4 (or at least more than 1)
+            Assert.True(pickedUrls.Count > 1, $"Expected multiple distinct emotes to be picked, but only picked {pickedUrls.Count}");
+        }
+
+        [Fact]
         public async Task DropGamesSettingsService_SaveSettingsAsync_DbFailure_ClearsCacheAndRethrows()
         {
             var repo = new Mock<ISettingsRepository>();

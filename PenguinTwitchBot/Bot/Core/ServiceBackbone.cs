@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Application.ChatMessage.Notification;
+using PenguinTwitchBot.Application.ChatMessage.Notification;
 using PenguinTwitchBot.Application.ChatMessage.Notifications;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Bot.Commands;
@@ -109,6 +109,7 @@ namespace PenguinTwitchBot.Bot.Core
         public Task SendChatMessage(string message) => SendChatMessage(message, true);
         public Task SendChatMessage(string message, bool sourceOnly)
         {
+            if (string.IsNullOrWhiteSpace(message)) return Task.CompletedTask;
             return dispatcher.Publish(new SendBotMessage(message, sourceOnly));
         }
 
@@ -116,7 +117,9 @@ namespace PenguinTwitchBot.Bot.Core
             await ResponseWithMessage(e, message, true);
         public async Task ResponseWithMessage(CommandEventArgs e, string message, bool sourceOnly)
         {
+            if (string.IsNullOrWhiteSpace(message)) return;
             message = message.TrimStart('!').Trim();
+            if (string.IsNullOrWhiteSpace(message)) return;
 
             if (string.IsNullOrWhiteSpace(e.MessageId))
             {
@@ -134,6 +137,7 @@ namespace PenguinTwitchBot.Bot.Core
 
         public async Task SendChatMessage(string name, string message, bool sourceOnly)
         {
+            if (string.IsNullOrWhiteSpace(message)) return;
             await SendChatMessage(string.Format("@{0}, {1}", name, message), sourceOnly);
         }
         public async Task SendChatMessageWithTitle(string viewerName, string message) =>

@@ -296,6 +296,11 @@ public sealed class StarshipExpeditionService(
 
     private async Task RespondFormattedAsync(CommandEventArgs e, string? template, string fallback, Dictionary<string, string>? extraReplacements = null)
     {
+        if (template != null && string.IsNullOrWhiteSpace(template))
+        {
+            return;
+        }
+
         var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["user"] = e.DisplayName ?? e.Name,
@@ -307,6 +312,10 @@ public sealed class StarshipExpeditionService(
                 replacements[k] = v;
         }
         var message = StarshipMessageSettings.Format(template, fallback, replacements);
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
         await RespondWithMessage(e, message);
     }
 

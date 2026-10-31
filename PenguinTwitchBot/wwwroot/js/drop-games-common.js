@@ -2090,6 +2090,24 @@
         }
     }
 
+    function preloadThemeSharedMedia(theme, getLoadedImageFn) {
+        if (!theme) return;
+        const load = typeof getLoadedImageFn === 'function' ? getLoadedImageFn : null;
+        if (!load) return;
+
+        const preloadList = (val) => {
+            if (!val || typeof val !== 'string') return;
+            const items = val.split(',');
+            for (let i = 0; i < items.length; i++) {
+                const trimmed = items[i].trim();
+                if (trimmed) load(trimmed);
+            }
+        };
+
+        preloadList(theme.defaultCharacterImageUrl);
+        preloadList(theme.defaultDropletImageUrl);
+    }
+
     const DropGamesCommon = {
         normalizeImageUrl: normalizeImageUrl,
         detectMimeType: detectMimeType,
@@ -2097,6 +2115,7 @@
         decodeLzw: decodeLzw,
         loadAnimatedFrames: loadAnimatedFrames,
         createImageLoader: createImageLoader,
+        preloadThemeSharedMedia: preloadThemeSharedMedia,
         brightenColor: brightenColor,
         drawSeasonalDefaultPenguin: drawSeasonalDefaultPenguin,
         drawOutlinedName: drawOutlinedName,
@@ -2131,12 +2150,15 @@
     }
     if (typeof global !== 'undefined') {
         global.DropGamesCommon = DropGamesCommon;
+        global.preloadThemeSharedMedia = preloadThemeSharedMedia;
     }
     if (typeof window !== 'undefined') {
         window.DropGamesCommon = DropGamesCommon;
+        window.preloadThemeSharedMedia = preloadThemeSharedMedia;
     }
     if (typeof globalThis !== 'undefined') {
         globalThis.DropGamesCommon = DropGamesCommon;
+        globalThis.preloadThemeSharedMedia = preloadThemeSharedMedia;
     }
 })(typeof window !== 'undefined' ? window : this);
 

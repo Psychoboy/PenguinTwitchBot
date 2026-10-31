@@ -554,6 +554,37 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             var formatted = RacingMessageSettings.Format(tpl, "Fallback", replacements);
             Assert.Equal("Welcome SpeedyPenguin! Heat Final has 8 racers. Winner gets 25pts in 14.20s (1 wrecks).", formatted);
+
+            // Empty string suppresses message
+            var empty = RacingMessageSettings.Format("", "Fallback", replacements);
+            Assert.Equal(string.Empty, empty);
+
+            // Null template falls back
+            var fallback = RacingMessageSettings.Format(null, "Fallback", replacements);
+            Assert.Equal("Fallback", fallback);
+
+            // Normalize preserves empty string and trims, while replacing null with defaults
+            var normalized = RacingMessageSettings.Normalize(new RacingMessageSettings
+            {
+                SessionStart = "",
+                SessionEnd = "   ",
+                RaceStart = null!
+            });
+            Assert.Equal("", normalized.SessionStart);
+            Assert.Equal("", normalized.SessionEnd);
+            Assert.Equal(RacingMessageSettings.DefaultRaceStart, normalized.RaceStart);
+        }
+
+        [Fact]
+        public async Task RacingGameService_EmptySessionStart_SuppressesChatAnnouncement()
+        {
+            _settings.Racing.Messages.SessionStart = "";
+
+            using var service = CreateService();
+            await service.StartRaceLobbyAsync(45, null, "Tester");
+
+            // Because SessionStart was empty string, SendChatMessage should not have been called
+            _serviceBackbone.Verify(x => x.SendChatMessage(It.IsAny<string>()), Times.Never);
         }
 
         [Fact]

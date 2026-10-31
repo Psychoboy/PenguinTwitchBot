@@ -3032,8 +3032,10 @@ public class StarshipExpeditionServiceTests
             Help = null!
         });
 
-        Assert.Equal(StarshipMessageSettings.DefaultJoinSuccess, normalized.JoinSuccess);
-        Assert.Equal(StarshipMessageSettings.DefaultVotePrompt, normalized.VotePrompt);
+        // Empty string and whitespace should be preserved as empty string (allowing clearing messages)
+        Assert.Equal("", normalized.JoinSuccess);
+        Assert.Equal("", normalized.VotePrompt);
+        // Null should fall back to default
         Assert.Equal(StarshipMessageSettings.DefaultHelp, normalized.Help);
 
         var formatted = StarshipMessageSettings.Format("Welcome aboard {user}! Total: {crewCount}.", "fallback",
@@ -3044,12 +3046,61 @@ public class StarshipExpeditionServiceTests
             });
         Assert.Equal("Welcome aboard Alice! Total: 5.", formatted);
 
-        var fallbackFormatted = StarshipMessageSettings.Format("", "Default text: {count}",
+        // Explicit empty string suppresses message, returns empty
+        var emptyFormatted = StarshipMessageSettings.Format("", "Default text: {count}",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["count"] = "10"
+            });
+        Assert.Equal(string.Empty, emptyFormatted);
+
+        // Null template falls back to default
+        var fallbackFormatted = StarshipMessageSettings.Format(null, "Default text: {count}",
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["count"] = "10"
             });
         Assert.Equal("Default text: 10", fallbackFormatted);
+    }
+
+    [Fact]
+    public async Task StarshipExpeditionService_EmptyVoteRecordedMessage_SuppressesChatResponse()
+    {
+        var backbone = new Mock<IServiceBackbone>();
+        var replies = new List<string>();
+        backbone.Setup(b => b.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns<string, string, bool>((user, msg, src) =>
+            {
+                replies.Add(msg);
+                return Task.CompletedTask;
+            });
+
+        var customSettings = new StarshipExpeditionSettings
+        {
+            GameEnabled = true,
+            Messages = new StarshipMessageSettings
+            {
+                VoteRecorded = ""
+            }
+        };
+
+        var service = CreateService(new InMemoryStateStore(), serviceBackboneMock: backbone, settingsStore: new InMemorySettingsStore(customSettings));
+        await service.StartExpeditionAsync("streamer", legCount: 2, seed: 100);
+
+        var joinArgs = CreateArgs("viewer-1", "Avery");
+        joinArgs.Args = ["join"];
+        await service.OnCommand(null, joinArgs);
+
+        await service.AdvanceEventAsync();
+
+        var repliesBeforeVote = replies.Count;
+
+        var voteArgs = CreateArgs("viewer-1", "Avery");
+        voteArgs.Args = ["vote", "1"];
+        await service.OnCommand(null, voteArgs);
+
+        // Because VoteRecorded was set to empty string, no chat response was sent
+        Assert.Equal(repliesBeforeVote, replies.Count);
     }
 
     [Fact]

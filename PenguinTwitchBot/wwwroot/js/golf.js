@@ -142,8 +142,9 @@
         if (theme.golfBallImageUrl) getLoadedImage(theme.golfBallImageUrl);
         if (theme.golfGreenImageUrl) getLoadedImage(theme.golfGreenImageUrl);
         if (theme.golfFlagPinImageUrl) getLoadedImage(theme.golfFlagPinImageUrl);
-        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
-        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.preloadThemeSharedMedia) {
+            DropGamesCommon.preloadThemeSharedMedia(theme, getLoadedImage);
+        }
     }
 
     let isOtherGameActive = false;

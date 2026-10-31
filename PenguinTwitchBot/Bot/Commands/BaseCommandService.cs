@@ -36,7 +36,9 @@ namespace PenguinTwitchBot.Bot.Commands
 
         public async Task RespondWithMessage(CommandEventArgs e, string message, bool sourceOnly = true)
         {
+            if (string.IsNullOrWhiteSpace(message)) return;
             message = message.TrimStart('!').Trim();
+            if (string.IsNullOrWhiteSpace(message)) return;
 
             if (string.IsNullOrWhiteSpace(e.MessageId))
             {

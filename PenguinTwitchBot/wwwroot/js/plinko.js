@@ -82,8 +82,9 @@
         if (theme.plinkoPegImageUrl) getLoadedImage(theme.plinkoPegImageUrl);
         if (theme.plinkoWinningSlotImageUrl) getLoadedImage(theme.plinkoWinningSlotImageUrl);
         if (theme.plinkoDividerImageUrl) getLoadedImage(theme.plinkoDividerImageUrl);
-        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
-        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.preloadThemeSharedMedia) {
+            DropGamesCommon.preloadThemeSharedMedia(theme, getLoadedImage);
+        }
     }
 
     let boardConfig = {
