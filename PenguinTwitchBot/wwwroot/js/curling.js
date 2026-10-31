@@ -133,8 +133,9 @@
         if (!theme) return;
         if (theme.curlingStoneImageUrl) getLoadedImage(theme.curlingStoneImageUrl);
         if (theme.curlingHouseImageUrl) getLoadedImage(theme.curlingHouseImageUrl);
-        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
-        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.preloadThemeSharedMedia) {
+            DropGamesCommon.preloadThemeSharedMedia(theme, getLoadedImage);
+        }
     }
 
     function getSeasonPreset() {

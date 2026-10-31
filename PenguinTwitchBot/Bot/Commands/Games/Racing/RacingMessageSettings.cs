@@ -63,7 +63,12 @@ public sealed class RacingMessageSettings
 
     public static string Format(string? template, string fallback, IReadOnlyDictionary<string, string> replacements)
     {
-        var result = string.IsNullOrWhiteSpace(template) ? fallback : template;
+        var result = template ?? fallback;
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            return string.Empty;
+        }
+
         foreach (var (placeholder, value) in replacements)
         {
             result = result.Replace("{" + placeholder + "}", value, StringComparison.OrdinalIgnoreCase);
@@ -74,27 +79,29 @@ public sealed class RacingMessageSettings
     public static RacingMessageSettings Normalize(RacingMessageSettings? settings)
     {
         settings ??= new RacingMessageSettings();
-        settings.SessionStart = string.IsNullOrWhiteSpace(settings.SessionStart) ? DefaultSessionStart : settings.SessionStart;
-        settings.SessionEnd = string.IsNullOrWhiteSpace(settings.SessionEnd) ? DefaultSessionEnd : settings.SessionEnd;
-        settings.RaceStart = string.IsNullOrWhiteSpace(settings.RaceStart) ? DefaultRaceStart : settings.RaceStart;
-        settings.HeatComplete = string.IsNullOrWhiteSpace(settings.HeatComplete) ? DefaultHeatComplete : settings.HeatComplete;
-        settings.ChampionshipFinalStart = string.IsNullOrWhiteSpace(settings.ChampionshipFinalStart) ? DefaultChampionshipFinalStart : settings.ChampionshipFinalStart;
-        settings.ChampionshipFinalComplete = string.IsNullOrWhiteSpace(settings.ChampionshipFinalComplete) ? DefaultChampionshipFinalComplete : settings.ChampionshipFinalComplete;
-        settings.DerbyFinalComplete = string.IsNullOrWhiteSpace(settings.DerbyFinalComplete) ? DefaultDerbyFinalComplete : settings.DerbyFinalComplete;
-        settings.RaceComplete = string.IsNullOrWhiteSpace(settings.RaceComplete) ? DefaultRaceComplete : settings.RaceComplete;
-        settings.RaceWin = string.IsNullOrWhiteSpace(settings.RaceWin) ? DefaultRaceWin : settings.RaceWin;
-        settings.DerbyChampion = string.IsNullOrWhiteSpace(settings.DerbyChampion) ? DefaultDerbyChampion : settings.DerbyChampion;
-        settings.DerbyKnockout = string.IsNullOrWhiteSpace(settings.DerbyKnockout) ? DefaultDerbyKnockout : settings.DerbyKnockout;
-        settings.TimeTrialComplete = string.IsNullOrWhiteSpace(settings.TimeTrialComplete) ? DefaultTimeTrialComplete : settings.TimeTrialComplete;
-        settings.RaceInProgress = string.IsNullOrWhiteSpace(settings.RaceInProgress) ? DefaultRaceInProgress : settings.RaceInProgress;
-        settings.NoLobbyOpen = string.IsNullOrWhiteSpace(settings.NoLobbyOpen) ? DefaultNoLobbyOpen : settings.NoLobbyOpen;
-        settings.GridFull = string.IsNullOrWhiteSpace(settings.GridFull) ? DefaultGridFull : settings.GridFull;
-        settings.OverlayLobbyTitle = string.IsNullOrWhiteSpace(settings.OverlayLobbyTitle) ? DefaultOverlayLobbyTitle : settings.OverlayLobbyTitle;
-        settings.OverlayLobbySubtitle = string.IsNullOrWhiteSpace(settings.OverlayLobbySubtitle) ? DefaultOverlayLobbySubtitle : settings.OverlayLobbySubtitle;
-        settings.OverlayPodiumTitle = string.IsNullOrWhiteSpace(settings.OverlayPodiumTitle) ? DefaultOverlayPodiumTitle : settings.OverlayPodiumTitle;
-        settings.OverlayDerbyPodiumTitle = string.IsNullOrWhiteSpace(settings.OverlayDerbyPodiumTitle) ? DefaultOverlayDerbyPodiumTitle : settings.OverlayDerbyPodiumTitle;
-        settings.OverlayTimeTrialTitle = string.IsNullOrWhiteSpace(settings.OverlayTimeTrialTitle) ? DefaultOverlayTimeTrialTitle : settings.OverlayTimeTrialTitle;
-        settings.OverlayNewRecord = string.IsNullOrWhiteSpace(settings.OverlayNewRecord) ? DefaultOverlayNewRecord : settings.OverlayNewRecord;
+        settings.SessionStart = settings.SessionStart == null ? DefaultSessionStart : settings.SessionStart.Trim();
+        settings.SessionEnd = settings.SessionEnd == null ? DefaultSessionEnd : settings.SessionEnd.Trim();
+        settings.RaceStart = settings.RaceStart == null ? DefaultRaceStart : settings.RaceStart.Trim();
+        settings.HeatComplete = settings.HeatComplete == null ? DefaultHeatComplete : settings.HeatComplete.Trim();
+        settings.ChampionshipFinalStart = settings.ChampionshipFinalStart == null ? DefaultChampionshipFinalStart : settings.ChampionshipFinalStart.Trim();
+        settings.ChampionshipFinalComplete = settings.ChampionshipFinalComplete == null ? DefaultChampionshipFinalComplete : settings.ChampionshipFinalComplete.Trim();
+        settings.DerbyFinalComplete = settings.DerbyFinalComplete == null ? DefaultDerbyFinalComplete : settings.DerbyFinalComplete.Trim();
+        settings.RaceComplete = settings.RaceComplete == null ? DefaultRaceComplete : settings.RaceComplete.Trim();
+        settings.RaceWin = settings.RaceWin == null ? DefaultRaceWin : settings.RaceWin.Trim();
+        settings.DerbyChampion = settings.DerbyChampion == null ? DefaultDerbyChampion : settings.DerbyChampion.Trim();
+        settings.DerbyKnockout = settings.DerbyKnockout == null ? DefaultDerbyKnockout : settings.DerbyKnockout.Trim();
+        settings.TimeTrialComplete = settings.TimeTrialComplete == null ? DefaultTimeTrialComplete : settings.TimeTrialComplete.Trim();
+        settings.RaceInProgress = settings.RaceInProgress == null ? DefaultRaceInProgress : settings.RaceInProgress.Trim();
+        settings.NoLobbyOpen = settings.NoLobbyOpen == null ? DefaultNoLobbyOpen : settings.NoLobbyOpen.Trim();
+        settings.GridFull = settings.GridFull == null ? DefaultGridFull : settings.GridFull.Trim();
+        settings.AlreadyJoined = settings.AlreadyJoined == null ? "" : settings.AlreadyJoined.Trim();
+        settings.UserJoined = settings.UserJoined == null ? "" : settings.UserJoined.Trim();
+        settings.OverlayLobbyTitle = settings.OverlayLobbyTitle == null ? DefaultOverlayLobbyTitle : settings.OverlayLobbyTitle.Trim();
+        settings.OverlayLobbySubtitle = settings.OverlayLobbySubtitle == null ? DefaultOverlayLobbySubtitle : settings.OverlayLobbySubtitle.Trim();
+        settings.OverlayPodiumTitle = settings.OverlayPodiumTitle == null ? DefaultOverlayPodiumTitle : settings.OverlayPodiumTitle.Trim();
+        settings.OverlayDerbyPodiumTitle = settings.OverlayDerbyPodiumTitle == null ? DefaultOverlayDerbyPodiumTitle : settings.OverlayDerbyPodiumTitle.Trim();
+        settings.OverlayTimeTrialTitle = settings.OverlayTimeTrialTitle == null ? DefaultOverlayTimeTrialTitle : settings.OverlayTimeTrialTitle.Trim();
+        settings.OverlayNewRecord = settings.OverlayNewRecord == null ? DefaultOverlayNewRecord : settings.OverlayNewRecord.Trim();
         return settings;
     }
 }

@@ -595,7 +595,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 userColor = record.UserColor,
                 color = record.UserColor,
                 characterImageUrl = characterImageUrl ?? "",
-                isCustomEmote = !string.IsNullOrWhiteSpace(characterImageUrl) && !string.Equals(characterImageUrl, theme.DefaultCharacterImageUrl, StringComparison.OrdinalIgnoreCase),
+                isCustomEmote = DropGameMediaResolver.IsCustomEmote(characterImageUrl, theme.DefaultCharacterImageUrl),
                 theme,
                 nameFontSize = pSettings.NameFontSize,
                 session = activeSessionDto,

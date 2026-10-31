@@ -6,6 +6,7 @@ using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Music;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Music
 {
@@ -359,6 +360,107 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             
             Assert.NotNull(method);
+        }
+
+        [Fact]
+        public void UpdateUnplayedSongs_DeduplicatesBackupSongsBySongId_CaseSensitive_AndSyncsBag()
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["youtubeApi"] = "test-api-key" })
+                .Build();
+
+            var ytPlayer = new YtPlayer(
+                configuration,
+                Substitute.For<ILogger<YtPlayer>>(),
+                Substitute.For<Microsoft.AspNetCore.SignalR.IHubContext<YtHub>>(),
+                Substitute.For<IServiceScopeFactory>(),
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
+
+            var backupPlaylistField = typeof(YtPlayer).GetField("BackupPlaylist",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var playlist = new MusicPlaylist
+            {
+                Name = "Test Multi Playlist",
+                Songs =
+                [
+                    new Song { SongId = "ZyhrYis509A", Title = "Song One" },
+                    new Song { SongId = "zyhryis509a", Title = "Different Video ID Due to Casing" }, // Different YT video
+                    new Song { SongId = "ZyhrYis509A", Title = "Song One Exact Duplicate" } // Exact duplicate
+                ]
+            };
+            backupPlaylistField!.SetValue(ytPlayer, playlist);
+
+            var updateMethod = typeof(YtPlayer).GetMethod("UpdateUnplayedSongs",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            updateMethod!.Invoke(ytPlayer, null);
+
+            var distinctMethod = typeof(YtPlayer).GetMethod("GetDistinctBackupSongs",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var distinctSongs = distinctMethod!.Invoke(ytPlayer, null) as List<Song>;
+
+            Assert.NotNull(distinctSongs);
+            Assert.Equal(2, distinctSongs.Count); // Case-sensitive: "ZyhrYis509A" and "zyhryis509a" are both kept
+            Assert.Contains(distinctSongs, s => s.SongId == "ZyhrYis509A");
+            Assert.Contains(distinctSongs, s => s.SongId == "zyhryis509a");
+        }
+
+        [Fact]
+        public async Task PlayNextSong_BackupPlaylist_CyclesWithoutConsecutiveDuplicates()
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["youtubeApi"] = "test-api-key" })
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddScoped(_ => Substitute.For<IUnitOfWork>());
+            var sp = services.BuildServiceProvider();
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+
+            var ytPlayer = new YtPlayer(
+                configuration,
+                Substitute.For<ILogger<YtPlayer>>(),
+                Substitute.For<Microsoft.AspNetCore.SignalR.IHubContext<YtHub>>(),
+                scopeFactory,
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
+
+            var backupPlaylistField = typeof(YtPlayer).GetField("BackupPlaylist",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var playlist = new MusicPlaylist
+            {
+                Name = "Test Playlist",
+                Songs =
+                [
+                    new Song { SongId = "songA", Title = "Song A" },
+                    new Song { SongId = "songB", Title = "Song B" }
+                ]
+            };
+            backupPlaylistField!.SetValue(ytPlayer, playlist);
+
+            var updateMethod = typeof(YtPlayer).GetMethod("UpdateUnplayedSongs",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            updateMethod!.Invoke(ytPlayer, null);
+
+            var playedIds = new List<string>();
+            for (int i = 0; i < 10; i++)
+            {
+                var nextSongId = await ytPlayer.GetNextSong();
+                playedIds.Add(nextSongId);
+            }
+
+            Assert.Equal(10, playedIds.Count);
+            // With 2 items, fair shuffle bag guarantees it never plays the same song twice consecutively
+            for (int i = 1; i < playedIds.Count; i++)
+            {
+                Assert.NotEqual(playedIds[i - 1], playedIds[i]);
+            }
         }
     }
 }

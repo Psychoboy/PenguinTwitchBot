@@ -139,8 +139,9 @@
         if (theme.balloonAnvilImageUrl) getLoadedImage(theme.balloonAnvilImageUrl);
         if (theme.balloonNudgeImageUrl) getLoadedImage(theme.balloonNudgeImageUrl);
         if (theme.balloonWindGustImageUrl) getLoadedImage(theme.balloonWindGustImageUrl);
-        if (theme.defaultCharacterImageUrl) getLoadedImage(theme.defaultCharacterImageUrl);
-        if (theme.defaultDropletImageUrl) getLoadedImage(theme.defaultDropletImageUrl);
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.preloadThemeSharedMedia) {
+            DropGamesCommon.preloadThemeSharedMedia(theme, getLoadedImage);
+        }
     }
     let lastColSoundTime = 0;
     // WebSocket connection & completions queue

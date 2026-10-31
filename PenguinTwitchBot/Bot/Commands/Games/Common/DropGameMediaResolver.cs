@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models.Chat;
+using PenguinTwitchBot.Extensions;
 using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Common
@@ -404,7 +405,27 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             var urls = await ResolveMediaUrlsAsync(emoteService, eventArgs, emoteOrImageInput, fallbackUrl, allowDirectUrlOrPath, fallbackToEventArgsArg);
             if (urls.Count == 0) return "";
             if (urls.Count == 1) return urls[0];
+
+            if (string.IsNullOrWhiteSpace(emoteOrImageInput))
+            {
+                var bagKey = !string.IsNullOrWhiteSpace(fallbackUrl)
+                    ? $"drop_game_theme:{fallbackUrl}"
+                    : $"drop_game_urls:{string.Join("|", urls)}";
+                return urls.NextFromShuffleBag(bagKey) ?? urls[0];
+            }
+
             return urls[RandomNumberGenerator.GetInt32(urls.Count)];
+        }
+
+        /// <summary>
+        /// Checks whether the resolved character image represents a custom user emote rather than one of the theme default character sprites.
+        /// </summary>
+        public static bool IsCustomEmote(string? characterImageUrl, string? defaultCharacterImageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(characterImageUrl)) return false;
+            var tokens = ParseMediaTokens(defaultCharacterImageUrl);
+            if (tokens.Count == 0) return true;
+            return !tokens.Any(token => string.Equals(characterImageUrl, token, StringComparison.OrdinalIgnoreCase));
         }
 
         private static string? GetFragmentEmoteUrl(ChatOverlayFragment fragment)
@@ -600,8 +621,31 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 return url;
             }
 
-            resolved.DefaultCharacterImageUrl = await ResolveAssetAsync(baseTheme.DefaultCharacterImageUrl);
-            resolved.DefaultDropletImageUrl = await ResolveAssetAsync(baseTheme.DefaultDropletImageUrl);
+            async Task<string> ResolveMultiAssetAsync(string? rawValue)
+            {
+                if (string.IsNullOrWhiteSpace(rawValue)) return string.Empty;
+                var tokens = ParseMediaTokens(rawValue);
+                if (tokens.Count == 0) return string.Empty;
+
+                var resolvedTokens = new List<string>();
+                foreach (var token in tokens)
+                {
+                    var (url, success) = await ResolveThemeAssetAsync(emoteService, token, dropRegistry);
+                    if (success && !string.IsNullOrWhiteSpace(url))
+                    {
+                        resolvedTokens.Add(url);
+                    }
+                    else
+                    {
+                        allResolved = false;
+                    }
+                }
+
+                return resolvedTokens.Count > 0 ? string.Join(", ", resolvedTokens) : string.Empty;
+            }
+
+            resolved.DefaultCharacterImageUrl = await ResolveMultiAssetAsync(baseTheme.DefaultCharacterImageUrl);
+            resolved.DefaultDropletImageUrl = await ResolveMultiAssetAsync(baseTheme.DefaultDropletImageUrl);
             resolved.ParachuteCanopyImageUrl = await ResolveAssetAsync(baseTheme.ParachuteCanopyImageUrl);
             resolved.TargetPlatformImageUrl = await ResolveAssetAsync(baseTheme.TargetPlatformImageUrl);
             resolved.PlinkoBoardBackgroundImageUrl = await ResolveAssetAsync(baseTheme.PlinkoBoardBackgroundImageUrl);
@@ -663,7 +707,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
 
         private static void RegisterIfValid(IDropRegistry registry, string? url)
         {
-            if (!string.IsNullOrWhiteSpace(url))
+            if (string.IsNullOrWhiteSpace(url)) return;
+            var tokens = ParseMediaTokens(url);
+            if (tokens.Count > 1)
+            {
+                foreach (var token in tokens)
+                {
+                    if (IsAllowedPathOrUrl(token))
+                    {
+                        registry.RegisterAllowedProxyUrl(token);
+                    }
+                }
+            }
+            else
             {
                 registry.RegisterAllowedProxyUrl(url);
             }

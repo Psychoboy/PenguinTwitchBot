@@ -56,7 +56,11 @@ namespace PenguinTwitchBot.Bot.Actions
             {
                 if (action.RandomAction)
                 {
-                    var subAction = enabledSubActions.RandomElementOrDefault();
+                    var bagKey = action.Id != Guid.Empty
+                        ? $"action:{action.Id}"
+                        : $"action:{action.Name}";
+
+                    var subAction = enabledSubActions.NextFromShuffleBag(bagKey, s => s.Id != Guid.Empty ? (object)s.Id : s);
                     if (subAction != null)
                     {
                         await RunSubAction(subAction, subAction.Index, variables, context);

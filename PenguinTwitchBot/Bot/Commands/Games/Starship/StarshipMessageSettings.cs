@@ -59,36 +59,41 @@ public sealed class StarshipMessageSettings
     public static StarshipMessageSettings Normalize(StarshipMessageSettings? settings)
     {
         settings ??= new StarshipMessageSettings();
-        settings.JoinSuccess = string.IsNullOrWhiteSpace(settings.JoinSuccess) ? DefaultJoinSuccess : settings.JoinSuccess.Trim();
-        settings.JoinSuccessEventOpen = string.IsNullOrWhiteSpace(settings.JoinSuccessEventOpen) ? DefaultJoinSuccessEventOpen : settings.JoinSuccessEventOpen.Trim();
-        settings.AlreadyAboard = string.IsNullOrWhiteSpace(settings.AlreadyAboard) ? DefaultAlreadyAboard : settings.AlreadyAboard.Trim();
-        settings.AlreadyAboardEventOpen = string.IsNullOrWhiteSpace(settings.AlreadyAboardEventOpen) ? DefaultAlreadyAboardEventOpen : settings.AlreadyAboardEventOpen.Trim();
-        settings.AlreadyVotedEventOpen = string.IsNullOrWhiteSpace(settings.AlreadyVotedEventOpen) ? DefaultAlreadyVotedEventOpen : settings.AlreadyVotedEventOpen.Trim();
+        settings.JoinSuccess = settings.JoinSuccess == null ? DefaultJoinSuccess : settings.JoinSuccess.Trim();
+        settings.JoinSuccessEventOpen = settings.JoinSuccessEventOpen == null ? DefaultJoinSuccessEventOpen : settings.JoinSuccessEventOpen.Trim();
+        settings.AlreadyAboard = settings.AlreadyAboard == null ? DefaultAlreadyAboard : settings.AlreadyAboard.Trim();
+        settings.AlreadyAboardEventOpen = settings.AlreadyAboardEventOpen == null ? DefaultAlreadyAboardEventOpen : settings.AlreadyAboardEventOpen.Trim();
+        settings.AlreadyVotedEventOpen = settings.AlreadyVotedEventOpen == null ? DefaultAlreadyVotedEventOpen : settings.AlreadyVotedEventOpen.Trim();
 
-        settings.VoteRecorded = string.IsNullOrWhiteSpace(settings.VoteRecorded) ? DefaultVoteRecorded : settings.VoteRecorded.Trim();
-        settings.VotePrompt = string.IsNullOrWhiteSpace(settings.VotePrompt) ? DefaultVotePrompt : settings.VotePrompt.Trim();
-        settings.ConfirmNotNeeded = string.IsNullOrWhiteSpace(settings.ConfirmNotNeeded) ? DefaultConfirmNotNeeded : settings.ConfirmNotNeeded.Trim();
-        settings.ConfirmSuccess = string.IsNullOrWhiteSpace(settings.ConfirmSuccess) ? DefaultConfirmSuccess : settings.ConfirmSuccess.Trim();
+        settings.VoteRecorded = settings.VoteRecorded == null ? DefaultVoteRecorded : settings.VoteRecorded.Trim();
+        settings.VotePrompt = settings.VotePrompt == null ? DefaultVotePrompt : settings.VotePrompt.Trim();
+        settings.ConfirmNotNeeded = settings.ConfirmNotNeeded == null ? DefaultConfirmNotNeeded : settings.ConfirmNotNeeded.Trim();
+        settings.ConfirmSuccess = settings.ConfirmSuccess == null ? DefaultConfirmSuccess : settings.ConfirmSuccess.Trim();
 
-        settings.StartNotAuthorized = string.IsNullOrWhiteSpace(settings.StartNotAuthorized) ? DefaultStartNotAuthorized : settings.StartNotAuthorized.Trim();
-        settings.StartSuccess = string.IsNullOrWhiteSpace(settings.StartSuccess) ? DefaultStartSuccess : settings.StartSuccess.Trim();
-        settings.StopNotAuthorized = string.IsNullOrWhiteSpace(settings.StopNotAuthorized) ? DefaultStopNotAuthorized : settings.StopNotAuthorized.Trim();
-        settings.StopNoneActive = string.IsNullOrWhiteSpace(settings.StopNoneActive) ? DefaultStopNoneActive : settings.StopNoneActive.Trim();
-        settings.StopAborted = string.IsNullOrWhiteSpace(settings.StopAborted) ? DefaultStopAborted : settings.StopAborted.Trim();
-        settings.AdvanceNotAuthorized = string.IsNullOrWhiteSpace(settings.AdvanceNotAuthorized) ? DefaultAdvanceNotAuthorized : settings.AdvanceNotAuthorized.Trim();
+        settings.StartNotAuthorized = settings.StartNotAuthorized == null ? DefaultStartNotAuthorized : settings.StartNotAuthorized.Trim();
+        settings.StartSuccess = settings.StartSuccess == null ? DefaultStartSuccess : settings.StartSuccess.Trim();
+        settings.StopNotAuthorized = settings.StopNotAuthorized == null ? DefaultStopNotAuthorized : settings.StopNotAuthorized.Trim();
+        settings.StopNoneActive = settings.StopNoneActive == null ? DefaultStopNoneActive : settings.StopNoneActive.Trim();
+        settings.StopAborted = settings.StopAborted == null ? DefaultStopAborted : settings.StopAborted.Trim();
+        settings.AdvanceNotAuthorized = settings.AdvanceNotAuthorized == null ? DefaultAdvanceNotAuthorized : settings.AdvanceNotAuthorized.Trim();
 
-        settings.Help = string.IsNullOrWhiteSpace(settings.Help) ? DefaultHelp : settings.Help.Trim();
+        settings.Help = settings.Help == null ? DefaultHelp : settings.Help.Trim();
 
-        settings.EventOpened = string.IsNullOrWhiteSpace(settings.EventOpened) ? DefaultEventOpened : settings.EventOpened.Trim();
-        settings.EventStepAdvanced = string.IsNullOrWhiteSpace(settings.EventStepAdvanced) ? DefaultEventStepAdvanced : settings.EventStepAdvanced.Trim();
-        settings.EventResolved = string.IsNullOrWhiteSpace(settings.EventResolved) ? DefaultEventResolved : settings.EventResolved.Trim();
+        settings.EventOpened = settings.EventOpened == null ? DefaultEventOpened : settings.EventOpened.Trim();
+        settings.EventStepAdvanced = settings.EventStepAdvanced == null ? DefaultEventStepAdvanced : settings.EventStepAdvanced.Trim();
+        settings.EventResolved = settings.EventResolved == null ? DefaultEventResolved : settings.EventResolved.Trim();
 
         return settings;
     }
 
     public static string Format(string? template, string fallback, IReadOnlyDictionary<string, string> replacements)
     {
-        var result = string.IsNullOrWhiteSpace(template) ? fallback : template;
+        var result = template ?? fallback;
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            return string.Empty;
+        }
+
         foreach (var (placeholder, value) in replacements)
         {
             result = result.Replace("{" + placeholder + "}", value, StringComparison.OrdinalIgnoreCase);

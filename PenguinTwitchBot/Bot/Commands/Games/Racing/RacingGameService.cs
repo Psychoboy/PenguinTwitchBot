@@ -429,7 +429,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                             ["theme"] = theme.Name
                         });
 
-                    await ServiceBackbone.SendChatMessage(msg);
+                    if (!string.IsNullOrWhiteSpace(msg))
+                    {
+                        await ServiceBackbone.SendChatMessage(msg);
+                    }
                 }
 
                 var lobbyVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -617,7 +620,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     ["total"] = totalHeats.ToString(CultureInfo.InvariantCulture),
                     ["heatNumber"] = heatNumber.ToString(CultureInfo.InvariantCulture)
                 });
-                await ServiceBackbone.SendChatMessage(startMsg);
+                if (!string.IsNullOrWhiteSpace(startMsg))
+                {
+                    await ServiceBackbone.SendChatMessage(startMsg);
+                }
             }
 
             var startVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -935,7 +941,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                                 ["count"] = completedRacersCount.ToString(CultureInfo.InvariantCulture),
                                 ["duration"] = totalDuration.ToString(CultureInfo.InvariantCulture)
                             });
-                        await ServiceBackbone.SendChatMessage(endMsg);
+                        if (!string.IsNullOrWhiteSpace(endMsg))
+                        {
+                            await ServiceBackbone.SendChatMessage(endMsg);
+                        }
                     }
                 }
             }
@@ -982,7 +991,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                             {
                                 ["user"] = eventArgs.DisplayName
                             });
-                        await ServiceBackbone.SendChatMessage(msg);
+                        if (!string.IsNullOrWhiteSpace(msg))
+                        {
+                            await ServiceBackbone.SendChatMessage(msg);
+                        }
                     }
                     else
                     {
@@ -993,7 +1005,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                             {
                                 ["user"] = eventArgs.DisplayName
                             });
-                        await ServiceBackbone.SendChatMessage(msg);
+                        if (!string.IsNullOrWhiteSpace(msg))
+                        {
+                            await ServiceBackbone.SendChatMessage(msg);
+                        }
                     }
                     return string.Empty;
                 }
@@ -1011,7 +1026,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                             ["user"] = eventArgs.DisplayName,
                             ["max"] = rSettings.MaxLobbyRacers.ToString(CultureInfo.InvariantCulture)
                         });
-                    _ = ServiceBackbone.SendChatMessage(msg);
+                    if (!string.IsNullOrWhiteSpace(msg))
+                    {
+                        _ = ServiceBackbone.SendChatMessage(msg);
+                    }
                     return string.Empty;
                 }
 
@@ -1027,7 +1045,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                             {
                                 ["user"] = eventArgs.DisplayName
                             });
+                        if (!string.IsNullOrWhiteSpace(msg))
+                    {
                         _ = ServiceBackbone.SendChatMessage(msg);
+                    }
                     }
                     return string.Empty;
                 }
@@ -1084,7 +1105,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                         {
                             ["user"] = eventArgs.DisplayName
                         });
-                    _ = ServiceBackbone.SendChatMessage(msg);
+                    if (!string.IsNullOrWhiteSpace(msg))
+                    {
+                        _ = ServiceBackbone.SendChatMessage(msg);
+                    }
                     return string.Empty;
                 }
 
@@ -1098,7 +1122,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                             ["user"] = eventArgs.DisplayName,
                             ["max"] = rSettings.MaxLobbyRacers.ToString(CultureInfo.InvariantCulture)
                         });
-                    _ = ServiceBackbone.SendChatMessage(msg);
+                    if (!string.IsNullOrWhiteSpace(msg))
+                    {
+                        _ = ServiceBackbone.SendChatMessage(msg);
+                    }
                     return string.Empty;
                 }
 
@@ -1113,7 +1140,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                             {
                                 ["user"] = eventArgs.DisplayName
                             });
+                        if (!string.IsNullOrWhiteSpace(msg))
+                    {
                         _ = ServiceBackbone.SendChatMessage(msg);
+                    }
                     }
                     return string.Empty;
                 }
@@ -1153,7 +1183,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                         ["user"] = eventArgs.DisplayName,
                         ["position"] = gridPosition.ToString(CultureInfo.InvariantCulture)
                     });
-                _ = ServiceBackbone.SendChatMessage(msg);
+                if (!string.IsNullOrWhiteSpace(msg))
+                {
+                    _ = ServiceBackbone.SendChatMessage(msg);
+                }
             }
 
             return dropToken;
@@ -1180,7 +1213,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     {
                         ["user"] = eventArgs.DisplayName
                     });
-                await ServiceBackbone.SendChatMessage(msg);
+                if (!string.IsNullOrWhiteSpace(msg))
+                {
+                    await ServiceBackbone.SendChatMessage(msg);
+                }
                 return string.Empty;
             }
 
@@ -1345,7 +1381,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                                 ["kills"] = (record.KnockoutCount ?? 0).ToString(CultureInfo.InvariantCulture),
                                 ["points"] = pointsAwarded.ToString(CultureInfo.InvariantCulture)
                             });
-                        await ServiceBackbone.SendChatMessage(winMsg);
+                        if (!string.IsNullOrWhiteSpace(winMsg))
+                        {
+                            await ServiceBackbone.SendChatMessage(winMsg);
+                        }
                     }
                 }
 
@@ -1412,7 +1451,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                                 ["time"] = lapTime.ToString("F2", CultureInfo.InvariantCulture),
                                 ["wrecks"] = wreckCount.ToString(CultureInfo.InvariantCulture)
                             });
-                        await ServiceBackbone.SendChatMessage(ttMsg);
+                        if (!string.IsNullOrWhiteSpace(ttMsg))
+                        {
+                            await ServiceBackbone.SendChatMessage(ttMsg);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -1527,7 +1569,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                                 ["total"] = totalHeats.ToString(CultureInfo.InvariantCulture),
                                 ["qualifiers"] = advancingNames
                             });
-                        await ServiceBackbone.SendChatMessage(heatMsg);
+                        if (!string.IsNullOrWhiteSpace(heatMsg))
+                        {
+                            await ServiceBackbone.SendChatMessage(heatMsg);
+                        }
                     }
 
                     if (tournament.CurrentHeatIndex < tournament.TotalHeats)
@@ -1753,7 +1798,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             };
 
             var msg = RacingMessageSettings.Format(template, fallback, replacements);
-            await ServiceBackbone.SendChatMessage(msg);
+            if (!string.IsNullOrWhiteSpace(msg))
+            {
+                await ServiceBackbone.SendChatMessage(msg);
+            }
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
