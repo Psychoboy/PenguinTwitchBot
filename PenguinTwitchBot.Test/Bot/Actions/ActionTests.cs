@@ -422,5 +422,53 @@ namespace PenguinTwitchBot.Test.Bot.Actions
                 null,
                 Arg.Any<Func<object, Exception?, string>>());
         }
+
+        [Fact]
+        public async Task RunActionAsCommand_RandomAction_RotatesSubActionsWithoutConsecutiveDuplicates()
+        {
+            var subAction1 = new SendMessageType
+            {
+                Id = Guid.NewGuid(),
+                SubActionTypes = SubActionTypes.SendMessage,
+                Text = "Msg A",
+                UseBot = false
+            };
+            var subAction2 = new SendMessageType
+            {
+                Id = Guid.NewGuid(),
+                SubActionTypes = SubActionTypes.SendMessage,
+                Text = "Msg B",
+                UseBot = false
+            };
+
+            var actionType = new ActionType
+            {
+                Id = Guid.NewGuid(),
+                Name = "RotatingRandomAction",
+                Enabled = true,
+                RandomAction = true,
+                SubActions = [subAction1, subAction2]
+            };
+
+            var sentMessages = new List<string>();
+            twitchService.SendMesssageAsStreamer(Arg.Any<string>())
+                .Returns(ci =>
+                {
+                    sentMessages.Add(ci.Arg<string>());
+                    return Task.CompletedTask;
+                });
+
+            for (int i = 0; i < 10; i++)
+            {
+                await action.RunAction(variables, actionType);
+            }
+
+            Assert.Equal(10, sentMessages.Count);
+            // With 2 items, fair shuffle bag guarantees it never picks the same message twice in a row
+            for (int i = 1; i < sentMessages.Count; i++)
+            {
+                Assert.NotEqual(sentMessages[i - 1], sentMessages[i]);
+            }
+        }
     }
 }

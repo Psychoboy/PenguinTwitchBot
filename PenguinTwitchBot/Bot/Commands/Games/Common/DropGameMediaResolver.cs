@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models.Chat;
+using PenguinTwitchBot.Extensions;
 using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Common
@@ -404,6 +405,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             var urls = await ResolveMediaUrlsAsync(emoteService, eventArgs, emoteOrImageInput, fallbackUrl, allowDirectUrlOrPath, fallbackToEventArgsArg);
             if (urls.Count == 0) return "";
             if (urls.Count == 1) return urls[0];
+
+            if (string.IsNullOrWhiteSpace(emoteOrImageInput))
+            {
+                var bagKey = !string.IsNullOrWhiteSpace(fallbackUrl)
+                    ? $"drop_game_theme:{fallbackUrl}"
+                    : $"drop_game_urls:{string.Join("|", urls)}";
+                return urls.NextFromShuffleBag(bagKey) ?? urls[0];
+            }
+
             return urls[RandomNumberGenerator.GetInt32(urls.Count)];
         }
 

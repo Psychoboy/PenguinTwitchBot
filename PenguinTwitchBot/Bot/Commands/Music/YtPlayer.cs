@@ -28,7 +28,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         private readonly List<Song> Requests = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private MusicPlaylist BackupPlaylist = new();
-        private readonly ConcurrentQueue<Song> UnplayedSongs = new();
+        private const string BackupSongBagKey = "yt_backup_songs";
         private PlayerState State = PlayerState.UnStarted;
         private Song? LastSong = null;
         private Song? CurrentSong = null;
@@ -146,12 +146,15 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 return song.SongId;
             }
 
-            if (UnplayedSongs.IsEmpty)
+            if (BackupPlaylist.Songs.Count == 0)
             {
                 await LoadBackupList();
             }
-            if (UnplayedSongs.TryDequeue(out var randomSong) == false) return "";
-            SongsInBackupQueueMetric.DecTo(UnplayedSongs.Count);
+
+            var distinctSongs = GetDistinctBackupSongs();
+            var randomSong = distinctSongs.NextFromShuffleBag(BackupSongBagKey, s => s.SongId);
+            if (randomSong == null) return "";
+            SongsInBackupQueueMetric.DecTo(ShuffleBag.GetRemainingCount(BackupSongBagKey));
             randomSong.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
             LastSong = CurrentSong?.CreateDeepCopy();
             try
@@ -202,6 +205,10 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 var playList = (await db.Playlists.GetAsync(orderBy: x => x.OrderBy(y => y.Id), includeProperties: "Songs")).FirstOrDefault();
                 if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                 {
+                    playList.Songs = playList.Songs
+                        .Where(s => !string.IsNullOrWhiteSpace(s.SongId))
+                        .DistinctBy(s => s.SongId, StringComparer.Ordinal)
+                        .ToList();
                     BackupPlaylist = playList;
                     await UpdateRequestedSongsState();
                     await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
@@ -213,7 +220,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var allSongs = new Dictionary<string, Song>();
+                var allSongs = new Dictionary<string, Song>(StringComparer.Ordinal);
                 foreach (var playlistId in selectedPlaylistIds)
                 {
                     var playList = (await db.Playlists.GetAsync(filter: x => x.Id == playlistId, includeProperties: "Songs")).FirstOrDefault();
@@ -221,28 +228,30 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                     {
                         foreach (var s in playList.Songs)
                         {
-                            if (!allSongs.ContainsKey(s.SongId))
+                            if (!string.IsNullOrWhiteSpace(s.SongId) && !allSongs.ContainsKey(s.SongId))
                                 allSongs.Add(s.SongId, s.CreateDeepCopy());
                         }
                     }
                 }
                 if (allSongs.Count > 0)
                 {
+                    var distinctSongs = allSongs.Values.ToList();
                     if (selectedPlaylistIds.Count == 1 && defaultPlaylistId.HasValue && selectedPlaylistIds.Contains(defaultPlaylistId.Value))
                     {
                         var singlePlaylist = (await db.Playlists.GetAsync(filter: x => x.Id == defaultPlaylistId.Value, includeProperties: "Songs")).FirstOrDefault();
                         if (singlePlaylist != null)
                         {
+                            singlePlaylist.Songs = distinctSongs;
                             BackupPlaylist = singlePlaylist;
                         }
                         else
                         {
-                            BackupPlaylist = new MusicPlaylist { Id = defaultPlaylistId.Value, Name = "Multi Playlist", Songs = [.. allSongs.Values] };
+                            BackupPlaylist = new MusicPlaylist { Id = defaultPlaylistId.Value, Name = "Multi Playlist", Songs = distinctSongs };
                         }
                     }
                     else
                     {
-                        BackupPlaylist = new MusicPlaylist { Id = defaultPlaylistId ?? Guid.Empty, Name = "Multi Playlist", Songs = [.. allSongs.Values] };
+                        BackupPlaylist = new MusicPlaylist { Id = defaultPlaylistId ?? Guid.Empty, Name = "Multi Playlist", Songs = distinctSongs };
                     }
                     await UpdateRequestedSongsState();
                     await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
@@ -263,14 +272,17 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         private void UpdateUnplayedSongs()
         {
-            var songList = BackupPlaylist.Songs.ToList();
-            songList.Shuffle();
-            UnplayedSongs.Clear();
-            foreach (var nextSong in songList)
-            {
-                UnplayedSongs.Enqueue(nextSong);
-            }
-            SongsInBackupQueueMetric.IncTo(UnplayedSongs.Count);
+            var distinctSongs = GetDistinctBackupSongs();
+            ShuffleBag.Sync(BackupSongBagKey, distinctSongs, s => s.SongId);
+            SongsInBackupQueueMetric.IncTo(ShuffleBag.GetRemainingCount(BackupSongBagKey));
+        }
+
+        private List<Song> GetDistinctBackupSongs()
+        {
+            return BackupPlaylist.Songs
+                .Where(s => !string.IsNullOrWhiteSpace(s.SongId))
+                .DistinctBy(s => s.SongId, StringComparer.Ordinal)
+                .ToList();
         }
 
         public async Task UpdateState(int state)
@@ -426,6 +438,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         public async Task RefreshUnplayedSongs()
         {
+            ShuffleBag.Reset(BackupSongBagKey);
             await LoadBackupList();
         }
 
@@ -875,6 +888,11 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                     await ServiceBackbone.SendChatMessage("No playlist found");
                     return;
                 }
+                ShuffleBag.Reset(BackupSongBagKey);
+                playList.Songs = playList.Songs
+                    .Where(s => !string.IsNullOrWhiteSpace(s.SongId))
+                    .DistinctBy(s => s.SongId, StringComparer.Ordinal)
+                    .ToList();
                 BackupPlaylist = playList;
                 var lastPlaylist = await db.Settings.Find(x => x.Name.Equals(LastSongList)).FirstOrDefaultAsync();
                 lastPlaylist ??= new Setting

@@ -199,7 +199,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                     var enabledActions = actions.Where(x => x.Enabled == true).ToList();
                     if (enabledActions.Any())
                     {
-                        var action = enabledActions.RandomElementOrDefault(_logger);
+                        var action = enabledActions.NextFromShuffleBag($"timer_group:{group.Id}", a => a.Id);
                         if (action != null)
                         {
                             await ExecuteAction(action, group);
