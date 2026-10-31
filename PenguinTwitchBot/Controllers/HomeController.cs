@@ -211,27 +211,62 @@ namespace PenguinTwitchBot.Controllers
                 }
 
                 var viewer = await viewerFeature.GetViewerByUserId(user.Id);
-                if (viewer != null)
+                if (viewer == null)
                 {
-                    if (viewer.isMod)
-                        claims.Add(new Claim(ClaimTypes.Role, "Moderator"));
-
-                    if (viewer.isSub)
-                        claims.Add(new Claim(ClaimTypes.Role, "Subscriber"));
-
-                    if (viewer.isVip)
-                        claims.Add(new Claim(ClaimTypes.Role, "VIP"));
-
-                    if (viewer.isEditor)
-                        claims.Add(new Claim(ClaimTypes.Role, "Editor"));
+                    viewer = new Viewer
+                    {
+                        DisplayName = user.DisplayName,
+                        UserId = user.Id,
+                        Username = UsernameNormalizer.Normalize(user.Login),
+                        LastSeen = DateTime.UtcNow
+                    };
+                    await viewerFeature.SaveViewer(viewer);
                 }
+                else
+                {
+                    var updated = false;
+                    var normalized = UsernameNormalizer.Normalize(user.Login);
+                    if (viewer.Username != normalized)
+                    {
+                        viewer.Username = normalized;
+                        updated = true;
+                    }
+                    if (viewer.DisplayName != user.DisplayName)
+                    {
+                        viewer.DisplayName = user.DisplayName;
+                        updated = true;
+                    }
+                    viewer.LastSeen = DateTime.UtcNow;
+                    updated = true;
+
+                    if (updated)
+                    {
+                        await viewerFeature.SaveViewer(viewer);
+                    }
+                }
+
+                if (viewer.isMod)
+                    claims.Add(new Claim(ClaimTypes.Role, "Moderator"));
+
+                if (viewer.isSub)
+                    claims.Add(new Claim(ClaimTypes.Role, "Subscriber"));
+
+                if (viewer.isVip)
+                    claims.Add(new Claim(ClaimTypes.Role, "VIP"));
+
+                if (viewer.isEditor)
+                    claims.Add(new Claim(ClaimTypes.Role, "Editor"));
 
                 var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
                 await HttpContext.SignInAsync(
                     CookieAuthenticationDefaults.AuthenticationScheme,
                     new ClaimsPrincipal(claimsIdentity),
-                    new AuthenticationProperties());
+                    new AuthenticationProperties
+                    {
+                        IsPersistent = true,
+                        ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30)
+                    });
 
                 logger.LogInformation("{login} logged in to web interface", user.Login);
             }

@@ -188,6 +188,8 @@ internal class Program
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
         options.Events.OnValidatePrincipal = async context =>
         {
             var revocations = context.HttpContext.RequestServices.GetRequiredService<PenguinTwitchBot.Circuit.ISessionRevocationService>();
