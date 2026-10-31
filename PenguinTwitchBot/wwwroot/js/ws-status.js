@@ -1,6 +1,8 @@
 (function (global) {
     'use strict';
 
+    var lastStatus = null;
+
     function isSharedWebSocketWidget() {
         try {
             if (typeof global !== 'undefined') {
@@ -23,7 +25,7 @@
                 if (!document.getElementById('ws-status-shared-hide-style')) {
                     var style = document.createElement('style');
                     style.id = 'ws-status-shared-hide-style';
-                    style.textContent = '#ws-status, #counter-status, #timer-status { display: none !important; }';
+                    style.textContent = '#ws-status { display: none !important; }';
                     (document.head || document.documentElement).appendChild(style);
                 }
             }
@@ -31,13 +33,23 @@
     }
 
     function wsStatusShow(connected) {
+        lastStatus = connected;
         if (isSharedWebSocketWidget()) {
             wsStatusHide();
             return;
         }
         if (typeof document === 'undefined') return;
         var el = document.getElementById('ws-status');
-        if (!el) return;
+        if (!el) {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    if (lastStatus !== null) {
+                        wsStatusShow(lastStatus);
+                    }
+                }, { once: true });
+            }
+            return;
+        }
         if (typeof clearTimeout === 'function') clearTimeout(el._hideTimer);
         var label = el.dataset && el.dataset.overlay ? el.dataset.overlay + ' ' : '';
         if (connected) {

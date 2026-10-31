@@ -140,6 +140,11 @@
     <div id="overlay-canvas"></div>
     <div id="overlay-error"></div>
     <div id="ws-status" data-overlay="Overlay">Disconnected</div>
+    <script>
+        if (window.__overlayCompositorHub && window.__overlayCompositorHub.physicalSocket && window.__overlayCompositorHub.physicalSocket.readyState === 1) {
+            if (typeof wsStatusShow === 'function') wsStatusShow(true);
+        }
+    </script>
 
     <script>
         (async () => {
@@ -199,7 +204,7 @@
                                 const statusEl = doc.getElementById('ws-status');
                                 if (statusEl) statusEl.style.display = 'none';
                                 const hideStyle = doc.createElement('style');
-                                hideStyle.textContent = '#ws-status, #counter-status, #timer-status { display: none !important; }';
+                                hideStyle.textContent = '#ws-status { display: none !important; }';
                                 (doc.head || doc.documentElement).appendChild(hideStyle);
                             }
                         } catch (_) {}

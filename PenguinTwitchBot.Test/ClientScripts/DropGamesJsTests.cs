@@ -1740,6 +1740,81 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void CreateWsSocket_LocalHubPreferred_AndParentCrossoriginErrorGuarded()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(@"
+                var ReconnectingWebSocket = function(uri) {
+                    this.readyState = 1;
+                    this.addEventListener = function() {};
+                    this.send = function() {};
+                };
+            ");
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-client.js")));
+
+            engine.Execute(@"
+                window.__overlayCompositorHub = new window.OverlayHub({ clientName: 'HostOverlay', topics: ['overlay'] });
+                // Simulate cross-origin parent access throwing an error
+                window.parent = {};
+                Object.defineProperty(window.parent, '__overlayCompositorHub', {
+                    get: function() { throw new Error('Permission denied to access cross-origin object'); }
+                });
+
+                var sock = window.createWsSocket('HostOverlay', ['overlay']);
+                window.__isHostVirtual = (sock instanceof window.OverlayHub) || typeof sock._dispatchMessage === 'function';
+            ");
+
+            Assert.True(engine.Evaluate("window.__isHostVirtual").AsBoolean());
+        }
+
+        [Fact]
+        public void WsStatus_SocketOpensBeforeBodyParsed_ReplaysOnDomContentLoaded()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(@"
+                var domListeners = {};
+                document.readyState = 'loading';
+                document.addEventListener = function(evt, handler) {
+                    domListeners[evt] = handler;
+                };
+
+                var statusClasses = [];
+                var statusEl = null; // not yet in DOM
+                document.getElementById = function(id) {
+                    if (id === 'ws-status') return statusEl;
+                    return null;
+                };
+            ");
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-status.js")));
+
+            // Socket opens before body parsed
+            engine.Execute("window.wsStatusShow(true);");
+
+            // Now body parses and DOM element becomes available
+            engine.Execute(@"
+                statusEl = {
+                    id: 'ws-status',
+                    dataset: { overlay: 'Overlay' },
+                    textContent: 'Disconnected',
+                    style: { display: '' },
+                    classList: {
+                        add: function(c) { if (statusClasses.indexOf(c) === -1) statusClasses.push(c); },
+                        remove: function(c1, c2) {
+                            statusClasses = statusClasses.filter(function(x) { return x !== c1 && x !== c2; });
+                        }
+                    }
+                };
+                document.readyState = 'interactive';
+                if (domListeners['DOMContentLoaded']) {
+                    domListeners['DOMContentLoaded']();
+                }
+            ");
+
+            Assert.Equal("Overlay Connected", engine.Evaluate("statusEl.textContent").AsString());
+            Assert.Contains("connected", engine.Evaluate("statusClasses.join(' ')").AsString());
+        }
+
+        [Fact]
         public void DropGamesCommon_OverlayBus_CoordinatesDropsLocally()
         {
             var engine = CreateMockBrowserEngine(out _);

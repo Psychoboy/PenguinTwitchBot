@@ -513,15 +513,15 @@
         // Check if running inside overlay compositor hub
         let hub = null;
         let isChild = false;
-        try {
-            if (global.parent && global.parent !== global && global.parent.__overlayCompositorHub) {
-                hub = global.parent.__overlayCompositorHub;
-                isChild = true;
-            } else if (global.__overlayCompositorHub) {
-                hub = global.__overlayCompositorHub;
-            }
-        } catch (_) {
-            hub = null;
+        if (global.__overlayCompositorHub) {
+            hub = global.__overlayCompositorHub;
+        } else {
+            try {
+                if (global.parent && global.parent !== global && global.parent.__overlayCompositorHub) {
+                    hub = global.parent.__overlayCompositorHub;
+                    isChild = true;
+                }
+            } catch (_) {}
         }
 
         if (hub && typeof hub.createVirtualSocket === 'function') {
