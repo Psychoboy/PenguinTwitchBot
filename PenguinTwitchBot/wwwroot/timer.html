@@ -63,12 +63,21 @@
             line-height: 1.1;
         }
     </style>
+    <script>
+        try {
+            if (((window.parent && window.parent !== window) || new URLSearchParams(window.location.search).get('shared') === '1') && !window.__overlayCompositorHub) {
+                var s = document.createElement('style');
+                s.textContent = '#ws-status, #counter-status, #timer-status { display: none !important; }';
+                document.head.appendChild(s);
+            }
+        } catch (_) {}
+    </script>
 </head>
 <body>
     <div id="timer-container">
         <span id="timer-text">00:00</span>
     </div>
-    <div id="timer-status" class="hidden" hidden>Timer: connecting...</div>
+    <div id="timer-status">Timer: connecting...</div>
 
     <script src="/js/signalr/dist/browser/signalr.js"></script>
     <script>

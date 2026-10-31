@@ -6,6 +6,7 @@
     function isSharedWebSocketWidget() {
         try {
             if (typeof global !== 'undefined') {
+                if (global.__isOverlayHost || global.__overlayCompositorHub) return false;
                 if (global.__isSharedWebSocketWidget) return true;
                 if (global.parent && global.parent !== global && global.parent.__overlayCompositorHub) return true;
                 if (global.location && global.location.search) {

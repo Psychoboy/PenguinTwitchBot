@@ -5,7 +5,8 @@
 
     const isShared = (function () {
         try {
-            if (window.parent && window.parent !== window && window.parent.__overlayCompositorHub) return true;
+            if (window.__isSharedWebSocketWidget) return true;
+            if (window.parent && window.parent !== window) return true;
             if (new URLSearchParams(window.location.search).get('shared') === '1') return true;
         } catch (_) {}
         return false;

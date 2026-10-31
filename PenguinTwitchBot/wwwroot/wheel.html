@@ -51,6 +51,15 @@
     <script src="js/ws-client.js"></script>
     <script src="js/ws-status.js"></script>
     <script>
+        try {
+            if (((window.parent && window.parent !== window) || new URLSearchParams(window.location.search).get('shared') === '1') && !window.__overlayCompositorHub) {
+                var s = document.createElement('style');
+                s.textContent = '#ws-status, #counter-status, #timer-status { display: none !important; }';
+                document.head.appendChild(s);
+            }
+        } catch (_) {}
+    </script>
+    <script>
         const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
         const script = document.createElement('script');
         script.src = 'js/wheel.js?v=' + encodeURIComponent(cacheBust);
@@ -58,7 +67,7 @@
     </script>
 </head>
 <body>
-    <div id="ws-status" class="hidden" hidden data-overlay="🎡 Wheel">Disconnected</div>
+    <div id="ws-status" data-overlay="🎡 Wheel">Disconnected</div>
     <div class="container">
         <div class="wheel-container"></div>
     </div>

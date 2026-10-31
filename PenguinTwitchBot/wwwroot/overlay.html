@@ -73,6 +73,7 @@
             opacity: 0;
         }
     </style>
+    <script>window.__isOverlayHost = true;</script>
     <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="/js/ws-client.js"></script>
     <script src="/js/ws-status.js"></script>
@@ -115,6 +116,11 @@
                     wsStatusShow(false);
                 }
             });
+            ws.addEventListener('error', function () {
+                if (typeof wsStatusShow === 'function') {
+                    wsStatusShow(false);
+                }
+            });
             ws.addEventListener('message', function (event) {
                 try {
                     const raw = event.data;
@@ -139,7 +145,7 @@
 <body>
     <div id="overlay-canvas"></div>
     <div id="overlay-error"></div>
-    <div id="ws-status" class="hidden" hidden data-overlay="Overlay">Disconnected</div>
+    <div id="ws-status" data-overlay="Overlay">Disconnected</div>
     <script>
         if (window.__overlayCompositorHub && window.__overlayCompositorHub.physicalSocket && window.__overlayCompositorHub.physicalSocket.readyState === 1) {
             if (typeof wsStatusShow === 'function') wsStatusShow(true);
