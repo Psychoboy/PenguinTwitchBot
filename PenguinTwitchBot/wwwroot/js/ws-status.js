@@ -21,11 +21,14 @@
         try {
             if (typeof document !== 'undefined') {
                 var el = document.getElementById('ws-status');
-                if (el) el.style.display = 'none';
+                if (el) {
+                    el.style.display = 'none';
+                    if (typeof el.setAttribute === 'function') el.setAttribute('hidden', '');
+                }
                 if (!document.getElementById('ws-status-shared-hide-style')) {
                     var style = document.createElement('style');
                     style.id = 'ws-status-shared-hide-style';
-                    style.textContent = '#ws-status { display: none !important; }';
+                    style.textContent = '#ws-status, #counter-status, #timer-status { display: none !important; }';
                     (document.head || document.documentElement).appendChild(style);
                 }
             }
@@ -50,6 +53,9 @@
             }
             return;
         }
+        if (typeof el.removeAttribute === 'function') el.removeAttribute('hidden');
+        if (el.hidden !== undefined) el.hidden = false;
+        if (el.style && el.style.display === 'none') el.style.display = '';
         if (typeof clearTimeout === 'function') clearTimeout(el._hideTimer);
         var label = el.dataset && el.dataset.overlay ? el.dataset.overlay + ' ' : '';
         if (connected) {

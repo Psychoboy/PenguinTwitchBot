@@ -3,9 +3,24 @@
     const containerEl = document.getElementById("counters-container");
     const statusEl = document.getElementById("counter-status");
 
+    const isShared = (function () {
+        try {
+            if (window.parent && window.parent !== window && window.parent.__overlayCompositorHub) return true;
+            if (new URLSearchParams(window.location.search).get('shared') === '1') return true;
+        } catch (_) {}
+        return false;
+    })();
+    if (isShared && statusEl) {
+        statusEl.style.display = 'none';
+        if (typeof statusEl.setAttribute === 'function') statusEl.setAttribute('hidden', '');
+    }
+
     let statusHideTimer = null;
     function setStatus(message, connected) {
-        if (!statusEl) return;
+        if (isShared || !statusEl) return;
+        if (typeof statusEl.removeAttribute === 'function') statusEl.removeAttribute('hidden');
+        if (statusEl.hidden !== undefined) statusEl.hidden = false;
+        if (statusEl.style && statusEl.style.display === 'none') statusEl.style.display = '';
         if (statusHideTimer) {
             clearTimeout(statusHideTimer);
             statusHideTimer = null;
