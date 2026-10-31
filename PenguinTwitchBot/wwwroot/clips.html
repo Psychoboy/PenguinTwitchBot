@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8" />
@@ -119,6 +119,15 @@
             opacity: 0;
         }
     </style>
+    <script>
+        try {
+            if (((window.parent && window.parent !== window) || new URLSearchParams(window.location.search).get('shared') === '1') && !window.__overlayCompositorHub) {
+                var s = document.createElement('style');
+                s.textContent = '#ws-status, #counter-status, #timer-status { display: none !important; }';
+                document.head.appendChild(s);
+            }
+        } catch (_) {}
+    </script>
 </head>
 <body>
     <div id="ws-status" data-overlay="🎬 Clips">Disconnected</div>

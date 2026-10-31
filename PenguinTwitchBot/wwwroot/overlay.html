@@ -73,6 +73,7 @@
             opacity: 0;
         }
     </style>
+    <script>window.__isOverlayHost = true;</script>
     <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="/js/ws-client.js"></script>
     <script src="/js/ws-status.js"></script>
@@ -111,6 +112,11 @@
                 }
             });
             ws.addEventListener('close', function () {
+                if (typeof wsStatusShow === 'function') {
+                    wsStatusShow(false);
+                }
+            });
+            ws.addEventListener('error', function () {
                 if (typeof wsStatusShow === 'function') {
                     wsStatusShow(false);
                 }
@@ -204,7 +210,7 @@
                                 const statusEl = doc.getElementById('ws-status');
                                 if (statusEl) statusEl.style.display = 'none';
                                 const hideStyle = doc.createElement('style');
-                                hideStyle.textContent = '#ws-status { display: none !important; }';
+                                hideStyle.textContent = '#ws-status, #counter-status, #timer-status { display: none !important; }';
                                 (doc.head || doc.documentElement).appendChild(hideStyle);
                             }
                         } catch (_) {}

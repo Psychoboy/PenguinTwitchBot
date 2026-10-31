@@ -132,7 +132,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			opacity: 0;
 		}
 	</style>
-
+	<script>
+		try {
+			if (((window.parent && window.parent !== window) || new URLSearchParams(window.location.search).get('shared') === '1') && !window.__overlayCompositorHub) {
+				var s = document.createElement('style');
+				s.textContent = '#ws-status, #counter-status, #timer-status { display: none !important; }';
+				document.head.appendChild(s);
+			}
+		} catch (_) {}
+	</script>
 </head>
 
 <body>

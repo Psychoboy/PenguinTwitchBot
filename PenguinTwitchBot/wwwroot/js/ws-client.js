@@ -354,6 +354,19 @@
                 self.virtualSockets.forEach(function (vs) { vs._dispatchClose(event); });
             });
 
+            this.physicalSocket.addEventListener('connecting', function () {
+                if (typeof global.wsStatusShow === 'function' && (!self.physicalSocket || self.physicalSocket.readyState !== 1)) {
+                    global.wsStatusShow(false);
+                }
+            });
+
+            this.physicalSocket.addEventListener('error', function (event) {
+                if (typeof global.wsStatusShow === 'function') {
+                    global.wsStatusShow(false);
+                }
+                self.virtualSockets.forEach(function (vs) { vs._dispatchClose(event || { type: 'close' }); });
+            });
+
             this.physicalSocket.addEventListener('message', function (event) {
                 self._handlePhysicalMessage(event);
             });
