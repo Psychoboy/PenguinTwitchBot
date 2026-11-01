@@ -4970,6 +4970,132 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             // If default list is empty, any non-blank image is custom
             Assert.True(DropGameMediaResolver.IsCustomEmote("sptvCustom", ""));
         }
+
+        [Fact]
+        public async Task Golf_BallCommand_ShowsDistanceAndRangeConditions_WhenNotTeedOffYet()
+        {
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Golf.GameEnabled = true;
+            settings.Golf.SessionModeEnabled = false; // Free play mode
+            settings.Golf.TargetDistancePercent = 82.5;
+            settings.Golf.GreenCondition = GolfGreenCondition.FastLinks;
+            await settingsService.SaveSettingsAsync(settings);
+
+            var golfService = CreateGolfService(CreateDropRegistry(), settingsService);
+
+            _commandHandler.Setup(x => x.GetCommand("ball")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "ball", MinimumRank = Rank.Viewer },
+                golfService));
+
+            var args = new CommandEventArgs
+            {
+                Command = "ball",
+                Name = "prospectivegolfer",
+                DisplayName = "ProspectiveGolfer",
+                UserId = "user-prosp-1",
+                Args = []
+            };
+
+            await golfService.OnCommand(null, args);
+
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(msg =>
+                    msg.Contains("ProspectiveGolfer") &&
+                    msg.Contains("not teed off yet") &&
+                    msg.Contains("82.5yd") &&
+                    msg.Contains("Fast Links"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task Golf_BallCommand_TargetingOther_ShowsDistanceAndRangeConditions_WhenNotTeedOffYet()
+        {
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Golf.GameEnabled = true;
+            settings.Golf.SessionModeEnabled = false;
+            settings.Golf.TargetDistancePercent = 75.0;
+            settings.Golf.GreenCondition = GolfGreenCondition.HeavyDew;
+            await settingsService.SaveSettingsAsync(settings);
+
+            var golfService = CreateGolfService(CreateDropRegistry(), settingsService);
+
+            _commandHandler.Setup(x => x.GetCommand("ball")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "ball", MinimumRank = Rank.Viewer },
+                golfService));
+
+            var args = new CommandEventArgs
+            {
+                Command = "ball",
+                Name = "inquirer",
+                DisplayName = "Inquirer",
+                UserId = "user-inq-1",
+                Args = ["@TigerWoods"]
+            };
+
+            await golfService.OnCommand(null, args);
+
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(msg =>
+                    msg.Contains("TigerWoods") &&
+                    msg.Contains("not teed off yet") &&
+                    msg.Contains("75.0yd") &&
+                    msg.Contains("Heavy Dew"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task Golf_BallCommand_ShowsConditions_WhenNoActiveSession()
+        {
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Golf.GameEnabled = true;
+            settings.Golf.SessionModeEnabled = true;
+            settings.Golf.TargetDistancePercent = 88.0;
+            settings.Golf.GreenCondition = GolfGreenCondition.CrossBreeze;
+            await settingsService.SaveSettingsAsync(settings);
+
+            var golfService = CreateGolfService(CreateDropRegistry(), settingsService);
+
+            _commandHandler.Setup(x => x.GetCommand("ball")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "ball", MinimumRank = Rank.Viewer },
+                golfService));
+
+            var args = new CommandEventArgs
+            {
+                Command = "ball",
+                Name = "golfer1",
+                DisplayName = "Golfer1",
+                UserId = "user-g1",
+                Args = []
+            };
+
+            await golfService.OnCommand(null, args);
+
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(msg =>
+                    msg.Contains("No active Golf round right now") &&
+                    msg.Contains("88.0yd") &&
+                    msg.Contains("Cross-Breeze"))),
+                Times.Once);
+        }
+
+        [Fact]
+        public void DropGamesSettings_EnsureStockThemes_MigratesLegacyFiftyLobbyRacersToZero()
+        {
+            var settings = new DropGamesSettings
+            {
+                Racing = new RacingGameSettings
+                {
+                    MaxLobbyRacers = 50
+                }
+            };
+
+            DropGamesSettingsService.EnsureStockThemes(settings);
+
+            Assert.Equal(0, settings.Racing.MaxLobbyRacers);
+        }
     }
 }
 

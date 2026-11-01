@@ -25,7 +25,7 @@ Racing is **off by default**. Turn on **Enable Racing** at the top of `/games/ra
 - **Totaled Karts & Final Standings**: When a kart reaches `0 HP`, it is **totaled** (`%IsTotaled% = True`), crediting the attacker with a knockout (`%KnockoutCount%`) and firing the **Destruction Derby Knockout** trigger. The last surviving kart (or highest HP remaining when the match timer expires) wins 1st place!
 
 ### 4. Multi-Heat Tournaments (Automatic Bracket Mode)
-- Whenever more viewers join the lobby than can fit on the track at once (`MaxRacersPerHeat`, default `8`, up to `MaxLobbyRacers`, default `32`), the bot automatically organizes a **Multi-Heat Tournament**:
+- Whenever more viewers join the lobby than can fit on the track at once (`MaxRacersPerHeat`, default `12`), the bot automatically organizes a **Multi-Heat Tournament**:
   1. Entrants are divided evenly across qualifying heats (e.g., *Heat 1 of 3*, *Heat 2 of 3*, *Heat 3 of 3*).
   2. The top finishers (or top survivors in Destruction Derby) from each qualifying heat advance to the **Championship Final**.
   3. Points and placement triggers are awarded during the Championship Final, and `%IsTournamentFinal%` is set to `True`.

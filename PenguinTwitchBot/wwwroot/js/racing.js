@@ -1266,12 +1266,22 @@
         ctx.font = '14px "Fredoka", "Rubik", sans-serif';
         ctx.fillStyle = '#FFD166';
         const subTpl = currentMessages?.overlayLobbySubtitle ?? currentMessages?.OverlayLobbySubtitle ?? 'Starting in {seconds}s  •  Type !race [emote] to join! ({count}/{max})';
-        const lobbySubtitle = subTpl
+        const hasMax = currentSettings.maxRacers && currentSettings.maxRacers > 0;
+        let lobbySubtitle = subTpl
             ? subTpl
                 .replace('{seconds}', secLeft.toString())
                 .replace('{count}', lobbyRacers.length.toString())
-                .replace('{max}', (currentSettings.maxRacers || 12).toString())
             : '';
+        if (lobbySubtitle) {
+            if (hasMax) {
+                lobbySubtitle = lobbySubtitle.replace('{max}', currentSettings.maxRacers.toString());
+            } else {
+                lobbySubtitle = lobbySubtitle
+                    .replace(`(${lobbyRacers.length}/{max})`, `(${lobbyRacers.length} racers)`)
+                    .replace('/{max}', '')
+                    .replace('{max}', '');
+            }
+        }
         if (lobbySubtitle) {
             ctx.fillText(lobbySubtitle, width / 2, by + 52);
         }
@@ -2713,7 +2723,7 @@
             if (msg.trackThicknessPercent != null) {
                 currentSettings.trackThickness = Math.max(16, Math.min(width, height) * (msg.trackThicknessPercent / 100));
             }
-            currentSettings.maxRacers = msg.maxRacers ?? 12;
+            currentSettings.maxRacers = msg.maxRacers ?? null;
             currentSettings.enableVehicleDamage = msg.enableVehicleDamage ?? currentSettings.enableVehicleDamage ?? false;
             currentSettings.enableItemPickups = msg.enableItemPickups ?? currentSettings.enableItemPickups ?? false;
             currentSettings.startingHealth = msg.startingHealth ?? currentSettings.startingHealth ?? 100;
@@ -2734,7 +2744,7 @@
             trackHazards = [];
             playSound('countdown_beep');
         } else if (msg.type === 'race_grid_update') {
-            if (msg.maxRacers != null) {
+            if ('maxRacers' in msg) {
                 currentSettings.maxRacers = msg.maxRacers;
             }
             const incoming = [];

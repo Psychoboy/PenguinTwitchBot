@@ -861,7 +861,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             var settings = await settingsService.GetSettingsAsync();
             var gSettings = settings.Golf;
 
-            if (cmdName.Equals("ball", StringComparison.OrdinalIgnoreCase))
+            if (cmdName.Equals("ball", StringComparison.OrdinalIgnoreCase) ||
+                cmdName.Equals("bal;l", StringComparison.OrdinalIgnoreCase))
             {
                 await HandleBallStatusCommand(e, gSettings);
                 return;
@@ -875,6 +876,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 var firstArg = e.Args.Count > 0 ? e.Args[0] : (e.Arg ?? "").Trim();
 
                 if (firstArg.Equals("ball", StringComparison.OrdinalIgnoreCase) ||
+                    firstArg.Equals("bal;l", StringComparison.OrdinalIgnoreCase) ||
                     firstArg.Equals("status", StringComparison.OrdinalIgnoreCase) ||
                     firstArg.Equals("info", StringComparison.OrdinalIgnoreCase) ||
                     firstArg.Equals("check", StringComparison.OrdinalIgnoreCase) ||
@@ -980,9 +982,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 return;
             }
 
+            var targetDistance = gSettings.SlideDirection == CurlingSlideDirection.CenterTarget
+                ? 50.0
+                : (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : gSettings.TargetDistancePercent);
+
+            var condition = _sessionManager.ActiveSession != null ? _currentSessionCondition : gSettings.GreenCondition;
+            var conditionLabel = FormatConditionLabel(condition);
+            var maxStrokes = Math.Clamp(gSettings.MaxStrokesPerPlayer, 1, 5);
+
             if (gSettings.SessionModeEnabled && !_sessionManager.HasActiveTimedSession())
             {
-                await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: No active Golf round right now. Type !golf to start a round!");
+                await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: No active Golf round right now. Pin: {targetDistance:F1}yd | Green: {conditionLabel}. Type !golf to start a round!");
                 return;
             }
 
@@ -991,7 +1001,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             string targetDisplayName;
             var isTargetingOther = false;
 
-            if (e.Command.Equals("ball", StringComparison.OrdinalIgnoreCase))
+            if (e.Command.Equals("ball", StringComparison.OrdinalIgnoreCase) ||
+                e.Command.Equals("bal;l", StringComparison.OrdinalIgnoreCase))
             {
                 if (e.Args.Count > 0 && !string.IsNullOrWhiteSpace(e.Args[0]))
                 {
@@ -1037,22 +1048,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             {
                 if (isTargetingOther)
                 {
-                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: {targetDisplayName} does not have a ball in play.");
+                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: {targetDisplayName} has not teed off yet. Pin: {targetDistance:F1}yd | Green: {conditionLabel}");
                 }
                 else
                 {
-                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: You do not have a ball in play. Type !golf to tee off!");
+                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: You have not teed off yet. Pin: {targetDistance:F1}yd | Green: {conditionLabel}. Type !golf to tee off!");
                 }
                 return;
             }
-
-            var targetDistance = gSettings.SlideDirection == CurlingSlideDirection.CenterTarget
-                ? 50.0
-                : (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : gSettings.TargetDistancePercent);
-
-            var condition = _sessionManager.ActiveSession != null ? _currentSessionCondition : gSettings.GreenCondition;
-            var conditionLabel = FormatConditionLabel(condition);
-            var maxStrokes = Math.Clamp(gSettings.MaxStrokesPerPlayer, 1, 5);
 
             if (pState.IsInMotion)
             {

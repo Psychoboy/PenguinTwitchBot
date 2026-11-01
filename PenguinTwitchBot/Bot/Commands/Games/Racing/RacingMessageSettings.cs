@@ -26,7 +26,7 @@ public sealed class RacingMessageSettings
 
     // Overlay Defaults
     public const string DefaultOverlayLobbyTitle = "🏁 RACE LOBBY: {mode}";
-    public const string DefaultOverlayLobbySubtitle = "Starting in {seconds}s  •  Type !race [emote] to join! ({count}/{max})";
+    public const string DefaultOverlayLobbySubtitle = "Starting in {seconds}s  •  Type !race [emote] to join! ({count} racers)";
     public const string DefaultOverlayPodiumTitle = "🏆 CHAMPIONSHIP FINAL PODIUM 🏆";
     public const string DefaultOverlayDerbyPodiumTitle = "🏆 DEMOLITION DERBY CHAMPION 🏆";
     public const string DefaultOverlayTimeTrialTitle = "⏱️ TIME TRIAL RESULT";

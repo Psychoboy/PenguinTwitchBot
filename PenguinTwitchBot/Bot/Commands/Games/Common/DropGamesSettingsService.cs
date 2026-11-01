@@ -145,6 +145,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             settings.Curling ??= new CurlingGameSettings();
             settings.Golf ??= new GolfGameSettings();
             settings.Racing ??= new RacingGameSettings();
+            if (settings.Racing.MaxLobbyRacers == 50)
+            {
+                settings.Racing.MaxLobbyRacers = 0;
+            }
             settings.Racing.Messages = Racing.RacingMessageSettings.Normalize(settings.Racing.Messages);
             settings.Themes ??= [];
             if (settings.Themes.Count > 0)

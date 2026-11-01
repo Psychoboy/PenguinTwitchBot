@@ -549,11 +549,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             set => _maxRacersPerHeat = Math.Clamp(value, 2, 30);
         }
 
-        private int _maxLobbyRacers = 50;
+        private int _maxLobbyRacers = 0;
         public int MaxLobbyRacers
         {
             get => _maxLobbyRacers;
-            set => _maxLobbyRacers = Math.Clamp(value, 2, 120);
+            set => _maxLobbyRacers = Math.Max(0, value);
         }
 
         // Physics, Suspense & Collision Tuning
