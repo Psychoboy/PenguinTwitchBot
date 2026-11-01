@@ -401,7 +401,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     stripPosition = rSettings.StripPosition.ToString(),
                     totalLaps = _currentSessionLaps,
                     lobbyDurationSeconds = duration,
-                    maxRacers = rSettings.MaxRacersPerHeat,
+                    maxRacers = rSettings.MaxLobbyRacers > 0 ? rSettings.MaxLobbyRacers : (int?)null,
                     trackAlpha = rSettings.TrackAlpha,
                     showTrackBorders = rSettings.ShowTrackBorders,
                     trackThicknessPercent = rSettings.TrackThicknessPercent,
@@ -1016,7 +1016,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
 
             lock (_racerLock)
             {
-                if (_lobbyRacers.Count >= rSettings.MaxLobbyRacers)
+                if (rSettings.MaxLobbyRacers > 0 && _lobbyRacers.Count >= rSettings.MaxLobbyRacers)
                 {
                     var msg = RacingMessageSettings.Format(
                         rSettings.Messages.GridFull,
@@ -1112,7 +1112,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
                     return string.Empty;
                 }
 
-                if (_lobbyRacers.Count >= rSettings.MaxLobbyRacers)
+                if (rSettings.MaxLobbyRacers > 0 && _lobbyRacers.Count >= rSettings.MaxLobbyRacers)
                 {
                     var msg = RacingMessageSettings.Format(
                         rSettings.Messages.GridFull,
@@ -1159,7 +1159,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
             {
                 type = "race_grid_update",
                 racerCount = gridPosition,
-                maxRacers = rSettings.MaxLobbyRacers,
+                maxRacers = rSettings.MaxLobbyRacers > 0 ? rSettings.MaxLobbyRacers : (int?)null,
                 newRacer = new
                 {
                     dropToken = record.DropToken,

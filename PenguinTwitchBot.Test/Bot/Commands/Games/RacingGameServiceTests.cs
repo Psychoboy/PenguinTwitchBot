@@ -689,6 +689,32 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task TriggerJoinRaceAsync_AllowsMoreThanFiftyRacers_ByDefaultWithHeatSystem()
+        {
+            Assert.Equal(0, _settings.Racing.MaxLobbyRacers);
+            using var service = CreateService();
+
+            await service.StartRaceLobbyAsync(60, null, "Host");
+
+            for (int i = 1; i <= 55; i++)
+            {
+                var racer = new CommandEventArgs
+                {
+                    Command = "race",
+                    Name = $"racer_{i}",
+                    DisplayName = $"Racer {i}",
+                    UserId = $"user-{i}"
+                };
+                var token = await service.TriggerJoinRaceAsync(racer);
+                Assert.False(string.IsNullOrEmpty(token), $"Racer {i} should receive a valid token beyond legacy 50 cap");
+            }
+
+            _serviceBackbone.Verify(x => x.SendChatMessage(
+                It.Is<string>(m => m.Contains("grid is full"))),
+                Times.Never);
+        }
+
+        [Fact]
         public async Task AddTestRacersAsync_WhenGameDisabled_ReturnsZeroWithoutEnabling()
         {
             _settings.Racing.GameEnabled = false;

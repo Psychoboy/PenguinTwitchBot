@@ -980,9 +980,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 return;
             }
 
+            var targetDistance = gSettings.SlideDirection == CurlingSlideDirection.CenterTarget
+                ? 50.0
+                : (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : gSettings.TargetDistancePercent);
+
+            var condition = _sessionManager.ActiveSession != null ? _currentSessionCondition : gSettings.GreenCondition;
+            var conditionLabel = FormatConditionLabel(condition);
+            var maxStrokes = Math.Clamp(gSettings.MaxStrokesPerPlayer, 1, 5);
+
             if (gSettings.SessionModeEnabled && !_sessionManager.HasActiveTimedSession())
             {
-                await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: No active Golf round right now. Type !golf to start a round!");
+                await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: No active Golf round right now. Pin: {targetDistance:F1}yd | Green: {conditionLabel}. Type !golf to start a round!");
                 return;
             }
 
@@ -1037,22 +1045,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             {
                 if (isTargetingOther)
                 {
-                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: {targetDisplayName} does not have a ball in play.");
+                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: {targetDisplayName} has not teed off yet. Pin: {targetDistance:F1}yd | Green: {conditionLabel}");
                 }
                 else
                 {
-                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: You do not have a ball in play. Type !golf to tee off!");
+                    await ServiceBackbone.SendChatMessage($"@{e.DisplayName}: You have not teed off yet. Pin: {targetDistance:F1}yd | Green: {conditionLabel}. Type !golf to tee off!");
                 }
                 return;
             }
-
-            var targetDistance = gSettings.SlideDirection == CurlingSlideDirection.CenterTarget
-                ? 50.0
-                : (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : gSettings.TargetDistancePercent);
-
-            var condition = _sessionManager.ActiveSession != null ? _currentSessionCondition : gSettings.GreenCondition;
-            var conditionLabel = FormatConditionLabel(condition);
-            var maxStrokes = Math.Clamp(gSettings.MaxStrokesPerPlayer, 1, 5);
 
             if (pState.IsInMotion)
             {
