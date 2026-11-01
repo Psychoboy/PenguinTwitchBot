@@ -861,8 +861,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             var settings = await settingsService.GetSettingsAsync();
             var gSettings = settings.Golf;
 
-            if (cmdName.Equals("ball", StringComparison.OrdinalIgnoreCase) ||
-                cmdName.Equals("bal;l", StringComparison.OrdinalIgnoreCase))
+            if (cmdName.Equals("ball", StringComparison.OrdinalIgnoreCase))
             {
                 await HandleBallStatusCommand(e, gSettings);
                 return;
@@ -876,7 +875,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 var firstArg = e.Args.Count > 0 ? e.Args[0] : (e.Arg ?? "").Trim();
 
                 if (firstArg.Equals("ball", StringComparison.OrdinalIgnoreCase) ||
-                    firstArg.Equals("bal;l", StringComparison.OrdinalIgnoreCase) ||
                     firstArg.Equals("status", StringComparison.OrdinalIgnoreCase) ||
                     firstArg.Equals("info", StringComparison.OrdinalIgnoreCase) ||
                     firstArg.Equals("check", StringComparison.OrdinalIgnoreCase) ||
@@ -1001,8 +999,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             string targetDisplayName;
             var isTargetingOther = false;
 
-            if (e.Command.Equals("ball", StringComparison.OrdinalIgnoreCase) ||
-                e.Command.Equals("bal;l", StringComparison.OrdinalIgnoreCase))
+            if (e.Command.Equals("ball", StringComparison.OrdinalIgnoreCase))
             {
                 if (e.Args.Count > 0 && !string.IsNullOrWhiteSpace(e.Args[0]))
                 {
