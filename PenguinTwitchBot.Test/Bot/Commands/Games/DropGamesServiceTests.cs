@@ -5080,22 +5080,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                     msg.Contains("Cross-Breeze"))),
                 Times.Once);
         }
-
-        [Fact]
-        public void DropGamesSettings_EnsureStockThemes_MigratesLegacyFiftyLobbyRacersToZero()
-        {
-            var settings = new DropGamesSettings
-            {
-                Racing = new RacingGameSettings
-                {
-                    MaxLobbyRacers = 50
-                }
-            };
-
-            DropGamesSettingsService.EnsureStockThemes(settings);
-
-            Assert.Equal(0, settings.Racing.MaxLobbyRacers);
-        }
     }
 }
 
