@@ -68,7 +68,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 context?.LogMessage(subActionIndex, "OpenAI prompt rejected by moderator filter. Skipping OpenAI call.");
                 logger.LogWarning("OpenAI prompt rejected by moderator filter: {Prompt}", prompt);
-                return;
+                throw new SubActionHandlerException(subAction, "OpenAI prompt rejected by moderator filter: {Prompt}", prompt);
             }
 
             string? storageKey = null;
@@ -124,7 +124,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 {
                     context?.LogMessage(subActionIndex, $"OpenAI request failed: {result.ErrorMessage}");
                     logger.LogWarning("OpenAI request failed: {ErrorMessage}", result.ErrorMessage);
-                    return;
+                    throw new SubActionHandlerException(subAction, "OpenAI request failed: {ErrorMessage}", result?.ErrorMessage ?? "Unknown error");
                 }
 
                 var outputText = result.Text;
@@ -139,7 +139,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 {
                     context?.LogMessage(subActionIndex, "OpenAI response rejected by moderator filter.");
                     logger.LogWarning("OpenAI response rejected by moderator filter.");
-                    return;
+                    throw new SubActionHandlerException(subAction, "OpenAI response rejected by moderator filter.");
                 }
 
                 if (openAi.SavePreviousResponse && !string.IsNullOrWhiteSpace(storageKey) && !string.IsNullOrWhiteSpace(result.ResponseId))
