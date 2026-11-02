@@ -171,6 +171,17 @@
 
                                     <div>
                                         <MudText Typo="Typo.subtitle2" Class="mb-1">
+                                            Max Lobby Racers: <b>@(_settings.Racing.MaxLobbyRacers == 0 ? "Unlimited (0)" : $"{_settings.Racing.MaxLobbyRacers} racers")</b>
+                                        </MudText>
+                                        <MudSlider T="int" Min="0" Max="120" Step="5" Color="Color.Primary"
+                                                   @bind-Value="_settings.Racing.MaxLobbyRacers" />
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            Maximum viewers allowed to join the starting grid (0 for unlimited). Entrants exceeding racers per heat automatically split across qualifying heats.
+                                        </MudText>
+                                    </div>
+
+                                    <div>
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">
                                             Base Vehicle Speed: <b>@(_settings.Racing.BaseSpeed.ToString("F2"))x</b> (Default: 0.50x)
                                         </MudText>
                                         <MudSlider T="double" Min="0.2" Max="2.0" Step="0.05" Color="Color.Primary"
