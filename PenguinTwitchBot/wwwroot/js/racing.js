@@ -414,8 +414,8 @@
             const t = 0.08 + (i + 0.5) / count * 0.84 + (Math.random() * 0.04 - 0.02);
             let types = ['oil', 'cone', 'boost', 'cone'];
             if (isDerby) {
-                // Demolition Derby hazards: NO shields! Boosts, oil slicks, repair wrenches, bombs, and spikes
-                types = ['boost', 'oil', 'wrench', 'bomb', 'spike', 'wrench'];
+                // Demolition Derby hazards: no shields and no repair wrenches (heals are disabled)
+                types = ['boost', 'oil', 'bomb', 'spike', 'oil', 'bomb'];
             } else if (currentSettings.enableItemPickups) {
                 types = ['oil', 'cone', 'boost', 'wrench', 'cone', 'shield'];
             }
@@ -1788,7 +1788,21 @@
         // Elimination mode per-lap knockout check
         if (currentSettings.gameMode === 'Elimination') {
             const unfinished = activeRacers.filter(r => !r.finished);
-            if (unfinished.length > 1) {
+            if (unfinished.length === 1 && activeRacers.length > 1) {
+                // Everyone else is out (eliminated/totaled): last car standing wins
+                const champion = unfinished[0];
+                champion.finished = true;
+                champion.lapTime = raceElapsedTime / 1000;
+                champion.placement = nextFrontPlacement++;
+                finishedRacers.push(champion);
+                reportRacerCompletion(champion, champion.placement);
+                playSound('win');
+                eliminationBanner = {
+                    text: `🏆 ${champion.displayName || champion.username} WINS!`,
+                    timer: 4.5,
+                    color: '#00E676'
+                };
+            } else if (unfinished.length > 1) {
                 const currentLap = Math.floor(maxProgress);
                 if (currentLap >= 1 && !eliminatedLaps.has(currentLap)) {
                     eliminatedLaps.add(currentLap);
@@ -2469,7 +2483,9 @@
                             playSound('boost');
                         } else if (h.type === 'wrench') {
                             const maxHp = r.maxHp || 100;
-                            r.hp = Math.min(maxHp, (r.hp ?? maxHp) + 35);
+                            if (currentSettings.gameMode !== 'DestructionDerby') {
+                                r.hp = Math.min(maxHp, (r.hp ?? maxHp) + 35);
+                            }
                             playSound('boost');
                             for (let k = 0; k < 8; k++) {
                                 particles.push({
