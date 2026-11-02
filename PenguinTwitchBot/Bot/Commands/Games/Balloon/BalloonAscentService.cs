@@ -165,6 +165,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                     headerConfig = headerConfig,
                     isOtherGameActive = isOtherGameActive,
                     activeGames = activeGames,
+                    cannon = GetCannonDto(),
                     target = new
                     {
                         centerX = targetCenterX,
@@ -366,6 +367,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             }
         }
 
+        private static object GetCannonDto() => new
+        {
+            x = BalloonAscentSimulationEngine.CannonX,
+            periodSeconds = BalloonAscentSimulationEngine.CannonSweepPeriodSeconds,
+            maxVx = BalloonAscentSimulationEngine.CannonMaxVx,
+            variance = BalloonAscentSimulationEngine.CannonAimVariance
+        };
+
         public async Task<string> TriggerBalloonAscentAsync(
             CommandEventArgs eventArgs,
             string? emoteOrImage = null,
@@ -391,7 +400,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
             var startX = forcedStartX.HasValue
                 ? Math.Clamp(forcedStartX.Value, 0.08, 0.92)
-                : DropGameMath.RandomDouble(0.10, 0.90);
+                : BalloonAscentSimulationEngine.CannonX;
 
             var startY = BalloonAscentSimulationEngine.LaunchY; // 0.94
             var landingY = BalloonAscentSimulationEngine.LandingY; // 0.10
@@ -399,7 +408,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
             double initialVx = forcedInitialVx.HasValue
                 ? Math.Clamp(forcedInitialVx.Value, -BalloonAscentSimulationEngine.MaxVx, BalloonAscentSimulationEngine.MaxVx)
-                : DropGameMath.RandomDouble(-0.06, 0.06);
+                : 0.0;
 
             var targetHalfWidth = Math.Clamp((bSettings.TargetWidthPercent / 100.0) / 2.0, 0.03, 0.40);
             var targetCenterX = forcedTargetCenterX.HasValue
@@ -466,6 +475,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 landingY = record.LandingY,
                 initialVx = record.InitialVx,
                 initialVy = record.InitialVy,
+                cannon = GetCannonDto(),
                 durationSeconds = durationSeconds,
                 totalTicks = record.TotalTicks,
                 isOtherGameActive,

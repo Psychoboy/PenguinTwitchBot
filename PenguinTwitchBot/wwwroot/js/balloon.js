@@ -130,6 +130,71 @@
     let scorePopups = [];
     let currentTheme = null;
 
+    const cannon = { x: 0.5, periodMs: 4000, maxVx: 0.075, variance: 0.010, recoil: 0 };
+    const CANNON_MAX_TILT = 0.85;
+
+    function syncCannon(c) {
+        if (!c || typeof c !== 'object') return;
+        if (typeof c.x === 'number') cannon.x = c.x;
+        if (typeof c.periodSeconds === 'number' && c.periodSeconds > 0) cannon.periodMs = c.periodSeconds * 1000;
+        if (typeof c.maxVx === 'number') cannon.maxVx = c.maxVx;
+        if (typeof c.variance === 'number') cannon.variance = c.variance;
+    }
+
+    function getCannonAim() {
+        return Math.sin(2 * Math.PI * (performance.now() % cannon.periodMs) / cannon.periodMs);
+    }
+
+    function drawCannon(dt) {
+        cannon.recoil = Math.max(0, cannon.recoil - dt * 4);
+        const angle = getCannonAim() * CANNON_MAX_TILT;
+        const px = cannon.x * width;
+        const s = Math.max(0.6, height / 1080);
+        const barrelLen = 78 * s;
+        const barrelW = 34 * s;
+        const pivotY = height - 6 - 22 * s;
+
+        ctx.save();
+        ctx.translate(px, pivotY);
+
+        ctx.save();
+        ctx.rotate(angle);
+        ctx.setLineDash([8 * s, 10 * s]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 2 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, -barrelLen);
+        ctx.lineTo(0, -barrelLen - 180 * s);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.rotate(angle);
+        const kick = cannon.recoil * 10 * s;
+        ctx.fillStyle = '#334155';
+        ctx.strokeStyle = '#0F172A';
+        ctx.lineWidth = 3 * s;
+        ctx.beginPath();
+        ctx.rect(-barrelW / 2, -barrelLen + kick, barrelW, barrelLen);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(-barrelW / 2 - 4 * s, -barrelLen + kick, barrelW + 8 * s, 12 * s);
+        ctx.restore();
+
+        ctx.fillStyle = '#7C4A21';
+        ctx.strokeStyle = '#3F2410';
+        ctx.beginPath();
+        ctx.arc(0, 0, 26 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#1E293B';
+        ctx.beginPath();
+        ctx.arc(0, 0, 10 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
     function preloadThemeImages(theme) {
         if (!theme) return;
         if (theme.balloonCanopyImageUrl) getLoadedImage(theme.balloonCanopyImageUrl);
@@ -198,6 +263,7 @@
             sessionState.totalDrops = typeof s.totalDrops === 'number' ? s.totalDrops : 0;
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
             else if (s.headerConfig) Object.assign(headerConfig, s.headerConfig);
+            syncCannon(msg.cannon);
             if (msg.theme) {
                 currentTheme = msg.theme;
                 preloadThemeImages(currentTheme);
@@ -259,6 +325,10 @@
                 // Physical randomization: sizes, speed, sway, drift
                 const sizeVariation = 0.90 + Math.random() * 0.20;
                 const speedVariation = 0.88 + Math.random() * 0.24;
+                syncCannon(msg.cannon);
+                const cannonVx = msg.initialVx === 0 || typeof msg.initialVx !== 'number'
+                    ? getCannonAim() * cannon.maxVx + (Math.random() * 2 - 1) * cannon.variance
+                    : msg.initialVx;
                 const baseVy = (typeof msg.initialVy === 'number' ? msg.initialVy : -0.16) * speedVariation;
 
                 const b = {
@@ -276,7 +346,7 @@
                     x: typeof msg.startX === 'number' ? msg.startX : 0.5,
                     y: typeof msg.startY === 'number' ? msg.startY : 0.94,
                     landingY: typeof msg.landingY === 'number' ? msg.landingY : 0.10,
-                    vx: (typeof msg.initialVx === 'number' ? msg.initialVx : 0) + (Math.random() - 0.5) * 0.035,
+                    vx: cannonVx,
                     vy: baseVy,
                     baseVy: baseVy,
                     buoyancy: (msg.physics?.buoyancy || 1.0) * speedVariation,
@@ -334,6 +404,7 @@
                 if (b.balloonCanopyImageUrl) getLoadedImage(b.balloonCanopyImageUrl);
 
                 playSound(b.sounds?.balloonLaunch || { enabled: true }, 'launch', 480);
+                cannon.recoil = 1;
 
                 activeBalloons.push(b);
             } catch (err) {
@@ -442,6 +513,7 @@
             }
             updateTargetCloud(dt);
             drawTargetCloud();
+            drawCannon(dt);
             updateAndDrawHazards(dt, now);
             updateAndDrawBalloons(dt, now);
             updateAndDrawParticles(dt);
