@@ -316,7 +316,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
-        public async Task ExecuteAsync_WhenPromptRejectedByModeratorFilter_DoesNotCallOpenAi()
+        public async Task ExecuteAsync_WhenPromptRejectedByModeratorFilter_ThrowsAndDoesNotCallOpenAi()
         {
             var moderatorFilter = Substitute.For<PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService>();
             moderatorFilter.IsPermittedAsync("bad prompt").Returns(false);
@@ -329,7 +329,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             };
 
             var variables = new ConcurrentDictionary<string, string>();
-            await handler.ExecuteAsync(subAction, variables);
+            await Assert.ThrowsAsync<SubActionHandlerException>(() => handler.ExecuteAsync(subAction, variables));
 
             await _openAiResponseService.DidNotReceive().GenerateResponseAsync(
                 Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
@@ -339,7 +339,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
-        public async Task ExecuteAsync_WhenResponseRejectedByModeratorFilter_DoesNotStoreResponse()
+        public async Task ExecuteAsync_WhenResponseRejectedByModeratorFilter_ThrowsAndDoesNotStoreResponse()
         {
             var moderatorFilter = Substitute.For<PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService>();
             moderatorFilter.IsPermittedAsync("clean prompt").Returns(true);
@@ -359,7 +359,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             };
 
             var variables = new ConcurrentDictionary<string, string>();
-            await handler.ExecuteAsync(subAction, variables);
+            await Assert.ThrowsAsync<SubActionHandlerException>(() => handler.ExecuteAsync(subAction, variables));
 
             Assert.False(variables.ContainsKey("AiResponse"));
         }
