@@ -1265,7 +1265,7 @@
         const secLeft = Math.max(0, Math.ceil(lobbyRemainingMs / 1000));
         ctx.font = '14px "Fredoka", "Rubik", sans-serif';
         ctx.fillStyle = '#FFD166';
-        const subTpl = currentMessages?.overlayLobbySubtitle ?? currentMessages?.OverlayLobbySubtitle ?? 'Starting in {seconds}s  •  Type !race [emote] to join! ({count}/{max})';
+        const subTpl = currentMessages?.overlayLobbySubtitle ?? currentMessages?.OverlayLobbySubtitle ?? 'Starting in {seconds}s  •  Type !race [emote] to join! ({count} racers)';
         const hasMax = currentSettings.maxRacers && currentSettings.maxRacers > 0;
         let lobbySubtitle = subTpl
             ? subTpl
@@ -1274,7 +1274,11 @@
             : '';
         if (lobbySubtitle) {
             if (hasMax) {
-                lobbySubtitle = lobbySubtitle.replace('{max}', currentSettings.maxRacers.toString());
+                if (lobbySubtitle.includes('{max}')) {
+                    lobbySubtitle = lobbySubtitle.replace('{max}', currentSettings.maxRacers.toString());
+                } else if (lobbySubtitle.includes(`(${lobbyRacers.length} racers)`)) {
+                    lobbySubtitle = lobbySubtitle.replace(`(${lobbyRacers.length} racers)`, `(${lobbyRacers.length}/${currentSettings.maxRacers})`);
+                }
             } else {
                 lobbySubtitle = lobbySubtitle
                     .replace(`(${lobbyRacers.length}/{max})`, `(${lobbyRacers.length} racers)`)
