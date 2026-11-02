@@ -17,6 +17,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
         public const double BuoyancyForce = -1.2;
         public const double GravityForce = 2.2;
         public const double MaxVx = 0.50;
+        public const double CannonX = 0.5;
+        public const double CannonSweepPeriodSeconds = 4.0;
+        public const double CannonMaxVx = 0.075;
+        public const double CannonAimVariance = 0.010;
 
         public static ParachuteTrajectoryPointDto GetBalloonPositionAtTick(PendingDropRecord record, int tick)
         {

@@ -108,6 +108,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                                     translate: function() {},
                                     resetTransform: function() {},
                                     clip: function() {},
+                                    setLineDash: function() {},
                                     createLinearGradient: function() { return { addColorStop: function() {} }; },
                                     createRadialGradient: function() { return { addColorStop: function() {} }; }
                                 };
