@@ -150,23 +150,45 @@ namespace PenguinTwitchBot.Bot.Validation
                     continue;
                 }
 
-                var hasCumulativeLoop = action.SubActions.Any(subAction => subAction.Enabled &&
-                    subAction is SetVariableType variable &&
-                    variable.Text.Trim().Trim('%').Equals("cumulative", StringComparison.OrdinalIgnoreCase)) &&
-                    action.SubActions.Any(subAction => subAction.Enabled && subAction is ExecuteActionType);
-                var hasFireworksSubAction = ActiveSubActions(action).Any(subAction => subAction is FireworksType);
+                var activeSubActions = ActiveSubActions(action).ToList();
+                var cumulativeSetters = activeSubActions
+                    .OfType<SetVariableType>()
+                    .Where(variable => variable.Enabled &&
+                        variable.Text.Trim().Trim('%').Equals("cumulative", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var hasCumulativeLoop = cumulativeSetters.Count > 0 &&
+                    activeSubActions.Any(subAction => subAction.Enabled && subAction is ExecuteActionType);
+                var hasFireworksSubAction = activeSubActions.Any(subAction => subAction is FireworksType);
                 if (!hasCumulativeLoop && hasFireworksSubAction)
                 {
                     continue;
                 }
 
                 var countText = match.Groups["count"].Value;
-                var burstCount = countText.StartsWith("Epic", StringComparison.OrdinalIgnoreCase)
-                    ? 250
-                    : int.Parse(countText, System.Globalization.CultureInfo.InvariantCulture);
-                var replacementSteps = burstCount <= 100
-                    ? $"one Fireworks sub-action with Burst Count {burstCount}"
-                    : $"Fireworks sub-actions totaling {burstCount} bursts (each sub-action is limited to 100; for example, 100 + 100 + 50)";
+                var isEpicPreset = countText.StartsWith("Epic", StringComparison.OrdinalIgnoreCase);
+                var hasSupportedNameCount = isEpicPreset || int.TryParse(
+                    countText,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out _);
+                int? configuredBurstCount = cumulativeSetters.Count == 1 && int.TryParse(
+                    cumulativeSetters[0].Value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var parsedConfiguredCount)
+                        ? parsedConfiguredCount
+                        : null;
+
+                var replacementSteps = configuredBurstCount switch
+                {
+                    >= 1 and <= 100 => $"one Fireworks sub-action with Burst Count {configuredBurstCount.Value}",
+                    > 100 => $"multiple Fireworks sub-actions totaling {configuredBurstCount.Value} bursts, each with a Burst Count from 1 to 100",
+                    <= 0 => $"correct the enabled cumulative Set Variable value ({configuredBurstCount.Value}); each Fireworks sub-action supports 1 to 100 bursts",
+                    _ => DescribeDynamicFireworksReplacement(cumulativeSetters, hasSupportedNameCount)
+                };
+                var detail = configuredBurstCount.HasValue
+                    ? $"legacy-preset-{configuredBurstCount.Value}"
+                    : hasSupportedNameCount ? "legacy-preset-dynamic" : "legacy-preset-unsupported-count";
 
                 issues.Add(new ValidationIssue
                 {
@@ -176,9 +198,9 @@ namespace PenguinTwitchBot.Bot.Validation
                     EntityId = action.Id,
                     EntityName = action.Name ?? "(unnamed)",
                     Message = $"Action '{action.Name}' is a legacy Fireworks preset.",
-                    Suggestion = $"Open this action, keep its triggers and queue, replace the cumulative Set Variable and recursive Execute Action steps with {replacementSteps}, and copy the delay from the legacy Fireworks loop action.",
+                    Suggestion = $"Open this action, keep its triggers and queue, replace the recursive Execute Action steps with {replacementSteps}, and copy the delay from the legacy Fireworks loop action.",
                     Link = $"/actions/manage?actionId={action.Id}",
-                    Detail = $"legacy-preset-{burstCount}"
+                    Detail = detail
                 });
             }
 
@@ -200,6 +222,23 @@ namespace PenguinTwitchBot.Bot.Validation
             }
 
             return issues;
+        }
+
+        private static string DescribeDynamicFireworksReplacement(
+            IReadOnlyCollection<SetVariableType> cumulativeSetters,
+            bool hasSupportedNameCount)
+        {
+            var valueGuidance = cumulativeSetters.Count switch
+            {
+                1 => $"check the enabled cumulative Set Variable value ('{cumulativeSetters.First().Value}')",
+                > 1 => "check the enabled cumulative Set Variable values",
+                _ => "check the legacy preset's intended burst count"
+            };
+            var unsupportedNameGuidance = hasSupportedNameCount
+                ? string.Empty
+                : " The preset name's count is outside the supported integer range, so no count was inferred from its name.";
+
+            return $"{valueGuidance}; use that value as Burst Count if it resolves from 1 to 100, or split the resolved total across multiple sub-actions of 1 to 100 bursts each.{unsupportedNameGuidance}";
         }
 
         [GeneratedRegex(@"^Fireworks\s*-\s*(?<count>\d+|Epic\(250\))$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

@@ -153,8 +153,92 @@ namespace PenguinTwitchBot.Test.Bot.Validation
             var issue = Assert.Single(ValidationService.CreateLegacyFireworksIssues([action]));
 
             Assert.Equal(ValidationIssueType.LegacyFireworksDetected, issue.IssueType);
-            Assert.Contains("100 + 100 + 50", issue.Suggestion);
+            Assert.Contains("250 bursts", issue.Suggestion);
+            Assert.Contains("1 to 100", issue.Suggestion);
             Assert.Equal($"/actions/manage?actionId={action.Id}", issue.Link);
+        }
+
+        [Fact]
+        public void CreateLegacyFireworksIssues_UsesEnabledNestedCumulativeValueInsteadOfName()
+        {
+            var action = new ActionType
+            {
+                Id = Guid.NewGuid(),
+                Name = "Fireworks -25",
+                SubActions =
+                [
+                    new LogicIfElseType
+                    {
+                        TrueSubActions =
+                        [
+                            new SetVariableType { Text = "cumulative", Value = "10" },
+                            new ExecuteActionType { ActionId = Guid.NewGuid() }
+                        ]
+                    }
+                ]
+            };
+
+            var issue = Assert.Single(ValidationService.CreateLegacyFireworksIssues([action]));
+
+            Assert.Contains("Burst Count 10", issue.Suggestion);
+            Assert.DoesNotContain("Burst Count 25", issue.Suggestion);
+        }
+
+        [Fact]
+        public void CreateLegacyFireworksIssues_DynamicCumulativeValueDoesNotSuggestNameCount()
+        {
+            var dynamicValue = "$math(%Amount% + 1)$";
+            var action = new ActionType
+            {
+                Id = Guid.NewGuid(),
+                Name = "Fireworks -25",
+                SubActions =
+                [
+                    new SetVariableType { Text = "cumulative", Value = dynamicValue },
+                    new ExecuteActionType { ActionId = Guid.NewGuid() }
+                ]
+            };
+
+            var issue = Assert.Single(ValidationService.CreateLegacyFireworksIssues([action]));
+
+            Assert.Contains(dynamicValue, issue.Suggestion);
+            Assert.DoesNotContain("Burst Count 25", issue.Suggestion);
+        }
+
+        [Fact]
+        public void CreateLegacyFireworksIssues_UnsupportedNameCountDoesNotPreventLaterWarnings()
+        {
+            var actions = new[]
+            {
+                new ActionType
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Fireworks - 999999999999999999999999999999",
+                    SubActions =
+                    [
+                        new SetVariableType { Text = "cumulative", Value = "$math(%Amount%)$" },
+                        new ExecuteActionType { ActionId = Guid.NewGuid() }
+                    ]
+                },
+                new ActionType
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Fireworks -25",
+                    SubActions =
+                    [
+                        new SetVariableType { Text = "cumulative", Value = "25" },
+                        new ExecuteActionType { ActionId = Guid.NewGuid() }
+                    ]
+                }
+            };
+
+            var issues = ValidationService.CreateLegacyFireworksIssues(actions);
+
+            Assert.Equal(2, issues.Count);
+            Assert.Contains(issues, issue => issue.EntityId == actions[0].Id &&
+                issue.Detail == "legacy-preset-unsupported-count");
+            Assert.Contains(issues, issue => issue.EntityId == actions[1].Id &&
+                issue.Suggestion?.Contains("Burst Count 25", StringComparison.Ordinal) == true);
         }
     }
 }
