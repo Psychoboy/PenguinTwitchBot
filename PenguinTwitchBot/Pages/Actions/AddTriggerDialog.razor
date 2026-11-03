@@ -273,8 +273,7 @@
 
                     @if (_selectedEventType is DefaultCommandEventTypes.WheelSpinResult or DefaultCommandEventTypes.UfoClawResult)
                     {
-                        <MudTextField T="string" @bind-Value="_prizeLabel" Label="Prize Filter (Optional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3"
-                                      HelperText="Only fire when the winning prize label matches exactly (case-insensitive). Leave empty for any prize." />
+                        <div class="mt-3"><PrizeLabelPicker EventType="@_selectedEventType" Value="@_prizeLabel" ValueChanged="OnPrizeLabelChanged" /></div>
                     }
 
                     @if (IsGolfShotOutcomeTrigger())
@@ -1111,8 +1110,24 @@
     {
         if (_selectedDefaultCommand != null && !string.IsNullOrEmpty(_selectedEventType))
         {
-            _triggerName = TriggerCatalog.GetDefaultCommandTriggerName(_selectedDefaultCommand.CommandName, _selectedEventType);
+            _triggerName = BuildDefaultCommandTriggerName();
         }
+    }
+
+    private string BuildDefaultCommandTriggerName()
+    {
+        var name = TriggerCatalog.GetDefaultCommandTriggerName(_selectedDefaultCommand!.CommandName, _selectedEventType);
+        var showsPrize = _selectedEventType is DefaultCommandEventTypes.WheelSpinResult or DefaultCommandEventTypes.UfoClawResult;
+        return showsPrize && !string.IsNullOrWhiteSpace(_prizeLabel) ? $"{name} - {_prizeLabel.Trim()}" : name;
+    }
+
+    private void OnPrizeLabelChanged(string? prizeLabel)
+    {
+        // Only rename while the user hasn't customized the suggested name.
+        var followsAutoName = _selectedDefaultCommand != null && !string.IsNullOrEmpty(_selectedEventType) &&
+                              string.Equals(_triggerName, BuildDefaultCommandTriggerName(), StringComparison.Ordinal);
+        _prizeLabel = prizeLabel;
+        if (followsAutoName) _triggerName = BuildDefaultCommandTriggerName();
     }
 
     private void OnEventTypeChanged(string eventType)

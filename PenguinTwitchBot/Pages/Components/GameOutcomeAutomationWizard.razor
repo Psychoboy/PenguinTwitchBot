@@ -44,8 +44,7 @@
 
             @if (_selectedEventType is DefaultCommandEventTypes.WheelSpinResult or DefaultCommandEventTypes.UfoClawResult)
             {
-                <MudTextField T="string" Label="Prize Filter (Optional)" Variant="Variant.Outlined" @bind-Value="_prizeLabel"
-                              HelperText="Only run for this exact prize label (case-insensitive). Leave empty for any prize." />
+                <PrizeLabelPicker EventType="@_selectedEventType" Value="@_prizeLabel" ValueChanged="OnPrizeLabelChanged" />
             }
 
             <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_createNewAction" Label="Create a new action" />
@@ -178,11 +177,28 @@
         UpdateOutcomeDefaults();
     }
 
+    private void OnPrizeLabelChanged(string? prizeLabel)
+    {
+        var previousAutoName = BuildActionName();
+        _prizeLabel = prizeLabel;
+        // Only rename while the user hasn't customized the suggested name.
+        if (string.Equals(_newActionName, previousAutoName, StringComparison.Ordinal))
+            _newActionName = BuildActionName();
+    }
+
+    private string BuildActionName()
+    {
+        var outcome = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == _selectedEventType);
+        return outcome == null ? string.Empty : WithPrizeSuffix($"{GameTitle} {outcome.DisplayName}");
+    }
+
+    private string WithPrizeSuffix(string name) => CurrentPrizeFilter is { } prize ? $"{name} - {prize}" : name;
+
     private void UpdateOutcomeDefaults()
     {
         var selectedOutcome = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == _selectedEventType);
         if (selectedOutcome == null) return;
-        _newActionName = $"{GameTitle} {selectedOutcome.DisplayName}";
+        _newActionName = BuildActionName();
         var isRacing = string.Equals(DefaultCommandName, "race", StringComparison.OrdinalIgnoreCase) ||
                        string.Equals(DefaultCommandName, "timetrial", StringComparison.OrdinalIgnoreCase) ||
                        selectedOutcome.DefaultCommandEventType?.StartsWith("Racing.", StringComparison.OrdinalIgnoreCase) == true;
@@ -194,7 +210,7 @@
                              selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.RacingDerbyKnockout ||
                              selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.RacingEnd;
         _addPointsSubAction = isScoreOutcome;
-        _addMessageSubAction = isScoreOutcome || selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.UfoClawResult || isRacing;
+        _addMessageSubAction = isScoreOutcome || selectedOutcome.DefaultCommandEventType is DefaultCommandEventTypes.UfoClawResult or DefaultCommandEventTypes.WheelSpinResult || isRacing;
         _amountExpression = selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.PlinkoWin
             ? "1"
             : (isRacing && !isTimeTrial) ? "%PointsAwarded%" : isScoreOutcome ? "%Score%" : "1";
@@ -242,6 +258,7 @@
         return eventType switch
         {
             DefaultCommandEventTypes.UfoClawResult => "The claw chose %WinningLabel% from %PrizeSetName%!",
+            DefaultCommandEventTypes.WheelSpinResult => "The wheel landed on %WinningLabel%!",
             DefaultCommandEventTypes.ParachuteBullseye => "%User% landed on the target with %Score% pts! BULLSEYE! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
             DefaultCommandEventTypes.ParachuteWin => "%User% landed on the target with %Score% pts! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
             DefaultCommandEventTypes.ParachuteLose => "%User% missed the target (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
@@ -464,7 +481,7 @@
 
     private TriggerType CreateTrigger(TriggerItemInfo outcome, Guid defaultCommandId) => new()
     {
-        Name = TriggerCatalog.GetDefaultCommandTriggerName(outcome.DefaultCommandName!, outcome.DefaultCommandEventType!),
+        Name = WithPrizeSuffix(TriggerCatalog.GetDefaultCommandTriggerName(outcome.DefaultCommandName!, outcome.DefaultCommandEventType!)),
         Type = TriggerTypes.DefaultCommand,
         Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
         {

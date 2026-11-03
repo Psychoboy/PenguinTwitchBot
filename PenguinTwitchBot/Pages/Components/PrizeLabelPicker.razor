@@ -1,0 +1,68 @@
+@using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
+@using PenguinTwitchBot.Bot.Commands.Games.UfoClaw
+@using PenguinTwitchBot.Bot.Commands.WheelSpin
+@inject IServiceProvider Services
+
+<MudAutocomplete T="string" Label="Prize Filter (Optional)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                 Value="@Value" ValueChanged="OnValueChanged" SearchFunc="SearchAsync"
+                 CoerceText="false" CoerceValue="true" Clearable="true" ResetValueOnEmptyText="true" OpenOnFocus="true"
+                 HelperText="@HelperText" Error="@IsUnknown" ErrorText="@UnknownText" />
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string? EventType { get; set; }
+
+    private List<string> _labels = [];
+    private string? _loadedFor;
+
+    private bool IsUnknown => !string.IsNullOrWhiteSpace(Value) && _loadedFor != null && _labels.Count > 0 &&
+                              !_labels.Contains(Value.Trim(), StringComparer.OrdinalIgnoreCase);
+
+    private string UnknownText => "No saved prize has this label, so this trigger will never fire unless the label is created later.";
+
+    private string HelperText => _labels.Count == 0
+        ? "Only run for this exact prize label (case-insensitive). Leave empty for any prize."
+        : "Pick a saved prize label or type one. Leave empty for any prize.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == EventType) return;
+        _loadedFor = EventType;
+        _labels = await LoadLabelsAsync();
+    }
+
+    private async Task<List<string>> LoadLabelsAsync()
+    {
+        IEnumerable<string> labels = [];
+        try
+        {
+            if (EventType == DefaultCommandEventTypes.WheelSpinResult && Services.GetService(typeof(IWheelService)) is IWheelService wheels)
+            {
+                labels = (await wheels.GetWheels()).SelectMany(wheel => wheel.Properties.Select(property => property.Label));
+            }
+            else if (EventType == DefaultCommandEventTypes.UfoClawResult && Services.GetService(typeof(IUfoClawService)) is IUfoClawService claw)
+            {
+                labels = (await claw.GetAsync()).Settings.PrizeSets.SelectMany(set => set.Entries.Select(entry => entry.Label));
+            }
+        }
+        catch (Exception)
+        {
+            // Suggestions are optional; typing a label manually still works.
+        }
+
+        return labels.Where(label => !string.IsNullOrWhiteSpace(label)).Select(label => label.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(label => label, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private Task<IEnumerable<string>> SearchAsync(string? text, CancellationToken cancellationToken) =>
+        Task.FromResult<IEnumerable<string>>(string.IsNullOrWhiteSpace(text)
+            ? _labels
+            : _labels.Where(label => label.Contains(text, StringComparison.OrdinalIgnoreCase)).ToList());
+
+    private async Task OnValueChanged(string? value)
+    {
+        Value = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+}
