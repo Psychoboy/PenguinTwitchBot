@@ -6,6 +6,37 @@ namespace PenguinTwitchBot.Test.ClientScripts
 {
     public class FireworksEventHandlerTests
     {
+        [Theory]
+        [InlineData(false, 0, 0, 0)]
+        [InlineData(false, 100, 20, 100)]
+        [InlineData(true, 0, 20, 220)]
+        [InlineData(true, 0, 300, 0)]
+        public void GetLaunchDelay_UsesPayloadForSubActionsAndWidgetGapForLegacy(
+            bool isLegacy,
+            int payloadDelayMs,
+            int elapsedMs,
+            int expectedDelayMs)
+        {
+            var engine = CreateEngine();
+            engine.Execute($"window.result = window.FireworksEventHandler.getLaunchDelay({{ isLegacy: {isLegacy.ToString().ToLowerInvariant()}, delayBeforeMs: {payloadDelayMs} }}, {elapsedMs}, 240);");
+
+            Assert.Equal(expectedDelayMs, engine.Evaluate("window.result").AsNumber());
+        }
+
+        [Theory]
+        [InlineData(false, 240, 0)]
+        [InlineData(true, 240, 240)]
+        public void GetLaunchMinimumGap_UsesPayloadForSubActionsAndWidgetGapForLegacy(
+            bool isLegacy,
+            int configuredMinGapMs,
+            int expectedMinimumGapMs)
+        {
+            var engine = CreateEngine();
+            engine.Execute($"window.result = window.FireworksEventHandler.getLaunchMinimumGap({{ isLegacy: {isLegacy.ToString().ToLowerInvariant()} }}, {configuredMinGapMs});");
+
+            Assert.Equal(expectedMinimumGapMs, engine.Evaluate("window.result").AsNumber());
+        }
+
         [Fact]
         public void NewEvent_ForwardsBurstConfiguration()
         {
@@ -18,6 +49,15 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal(250, result.RootElement.GetProperty("delayMs").GetInt32());
             Assert.Equal("Ring", result.RootElement.GetProperty("shell").GetString());
             Assert.Equal(7, result.RootElement.GetProperty("size").GetInt32());
+        }
+
+        [Fact]
+        public void TargetedTestFire_IsIgnoredByOtherWidgets()
+        {
+            var engine = CreateEngine();
+            engine.Execute("window.launchCount = 0; window.FireworksEventHandler.handle({ event: { type: 'Fireworks' }, data: { widgetId: 'widget-a', count: 1 } }, function () { window.launchCount++; }, function () {}, 'widget-b');");
+
+            Assert.Equal(0, engine.Evaluate("window.launchCount").AsNumber());
         }
 
         [Fact]
@@ -112,6 +152,157 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal(2, engine.Evaluate("window.launchCount").AsNumber());
             Assert.Equal(1, engine.Evaluate("window.loggedErrors").AsNumber());
             Assert.Equal(0, engine.Evaluate("window.pendingCount").AsNumber());
+        }
+
+        [Fact]
+        public void LaunchQueue_UsesWindowTimerWhenStatusCallbackIsProvided()
+        {
+            var engine = CreateEngine();
+            engine.Execute(@"
+                var timers = [];
+                var statusChanges = [];
+                window.setTimeout = function (callback) { timers.push(callback); };
+                var queue = window.FireworksEventHandler.createLaunchQueue(
+                    function () { return true; },
+                    function () { return 0; },
+                    undefined,
+                    function (pending) { statusChanges.push(pending); });
+                queue.enqueueJob({ jobId: 'job-1', count: 1, delayMs: 0 }, 10);
+                while (timers.length > 0) timers.shift()();
+                window.pendingCount = queue.getPendingCount();
+                window.statusChanges = JSON.stringify(statusChanges);
+            ");
+
+            Assert.Equal(0, engine.Evaluate("window.pendingCount").AsNumber());
+            Assert.Equal("[1,0]", engine.Evaluate("window.statusChanges").AsString());
+        }
+
+        [Fact]
+        public void ClearQueueEvent_DropsPendingBurstsWithoutLaunchingThem()
+        {
+            var engine = CreateEngine();
+            engine.Execute(@"
+                var timers = [];
+                var launches = 0;
+                var queue = window.FireworksEventHandler.createLaunchQueue(
+                    function () { launches++; return true; },
+                    function () { return 0; },
+                    { setTimeout: function (callback) { timers.push(callback); } });
+                queue.enqueueJob({ jobId: 'managed-job', count: 3, delayMs: 0 }, 5);
+                queue.enqueueJob({ isLegacy: true, count: 1, delayMs: 0 }, 5);
+                var cleared = 0;
+                var handled = window.FireworksEventHandler.handle(
+                    { event: { type: 'FireworksClearQueue' }, data: { widgetId: 'widget-a' } },
+                    function () { launches++; },
+                    function (jobId) { cleared = queue.clearManaged(jobId); },
+                    'widget-a');
+                while (timers.length > 0) timers.shift()();
+                window.cleared = cleared;
+                window.launches = launches;
+                window.pendingCount = queue.getPendingCount();
+                window.handled = handled;
+            ");
+
+            Assert.True(engine.Evaluate("window.handled").AsBoolean());
+            Assert.Equal(3, engine.Evaluate("window.cleared").AsNumber());
+            Assert.Equal(1, engine.Evaluate("window.launches").AsNumber());
+            Assert.Equal(0, engine.Evaluate("window.pendingCount").AsNumber());
+        }
+
+        [Fact]
+        public void LaunchQueue_EnforcesCapacityAndCancelsOnlySelectedJob()
+        {
+            var engine = CreateEngine();
+            engine.Execute(@"
+                var timers = [];
+                var queue = window.FireworksEventHandler.createLaunchQueue(
+                    function () { return true; },
+                    function () { return 0; },
+                    { setTimeout: function (callback) { timers.push(callback); } });
+                var first = queue.enqueueJob({ jobId: 'job-1', count: 3, delayMs: 10 }, 2);
+                var overflow = queue.enqueueJob({ jobId: 'job-2', count: 2, delayMs: 10 }, 2);
+                queue.enqueueJob({ isLegacy: true, count: 1, delayMs: 0 }, 2);
+                var managedBeforeCancel = queue.getManagedPendingCount();
+                var jobs = queue.getJobs();
+                var cancelled = queue.clearManaged('job-1');
+                window.accepted = first.accepted;
+                window.rejected = first.rejected + overflow.rejected;
+                window.managedBeforeCancel = managedBeforeCancel;
+                window.cancelled = cancelled;
+                window.pendingAfterCancel = queue.getPendingCount();
+                window.jobPending = jobs[0].pending;
+            ");
+
+            Assert.Equal(2, engine.Evaluate("window.accepted").AsNumber());
+            Assert.Equal(3, engine.Evaluate("window.rejected").AsNumber());
+            Assert.Equal(2, engine.Evaluate("window.managedBeforeCancel").AsNumber());
+            Assert.Equal(2, engine.Evaluate("window.jobPending").AsNumber());
+            Assert.Equal(2, engine.Evaluate("window.cancelled").AsNumber());
+            Assert.Equal(1, engine.Evaluate("window.pendingAfterCancel").AsNumber());
+        }
+
+        [Fact]
+        public void LaunchQueue_AppliesStartDelayAndRandomizedBetweenBurstVariance()
+        {
+            var engine = CreateEngine();
+            engine.Execute(@"
+                var timers = [];
+                var scheduledDelays = [];
+                Math.random = function () { return 0.99; };
+                var queue = window.FireworksEventHandler.createLaunchQueue(
+                    function (entry) { scheduledDelays.push(entry.delayBeforeMs); return true; },
+                    function (entry) { return window.FireworksEventHandler.getLaunchDelay(entry, 0, 240); },
+                    { setTimeout: function (callback) { timers.push(callback); } });
+                queue.enqueueJob({
+                    jobId: 'show-1',
+                    count: 3,
+                    startDelayMs: 500,
+                    delayMs: 100,
+                    delayVarianceMs: 20
+                }, 10);
+                while (timers.length > 0) timers.shift()();
+                window.scheduledDelays = JSON.stringify(scheduledDelays);
+            ");
+
+            Assert.Equal("[500,120,120]", engine.Evaluate("window.scheduledDelays").AsString());
+        }
+
+        [Fact]
+        public void CancelEvent_DoesNotAffectOtherWidgetQueues()
+        {
+            var engine = CreateEngine();
+            engine.Execute(@"
+                var cancelCount = 0;
+                var handled = window.FireworksEventHandler.handle(
+                    { event: { type: 'FireworksClearQueue' }, data: { widgetId: 'widget-b' } },
+                    function () {},
+                    function () { cancelCount++; },
+                    'widget-a');
+                window.cancelCount = cancelCount;
+                window.handled = handled;
+            ");
+
+            Assert.True(engine.Evaluate("window.handled").AsBoolean());
+            Assert.Equal(0, engine.Evaluate("window.cancelCount").AsNumber());
+        }
+
+        [Fact]
+        public void CancelJobEvent_PassesTheSelectedJobId()
+        {
+            var engine = CreateEngine();
+            engine.Execute(@"
+                var cancelledJobId = '';
+                var handled = window.FireworksEventHandler.handle(
+                    { event: { type: 'FireworksCancelJob' }, data: { widgetId: 'widget-a', jobId: 'job-42' } },
+                    function () {},
+                    function (jobId) { cancelledJobId = jobId; },
+                    'widget-a');
+                window.cancelledJobId = cancelledJobId;
+                window.handled = handled;
+            ");
+
+            Assert.True(engine.Evaluate("window.handled").AsBoolean());
+            Assert.Equal("job-42", engine.Evaluate("window.cancelledJobId").AsString());
         }
 
         private static Engine CreateEngine()

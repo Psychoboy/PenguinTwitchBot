@@ -29,5 +29,29 @@ namespace PenguinTwitchBot.Test.Database
 
             Assert.NotNull(fireworks.Validate(new Dictionary<string, object?> { [nameof(FireworksType.Size)] = size }));
         }
+
+        [Theory]
+        [InlineData(nameof(FireworksType.StartDelayMilliseconds), "-1")]
+        [InlineData(nameof(FireworksType.DelayMilliseconds), "60001")]
+        [InlineData(nameof(FireworksType.DelayVarianceMilliseconds), "70000")]
+        public void Validate_RejectsOutOfRangeStaticTimingValues(string propertyName, string value)
+        {
+            var fireworks = new FireworksType();
+
+            Assert.NotNull(fireworks.Validate(new Dictionary<string, object?> { [propertyName] = value }));
+        }
+
+        [Fact]
+        public void Validate_AllowsDynamicTimingValues()
+        {
+            var fireworks = new FireworksType();
+
+            Assert.Null(fireworks.Validate(new Dictionary<string, object?>
+            {
+                [nameof(FireworksType.StartDelayMilliseconds)] = "%Warmup%",
+                [nameof(FireworksType.DelayMilliseconds)] = "$math(%Delay% + 50)$",
+                [nameof(FireworksType.DelayVarianceMilliseconds)] = "%Variance%"
+            }));
+        }
     }
 }

@@ -114,7 +114,7 @@
                                      SelectLabel="Select Command"
                                      Required="true"
                                      AllowNone="true"
-                                     AllowCreate="true"/>
+                                     AllowCreate="@(!DisableResourceCreation)" />
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Command Trigger" ReadOnly="true" />
@@ -144,7 +144,7 @@
                                      SelectLabel="Select Keyword"
                                      Required="true"
                                      AllowNone="true"
-                                     AllowCreate="true" />
+                                     AllowCreate="@(!DisableResourceCreation)" />
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Keyword Trigger" ReadOnly="true" />
@@ -538,6 +538,7 @@
 
     [Parameter] public Guid ActionId { get; set; }
     [Parameter] public TriggerType? ExistingTrigger { get; set; }
+    [Parameter] public bool DisableResourceCreation { get; set; }
     [Inject] private IActionCommandService CommandService { get; set; } = null!;
     [Inject] private IActionKeywordService KeywordService { get; set; } = null!;
     [Inject] private PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService { get; set; } = null!;

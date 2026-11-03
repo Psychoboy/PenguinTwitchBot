@@ -3094,11 +3094,19 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("DelayVarianceMilliseconds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Shell")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Size")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StartDelayMilliseconds")
                         .IsRequired()
                         .HasColumnType("text");
 

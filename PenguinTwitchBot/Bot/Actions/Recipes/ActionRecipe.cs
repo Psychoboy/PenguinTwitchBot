@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 
 namespace PenguinTwitchBot.Bot.Actions.Recipes;
 
@@ -30,5 +31,8 @@ public interface IActionRecipe
     string Icon { get; }
     string Description { get; }
     IReadOnlyList<ActionRecipeParameter> Parameters { get; }
+    bool RequiresCommand => true;
+    bool AllowsAdditionalTriggers => false;
+    string? RecommendedQueueName => null;
     ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters);
 }

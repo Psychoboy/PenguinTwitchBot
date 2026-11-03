@@ -23,7 +23,9 @@ namespace PenguinTwitchBot.Test.Database
             var fireworks = new FireworksType
             {
                 Count = "$math(%Amount% + 1)$",
+                StartDelayMilliseconds = "%StartDelay%",
                 DelayMilliseconds = "%Delay%",
+                DelayVarianceMilliseconds = "%Variance%",
                 Shell = "Ring",
                 Size = "8"
             };
@@ -40,7 +42,9 @@ namespace PenguinTwitchBot.Test.Database
 
             var loadedFireworks = Assert.IsType<FireworksType>(Assert.Single(loaded.SubActions));
             Assert.Equal("$math(%Amount% + 1)$", loadedFireworks.Count);
+            Assert.Equal("%StartDelay%", loadedFireworks.StartDelayMilliseconds);
             Assert.Equal("%Delay%", loadedFireworks.DelayMilliseconds);
+            Assert.Equal("%Variance%", loadedFireworks.DelayVarianceMilliseconds);
             Assert.Equal("Ring", loadedFireworks.Shell);
             Assert.Equal("8", loadedFireworks.Size);
             Assert.Equal("subactions_fireworks", context.Model.FindEntityType(typeof(FireworksType))!.GetTableName());

@@ -190,10 +190,35 @@
                 const enabledWidgets = data.widgets
                     .filter(w => w.isEnabled)
                     .sort((a, b) => a.zIndex - b.zIndex);
+                const usedFireworksWidgetIds = new Set();
+
+                function createWidgetId() {
+                    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                        return window.crypto.randomUUID();
+                    }
+                    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (character) {
+                        const randomValue = Math.random() * 16 | 0;
+                        return (character === 'x' ? randomValue : (randomValue & 3 | 8)).toString(16);
+                    });
+                }
 
                 for (const w of enabledWidgets) {
                     const iframe = document.createElement('iframe');
-                    iframe.src = withCacheBustAndKey(w.sourcePath, cacheBust, overlayKey);
+                    const sourceUrl = new URL(w.sourcePath, window.location.origin);
+                    if (String(w.widgetType || '').toLowerCase() === 'fireworks') {
+                        let widgetId = String(w.widgetId || '').trim().toLowerCase();
+                        const hasValidId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(widgetId) &&
+                            !/^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(widgetId);
+                        const isTransient = !hasValidId || usedFireworksWidgetIds.has(widgetId);
+                        if (isTransient) {
+                            do { widgetId = createWidgetId(); }
+                            while (usedFireworksWidgetIds.has(widgetId));
+                            sourceUrl.searchParams.set('transientWidget', '1');
+                        }
+                        usedFireworksWidgetIds.add(widgetId);
+                        sourceUrl.searchParams.set('widgetId', widgetId);
+                    }
+                    iframe.src = withCacheBustAndKey(sourceUrl.toString(), cacheBust, overlayKey);
                     iframe.className = 'overlay-widget';
                     iframe.style.left   = w.x + 'px';
                     iframe.style.top    = w.y + 'px';

@@ -6,9 +6,11 @@
 @using System.Globalization
 @using Microsoft.Extensions.DependencyInjection
 @using PenguinTwitchBot.Bot.Services
+@using PenguinTwitchBot.Pages.Actions
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IServiceScopeFactory ScopeFactory
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
@@ -349,6 +351,67 @@
             {
                 <MudDivider Class="mb-3" />
                 <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Fireworks Settings</b></MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.ClearAll"
+                           OnClick="ClearPendingFireworks">
+                    Clear this widget's pending bursts
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.PlayArrow"
+                           OnClick="TestFireworksWidget">
+                    Test fire
+                </MudButton>
+                <MudButton Variant="Variant.Text" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.AutoAwesome"
+                           OnClick="OpenFireworksRecipeWizard">
+                    Create Fireworks actions
+                </MudButton>
+                <MudButton Variant="Variant.Text" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Queue"
+                           Href="/overlay/fireworks-queue">
+                    Open queue manager
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.OpenInNew"
+                           Href="@FireworksStandaloneUrl" Target="_blank">
+                    Open standalone Fireworks
+                </MudButton>
+                <MudTooltip Text="Copy standalone Fireworks URL with overlay key">
+                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                   Variant="Variant.Outlined"
+                                   OnClick="CopyFireworksStandaloneUrl" />
+                </MudTooltip>
+                <MudText Typo="Typo.caption" Class="mb-2" Color="Color.Secondary">
+                    Removes dedicated queued bursts for this widget. A shell already launched will finish.
+                </MudText>
+
+                <MudSwitch T="bool" Color="Color.Primary"
+                           Label="Mute fireworks sounds"
+                           Value="_fireworksSettings.MuteSounds"
+                           ValueChanged="@(value => { _fireworksSettings.MuteSounds = value; SaveFireworksSettings(); })" />
+                <MudText Typo="Typo.caption" Class="mb-2" Color="Color.Secondary">
+                    Mutes launch and burst audio for this widget without changing the visual launch rate.
+                </MudText>
+
+                <MudSwitch T="bool" Color="Color.Primary"
+                           Label="Override global queue cap"
+                           Value="@_fireworksSettings.MaxQueuedBursts.HasValue"
+                           ValueChanged="SetFireworksQueueOverride" />
+                @if (_fireworksSettings.MaxQueuedBursts.HasValue)
+                {
+                    <MudNumericField T="int" Label="Maximum pending bursts"
+                                     Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                     Min="1" Max="2000"
+                                     HelperText="Per-widget cap. Excess bursts are reported as rejected."
+                                     Value="@_fireworksSettings.MaxQueuedBursts.Value"
+                                     ValueChanged="@(value => SetFireworksQueueOverrideValue(value))" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption" Class="mb-2" Color="Color.Secondary">
+                        Inheriting the global cap of @_fireworksGlobalMaxQueuedBursts pending bursts.
+                    </MudText>
+                }
 
                 <MudSelect T="string" Label="Quality mode"
                            Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
@@ -415,6 +478,7 @@
                 <MudNumericField T="int" Label="Min launch gap (ms)"
                                  Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
                                  Min="50" Max="3000"
+                                 HelperText="Used by legacy action-name launches. New Fireworks sub-actions use their Delay Between Bursts value."
                                  Value="_fireworksSettings.MinLaunchGapMs"
                                  ValueChanged="@(v => { _fireworksSettings.MinLaunchGapMs = v; SaveFireworksSettings(); })" />
 
@@ -1034,10 +1098,31 @@
     private double _wheelNewScale;
     private DotNetObjectReference<OverlayEditor>? _dotNetRef;
     private string _overlayKey = "";
+    private int _fireworksGlobalMaxQueuedBursts = PenguinTwitchBot.Bot.Overlay.FireworksQueueDefaults.MaxQueuedBursts;
+    private string FireworksStandaloneUrl
+    {
+        get
+        {
+            var keyParameter = string.IsNullOrWhiteSpace(_overlayKey)
+                ? string.Empty
+                : $"?key={Uri.EscapeDataString(_overlayKey)}";
+            return Navigation.ToAbsoluteUri($"/fireworks.html{keyParameter}").ToString();
+        }
+    }
     // ---- Lifecycle ----
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            await using var settingsScope = ScopeFactory.CreateAsyncScope();
+            var unitOfWork = settingsScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            _fireworksGlobalMaxQueuedBursts = await PenguinTwitchBot.Bot.Overlay.FireworksQueueDefaults.GetGlobalMaxQueuedBurstsAsync(unitOfWork);
+        }
+        catch
+        {
+            _fireworksGlobalMaxQueuedBursts = PenguinTwitchBot.Bot.Overlay.FireworksQueueDefaults.MaxQueuedBursts;
+        }
         await RefreshLayouts();
         try
         {
@@ -1177,6 +1262,7 @@
                 Width       = w.Width,
                 Height      = w.Height,
                 ZIndex      = w.ZIndex,
+                Id          = w.Id == Guid.Empty ? Guid.NewGuid() : w.Id,
                 CustomSettings = w.CustomSettings
             };
 
@@ -1217,27 +1303,36 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
                 layoutEntity.CanvasHeight = _canvasHeight;
             }
 
-            // Replace all widgets
             var existing = await db.OverlayWidgets
                 .Find(w => w.OverlayLayoutId == _currentLayoutId.Value)
                 .ToListAsync();
-            db.OverlayWidgets.RemoveRange(existing);
+            var existingById = existing.ToDictionary(widget => widget.Id);
+            var retainedIds = _widgets.Select(widget => widget.Id).ToHashSet();
+
+            foreach (var removedWidget in existing.Where(widget => !retainedIds.Contains(widget.Id)))
+                db.OverlayWidgets.Remove(removedWidget);
 
             foreach (var w in _widgets)
             {
-                db.OverlayWidgets.Add(new OverlayWidget
+                if (!existingById.TryGetValue(w.Id, out var widget))
                 {
-                    OverlayLayoutId = _currentLayoutId.Value,
-                    WidgetType      = w.WidgetType,
-                    IsEnabled       = w.IsEnabled,
-                    IsLocked        = w.IsLocked,
-                    X               = w.X,
-                    Y               = w.Y,
-                    Width           = w.Width,
-                    Height          = w.Height,
-                    ZIndex          = w.ZIndex,
-                    CustomSettings  = w.CustomSettings
-                });
+                    widget = new OverlayWidget
+                    {
+                        Id = w.Id,
+                        OverlayLayoutId = _currentLayoutId.Value
+                    };
+                    db.OverlayWidgets.Add(widget);
+                }
+
+                widget.WidgetType = w.WidgetType;
+                widget.IsEnabled = w.IsEnabled;
+                widget.IsLocked = w.IsLocked;
+                widget.X = w.X;
+                widget.Y = w.Y;
+                widget.Width = w.Width;
+                widget.Height = w.Height;
+                widget.ZIndex = w.ZIndex;
+                widget.CustomSettings = w.CustomSettings;
             }
 
             await db.SaveChangesAsync();
@@ -1362,6 +1457,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     {
         _widgets.Add(new WidgetModel
         {
+            Id          = Guid.NewGuid(),
             WidgetType  = def.Type,
             DisplayName = def.DisplayName,
             Width       = def.DefaultWidth,
@@ -1498,6 +1594,12 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         var url = Navigation.BaseUri.TrimEnd('/') + $"/overlay.html?layout={Uri.EscapeDataString(name)}{keyParam}";
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
         Snackbar.Add("OBS URL copied to clipboard!", Severity.Info);
+    }
+
+    private async Task CopyFireworksStandaloneUrl()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", FireworksStandaloneUrl);
+        Snackbar.Add("Standalone Fireworks URL copied to clipboard.", Severity.Info);
     }
 
     private async Task RegenerateKeyAsync()
@@ -1727,6 +1829,75 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
             _selected.CustomSettings = JsonSerializer.Serialize(_fireworksSettings, _chatJsonOptions);
     }
 
+    private void SetFireworksQueueOverride(bool enabled)
+    {
+        if (_fireworksSettings == null) return;
+        _fireworksSettings.MaxQueuedBursts = enabled ? _fireworksGlobalMaxQueuedBursts : null;
+        SaveFireworksSettings();
+    }
+
+    private void SetFireworksQueueOverrideValue(int value)
+    {
+        if (_fireworksSettings == null) return;
+        _fireworksSettings.MaxQueuedBursts = Math.Clamp(value, 1, PenguinTwitchBot.Bot.Overlay.FireworksQueueDefaults.MaximumQueuedBursts);
+        SaveFireworksSettings();
+    }
+
+    private async Task ClearPendingFireworks()
+    {
+        await WebSocketMessenger.AddToQueue(new PenguinTwitchBot.Bot.WebSocketEvents.WsEvent
+        {
+            Event = new PenguinTwitchBot.Bot.WebSocketEvents.WsEventType
+            {
+                Source = "Overlay",
+                Type = "FireworksClearQueue"
+            },
+            Data = new Dictionary<string, object>
+            {
+                ["widgetId"] = _selected!.Id.ToString("D")
+            }
+        });
+        Snackbar.Add("Clear request sent to the selected Fireworks widget.", Severity.Success);
+    }
+
+    private async Task TestFireworksWidget()
+    {
+        if (_selected == null || _fireworksSettings == null) return;
+        await WebSocketMessenger.AddToQueue(new PenguinTwitchBot.Bot.WebSocketEvents.WsEvent
+        {
+            Event = new PenguinTwitchBot.Bot.WebSocketEvents.WsEventType
+            {
+                Source = "SubAction",
+                Type = "Fireworks"
+            },
+            Data = new Dictionary<string, object>
+            {
+                ["widgetId"] = _selected.Id.ToString("D"),
+                ["jobId"] = Guid.NewGuid().ToString("N"),
+                ["count"] = 1,
+                ["delayMs"] = 0,
+                ["shell"] = _fireworksSettings.Shell,
+                ["size"] = _fireworksSettings.Size.ToString(CultureInfo.InvariantCulture)
+            }
+        });
+        Snackbar.Add("Fireworks test burst queued for this widget.", Severity.Success);
+    }
+
+    private async Task OpenFireworksRecipeWizard()
+    {
+        var parameters = new DialogParameters<ActionRecipeWizard>
+        {
+            { wizard => wizard.InitialRecipeId, "fireworks-show" }
+        };
+        var dialog = await DialogService.ShowAsync<ActionRecipeWizard>("Fireworks Show", parameters, new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        });
+        await dialog.Result;
+    }
+
     private void LoadTimerSettings()
     {
         if (_selected?.WidgetType == "timer")
@@ -1784,6 +1955,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
 
     private sealed class WidgetModel
     {
+        public Guid Id { get; set; } = Guid.NewGuid();
         public string TempId      { get; } = Guid.NewGuid().ToString("N")[..8];
         public string WidgetType  { get; set; } = "";
         public string DisplayName { get; set; } = "";
@@ -1816,6 +1988,8 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
 
     private sealed class FireworksSettings
     {        
+        public int? MaxQueuedBursts { get; set; }
+        public bool MuteSounds { get; set; }
         public string QualityMode { get; set; } = "auto";
         public string Shell { get; set; } = "Random";
         public int Size { get; set; } = 3;
