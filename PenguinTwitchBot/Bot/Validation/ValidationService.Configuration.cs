@@ -119,6 +119,7 @@ namespace PenguinTwitchBot.Bot.Validation
             Run("timers", () => CheckTimerGroups(actions, timerGroups, result));
             await RunAsync("point types", () => CheckPointTypeSettings(pointTypes, result, db));
             await RunAsync("raid rewards", () => CheckRaidRewards(raidSettings, pointTypes, result));
+            Run("legacy fireworks", () => result.Issues.AddRange(CreateLegacyFireworksIssues(actions)));
             if (actions.Any(action => action.Enabled && ActiveSubActions(action).Any(subAction => subAction is FireworksType)))
             {
                 await RunAsync("fireworks widget", async () =>
@@ -135,6 +136,74 @@ namespace PenguinTwitchBot.Bot.Validation
             _logger.LogDebug("Configuration validation found {IssueCount} issues", result.Issues.Count);
             return result;
         }
+
+        internal static IReadOnlyList<ValidationIssue> CreateLegacyFireworksIssues(
+            IEnumerable<Database.Bot.Actions.ActionType> actions)
+        {
+            var allActions = actions.ToList();
+            var issues = new List<ValidationIssue>();
+            foreach (var action in allActions)
+            {
+                var match = KnownLegacyFireworksPresetNameRegex().Match(action.Name ?? string.Empty);
+                if (!match.Success)
+                {
+                    continue;
+                }
+
+                var hasCumulativeLoop = action.SubActions.Any(subAction => subAction.Enabled &&
+                    subAction is SetVariableType variable &&
+                    variable.Text.Trim().Trim('%').Equals("cumulative", StringComparison.OrdinalIgnoreCase)) &&
+                    action.SubActions.Any(subAction => subAction.Enabled && subAction is ExecuteActionType);
+                var hasFireworksSubAction = ActiveSubActions(action).Any(subAction => subAction is FireworksType);
+                if (!hasCumulativeLoop && hasFireworksSubAction)
+                {
+                    continue;
+                }
+
+                var countText = match.Groups["count"].Value;
+                var burstCount = countText.StartsWith("Epic", StringComparison.OrdinalIgnoreCase)
+                    ? 250
+                    : int.Parse(countText, System.Globalization.CultureInfo.InvariantCulture);
+                var replacementSteps = burstCount <= 100
+                    ? $"one Fireworks sub-action with Burst Count {burstCount}"
+                    : $"Fireworks sub-actions totaling {burstCount} bursts (each sub-action is limited to 100; for example, 100 + 100 + 50)";
+
+                issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.LegacyFireworksDetected,
+                    Severity = ValidationSeverity.Warning,
+                    EntityType = "Action",
+                    EntityId = action.Id,
+                    EntityName = action.Name ?? "(unnamed)",
+                    Message = $"Action '{action.Name}' is a legacy Fireworks preset.",
+                    Suggestion = $"Open this action, keep its triggers and queue, replace the cumulative Set Variable and recursive Execute Action steps with {replacementSteps}, and copy the delay from the legacy Fireworks loop action.",
+                    Link = $"/actions/manage?actionId={action.Id}",
+                    Detail = $"legacy-preset-{burstCount}"
+                });
+            }
+
+            foreach (var action in allActions.Where(action => action.Enabled &&
+                         string.Equals(action.Name, "Fireworks", StringComparison.OrdinalIgnoreCase)))
+            {
+                issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.LegacyFireworksDetected,
+                    Severity = ValidationSeverity.Warning,
+                    EntityType = "Action",
+                    EntityId = action.Id,
+                    EntityName = action.Name,
+                    Message = "The enabled action named 'Fireworks' still activates the legacy name-based overlay event whenever it is enqueued.",
+                    Suggestion = "Open this action and review its Execute Action references. Keep it while any legacy preset still calls it; rename or disable it after those presets are converted.",
+                    Link = $"/actions/manage?actionId={action.Id}",
+                    Detail = "legacy-action-name"
+                });
+            }
+
+            return issues;
+        }
+
+        [GeneratedRegex(@"^Fireworks\s*-\s*(?<count>\d+|Epic\(250\))$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex KnownLegacyFireworksPresetNameRegex();
 
         internal static ValidationIssue? CreateFireworksWidgetIssue(
             IEnumerable<Database.Bot.Actions.ActionType> actions,

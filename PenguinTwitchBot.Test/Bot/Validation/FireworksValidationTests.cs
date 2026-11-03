@@ -75,5 +75,86 @@ namespace PenguinTwitchBot.Test.Bot.Validation
             logic.Enabled = true;
             Assert.NotNull(ValidationService.CreateFireworksWidgetIssue([action], []));
         }
+
+        [Fact]
+        public void CreateLegacyFireworksIssues_LinksLegacyPresetAndBaseActionWithManualGuidance()
+        {
+            var fireworksId = Guid.NewGuid();
+            var loopId = Guid.NewGuid();
+            var actions = new[]
+            {
+                new ActionType
+                {
+                    Id = fireworksId,
+                    Name = "Fireworks",
+                    SubActions = [new DelayType { Duration = "10" }]
+                },
+                new ActionType
+                {
+                    Id = loopId,
+                    Name = "Fireworks - Multi",
+                    SubActions =
+                    [
+                        new LogicIfElseType
+                        {
+                            LeftValue = "%cumulative%",
+                            Operator = ComparisonOperator.LessThanOrEqual,
+                            RightValue = "0",
+                            TrueSubActions = [new BreakType()],
+                            FalseSubActions =
+                            [
+                                new SetVariableType { Text = "cumulative", Value = "$math(%cumulative%-1)$" },
+                                new ExecuteActionType { ActionId = fireworksId },
+                                new DelayType { Duration = "100" },
+                                new ExecuteActionType { ActionId = loopId }
+                            ]
+                        }
+                    ]
+                },
+                new ActionType
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Fireworks -25",
+                    SubActions =
+                    [
+                        new SetVariableType { Text = "cumulative", Value = "25" },
+                        new ExecuteActionType { ActionId = loopId }
+                    ]
+                }
+            };
+
+            var issues = ValidationService.CreateLegacyFireworksIssues(actions);
+            var issue = Assert.Single(issues, candidate => candidate.EntityName == "Fireworks -25");
+
+            Assert.Equal(ValidationIssueType.LegacyFireworksDetected, issue.IssueType);
+            Assert.Equal($"/actions/manage?actionId={actions[2].Id}", issue.Link);
+            Assert.Contains("one Fireworks sub-action with Burst Count 25", issue.Suggestion);
+            Assert.Contains("delay from the legacy Fireworks loop action", issue.Suggestion);
+            var legacyBaseIssue = Assert.Single(issues, candidate => candidate.EntityName == "Fireworks");
+            Assert.Equal("legacy-action-name", legacyBaseIssue.Detail);
+            Assert.Equal($"/actions/manage?actionId={actions[0].Id}", legacyBaseIssue.Link);
+        }
+
+        [Fact]
+        public void CreateLegacyFireworksIssues_GivesManualDirectionsForEpicPreset()
+        {
+            var action = new ActionType
+            {
+                Id = Guid.NewGuid(),
+                Name = "Fireworks - Epic(250)",
+                SubActions =
+                [
+                    new SetVariableType { Text = "cumulative", Value = "250" },
+                    new ExecuteActionType { ActionId = Guid.NewGuid() },
+                    new SendMessageType { Text = "extra custom step" }
+                ]
+            };
+
+            var issue = Assert.Single(ValidationService.CreateLegacyFireworksIssues([action]));
+
+            Assert.Equal(ValidationIssueType.LegacyFireworksDetected, issue.IssueType);
+            Assert.Contains("100 + 100 + 50", issue.Suggestion);
+            Assert.Equal($"/actions/manage?actionId={action.Id}", issue.Link);
+        }
     }
 }
