@@ -214,6 +214,9 @@
     private IActionRecipe? SelectedRecipe =>
         _recipes.FirstOrDefault(recipe => string.Equals(recipe.Id, _selectedRecipeId, StringComparison.OrdinalIgnoreCase));
 
+    private static string GetDefaultActionName(IActionRecipe recipe) =>
+        recipe.Id == "chat-command-reply" ? "Chat Reply" : recipe.Title;
+
     private string NormalizedCommandName => ChatReplyRecipe.NormalizeCommandName(_commandName);
     private string RecipeCommandName => SelectedRecipe?.RequiresCommand == false
         ? ChatReplyRecipe.NormalizeCommandName(GetParameter("CommandName"))
@@ -252,7 +255,7 @@
         _createQueue = false;
         _newQueueName = string.Empty;
         _selectedQueueName = "Default";
-        if (oldRecipe != null && string.Equals(_actionName, oldRecipe.Title, StringComparison.OrdinalIgnoreCase))
+        if (oldRecipe != null && string.Equals(_actionName, GetDefaultActionName(oldRecipe), StringComparison.OrdinalIgnoreCase))
             _actionName = string.Empty;
         InitializeParameters();
     }
@@ -289,7 +292,7 @@
 
         if (string.IsNullOrWhiteSpace(_actionName))
         {
-            _actionName = SelectedRecipe.Id == "chat-command-reply" ? "Chat Reply" : SelectedRecipe.Title;
+            _actionName = GetDefaultActionName(SelectedRecipe);
         }
     }
 

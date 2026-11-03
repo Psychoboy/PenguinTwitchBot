@@ -226,8 +226,14 @@
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                await RefreshAsync();
-                await InvokeAsync(StateHasChanged);
+                try
+                {
+                    await RefreshAsync();
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
