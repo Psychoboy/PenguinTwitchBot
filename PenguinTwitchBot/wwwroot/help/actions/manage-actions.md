@@ -12,7 +12,7 @@ Actions are the core automation engine of Penguin Twitch Bot. An action is a nam
 - **Error Catch Handlers**: Dedicated **Catch SubActions** block that triggers automatically if an error occurs during execution, providing the `%ActionErrorMessage%` variable.
 - **Queue Assignment**: Direct actions into dedicated queues (such as blocking audio queues or concurrent background tasks).
 - **Import & Export**: Share action setups or back them up as JSON.
-- **Sample Actions Library**: Quickly import prebuilt actions such as Fireworks alerts, Fishing mini-games, and Wheel spin triggers.
+- **Sample Actions Library**: Browse and import available action packages. New Fireworks setups should use the dedicated Fireworks sub-action.
 
 ---
 

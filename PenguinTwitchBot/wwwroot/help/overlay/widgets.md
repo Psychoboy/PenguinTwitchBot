@@ -31,8 +31,8 @@ The **Alerts** widget displays animated on-screen alerts with synced graphics, v
 A high-performance particle canvas simulation that launches realistic celebratory fireworks over your stream.
 
 - **How It Is Triggered**:
-  - **Triggered Only via Sub-Actions**: Fireworks are triggered *exclusively* via sub-actions (specifically an `ExecuteAction` sub-action targeting a Fireworks action). When executed through the Action Queue, the bot broadcasts a WebSocket event (`data.name == "Fireworks"`) on the `events` topic, launching the burst animation.
-  - **Sample Actions Available**: Pre-built sample actions for fireworks (including bursts for 5, 10, 25, 50, 100, and Epic fireworks, tier-based sub celebrations, and `!fireworks` triggers) are provided in `Data/SampleActions/ActionGroup_Fireworks.json` and can be imported via [Manage Actions](/actions/manage).
+  - **New Actions**: Use the Fireworks sub-action to request a count of paced bursts, with an optional delay and shell/size overrides.
+  - **Legacy Actions**: Existing presets may call the action named `Fireworks` through a recursive `Fireworks - Multi` helper. Validation Status identifies these actions and links directly to the manual migration guidance; the legacy path remains for compatibility.
   - **Ambient Auto-Launch**: Can also be set to `AutoLaunch = true` in widget settings to continuously launch ambient background fireworks during celebrations.
 - **Customizable Settings**:
   - **Shell Type**: Choose burst designs including `Crackle`, `Crossette`, `Crysanthemum`, `Falling Leaves`, `Floral`, `Ghost`, `Horse Tail`, `Palm`, `Ring`, `Strobe`, `Willow`, or `Random`.
