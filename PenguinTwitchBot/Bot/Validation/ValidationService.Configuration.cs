@@ -142,6 +142,17 @@ namespace PenguinTwitchBot.Bot.Validation
         {
             var allActions = actions.ToList();
             var issues = new List<ValidationIssue>();
+            var baseFireworksActionIds = allActions
+                .Where(action => string.Equals(action.Name, "Fireworks", StringComparison.OrdinalIgnoreCase))
+                .Select(action => action.Id)
+                .ToHashSet();
+            var legacyLoopHelpers = allActions
+                .Where(action => string.Equals(action.Name, "Fireworks - Multi", StringComparison.OrdinalIgnoreCase) &&
+                    ActiveSubActions(action).OfType<ExecuteActionType>().Any(execute =>
+                        execute.ActionId.HasValue && baseFireworksActionIds.Contains(execute.ActionId.Value)))
+                .ToList();
+            var legacyLoopHelperIds = legacyLoopHelpers.Select(action => action.Id).ToHashSet();
+
             foreach (var action in allActions)
             {
                 var match = KnownLegacyFireworksPresetNameRegex().Match(action.Name ?? string.Empty);
@@ -201,6 +212,54 @@ namespace PenguinTwitchBot.Bot.Validation
                     Suggestion = $"Open this action, keep its triggers and queue, replace the recursive Execute Action steps with {replacementSteps}, and copy the delay from the legacy Fireworks loop action.",
                     Link = $"/actions/manage?actionId={action.Id}",
                     Detail = detail
+                });
+            }
+
+            var reportedActionIds = issues
+                .Where(issue => issue.EntityId.HasValue)
+                .Select(issue => issue.EntityId!.Value)
+                .ToHashSet();
+            foreach (var helper in legacyLoopHelpers)
+            {
+                if (!reportedActionIds.Add(helper.Id))
+                {
+                    continue;
+                }
+
+                issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.LegacyFireworksDetected,
+                    Severity = ValidationSeverity.Warning,
+                    EntityType = "Action",
+                    EntityId = helper.Id,
+                    EntityName = helper.Name,
+                    Message = "This is the legacy Fireworks - Multi loop helper and it calls the base Fireworks action.",
+                    Suggestion = "Migrate every action that calls this helper to Fireworks sub-action(s), preserving each caller's triggers and queue and copying this helper's delay. Keep this helper until all callers are migrated.",
+                    Link = $"/actions/manage?actionId={helper.Id}",
+                    Detail = "legacy-fireworks-loop-helper"
+                });
+            }
+
+            foreach (var action in allActions.Where(action => !legacyLoopHelperIds.Contains(action.Id) &&
+                         ActiveSubActions(action).OfType<ExecuteActionType>().Any(execute =>
+                             execute.ActionId.HasValue && legacyLoopHelperIds.Contains(execute.ActionId.Value))))
+            {
+                if (!reportedActionIds.Add(action.Id))
+                {
+                    continue;
+                }
+
+                issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.LegacyFireworksDetected,
+                    Severity = ValidationSeverity.Warning,
+                    EntityType = "Action",
+                    EntityId = action.Id,
+                    EntityName = action.Name ?? "(unnamed)",
+                    Message = $"Action '{action.Name}' calls the legacy Fireworks - Multi loop helper.",
+                    Suggestion = "Replace the helper call and cumulative Set Variable loop with Fireworks sub-action(s); preserve this action's triggers and queue and copy the helper's delay. For counts above 100, split the total across sub-actions of 1 to 100 bursts.",
+                    Link = $"/actions/manage?actionId={action.Id}",
+                    Detail = "calls-legacy-fireworks-loop"
                 });
             }
 

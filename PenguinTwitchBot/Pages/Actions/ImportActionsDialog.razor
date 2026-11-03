@@ -406,6 +406,7 @@
 
             var options = CreateJsonOptions();
             var files = Directory.EnumerateFiles(libraryRoot, "*.json", SearchOption.AllDirectories)
+                .Where(path => !Path.GetFileName(path).Equals("ActionGroup_Fireworks.json", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
 
             foreach (var filePath in files)

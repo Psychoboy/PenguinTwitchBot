@@ -20,41 +20,6 @@ The number of links resolved is shown in the success message. If a target action
 
 ---
 
-## ActionGroup_Fireworks.json — Group: `Fireworks`
-
-A fireworks display system driven by a recursive countdown loop. Callers set `%cumulative%` to the desired count, then dispatch the loop which fires one effect per iteration with a 100 ms delay.
-
-### Required Queues
-
-| Queue | Notes |
-|-------|-------|
-| `Default` | Entry point (`Fireworks - 10`) |
-| `Fireworks` | All loop and effect actions |
-
-### Actions
-
-| Action | Trigger(s) | Count |
-|--------|-----------|-------|
-| **Fireworks** | *(internal — fires one effect)* | 1 (10 ms delay placeholder for actual effect) |
-| **Fireworks - Multi** | *(internal — recursive loop engine)* | N (counts down `%cumulative%`, 100 ms between each) |
-| **Fireworks - 5** | `ChannelFollow` | 5 |
-| **Fireworks - 10** | `!fireworks` (Subscriber+ rank), "Fireworks" channel point reward | 10 |
-| **Fireworks - 25** | `ChannelRaid` | 25 |
-| **Fireworks - 50** | `ChannelSubscriptionGift` (1–9 gifts) | 50 |
-| **Fireworks - 100** | *(no trigger — called by other systems)* | 100 |
-| **Fireworks - Epic** | `ChannelSubscriptionGift` (10+ gifts), `!epicfireworks` | 250 |
-| **Subscription Check Fireworks** | `ChannelSubscribe`, `ChannelSubscriptionMessage` | 25 (skips re-subs that had a prior sub via `HadPreviousSub` + `%IsRenewal%` check) |
-
-### Execute Action Linking
-
-All Execute Action links within this group are resolved automatically on import (all targets are in the same file).
-
-### Variables
-
-| Variable | Set by | Description |
-|----------|--------|-------------|
-| `cumulative` | Entry actions (e.g. Fireworks - 10) | Number of fireworks remaining to fire |
-
 ---
 
 ## ActionGroup_Fishing.json — Group: `Fishing`

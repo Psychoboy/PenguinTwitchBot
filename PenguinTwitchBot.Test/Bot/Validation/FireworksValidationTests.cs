@@ -136,6 +136,50 @@ namespace PenguinTwitchBot.Test.Bot.Validation
         }
 
         [Fact]
+        public void CreateLegacyFireworksIssues_ReportsLoopHelperAndNestedCallers()
+        {
+            var fireworksId = Guid.NewGuid();
+            var helperId = Guid.NewGuid();
+            var callerId = Guid.NewGuid();
+            var actions = new[]
+            {
+                new ActionType
+                {
+                    Id = fireworksId,
+                    Name = "Fireworks",
+                    SubActions = [new DelayType { Duration = "10" }]
+                },
+                new ActionType
+                {
+                    Id = helperId,
+                    Name = "Fireworks - Multi",
+                    SubActions = [new ExecuteActionType { ActionId = fireworksId }]
+                },
+                new ActionType
+                {
+                    Id = callerId,
+                    Name = "Channel Point Celebration",
+                    SubActions =
+                    [
+                        new LogicIfElseType
+                        {
+                            TrueSubActions = [new ExecuteActionType { ActionId = helperId }]
+                        }
+                    ]
+                }
+            };
+
+            var issues = ValidationService.CreateLegacyFireworksIssues(actions);
+            var helperIssue = Assert.Single(issues, issue => issue.EntityId == helperId);
+            var callerIssue = Assert.Single(issues, issue => issue.EntityId == callerId);
+
+            Assert.Equal("legacy-fireworks-loop-helper", helperIssue.Detail);
+            Assert.Equal($"/actions/manage?actionId={helperId}", helperIssue.Link);
+            Assert.Equal("calls-legacy-fireworks-loop", callerIssue.Detail);
+            Assert.Equal($"/actions/manage?actionId={callerId}", callerIssue.Link);
+        }
+
+        [Fact]
         public void CreateLegacyFireworksIssues_GivesManualDirectionsForEpicPreset()
         {
             var action = new ActionType
