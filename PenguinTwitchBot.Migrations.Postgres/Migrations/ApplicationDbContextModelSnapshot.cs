@@ -3082,6 +3082,29 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_externalapi", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FireworksType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Count")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DelayMilliseconds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Shell")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Size")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_fireworks", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingGiveItemToPlayerType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");

@@ -98,6 +98,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         RacingStartSession,
         RacingStopSession,
         RacingJoin,
-        OverlayTimerVisibility
+        OverlayTimerVisibility,
+        Fireworks
     }
 }
