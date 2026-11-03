@@ -5,7 +5,7 @@ using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 
 namespace PenguinTwitchBot.Bot.Actions.Recipes;
 
-public sealed class ChatReplyRecipe : IActionRecipe
+public sealed class ChatReplyRecipe : ChatCommandRecipeBase
 {
     private static readonly IReadOnlyList<ActionRecipeParameter> RecipeParameters =
     [
@@ -16,56 +16,17 @@ public sealed class ChatReplyRecipe : IActionRecipe
             ActionRecipeParameterType.Multiline)
     ];
 
-    public string Id => "chat-command-reply";
-    public string Title => "Chat command reply";
-    public string Category => "Chat";
-    public string Icon => "mdi-chat-processing-outline";
-    public string Description => "Create a command that replies to the triggering chat message.";
-    public IReadOnlyList<ActionRecipeParameter> Parameters => RecipeParameters;
+    public override string Id => "chat-command-reply";
+    public override string Title => "Chat command reply";
+    public override string Category => "Chat";
+    public override string Icon => "mdi-chat-processing-outline";
+    public override string Description => "Create a command that replies to the triggering chat message.";
+    public override IReadOnlyList<ActionRecipeParameter> Parameters => RecipeParameters;
+    protected override string MessageParameterKey => "ReplyText";
+    protected override string ActionGroup => "Recipes / Chat Replies";
 
-    public ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters)
-    {
-        var actionName = context.ActionName.Trim();
-        var commandName = NormalizeCommandName(context.CommandName);
-        if (string.IsNullOrWhiteSpace(actionName))
-            throw new ArgumentException("Action name is required.", nameof(context));
-        if (string.IsNullOrWhiteSpace(commandName))
-            throw new ArgumentException("Command name is required.", nameof(context));
-        if (context.CommandId == Guid.Empty)
-            throw new ArgumentException("A persisted command ID is required.", nameof(context));
-        if (string.IsNullOrWhiteSpace(context.QueueName))
-            throw new ArgumentException("Queue name is required.", nameof(context));
-        if (!parameters.TryGetValue("ReplyText", out var replyText) || string.IsNullOrWhiteSpace(replyText))
-            throw new ArgumentException("Reply text is required.", nameof(parameters));
+    protected override ChatType CreateChatSubAction(string message) => new ReplyToMessageType { Text = message };
 
-        return new ActionType
-        {
-            Name = actionName,
-            Group = "Recipes / Chat Replies",
-            QueueName = context.QueueName,
-            SubActions =
-            [
-                new ReplyToMessageType
-                {
-                    Index = 0,
-                    Text = replyText.Trim(),
-                    Enabled = true
-                }
-            ],
-            Triggers =
-            [
-                new TriggerType
-                {
-                    Name = $"!{commandName}",
-                    Type = TriggerTypes.Command,
-                    Configuration = JsonSerializer.Serialize(new { CommandName = commandName }),
-                    CommandId = context.CommandId,
-                    Enabled = true
-                }
-            ]
-        };
-    }
-
-    public static string NormalizeCommandName(string? commandName) =>
-        (commandName ?? string.Empty).Trim().TrimStart('!').ToLowerInvariant();
+    public new static string NormalizeCommandName(string? commandName) =>
+        ChatCommandRecipeBase.NormalizeCommandName(commandName);
 }

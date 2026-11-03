@@ -45,12 +45,13 @@ public sealed class FireworksShowRecipe : IActionRecipe
     public IReadOnlyList<ActionRecipeParameter> Parameters => RecipeParameters;
     public bool RequiresCommand => false;
     public bool AllowsAdditionalTriggers => true;
+    public bool SupportsVariables => true;
     public string? RecommendedQueueName => "Fireworks";
 
     public ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters)
     {
         var actionName = context.ActionName.Trim();
-        var commandName = ChatReplyRecipe.NormalizeCommandName(context.CommandName);
+        var commandName = ChatCommandRecipeBase.NormalizeCommandName(context.CommandName);
         if (string.IsNullOrWhiteSpace(actionName))
             throw new ArgumentException("Action name is required.", nameof(context));
         if (string.IsNullOrWhiteSpace(context.QueueName))
