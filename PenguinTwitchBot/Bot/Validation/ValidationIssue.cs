@@ -65,7 +65,8 @@ namespace PenguinTwitchBot.Bot.Validation
         TimerGroupInactiveWithActions,
         GameSettingPointTypeMissing,
         RaidRewardPointTypeMissing,
-        ObsConnectionFailing
+        ObsConnectionFailing,
+        FireworksWidgetMissing
     }
 
     public class ValidationIssue

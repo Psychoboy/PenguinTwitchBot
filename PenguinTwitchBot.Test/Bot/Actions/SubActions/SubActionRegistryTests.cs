@@ -47,6 +47,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [InlineData(SubActionTypes.LogicIfElse, SubActionCategories.LogicAndFlow)]
         [InlineData(SubActionTypes.SendMessage, SubActionCategories.ChatAndMedia)]
         [InlineData(SubActionTypes.PlaySound, SubActionCategories.ChatAndMedia)]
+        [InlineData(SubActionTypes.Fireworks, SubActionCategories.ChatAndMedia)]
         [InlineData(SubActionTypes.CheckPoints, SubActionCategories.PointsAndRewards)]
         [InlineData(SubActionTypes.ManagePoints, SubActionCategories.PointsAndRewards)]
         [InlineData(SubActionTypes.ChannelPointSetEnabledState, SubActionCategories.PointsAndRewards)]

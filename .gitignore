@@ -600,3 +600,5 @@ PenguinTwitchBot/extension.zip
 *twitch-extension.zip
 *twitch-extension.zip.sha256
 .clineignore
+.codacy/codacy.config.baseline.json
+.codacy/codacy.config.json

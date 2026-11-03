@@ -119,9 +119,52 @@ namespace PenguinTwitchBot.Bot.Validation
             Run("timers", () => CheckTimerGroups(actions, timerGroups, result));
             await RunAsync("point types", () => CheckPointTypeSettings(pointTypes, result, db));
             await RunAsync("raid rewards", () => CheckRaidRewards(raidSettings, pointTypes, result));
+            if (actions.Any(action => action.Enabled && ActiveSubActions(action).Any(subAction => subAction is FireworksType)))
+            {
+                await RunAsync("fireworks widget", async () =>
+                {
+                    var layouts = await db.OverlayLayouts.GetAllWithWidgetsAsync();
+                    var issue = CreateFireworksWidgetIssue(actions, layouts);
+                    if (issue != null)
+                    {
+                        result.Issues.Add(issue);
+                    }
+                });
+            }
 
             _logger.LogDebug("Configuration validation found {IssueCount} issues", result.Issues.Count);
             return result;
+        }
+
+        internal static ValidationIssue? CreateFireworksWidgetIssue(
+            IEnumerable<Database.Bot.Actions.ActionType> actions,
+            IEnumerable<Database.Bot.Models.Overlay.OverlayLayout> layouts)
+        {
+            var fireworksConfigured = actions.Any(action => action.Enabled &&
+                ActiveSubActions(action).Any(subAction => subAction is FireworksType));
+            if (!fireworksConfigured)
+            {
+                return null;
+            }
+
+            var hasFireworksWidget = layouts.SelectMany(layout => layout.Widgets)
+                .Any(widget => widget.IsEnabled && widget.WidgetType.Equals("fireworks", StringComparison.OrdinalIgnoreCase));
+            if (hasFireworksWidget)
+            {
+                return null;
+            }
+
+            return new ValidationIssue
+            {
+                IssueType = ValidationIssueType.FireworksWidgetMissing,
+                Severity = ValidationSeverity.Warning,
+                EntityType = "Overlay",
+                EntityName = "Fireworks widget",
+                Message = "An enabled Fireworks sub-action is configured, but no overlay layout has an enabled Fireworks widget.",
+                Suggestion = "Add and enable the Fireworks widget in an overlay layout so the sub-action can be seen.",
+                Link = "/overlay/editor",
+                Detail = "fireworks-widget"
+            };
         }
 
         // One failing check must not hide the results of the others.
