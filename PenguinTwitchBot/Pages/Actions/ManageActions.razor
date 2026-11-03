@@ -4,6 +4,7 @@
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Models.Queues
 @using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Actions.Recipes
 @using PenguinTwitchBot.Pages.Components
 @implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Editor")]
@@ -41,6 +42,9 @@
             </MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Storage" OnClick="GoToGlobalVariables">
                 Global Variables
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome" OnClick="OpenRecipeWizard">
+                Create from recipe
             </MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Casino" OnClick="OpenCreateRaffleDialog">
                 Create Raffle
@@ -749,6 +753,23 @@
         {
             await LoadActions();
             Snackbar.Add($"{importedCount} action(s) imported successfully from the library.", Severity.Success);
+        }
+    }
+
+    private async Task OpenRecipeWizard()
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var dialog = await DialogService.ShowAsync<ActionRecipeWizard>("Create from recipe", options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Guid actionId })
+        {
+            await LoadActions();
+            NavigateToManagePage(actionId);
         }
     }
 
