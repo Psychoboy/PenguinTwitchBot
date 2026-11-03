@@ -21,7 +21,8 @@ public class AlertRecipeTests
                 ["Duration"] = "7",
                 ["Volume"] = "0.65",
                 ["CSS"] = "color: rgba(255, 255, 255, 0.9);",
-                ["AlertChannel"] = "events"
+                ["AlertChannel"] = "events",
+                ["Enabled"] = "false"
             });
 
         var alert = Assert.IsType<AlertType>(Assert.Single(action.SubActions));
@@ -34,6 +35,7 @@ public class AlertRecipeTests
         Assert.Equal(0.65f, alert.Volume);
         Assert.Equal("color: rgba(255, 255, 255, 0.9);", alert.CSS);
         Assert.Equal("events", alert.AlertChannel);
+        Assert.False(alert.Enabled);
 
         var trigger = Assert.Single(action.Triggers);
         Assert.Equal(TriggerTypes.Command, trigger.Type);

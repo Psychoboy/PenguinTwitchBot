@@ -347,6 +347,7 @@
         _parameters["Volume"] = _alertRecipeSettings.Volume.ToString(System.Globalization.CultureInfo.InvariantCulture);
         _parameters["CSS"] = _alertRecipeSettings.CSS ?? string.Empty;
         _parameters["AlertChannel"] = _alertRecipeSettings.AlertChannel ?? string.Empty;
+        _parameters["Enabled"] = _alertRecipeSettings.Enabled.ToString();
     }
 
     private void OnQueueChanged(string? queueName)

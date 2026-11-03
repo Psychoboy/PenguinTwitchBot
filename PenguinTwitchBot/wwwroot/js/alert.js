@@ -240,13 +240,21 @@ async function handleGifAlert(json) {
         audio.oncanplaythrough = (event) => {
             isReady = true;
         };
+        if (explicitAudioFile) {
+            const onAudioLoadFailure = () => {
+                hasAudio = false;
+                isReady = true;
+            };
+            audio.onerror = onAudioLoadFailure;
+            audio.onabort = onAudioLoadFailure;
+        }
         const audioIsReady = () => {
             return isReady;
         };
 
         audio.load();
         await promisePoll(() => audioIsReady(), { pollIntervalMs: 250 });
-        audio.volume = gifVolume;
+        if (hasAudio) audio.volume = gifVolume;
     }
 
     await sleep(500);
@@ -301,7 +309,18 @@ async function handleGifAlert(json) {
                 isPlaying = false;
             });
     } else {
-        window.setTimeout(function () { isPlaying = false; }, gifDuration + 200);
+        if (hasAudio) {
+            audio.play().catch(function () {
+                // Ignore.
+            });
+        }
+        window.setTimeout(function () {
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+            isPlaying = false;
+        }, gifDuration + 200);
     }
 
 }

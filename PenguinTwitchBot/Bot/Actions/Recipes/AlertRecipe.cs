@@ -79,7 +79,7 @@ public sealed class AlertRecipe : IActionRecipe
                     Volume = volume,
                     CSS = GetParameter(parameters, "CSS"),
                     AlertChannel = GetParameter(parameters, "AlertChannel").Trim(),
-                    Enabled = true
+                    Enabled = bool.TryParse(GetParameter(parameters, "Enabled"), out var enabled) ? enabled : true
                 }
             ],
             Triggers = triggers

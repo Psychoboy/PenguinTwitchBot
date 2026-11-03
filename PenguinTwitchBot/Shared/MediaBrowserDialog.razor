@@ -14,7 +14,7 @@
             </MudStack>
             <MudFileUpload T="IBrowserFile"
                            FilesChanged="OnUploadFiles"
-                           Accept=".png,.jpg,.jpeg,.gif,.webp,.webm,.mp4,.ogg,.ogv,.mp3,.wav,.aac,.opus,.m4a"
+                           Accept="@UploadAccept"
                            Disabled="@_isUploading"
                            Class="d-inline-flex">
                 <CustomContent>
@@ -275,6 +275,12 @@
     [Parameter] public bool SelectionMode { get; set; } = false;
     [Parameter] public bool ImageVideoOnly { get; set; }
     [Parameter] public bool AudioOnly { get; set; }
+
+    private string UploadAccept => AudioOnly
+        ? ".mp3,.wav,.ogg,.aac,.opus,.webm,.m4a"
+        : ImageVideoOnly
+            ? ".png,.jpg,.jpeg,.gif,.webp,.webm,.mp4,.ogg,.ogv"
+            : ".png,.jpg,.jpeg,.gif,.webp,.webm,.mp4,.ogg,.ogv,.mp3,.wav,.aac,.opus,.m4a";
 
     private enum MediaTypeFilter { All, Images, Videos, Audio }
 
