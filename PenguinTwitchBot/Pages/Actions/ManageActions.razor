@@ -769,7 +769,11 @@
         if (result is { Canceled: false, Data: Guid actionId })
         {
             await LoadActions();
-            NavigateToManagePage(actionId);
+            var createdAction = _actions.FirstOrDefault(action => action.Id == actionId);
+            if (createdAction != null)
+            {
+                await OnActionSelected(createdAction);
+            }
         }
     }
 

@@ -272,13 +272,17 @@
                     return;
                 }
 
-                await QueueManager.CreateQueueAsync(new QueueConfiguration
+                var createdQueue = await QueueManager.CreateQueueAsync(new QueueConfiguration
                 {
                     Name = queueName,
                     IsBlocking = true,
                     Enabled = true,
                     MaxConcurrentActions = 1
                 });
+                _queues.Add(createdQueue);
+                _selectedQueueName = createdQueue.Name;
+                _createQueue = false;
+                _newQueueName = string.Empty;
             }
 
             if (command == null)
