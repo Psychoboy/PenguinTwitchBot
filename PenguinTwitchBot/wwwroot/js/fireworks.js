@@ -61,19 +61,98 @@
 		}
 
 		const queryParams = new URLSearchParams(window.location.search);
+		const configuredWidgetId = queryParams.get('widgetId') || '';
+		const hasValidConfiguredWidgetId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(configuredWidgetId) &&
+			!/^0{8}-0{4}-0{4}-0{4}-0{12}$/i.test(configuredWidgetId);
+		const isStandalone = !hasValidConfiguredWidgetId || queryParams.get('transientWidget') === '1';
+
+		function createStandaloneWidgetId() {
+			if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+				return window.crypto.randomUUID();
+			}
+			return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (character) {
+				const randomValue = Math.random() * 16 | 0;
+				return (character === 'x' ? randomValue : (randomValue & 3 | 8)).toString(16);
+			});
+		}
+
+		function getStandaloneWidgetId() {
+			const storageKey = 'penguin-fireworks-queue-widget-id';
+			try {
+				const existingId = window.sessionStorage.getItem(storageKey);
+				if (existingId) return existingId;
+				const widgetId = createStandaloneWidgetId();
+				window.sessionStorage.setItem(storageKey, widgetId);
+				return widgetId;
+			} catch (_) {
+				return createStandaloneWidgetId();
+			}
+		}
+
+		const widgetId = hasValidConfiguredWidgetId ? configuredWidgetId : getStandaloneWidgetId();
+		const inheritedMaxQueuedBursts = parseIntParam(queryParams.get('defaultMaxQueuedBursts'), 250, 1, 2000);
 		const queryConfig = {
 			qualityMode: parseEnumParam(queryParams.get('qualityMode'), ['auto', 'low', 'normal', 'high'], 'auto'),
 			shell: queryParams.get('shell') || 'Random',
 			size: parseIntParam(queryParams.get('size'), 3, 0, 5),
 			autoLaunch: parseBoolParam(queryParams.get('autoLaunch'), false),
+			muteSounds: parseBoolParam(queryParams.get('muteSounds'), false),
 			longExposure: parseBoolParam(queryParams.get('longExposure'), false),
 			scaleFactor: parseFloatParam(queryParams.get('scaleFactor'), getDefaultScaleFactor(), 0.5, 2),
 			minLaunchGapMs: parseIntParam(queryParams.get('minLaunchGapMs'), 240, 50, 3000),
 			highParticleCount: parseIntParam(queryParams.get('highParticleCount'), 1400, 100, 10000),
 			criticalParticleCount: parseIntParam(queryParams.get('criticalParticleCount'), 2200, 200, 15000),
 			forceLowEnd: parseBoolParam(queryParams.get('forceLowEnd'), false),
-			clearCanvasDelayMs: parseIntParam(queryParams.get('clearCanvasDelayMs'), 15000, 1000, 120000)
+			clearCanvasDelayMs: parseIntParam(queryParams.get('clearCanvasDelayMs'), 15000, 1000, 120000),
+			maxQueuedBursts: parseIntParam(queryParams.get('maxQueuedBursts'), inheritedMaxQueuedBursts, 1, 2000)
 		};
+		const overlayKey = queryParams.get('key') || '';
+		let rejectedBurstCount = 0;
+		let queueStatusTimer = null;
+
+		function reportQueueStatus(keepalive, finalZero) {
+			if (!overlayKey || typeof fetch !== 'function') return;
+			const pendingBursts = finalZero ? 0 : fireworksLaunchQueue.getManagedPendingCount();
+			fetch('/api/fireworks/queue/status', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					widgetId: widgetId,
+					isStandalone: isStandalone,
+					overlayKey: overlayKey,
+					pendingBursts: pendingBursts,
+					maxQueuedBursts: queryConfig.maxQueuedBursts,
+					minLaunchGapMs: queryConfig.minLaunchGapMs,
+					rejectedBurstCount: rejectedBurstCount,
+					jobs: (finalZero ? [] : fireworksLaunchQueue.getJobs().slice(0, 100)).map(function (job) {
+						return { jobId: job.jobId, pendingBursts: job.pending };
+					})
+				}),
+				keepalive: keepalive === true
+			}).catch(function () {});
+		}
+
+		function scheduleQueueStatusReport(pendingCount) {
+			clearTimeout(queueStatusTimer);
+			if (pendingCount === 0) {
+				queueStatusTimer = null;
+				reportQueueStatus(true);
+				return;
+			}
+			queueStatusTimer = setTimeout(function () {
+				queueStatusTimer = null;
+				reportQueueStatus(false);
+			}, 500);
+		}
+
+		const queueStatusHeartbeat = window.setInterval(function () {
+			reportQueueStatus(false);
+		}, 5000);
+
+		window.addEventListener('pagehide', function () {
+			window.clearInterval(queueStatusHeartbeat);
+			reportQueueStatus(true, true);
+		});
 
 		function getInitialQuality() {
 			switch (queryConfig.qualityMode) {
@@ -151,7 +230,7 @@
 
 		const isRunning = () => true;
 		const soundEnabledSelector = () => true;
-		const canPlaySoundSelector = () => true;
+		const canPlaySoundSelector = () => !queryConfig.muteSounds;
 		const qualitySelector = () => +overlayConfig.quality;
 		const shellNameSelector = () => overlayConfig.shell;
 		const shellSizeSelector = () => +overlayConfig.size;
@@ -530,9 +609,12 @@
 		// Each event fires exactly one shell (not a burst sequence) so a rapid
 		// stream of events produces a continuous show. Under heavy load, use a
 		// smaller fast shell instead of dropping every event.
-		function fireSingleOptimized() {
+		function fireSingleOptimized(minimumGapMs) {
 			const now = Date.now();
-			if (now - lastOptimizedLaunchAt < PERF_LIMITS.minLaunchGapMs) {
+			const requiredGapMs = Number.isFinite(minimumGapMs)
+				? Math.max(0, minimumGapMs)
+				: PERF_LIMITS.minLaunchGapMs;
+			if (now - lastOptimizedLaunchAt < requiredGapMs) {
 				return false;
 			}
 
@@ -1854,6 +1936,7 @@
 
 		ws.onopen = function () {
 			wsStatusShow(true);
+			scheduleQueueStatusReport(fireworksLaunchQueue.getManagedPendingCount());
 		};
 		ws.onclose = function () {
 			wsStatusShow(false);
@@ -1862,7 +1945,10 @@
 			if (event.data === "ping") return;
 			try {
 				const message = JSON.parse(event.data);
-				window.FireworksEventHandler.handle(message, launchFireworks);
+				window.FireworksEventHandler.handle(message, launchFireworks, function (jobId) {
+					if (jobId) fireworksLaunchQueue.clearManaged(jobId);
+					else fireworksLaunchQueue.clearManaged();
+				}, widgetId);
 			} catch (error) {
 				console.warn('Invalid Fireworks websocket event', error);
 			}
@@ -1884,28 +1970,30 @@
 				clearTimeout(timer);
 				timer = setTimeout(cleancanvas, queryConfig.clearCanvasDelayMs);
 				try {
-					return fireSingleOptimized();
+					return fireSingleOptimized(window.FireworksEventHandler.getLaunchMinimumGap(
+						settings,
+						PERF_LIMITS.minLaunchGapMs));
 				} finally {
 					overlayConfig.shell = originalShell;
 					overlayConfig.size = originalSize;
 				}
 			},
 			function (settings) {
-				const performanceWait = PERF_LIMITS.minLaunchGapMs - (Date.now() - lastOptimizedLaunchAt);
-				return Math.max(settings.delayBeforeMs, performanceWait, 0);
+				return window.FireworksEventHandler.getLaunchDelay(
+					settings,
+					Date.now() - lastOptimizedLaunchAt,
+					PERF_LIMITS.minLaunchGapMs);
+			},
+			undefined,
+			function () {
+				scheduleQueueStatusReport(fireworksLaunchQueue.getManagedPendingCount());
 			}
 		);
 
 		function launchFireworks(settings) {
-			const count = Math.max(1, Math.min(100, parseInt(settings.count, 10) || 1));
-			const delayMs = Math.max(0, Math.min(60000, parseInt(settings.delayMs, 10) || 0));
-			for (let index = 0; index < count; index++) {
-				fireworksLaunchQueue.enqueue({
-					shell: settings.shell || '',
-					size: Number(settings.size),
-					delayBeforeMs: index === 0 ? 0 : delayMs
-				});
-			}
+			const result = fireworksLaunchQueue.enqueueJob(settings, queryConfig.maxQueuedBursts);
+			rejectedBurstCount += result.rejected;
+			if (result.rejected > 0) scheduleQueueStatusReport(fireworksLaunchQueue.getManagedPendingCount());
 		}
 
 	setLoadingStatus('Lighting Fuses');

@@ -155,6 +155,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddScoped<PenguinTwitchBot.Database.Repository.IUnitOfWork, PenguinTwitchBot.Database.Repository.UnitOfWork>();
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.ChatReplyRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.FireworksShowRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipeRegistry, Bot.Actions.Recipes.ActionRecipeRegistry>();
             services.AddScoped<Bot.Actions.Recipes.IActionRecipeTagStore, Bot.Actions.Recipes.ActionRecipeTagStore>();
             services.AddScoped<Bot.Actions.IRaffleSetupService, Bot.Actions.RaffleSetupService>();
@@ -394,6 +395,7 @@ namespace PenguinTwitchBot.CustomMiddleware
                 description: "Wheeled game service for managing wheel game interactions and rewards."
             );
             services.AddSingleton<IOverlaySecurityService, OverlaySecurityService>();
+            services.AddSingleton<IFireworksQueueStatusStore, FireworksQueueStatusStore>();
             services.AddSingleton<IDropGamesSettingsService, DropGamesSettingsService>();
             services.AddSingleton<IDropRegistry, DropRegistry>();
             services.AddSingleton<IStarshipExpeditionStateStore, StarshipExpeditionStateStore>();

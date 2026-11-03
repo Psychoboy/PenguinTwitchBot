@@ -1,0 +1,298 @@
+@page "/overlay/fireworks-queue"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@implements IAsyncDisposable
+@using Microsoft.Extensions.DependencyInjection
+@using PenguinTwitchBot.Bot.Notifications
+@using PenguinTwitchBot.Bot.Overlay
+@using PenguinTwitchBot.Bot.WebSocketEvents
+@using PenguinTwitchBot.Database.Repository
+@inject IServiceScopeFactory ScopeFactory
+@inject IFireworksQueueStatusStore QueueStatusStore
+@inject IWebSocketMessenger WebSocketMessenger
+@inject ISnackbar Snackbar
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+
+<PageTitle>Fireworks Queue</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h5">Fireworks Queue</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    New sub-actions use their requested delay; legacy name-triggered launches use the per-widget legacy gap. Each source has its own queue. A launched shell finishes when pending work is cleared.
+                </MudText>
+            </div>
+            <MudStack Row="true" Spacing="1">
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.OpenInNew"
+                           Href="@_standaloneUrl" Target="_blank" Disabled="@string.IsNullOrWhiteSpace(_standaloneUrl)">
+                    Open standalone Fireworks
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshAsync">
+                    Refresh
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.ClearAll"
+                           OnClick="ClearAllPending" Disabled="@(!_queues.Any(queue => queue.PendingBursts > 0))">
+                    Clear all pending
+                </MudButton>
+            </MudStack>
+        </MudStack>
+
+        <MudPaper Outlined="true" Class="pa-3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                <MudNumericField T="int" Label="Default per-widget pending-burst cap"
+                                 Min="1" Max="2000" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 Value="_globalMaxQueuedBursts" ValueChanged="SaveGlobalMaxQueuedBurstsAsync" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Each Fireworks source inherits this value unless that widget overrides it in Overlay Editor.
+                </MudText>
+            </MudStack>
+        </MudPaper>
+
+        <MudGrid>
+            <MudItem xs="12" sm="4">
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Pending bursts</MudText>
+                    <MudText Typo="Typo.h5">@_queues.Sum(queue => queue.PendingBursts) / @_queues.Sum(queue => queue.MaxQueuedBursts)</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Connected widgets</MudText>
+                    <MudText Typo="Typo.h5">@_queues.Count(queue => queue.IsConnected) / @_queues.Count</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Rejected bursts</MudText>
+                    <MudText Typo="Typo.h5">@_queues.Sum(queue => queue.RejectedBurstCount)</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        @if (_queues.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                No Fireworks widgets are configured in overlay layouts.
+            </MudAlert>
+        }
+        else
+        {
+            <MudTable T="FireworksQueueRow" Items="_queues" Dense="true" Hover="true" Bordered="true">
+                <HeaderContent>
+                    <MudTh>Overlay widget</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Pending / cap</MudTh>
+                    <MudTh>Legacy gap</MudTh>
+                    <MudTh>Rejected</MudTh>
+                    <MudTh>Queued jobs</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Overlay widget">
+                        <MudText Typo="Typo.body2">@context.LayoutName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Widget @context.WidgetId.ToString("N")[..8]</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Size="Size.Small" Color="@(context.IsConnected ? Color.Success : Color.Default)">
+                            @(context.IsConnected ? "Connected" : "Offline")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Pending / cap">@context.PendingBursts / @context.MaxQueuedBursts</MudTd>
+                    <MudTd DataLabel="Legacy gap">@context.MinLaunchGapMs ms</MudTd>
+                    <MudTd DataLabel="Rejected">@context.RejectedBurstCount</MudTd>
+                    <MudTd DataLabel="Queued jobs">
+                        @if (context.Jobs.Count == 0)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">None</MudText>
+                        }
+                        else
+                        {
+                            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                @foreach (var job in context.Jobs)
+                                {
+                                    <MudTooltip Text="Cancel this queued show">
+                                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                                   OnClick="@(() => CancelJob(context.WidgetId, job.JobId))">
+                                            @($"{job.PendingBursts} bursts · {job.JobId[..Math.Min(8, job.JobId.Length)]}")
+                                        </MudButton>
+                                    </MudTooltip>
+                                }
+                            </MudStack>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Controls">
+                        <MudTooltip Text="Clear pending dedicated Fireworks bursts for this widget">
+                            <MudIconButton Icon="@Icons.Material.Filled.ClearAll" Color="Color.Error"
+                                           Disabled="@(!context.IsConnected || context.PendingBursts == 0)"
+                                           OnClick="@(() => ClearWidgetPending(context.WidgetId))" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudContainer>
+
+@code {
+    private List<FireworksQueueRow> _queues = [];
+    private int _globalMaxQueuedBursts = FireworksQueueDefaults.MaxQueuedBursts;
+    private bool _globalDefaultLoaded;
+    private string _standaloneUrl = string.Empty;
+    private CancellationTokenSource? _refreshCancellation;
+    private Task? _refreshTask;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _refreshCancellation = new CancellationTokenSource();
+        _refreshTask = RefreshLoopAsync(_refreshCancellation.Token);
+    }
+
+    private async Task RefreshAsync()
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        if (!_globalDefaultLoaded)
+        {
+            _globalMaxQueuedBursts = await FireworksQueueDefaults.GetGlobalMaxQueuedBurstsAsync(unitOfWork);
+            await UpdateStandaloneUrlAsync();
+            _globalDefaultLoaded = true;
+        }
+        var layouts = await unitOfWork.OverlayLayouts.GetAllWithWidgetsAsync();
+        var now = DateTime.UtcNow;
+        _queues = layouts
+            .SelectMany(layout => layout.Widgets
+                .Where(widget => widget.Id != Guid.Empty && widget.WidgetType.Equals("fireworks", StringComparison.OrdinalIgnoreCase))
+                .Select(widget =>
+                {
+                    var status = QueueStatusStore.Get(widget.Id);
+                    var isConnected = status != null && now - status.UpdatedAtUtc <= FireworksQueueDefaults.ConnectedWindow;
+                    return new FireworksQueueRow(
+                        widget.Id,
+                        layout.Name,
+                        widget.IsEnabled,
+                        isConnected,
+                        status?.PendingBursts ?? 0,
+                        status?.MaxQueuedBursts ?? FireworksQueueDefaults.GetMaxQueuedBursts(widget.CustomSettings, _globalMaxQueuedBursts),
+                        status?.MinLaunchGapMs ?? FireworksQueueDefaults.GetMinLaunchGapMs(widget.CustomSettings),
+                        status?.RejectedBurstCount ?? 0,
+                        status?.Jobs ?? []);
+                }))
+            .OrderBy(queue => queue.LayoutName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var configuredWidgetIds = _queues.Select(queue => queue.WidgetId).ToHashSet();
+        var standaloneQueues = QueueStatusStore.GetAll()
+            .Where(status => status.IsStandalone &&
+                !configuredWidgetIds.Contains(status.WidgetId) &&
+                now - status.UpdatedAtUtc <= FireworksQueueDefaults.ConnectedWindow)
+            .Select(status => new FireworksQueueRow(
+                status.WidgetId,
+                "Standalone / transient Fireworks source",
+                true,
+                true,
+                status.PendingBursts,
+                status.MaxQueuedBursts,
+                status.MinLaunchGapMs,
+                status.RejectedBurstCount,
+                status.Jobs))
+            .ToList();
+        _queues.AddRange(standaloneQueues);
+    }
+
+    private async Task SaveGlobalMaxQueuedBurstsAsync(int value)
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        _globalMaxQueuedBursts = await FireworksQueueDefaults.SetGlobalMaxQueuedBurstsAsync(unitOfWork, value);
+        _globalDefaultLoaded = true;
+        await UpdateStandaloneUrlAsync();
+        await WebSocketMessenger.AddToQueue(WsTopics.Overlay, System.Text.Json.JsonSerializer.Serialize(new { type = "overlay_reload" }));
+        Snackbar.Add($"Global Fireworks queue cap set to {_globalMaxQueuedBursts}.", Severity.Success);
+        await RefreshAsync();
+    }
+
+    private async Task UpdateStandaloneUrlAsync()
+    {
+        var overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+        _standaloneUrl = $"/fireworks.html?key={Uri.EscapeDataString(overlayKey)}&defaultMaxQueuedBursts={_globalMaxQueuedBursts}";
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                try
+                {
+                    await RefreshAsync();
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task ClearAllPending()
+    {
+        await SendControlAsync("FireworksClearQueue", new Dictionary<string, object>());
+        Snackbar.Add("Clear request sent to connected Fireworks widgets.", Severity.Success);
+    }
+
+    private async Task ClearWidgetPending(Guid widgetId)
+    {
+        await SendControlAsync("FireworksClearQueue", new Dictionary<string, object>
+        {
+            ["widgetId"] = widgetId.ToString("D")
+        });
+        Snackbar.Add("Clear request sent to the selected Fireworks widget.", Severity.Success);
+    }
+
+    private async Task CancelJob(Guid widgetId, string jobId)
+    {
+        await SendControlAsync("FireworksCancelJob", new Dictionary<string, object>
+        {
+            ["widgetId"] = widgetId.ToString("D"),
+            ["jobId"] = jobId
+        });
+        Snackbar.Add("Cancellation request sent for the queued show.", Severity.Success);
+    }
+
+    private Task SendControlAsync(string type, Dictionary<string, object> data) =>
+        WebSocketMessenger.AddToQueue(new WsEvent
+        {
+            Event = new WsEventType { Source = "Overlay", Type = type },
+            Data = data
+        });
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_refreshCancellation == null) return;
+        await _refreshCancellation.CancelAsync();
+        if (_refreshTask != null)
+        {
+            try { await _refreshTask; }
+            catch (OperationCanceledException) { }
+        }
+        _refreshCancellation.Dispose();
+    }
+
+    private sealed record FireworksQueueRow(
+        Guid WidgetId,
+        string LayoutName,
+        bool IsEnabled,
+        bool IsConnected,
+        int PendingBursts,
+        int MaxQueuedBursts,
+        int MinLaunchGapMs,
+        int RejectedBurstCount,
+        IReadOnlyList<FireworksQueueJobStatus> Jobs);
+}

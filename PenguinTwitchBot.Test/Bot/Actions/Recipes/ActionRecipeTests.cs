@@ -40,6 +40,88 @@ public class ActionRecipeTests
     }
 
     [Fact]
+    public void FireworksShowRecipe_BuildsCommandActionWithDedicatedFireworksSubAction()
+    {
+        var recipe = new FireworksShowRecipe();
+        var commandId = Guid.NewGuid();
+        var action = recipe.Build(
+            new ActionRecipeContext("Fireworks Show", "Fireworks", "!fireworks", commandId),
+            new Dictionary<string, string>
+            {
+                ["BurstCount"] = "$math(%Amount% + 1)$",
+                ["CommandName"] = "fireworks",
+                ["DelayMilliseconds"] = "%Delay%",
+                ["Shell"] = "Ring",
+                ["Size"] = "4"
+            });
+
+        Assert.Equal("Fireworks Show", action.Name);
+        Assert.Equal("Recipes / Fireworks", action.Group);
+        Assert.Equal("Fireworks", action.QueueName);
+        var fireworks = Assert.IsType<FireworksType>(Assert.Single(action.SubActions));
+        Assert.Equal("$math(%Amount% + 1)$", fireworks.Count);
+        Assert.Equal("%Delay%", fireworks.DelayMilliseconds);
+        Assert.Equal("Ring", fireworks.Shell);
+        Assert.Equal("4", fireworks.Size);
+        var trigger = Assert.Single(action.Triggers);
+        Assert.Equal(TriggerTypes.Command, trigger.Type);
+        Assert.Equal(commandId, trigger.CommandId);
+        Assert.Equal("!fireworks", trigger.Name);
+    }
+
+    [Fact]
+    public void FireworksShowRecipe_BuildsIndependentPresetActionsAndTriggers()
+    {
+        var recipe = new FireworksShowRecipe();
+        var commandId = Guid.NewGuid();
+        var action = recipe.Build(
+            new ActionRecipeContext("Fireworks Show", "Fireworks", "fireworks", commandId),
+            new Dictionary<string, string>
+            {
+                ["BurstCount"] = "15",
+                ["CommandName"] = "fireworks",
+                ["DelayMilliseconds"] = "150"
+            });
+
+        Assert.Equal("Fireworks Show", action.Name);
+        Assert.Equal("Fireworks", action.QueueName);
+        Assert.Equal("15", Assert.IsType<FireworksType>(Assert.Single(action.SubActions)).Count);
+        Assert.Equal("!fireworks", Assert.Single(action.Triggers).Name);
+        Assert.Equal(commandId, action.Triggers[0].CommandId);
+        Assert.Equal("Fireworks", recipe.RecommendedQueueName);
+    }
+
+    [Fact]
+    public void FireworksShowRecipe_CommandParametersAreOptionalAndBlankByDefault()
+    {
+        var recipe = new FireworksShowRecipe();
+        var commandParameters = recipe.Parameters.Where(parameter => parameter.Key == "CommandName").ToList();
+
+        Assert.Equal("CommandName", Assert.Single(commandParameters).Key);
+        Assert.All(commandParameters, parameter =>
+        {
+            Assert.False(parameter.Required);
+            Assert.Empty(parameter.DefaultValue);
+        });
+    }
+
+    [Fact]
+    public void FireworksShowRecipe_BuildAllowsAnAlternateTriggerWithoutACommand()
+    {
+        var recipe = new FireworksShowRecipe();
+        var action = recipe.Build(
+            new ActionRecipeContext("Fireworks", "Fireworks", string.Empty, Guid.Empty),
+            new Dictionary<string, string>
+            {
+                ["BurstCount"] = "5",
+                ["DelayMilliseconds"] = "100"
+            });
+
+        Assert.Empty(action.Triggers);
+        Assert.Single(action.SubActions);
+    }
+
+    [Fact]
     public void ActionRecipeRegistry_RejectsUnknownRecipe()
     {
         var registry = new ActionRecipeRegistry([new ChatReplyRecipe()]);

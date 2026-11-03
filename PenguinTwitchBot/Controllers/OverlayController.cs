@@ -6,6 +6,8 @@ using PenguinTwitchBot.Bot.Overlay;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
 using PenguinTwitchBot.Database.Repository;
 using System.Text.Json;
+using System.Globalization;
+using Microsoft.AspNetCore.WebUtilities;
 
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.Services;
@@ -66,13 +68,22 @@ namespace PenguinTwitchBot.Controllers
             if (overlayLayout == null)
                 return Ok(new OverlayConfigResponse("Default", 1920, 1080, []));
 
+            var globalFireworksCap = await FireworksQueueDefaults.GetGlobalMaxQueuedBurstsAsync(_unitOfWork);
             var widgets = overlayLayout.Widgets
                 .Select(w =>
                 {
                     var def = WidgetRegistry.Find(w.WidgetType);
                     var basePath = def?.SourcePath ?? $"/{w.WidgetType}.html";
                     var sourcePath = BuildSourcePath(basePath, w.CustomSettings);
+                    if (w.WidgetType.Equals("fireworks", StringComparison.OrdinalIgnoreCase))
+                    {
+                        sourcePath = QueryHelpers.AddQueryString(
+                            sourcePath,
+                            "defaultMaxQueuedBursts",
+                            globalFireworksCap.ToString(CultureInfo.InvariantCulture));
+                    }
                     return new OverlayWidgetResponse(
+                        w.Id,
                         w.WidgetType,
                         sourcePath,
                         w.IsEnabled,
@@ -155,25 +166,43 @@ namespace PenguinTwitchBot.Controllers
             var layout = await _unitOfWork.OverlayLayouts.GetByIdWithWidgetsAsync(id);
             if (layout == null) return NotFound();
 
-            // Remove existing widgets for this layout and re-add
             var existing = await _unitOfWork.OverlayWidgets.GetByLayoutIdAsync(id);
-            foreach (var w in existing)
-                _unitOfWork.OverlayWidgets.Remove(w);
+            var existingById = existing.ToDictionary(widget => widget.Id);
+            var requestedIds = widgets
+                .Where(widget => widget.WidgetId.HasValue && widget.WidgetId.Value != Guid.Empty)
+                .Select(widget => widget.WidgetId!.Value)
+                .ToList();
+            if (requestedIds.Count != requestedIds.Distinct().Count() ||
+                requestedIds.Any(widgetId => !existingById.ContainsKey(widgetId)))
+            {
+                return BadRequest("Widget IDs must be unique and belong to this layout.");
+            }
+
+            var retainedIds = requestedIds.ToHashSet();
+            foreach (var removedWidget in existing.Where(widget => !retainedIds.Contains(widget.Id)))
+                _unitOfWork.OverlayWidgets.Remove(removedWidget);
 
             foreach (var w in widgets)
             {
-                _unitOfWork.OverlayWidgets.Add(new OverlayWidget
+                OverlayWidget widget;
+                if (w.WidgetId is { } widgetId && widgetId != Guid.Empty)
                 {
-                    OverlayLayoutId = id,
-                    WidgetType = w.WidgetType,
-                    IsEnabled = w.IsEnabled,
-                    X = w.X,
-                    Y = w.Y,
-                    Width = w.Width,
-                    Height = w.Height,
-                    ZIndex = w.ZIndex,
-                    CustomSettings = w.CustomSettings
-                });
+                    widget = existingById[widgetId];
+                }
+                else
+                {
+                    widget = new OverlayWidget { Id = Guid.NewGuid(), OverlayLayoutId = id };
+                    _unitOfWork.OverlayWidgets.Add(widget);
+                }
+
+                widget.WidgetType = w.WidgetType;
+                widget.IsEnabled = w.IsEnabled;
+                widget.X = w.X;
+                widget.Y = w.Y;
+                widget.Width = w.Width;
+                widget.Height = w.Height;
+                widget.ZIndex = w.ZIndex;
+                widget.CustomSettings = w.CustomSettings;
             }
 
             await _unitOfWork.SaveChangesAsync();
@@ -345,10 +374,10 @@ namespace PenguinTwitchBot.Controllers
     }
 
     public record OverlayConfigResponse(string Name, int CanvasWidth, int CanvasHeight, List<OverlayWidgetResponse> Widgets);
-    public record OverlayWidgetResponse(string WidgetType, string SourcePath, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex);
+    public record OverlayWidgetResponse(Guid WidgetId, string WidgetType, string SourcePath, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex);
     public record OverlayLayoutSummary(Guid Id, string Name, bool IsDefault);
     public record CreateLayoutRequest(string Name, bool IsDefault);
-    public record SaveWidgetRequest(string WidgetType, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex, string? CustomSettings);
+    public record SaveWidgetRequest(string WidgetType, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex, string? CustomSettings, Guid? WidgetId = null);
     public record FishingTournamentOverlayResponse(Guid Id, string Name, string ScoreCategory, List<FishingTournamentStandingOverlayResponse> Standings);
     public record FishingTournamentStandingOverlayResponse(int Rank, string Username, double Score, int CatchCount);
 }

@@ -29,7 +29,7 @@ Sub-actions are the modular building blocks executed when an action fires:
 
 ### Overlay & Visual Effects
 - **Overlay Alerts**: Send styled alerts, images, animations, or video to overlay browser sources (`Alert`), with optional alert channel routing.
-- **Fireworks**: Launch a configured number of paced particle bursts on the Fireworks overlay widget. The older action-name-based `Fireworks` event is retained only for compatibility; use the Fireworks sub-action for new setups. For a legacy preset, open its action from Validation Status, keep its triggers and queue, replace the cumulative variable and recursive Execute Action steps with Fireworks sub-action(s), copy the old loop delay, then review and convert references to the base `Fireworks` action before renaming or disabling it. Burst counts above 100 require multiple sub-actions of at most 100 bursts each.
+- **Fireworks**: Launch a configured number of particle bursts on the Fireworks overlay widget. `Delay Before First Burst` pauses this step within the browser queue; `Delay Between Bursts` sets the base spacing, and `Delay Variance` randomly adds or subtracts up to that amount per gap (clamped at zero). New sub-actions use these payload timings instead of the widget's legacy launch gap. The older action-name-based `Fireworks` event retains the widget gap for compatibility. Burst counts above 100 require multiple sub-actions of at most 100 bursts each.
 - **Stream Timers**: Start, stop, add time to, or remove time from named overlay timers (`OverlayTimerStart`, `OverlayTimerStop`, `OverlayTimerAddTime`, `OverlayTimerRemoveTime`).
 
 ### Variables, Utilities & AI

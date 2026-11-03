@@ -31,7 +31,7 @@ The **Alerts** widget displays animated on-screen alerts with synced graphics, v
 A high-performance particle canvas simulation that launches realistic celebratory fireworks over your stream.
 
 - **How It Is Triggered**:
-  - **New Actions**: Use the Fireworks sub-action to request a count of paced bursts, with an optional delay and shell/size overrides.
+  - **New Actions**: Use the Fireworks sub-action to request a burst count, optional delay before the first burst, base delay between bursts, symmetric delay variance, and shell/size overrides.
   - **Legacy Actions**: Existing presets may call the action named `Fireworks` through a recursive `Fireworks - Multi` helper. Validation Status identifies these actions and links directly to the manual migration guidance; the legacy path remains for compatibility.
   - **Ambient Auto-Launch**: Can also be set to `AutoLaunch = true` in widget settings to continuously launch ambient background fireworks during celebrations.
 - **Customizable Settings**:
@@ -40,6 +40,7 @@ A high-performance particle canvas simulation that launches realistic celebrator
   - **Long Exposure**: Toggles light trail persistence for luminous firework effects.
   - **Quality Modes**: `auto`, `high`, or `force low-end` for optimized GPU/CPU performance inside OBS browser sources.
   - **Canvas Delay**: Automatically clears the canvas after bursts finish to free resources.
+- **Queue Controls**: Set the default per-widget cap (1-2,000 pending bursts, default 250) in **Stream Tools > Fireworks Queue**. Overlay Editor can override it for an individual widget. New sub-actions use their payload delay; the widget Min Launch Gap applies to legacy action-name launches. The queue page shows counts and rejected bursts and can cancel a queued show or clear pending shows for one or all connected widgets. An already-launched shell finishes; legacy action-name launches are not capped, counted, or cancelled.
 
 ---
 

@@ -5,11 +5,19 @@
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @using PenguinTwitchBot.Database.Bot.Models.Points
 @using PenguinTwitchBot.Database.Bot.Models.Queues
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Database.Repository
+@using Microsoft.Extensions.DependencyInjection
+@using System.Text.Json
+@using PenguinTwitchBot.Bot.WebSocketEvents
 @inject IActionRecipeRegistry RecipeRegistry
 @inject IActionManagementService ActionService
 @inject IActionCommandService CommandService
 @inject IQueueManager QueueManager
 @inject IActionRecipeTagStore RecipeTagStore
+@inject IDialogService DialogService
+@inject IServiceScopeFactory ScopeFactory
+@inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
 @inject ISnackbar Snackbar
 
 <MudDialog>
@@ -44,8 +52,11 @@
                     <MudText Typo="Typo.subtitle1">2. Configure</MudText>
                     <MudTextField T="string" Label="Action name" Variant="Variant.Outlined"
                                   @bind-Value="_actionName" Required="true" />
-                    <MudTextField T="string" Label="Command" Variant="Variant.Outlined"
-                                  @bind-Value="_commandName" HelperText="Enter the name without !; an existing custom command will be reused." Required="true" />
+                    @if (SelectedRecipe?.RequiresCommand != false)
+                    {
+                        <MudTextField T="string" Label="Command" Variant="Variant.Outlined"
+                                      @bind-Value="_commandName" HelperText="Enter the name without !; an existing custom command will be reused." Required="true" />
+                    }
 
                     @if (SelectedRecipe is { } recipe)
                     {
@@ -60,12 +71,41 @@
                         }
                     }
 
+                    @if (SelectedRecipe?.AllowsAdditionalTriggers == true)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.subtitle1">Additional triggers</MudText>
+                        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                            @foreach (var trigger in _additionalTriggers)
+                            {
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@trigger.Name</MudChip>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                                   aria-label="Remove trigger"
+                                                   OnClick="@(() => RemoveAdditionalTrigger(trigger))" />
+                                </MudStack>
+                            }
+                        </MudStack>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddAdditionalTriggerAsync">
+                            Add trigger
+                        </MudButton>
+                    }
+
+                    @if (SelectedRecipe is FireworksShowRecipe && !_fireworksWidgetPresent)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            No enabled Fireworks widget is configured in an overlay layout.
+                            <MudButton Variant="Variant.Text" Href="/overlay/editor">Open Overlay Editor</MudButton>
+                        </MudAlert>
+                    }
+
                     <MudSelect T="string" Label="Queue" Variant="Variant.Outlined"
                                Value="_selectedQueueName" ValueChanged="OnQueueChanged" Disabled="_createQueue">
                         <MudSelectItem T="string" Value="@("Default")">Default</MudSelectItem>
                         @foreach (var queue in _queues.OrderBy(queue => queue.Name, StringComparer.OrdinalIgnoreCase))
                         {
-                            <MudSelectItem T="string" Value="@queue.Name">@queue.Name</MudSelectItem>
+                            <MudSelectItem T="string" Value="@queue.Name">@queue.Name @(queue.Enabled ? "" : "(disabled)")</MudSelectItem>
                         }
                     </MudSelect>
                     <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_createQueue" Label="Create a dedicated queue" />
@@ -74,23 +114,57 @@
                         <MudTextField T="string" Label="New queue name" Variant="Variant.Outlined"
                                       @bind-Value="_newQueueName" HelperText="Created as a blocking queue with one action at a time." Required="true" />
                     }
+                    @if (SelectedQueueIsDisabled)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            This queue is disabled. Choose an enabled queue or enable it in Actions &gt; Queues.
+                        </MudAlert>
+                    }
+                    @if (RecommendedQueueDisabled)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            The recommended queue '@SelectedRecipe?.RecommendedQueueName' is disabled. Default is selected; enable the recommended queue in Actions &gt; Queues if desired.
+                        </MudAlert>
+                    }
                 }
                 else
                 {
                     <MudText Typo="Typo.subtitle1">3. Review</MudText>
                     <MudList T="string" Dense="true">
                         <MudListItem T="string">Recipe: @SelectedRecipe?.Title</MudListItem>
-                        <MudListItem T="string">Action: @_actionName</MudListItem>
-                        <MudListItem T="string">Command: !@NormalizedCommandName</MudListItem>
                         <MudListItem T="string">Queue: @EffectiveQueueName</MudListItem>
+                        <MudListItem T="string">Action: @_actionName</MudListItem>
+                        @if (!string.IsNullOrWhiteSpace(RecipeCommandName))
+                        {
+                            <MudListItem T="string">Command: !@RecipeCommandName</MudListItem>
+                        }
+                        @foreach (var trigger in _additionalTriggers)
+                        {
+                            <MudListItem T="string">Trigger: @trigger.Name</MudListItem>
+                        }
                         @foreach (var parameter in SelectedRecipe?.Parameters ?? [])
                         {
                             <MudListItem T="string">@parameter.Label: @GetParameter(parameter.Key)</MudListItem>
                         }
                     </MudList>
                     <MudAlert Severity="Severity.Info" Dense="true">
-                        Nothing is created until you confirm. The action will be tagged with its recipe and remain editable in Manage Actions.
+                        Nothing is created until you confirm. Created actions will be tagged with their recipe and remain editable in Manage Actions.
                     </MudAlert>
+                    @if (string.IsNullOrWhiteSpace(RecipeCommandName) && _additionalTriggers.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            This action has no trigger yet. You can create it now and link it to an event later in Manage Actions.
+                        </MudAlert>
+                    }
+                    @if (SelectedRecipe is FireworksShowRecipe)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning"
+                                   StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   Disabled="@(!_fireworksWidgetPresent || _isBusy)"
+                                   OnClick="TestFireworksAsync">
+                            Test fire
+                        </MudButton>
+                    }
                 }
         </MudStack>
     </DialogContent>
@@ -120,9 +194,11 @@
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
     [Inject] private NavigationManager NavigationManager { get; set; } = null!;
+    [Parameter] public string? InitialRecipeId { get; set; }
 
     private IReadOnlyList<IActionRecipe> _recipes = [];
     private readonly Dictionary<string, string> _parameters = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<TriggerType> _additionalTriggers = [];
     private List<QueueConfiguration> _queues = [];
     private string _selectedRecipeId = string.Empty;
     private string _actionName = string.Empty;
@@ -133,12 +209,24 @@
     private int _step;
     private bool _createQueue;
     private bool _isBusy;
+    private bool _fireworksWidgetPresent;
 
     private IActionRecipe? SelectedRecipe =>
         _recipes.FirstOrDefault(recipe => string.Equals(recipe.Id, _selectedRecipeId, StringComparison.OrdinalIgnoreCase));
 
+    private static string GetDefaultActionName(IActionRecipe recipe) =>
+        recipe.Id == "chat-command-reply" ? "Chat Reply" : recipe.Title;
+
     private string NormalizedCommandName => ChatReplyRecipe.NormalizeCommandName(_commandName);
+    private string RecipeCommandName => SelectedRecipe?.RequiresCommand == false
+        ? ChatReplyRecipe.NormalizeCommandName(GetParameter("CommandName"))
+        : NormalizedCommandName;
     private string EffectiveQueueName => (_createQueue ? _newQueueName : _selectedQueueName).Trim();
+    private bool SelectedQueueIsDisabled => !_createQueue && _queues.FirstOrDefault(queue =>
+        string.Equals(queue.Name, _selectedQueueName, StringComparison.OrdinalIgnoreCase)) is { Enabled: false };
+    private bool RecommendedQueueDisabled => SelectedRecipe?.RecommendedQueueName is { } recommendedName &&
+        string.Equals(_selectedQueueName, "Default", StringComparison.OrdinalIgnoreCase) &&
+        _queues.Any(queue => !queue.Enabled && queue.Name.Equals(recommendedName, StringComparison.OrdinalIgnoreCase));
 
     private bool CanContinue => _step switch
     {
@@ -151,14 +239,24 @@
     {
         _recipes = RecipeRegistry.GetAll();
         _queues = await QueueManager.GetAllQueuesAsync();
-        _selectedRecipeId = _recipes.FirstOrDefault()?.Id ?? string.Empty;
+        _selectedRecipeId = _recipes.FirstOrDefault(recipe => string.Equals(recipe.Id, InitialRecipeId, StringComparison.OrdinalIgnoreCase))?.Id
+            ?? _recipes.FirstOrDefault()?.Id
+            ?? string.Empty;
         InitializeParameters();
+        await LoadFireworksWidgetPresenceAsync();
     }
 
     private void OnRecipeChanged(string? recipeId)
     {
+        var oldRecipe = SelectedRecipe;
         _selectedRecipeId = recipeId ?? string.Empty;
         _parameters.Clear();
+        _additionalTriggers.Clear();
+        _createQueue = false;
+        _newQueueName = string.Empty;
+        _selectedQueueName = "Default";
+        if (oldRecipe != null && string.Equals(_actionName, GetDefaultActionName(oldRecipe), StringComparison.OrdinalIgnoreCase))
+            _actionName = string.Empty;
         InitializeParameters();
     }
 
@@ -170,9 +268,31 @@
             _parameters[parameter.Key] = parameter.DefaultValue;
         }
 
+        _additionalTriggers.Clear();
+
+        if (!string.IsNullOrWhiteSpace(SelectedRecipe.RecommendedQueueName))
+        {
+            var recommendedQueue = _queues.FirstOrDefault(queue => queue.Name.Equals(SelectedRecipe.RecommendedQueueName, StringComparison.OrdinalIgnoreCase));
+            if (recommendedQueue is { Enabled: true })
+            {
+                _selectedQueueName = recommendedQueue.Name;
+            }
+            else if (recommendedQueue == null)
+            {
+                _createQueue = true;
+                _newQueueName = SelectedRecipe.RecommendedQueueName;
+            }
+            else
+            {
+                _createQueue = false;
+                _newQueueName = string.Empty;
+                _selectedQueueName = "Default";
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(_actionName))
         {
-            _actionName = SelectedRecipe.Id == "chat-command-reply" ? "Chat Reply" : SelectedRecipe.Title;
+            _actionName = GetDefaultActionName(SelectedRecipe);
         }
     }
 
@@ -180,7 +300,101 @@
 
     private void SetParameter(string key, string? value) => _parameters[key] = value ?? string.Empty;
 
-    private void OnQueueChanged(string? queueName) => _selectedQueueName = queueName ?? "Default";
+    private void OnQueueChanged(string? queueName)
+    {
+        _selectedQueueName = queueName ?? "Default";
+        _createQueue = false;
+    }
+
+    private static TriggerType CloneTrigger(TriggerType trigger) => new()
+    {
+        Name = trigger.Name,
+        Type = trigger.Type,
+        Configuration = trigger.Configuration,
+        Enabled = true,
+        CommandId = trigger.CommandId,
+        DefaultCommandId = trigger.DefaultCommandId,
+        KeywordId = trigger.KeywordId,
+        TimerGroupId = trigger.TimerGroupId
+    };
+
+    private void RemoveAdditionalTrigger(TriggerType trigger) => _additionalTriggers.Remove(trigger);
+
+    private async Task AddAdditionalTriggerAsync()
+    {
+        var parameters = new DialogParameters<AddTriggerDialog>
+        {
+            { dialog => dialog.DisableResourceCreation, true }
+        };
+        var dialog = await DialogService.ShowAsync<AddTriggerDialog>("Add Trigger", parameters, new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        });
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: not null }) return;
+
+        dynamic data = result.Data;
+        var trigger = new TriggerType
+        {
+            Name = (string)data.TriggerName,
+            Type = (TriggerTypes)data.TriggerType,
+            Configuration = (string)data.Configuration,
+            Enabled = true,
+            CommandId = (Guid?)data.CommandId,
+            DefaultCommandId = (Guid?)data.DefaultCommandId,
+            KeywordId = (Guid?)data.KeywordId,
+            TimerGroupId = (Guid?)data.TimerGroupId
+        };
+        _additionalTriggers.Add(trigger);
+    }
+
+    private async Task LoadFireworksWidgetPresenceAsync()
+    {
+        try
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var layouts = await unitOfWork.OverlayLayouts.GetAllWithWidgetsAsync();
+            _fireworksWidgetPresent = layouts.SelectMany(layout => layout.Widgets).Any(widget =>
+                widget.IsEnabled && widget.WidgetType.Equals("fireworks", StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            _fireworksWidgetPresent = false;
+        }
+    }
+
+    private async Task TestFireworksAsync()
+    {
+        if (!_fireworksWidgetPresent || _isBusy) return;
+        try
+        {
+            var count = ParseTestValue("BurstCount", 1, 100, 1);
+            var delay = ParseTestValue("DelayMilliseconds", 0, 60000, 100);
+            await WebSocketMessenger.AddToQueue(new WsEvent
+            {
+                Event = new WsEventType { Source = "SubAction", Type = "Fireworks" },
+                Data = new Dictionary<string, object>
+                {
+                    ["jobId"] = Guid.NewGuid().ToString("N"),
+                    ["count"] = count,
+                    ["delayMs"] = delay,
+                    ["shell"] = GetParameter("Shell").Trim(),
+                    ["size"] = GetParameter("Size").Trim()
+                }
+            });
+            Snackbar.Add("Fireworks test show queued.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not send the Fireworks test: {ex.Message}";
+        }
+    }
+
+    private int ParseTestValue(string key, int min, int max, int fallback) =>
+        int.TryParse(GetParameter(key), out var value) ? Math.Clamp(value, min, max) : fallback;
 
     private void Next()
     {
@@ -213,14 +427,25 @@
             error = "Action name is required.";
             return false;
         }
-        if (string.IsNullOrWhiteSpace(NormalizedCommandName) || NormalizedCommandName.Any(char.IsWhiteSpace))
+        if (SelectedRecipe.RequiresCommand &&
+            (string.IsNullOrWhiteSpace(NormalizedCommandName) || NormalizedCommandName.Any(char.IsWhiteSpace)))
         {
             error = "Enter a single command name without spaces.";
+            return false;
+        }
+        if (!SelectedRecipe.RequiresCommand && RecipeCommandName.Any(char.IsWhiteSpace))
+        {
+            error = "Enter a single command name without spaces, or leave it blank.";
             return false;
         }
         if (string.IsNullOrWhiteSpace(EffectiveQueueName))
         {
             error = "Select or enter a queue name.";
+            return false;
+        }
+        if (SelectedQueueIsDisabled)
+        {
+            error = "The selected queue is disabled. Choose an enabled queue or enable it in Actions > Queues.";
             return false;
         }
         foreach (var parameter in SelectedRecipe.Parameters.Where(parameter => parameter.Required))
@@ -244,6 +469,7 @@
         {
             var recipe = SelectedRecipe!;
             var actionName = _actionName.Trim();
+            var queueName = EffectiveQueueName;
             var existingActions = await ActionService.GetActionSummariesAsync();
             if (existingActions.Any(action => string.Equals(action.Name, actionName, StringComparison.OrdinalIgnoreCase)))
             {
@@ -251,14 +477,17 @@
                 return;
             }
 
-            var command = await CommandService.GetByCommandNameAsync(NormalizedCommandName);
-            if (command == null && await CommandService.CommandExistsAsync(NormalizedCommandName))
+            ActionCommand? command = null;
+            if (!string.IsNullOrWhiteSpace(RecipeCommandName))
             {
-                _error = "That command name is already used by another command type.";
-                return;
+                command = await CommandService.GetByCommandNameAsync(RecipeCommandName);
+                if (command == null && await CommandService.CommandExistsAsync(RecipeCommandName))
+                {
+                    _error = $"The command !{RecipeCommandName} is already used by another command type.";
+                    return;
+                }
             }
 
-            var queueName = EffectiveQueueName;
             if (_createQueue)
             {
                 if (queueName.Equals("Default", StringComparison.OrdinalIgnoreCase))
@@ -285,22 +514,16 @@
                 _newQueueName = string.Empty;
             }
 
-            if (command == null)
+            if (command == null && !string.IsNullOrWhiteSpace(RecipeCommandName))
             {
-                command = await CommandService.AddAsync(new ActionCommand
-                {
-                    CommandName = NormalizedCommandName,
-                    Category = "Recipes / Chat",
-                    Description = $"Created by recipe: {recipe.Id}",
-                    Disabled = false,
-                    MinimumRank = Rank.Viewer,
-                    SourceOnly = true
-                });
+                command = await CreateRecipeCommandAsync(RecipeCommandName, recipe);
             }
 
             var action = recipe.Build(
-                new ActionRecipeContext(actionName, queueName, command.CommandName, command.Id),
+                new ActionRecipeContext(actionName, queueName, command?.CommandName ?? string.Empty, command?.Id ?? Guid.Empty),
                 _parameters);
+            action.Triggers ??= [];
+            action.Triggers.AddRange(_additionalTriggers.Select(CloneTrigger));
             var createdAction = await ActionService.CreateActionAsync(action);
             try
             {
@@ -311,6 +534,7 @@
                 Snackbar.Add($"Action created, but its recipe tag could not be saved: {tagException.Message}", Severity.Warning);
             }
 
+            Snackbar.Add($"Created action '{createdAction.Name}' from {recipe.Title}.", Severity.Success);
             MudDialog.Close(DialogResult.Ok(createdAction.Id));
         }
         catch (Exception ex)
@@ -322,6 +546,17 @@
             _isBusy = false;
         }
     }
+
+    private async Task<ActionCommand> CreateRecipeCommandAsync(string commandName, IActionRecipe recipe) =>
+        await CommandService.AddAsync(new ActionCommand
+        {
+            CommandName = commandName,
+            Category = $"Recipes / {recipe.Category}",
+            Description = $"Created by recipe: {recipe.Id}",
+            Disabled = false,
+            MinimumRank = Rank.Viewer,
+            SourceOnly = true
+        });
 
     private void Cancel() => MudDialog.Cancel();
 }

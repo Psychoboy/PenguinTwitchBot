@@ -17,14 +17,18 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var subAction = new FireworksType
             {
                 Count = "$math(%Amount% + 1)$",
+                StartDelayMilliseconds = "%StartDelay%",
                 DelayMilliseconds = "%Delay%",
+                DelayVarianceMilliseconds = "$math(%Variance% + 5)$",
                 Shell = "%Shell%",
                 Size = "5"
             };
             var variables = new ConcurrentDictionary<string, string>
             {
                 ["Amount"] = "2",
+                ["StartDelay"] = "900",
                 ["Delay"] = "75",
+                ["Variance"] = "20",
                 ["Shell"] = "Crossette"
             };
 
@@ -33,8 +37,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             await webSocketMessenger.Received(1).AddToQueue(Arg.Is<WsEvent>(message =>
                 message.Event.Source == "SubAction" &&
                 message.Event.Type == "Fireworks" &&
+                Guid.Parse((string)message.Data["jobId"]) != Guid.Empty &&
                 (int)message.Data["count"] == 3 &&
+                (int)message.Data["startDelayMs"] == 900 &&
                 (int)message.Data["delayMs"] == 75 &&
+                (int)message.Data["delayVarianceMs"] == 25 &&
                 (string)message.Data["shell"] == "Crossette" &&
                 (string)message.Data["size"] == "5"));
         }

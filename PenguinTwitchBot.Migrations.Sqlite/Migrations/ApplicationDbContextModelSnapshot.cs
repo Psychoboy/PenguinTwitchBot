@@ -3088,11 +3088,19 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DelayVarianceMilliseconds")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Shell")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Size")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StartDelayMilliseconds")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

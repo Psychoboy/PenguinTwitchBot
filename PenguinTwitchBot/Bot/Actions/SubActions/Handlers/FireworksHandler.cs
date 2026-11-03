@@ -19,7 +19,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var count = ResolveInteger(fireworksType.Count, variables, 1, 100, "Burst count");
+            var startDelayMilliseconds = ResolveInteger(fireworksType.StartDelayMilliseconds, variables, 0, 60000, "Delay before first burst");
             var delayMilliseconds = ResolveInteger(fireworksType.DelayMilliseconds, variables, 0, 60000, "Delay between bursts");
+            var delayVarianceMilliseconds = ResolveInteger(fireworksType.DelayVarianceMilliseconds, variables, 0, 60000, "Delay variance");
             var shell = VariableReplacer.ReplaceVariables(fireworksType.Shell, variables).Trim();
             var size = VariableReplacer.ReplaceVariables(fireworksType.Size, variables).Trim();
             if (!string.IsNullOrEmpty(size) &&
@@ -34,8 +36,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 Event = new WsEventType { Source = "SubAction", Type = "Fireworks" },
                 Data = new Dictionary<string, object>
                 {
+                    ["jobId"] = Guid.NewGuid().ToString("N"),
                     ["count"] = count,
+                    ["startDelayMs"] = startDelayMilliseconds,
                     ["delayMs"] = delayMilliseconds,
+                    ["delayVarianceMs"] = delayVarianceMilliseconds,
                     ["shell"] = shell,
                     ["size"] = size
                 }
