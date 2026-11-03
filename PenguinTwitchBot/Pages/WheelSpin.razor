@@ -33,7 +33,7 @@
                         @Wheels.Count Configured @(Wheels.Count == 1 ? "Wheel" : "Wheels")
                     </MudChip>
                 }
-                <MudButton Href="@OverlayPath" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.OpenInNew">Open Overlay</MudButton>
+                <MudButton Href="@OverlayUrl" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.OpenInNew">Open Overlay</MudButton>
                 <MudTooltip Text="Copy the wheel overlay URL to use as an OBS browser source (or add the Wheel widget in the Overlay Editor)">
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyOverlayUrlAsync">Copy OBS URL</MudButton>
                 </MudTooltip>
@@ -292,12 +292,11 @@
     }
 
     private string _overlayKey = string.Empty;
-    private string OverlayPath => $"/wheel.html?key={Uri.EscapeDataString(_overlayKey)}";
+    private string OverlayUrl => Navigation.ToAbsoluteUri($"wheel.html?key={Uri.EscapeDataString(_overlayKey)}").ToString();
 
     private async Task CopyOverlayUrlAsync()
     {
-        var baseUri = Navigation.BaseUri.TrimEnd('/');
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", baseUri + OverlayPath);
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", OverlayUrl);
         Snackbar.Add("OBS URL copied to clipboard!", Severity.Info);
     }
 

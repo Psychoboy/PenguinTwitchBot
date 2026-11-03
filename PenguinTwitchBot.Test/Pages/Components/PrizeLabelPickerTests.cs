@@ -57,7 +57,7 @@ public class PrizeLabelPickerTests
             .Add(component => component.Value, "Jackpott")
             .Add(component => component.ValueChanged, (string? value) => { chosen = value; }));
 
-        Assert.Contains("will never fire", cut.Markup);
+        Assert.Contains("No saved prize has this label", cut.Markup);
         await cut.InvokeAsync(() => cut.FindComponent<MudAutocomplete<string>>().Instance.ValueChanged.InvokeAsync("Jackpot"));
         Assert.Equal("Jackpot", chosen);
     }
@@ -70,6 +70,6 @@ public class PrizeLabelPickerTests
             .Add(component => component.EventType, DefaultCommandEventTypes.UfoClawResult)
             .Add(component => component.Value, "Anything"));
 
-        Assert.DoesNotContain("will never fire", cut.Markup);
+        Assert.DoesNotContain("No saved prize has this label", cut.Markup);
     }
 }

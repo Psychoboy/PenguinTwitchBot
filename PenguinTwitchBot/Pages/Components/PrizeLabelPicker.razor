@@ -19,7 +19,7 @@
     private bool IsUnknown => !string.IsNullOrWhiteSpace(Value) && _loadedFor != null && _labels.Count > 0 &&
                               !_labels.Contains(Value.Trim(), StringComparer.OrdinalIgnoreCase);
 
-    private string UnknownText => "No saved prize has this label, so this trigger will never fire unless the label is created later.";
+    private string UnknownText => "No saved prize has this label.";
 
     private string HelperText => _labels.Count == 0
         ? "Only run for this exact prize label (case-insensitive). Leave empty for any prize."
