@@ -54,5 +54,26 @@ namespace PenguinTwitchBot.Test.Bot.Validation
             action.Enabled = false;
             Assert.Null(ValidationService.CreateFireworksWidgetIssue([action], []));
         }
+
+        [Fact]
+        public void CreateFireworksWidgetIssue_IgnoresFireworksInsideDisabledLogicBranch()
+        {
+            var logic = new LogicIfElseType
+            {
+                Enabled = false,
+                TrueSubActions = [new FireworksType()]
+            };
+            var action = new ActionType
+            {
+                Name = "Fireworks Show",
+                Enabled = true,
+                SubActions = [logic]
+            };
+
+            Assert.Null(ValidationService.CreateFireworksWidgetIssue([action], []));
+
+            logic.Enabled = true;
+            Assert.NotNull(ValidationService.CreateFireworksWidgetIssue([action], []));
+        }
     }
 }

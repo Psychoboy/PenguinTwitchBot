@@ -1,3 +1,4 @@
+using System.Globalization;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
@@ -48,7 +49,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 PropertyName = nameof(Size),
                 Label = "Size Override (Optional)",
                 FieldType = UIFieldType.Text,
-                HelperText = "Leave blank to use the Fireworks widget setting. Supports %variables%."
+                HelperText = "Leave blank to use the Fireworks widget setting. Use 0-5; supports %variables%."
             },
             new()
             {
@@ -77,6 +78,32 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             if (values.TryGetValue(nameof(Enabled), out var enabled)) Enabled = enabled as bool? ?? true;
         }
 
-        public string? Validate(Dictionary<string, object?> values) => null;
+        public string? Validate(Dictionary<string, object?> values)
+        {
+            if (!values.TryGetValue(nameof(Size), out var sizeValue) || sizeValue == null)
+            {
+                return null;
+            }
+
+            var size = sizeValue switch
+            {
+                string text => text.Trim(),
+                IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture)?.Trim() ?? "",
+                _ => sizeValue.ToString()?.Trim() ?? ""
+            };
+
+            if (string.IsNullOrWhiteSpace(size) || size.Contains('%') || size.Contains("$math(", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            if (!double.TryParse(size, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ||
+                !double.IsFinite(parsed) || parsed < 0 || parsed > 5)
+            {
+                return "Size must be blank or resolve to a number between 0 and 5.";
+            }
+
+            return null;
+        }
     }
 }

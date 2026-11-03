@@ -14,10 +14,18 @@
                 timerPending = true;
                 timers.setTimeout(function () {
                     timerPending = false;
-                    if (queue.length > 0 && launch(queue[0]) !== false) {
-                        queue.shift();
+                    try {
+                        if (queue.length > 0 && launch(queue[0]) !== false) {
+                            queue.shift();
+                        }
+                    } catch (error) {
+                        if (queue.length > 0) queue.shift();
+                        if (global.console && typeof global.console.error === 'function') {
+                            global.console.error('Fireworks launch failed', error);
+                        }
+                    } finally {
+                        scheduleNext();
                     }
-                    scheduleNext();
                 }, delay);
             }
 

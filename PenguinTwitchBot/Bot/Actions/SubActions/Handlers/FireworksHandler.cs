@@ -22,6 +22,12 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             var delayMilliseconds = ResolveInteger(fireworksType.DelayMilliseconds, variables, 0, 60000, "Delay between bursts");
             var shell = VariableReplacer.ReplaceVariables(fireworksType.Shell, variables).Trim();
             var size = VariableReplacer.ReplaceVariables(fireworksType.Size, variables).Trim();
+            if (!string.IsNullOrEmpty(size) &&
+                (!double.TryParse(size, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedSize) ||
+                 !double.IsFinite(parsedSize) || parsedSize < 0 || parsedSize > 5))
+            {
+                throw new ArgumentOutOfRangeException(nameof(fireworksType.Size), "Fireworks size must resolve to a number between 0 and 5, or be empty.");
+            }
 
             await webSocketMessenger.AddToQueue(new WsEvent
             {

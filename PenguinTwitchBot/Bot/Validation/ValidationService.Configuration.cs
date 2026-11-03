@@ -185,6 +185,8 @@ namespace PenguinTwitchBot.Bot.Validation
             if (subActions == null) yield break;
             foreach (var subAction in subActions)
             {
+                if (!subAction.Enabled) continue;
+
                 yield return subAction;
                 if (subAction is LogicIfElseType logic)
                 {

@@ -84,6 +84,36 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal(240, engine.Evaluate("window.minimumGap").AsNumber());
         }
 
+        [Fact]
+        public void LaunchQueue_RemovesFailedHeadLogsAndContinues()
+        {
+            var engine = CreateEngine();
+            engine.Execute(@"
+                var timers = [];
+                var launchCount = 0;
+                var loggedErrors = 0;
+                window.console = { error: function () { loggedErrors++; } };
+                var queue = window.FireworksEventHandler.createLaunchQueue(
+                    function () {
+                        launchCount++;
+                        if (launchCount === 1) throw new Error('test launch failure');
+                        return true;
+                    },
+                    function () { return 0; },
+                    { setTimeout: function (callback) { timers.push(callback); } });
+                queue.enqueue({ id: 1 });
+                queue.enqueue({ id: 2 });
+                while (timers.length > 0) timers.shift()();
+                window.launchCount = launchCount;
+                window.loggedErrors = loggedErrors;
+                window.pendingCount = queue.getPendingCount();
+            ");
+
+            Assert.Equal(2, engine.Evaluate("window.launchCount").AsNumber());
+            Assert.Equal(1, engine.Evaluate("window.loggedErrors").AsNumber());
+            Assert.Equal(0, engine.Evaluate("window.pendingCount").AsNumber());
+        }
+
         private static Engine CreateEngine()
         {
             var engine = new Engine();

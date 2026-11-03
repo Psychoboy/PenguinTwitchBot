@@ -1875,8 +1875,10 @@
 				if (settings.shell && Object.prototype.hasOwnProperty.call(shellTypes, settings.shell)) {
 					overlayConfig.shell = settings.shell;
 				}
-				if (Number.isFinite(settings.size) && settings.size >= 1 && settings.size <= 100) {
-					overlayConfig.size = settings.size;
+				const hasSizeOverride = settings.size !== '' && settings.size !== null && settings.size !== undefined;
+				const size = Number(settings.size);
+				if (hasSizeOverride && Number.isFinite(size)) {
+					overlayConfig.size = Math.max(0, Math.min(5, size));
 				}
 
 				clearTimeout(timer);
