@@ -156,6 +156,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.ChatReplyRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.FireworksShowRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.AlertRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipeRegistry, Bot.Actions.Recipes.ActionRecipeRegistry>();
             services.AddScoped<Bot.Actions.Recipes.IActionRecipeTagStore, Bot.Actions.Recipes.ActionRecipeTagStore>();
             services.AddScoped<Bot.Actions.IRaffleSetupService, Bot.Actions.RaffleSetupService>();

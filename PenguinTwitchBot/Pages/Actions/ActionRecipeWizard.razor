@@ -6,6 +6,8 @@
 @using PenguinTwitchBot.Database.Bot.Models.Points
 @using PenguinTwitchBot.Database.Bot.Models.Queues
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Helpers
 @using PenguinTwitchBot.Database.Repository
 @using Microsoft.Extensions.DependencyInjection
 @using System.Text.Json
@@ -60,14 +62,26 @@
 
                     @if (SelectedRecipe is { } recipe)
                     {
-                        @foreach (var parameter in recipe.Parameters)
+                        @if (recipe is AlertRecipe)
                         {
-                            <MudTextField T="string" Label="@parameter.Label" Variant="Variant.Outlined"
-                                          Lines="@(parameter.Type == ActionRecipeParameterType.Multiline ? 3 : 1)"
-                                          Value="@GetParameter(parameter.Key)"
-                                          ValueChanged="@(value => SetParameter(parameter.Key, value))"
-                                          HelperText="@parameter.HelperText"
-                                          Required="@parameter.Required" />
+                            <MudTextField T="string" Label="Chat command (optional)" Variant="Variant.Outlined"
+                                          Value="@GetParameter("CommandName")"
+                                          ValueChanged="@(value => SetParameter("CommandName", value))"
+                                          HelperText="Enter a command without !, or leave blank to use another trigger." />
+                            <AlertSubActionEditor Alert="@_alertRecipeSettings"
+                                                  AlertChanged="OnAlertSettingsChanged" />
+                        }
+                        else
+                        {
+                            @foreach (var parameter in recipe.Parameters)
+                            {
+                                <MudTextField T="string" Label="@parameter.Label" Variant="Variant.Outlined"
+                                              Lines="@(parameter.Type == ActionRecipeParameterType.Multiline ? 3 : 1)"
+                                              Value="@GetParameter(parameter.Key)"
+                                              ValueChanged="@(value => SetParameter(parameter.Key, value))"
+                                              HelperText="@parameter.HelperText"
+                                              Required="@parameter.Required" />
+                            }
                         }
                     }
 
@@ -146,6 +160,14 @@
                         {
                             <MudListItem T="string">@parameter.Label: @GetParameter(parameter.Key)</MudListItem>
                         }
+                        @if (SelectedRecipe is AlertRecipe)
+                        {
+                            <MudListItem T="string">Alert text: @_alertRecipeSettings.Text</MudListItem>
+                            <MudListItem T="string">Media: @(string.IsNullOrWhiteSpace(_alertRecipeSettings.File) ? "Text only" : _alertRecipeSettings.File)</MudListItem>
+                            <MudListItem T="string">Audio: @(string.IsNullOrWhiteSpace(_alertRecipeSettings.AudioFile) ? "None selected" : _alertRecipeSettings.AudioFile)</MudListItem>
+                            <MudListItem T="string">Duration: @_alertRecipeSettings.Duration seconds</MudListItem>
+                            <MudListItem T="string">Channel: @(string.IsNullOrWhiteSpace(_alertRecipeSettings.AlertChannel) ? "Default" : _alertRecipeSettings.AlertChannel)</MudListItem>
+                        }
                     </MudList>
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Nothing is created until you confirm. Created actions will be tagged with their recipe and remain editable in Manage Actions.
@@ -210,12 +232,19 @@
     private bool _createQueue;
     private bool _isBusy;
     private bool _fireworksWidgetPresent;
+    private AlertType _alertRecipeSettings = CreateDefaultAlertSettings();
 
     private IActionRecipe? SelectedRecipe =>
         _recipes.FirstOrDefault(recipe => string.Equals(recipe.Id, _selectedRecipeId, StringComparison.OrdinalIgnoreCase));
 
     private static string GetDefaultActionName(IActionRecipe recipe) =>
         recipe.Id == "chat-command-reply" ? "Chat Reply" : recipe.Title;
+
+    private static AlertType CreateDefaultAlertSettings() => new()
+    {
+        Duration = 6,
+        CSS = AlertCssHelper.GenerateCss(AlertCssHelper.Presets["Classic White with Outline"])
+    };
 
     private string NormalizedCommandName => ChatReplyRecipe.NormalizeCommandName(_commandName);
     private string RecipeCommandName => SelectedRecipe?.RequiresCommand == false
@@ -257,6 +286,7 @@
         _selectedQueueName = "Default";
         if (oldRecipe != null && string.Equals(_actionName, GetDefaultActionName(oldRecipe), StringComparison.OrdinalIgnoreCase))
             _actionName = string.Empty;
+        _alertRecipeSettings = SelectedRecipe is AlertRecipe ? CreateDefaultAlertSettings() : new AlertType();
         InitializeParameters();
     }
 
@@ -299,6 +329,25 @@
     private string GetParameter(string key) => _parameters.GetValueOrDefault(key, string.Empty);
 
     private void SetParameter(string key, string? value) => _parameters[key] = value ?? string.Empty;
+
+    private Task OnAlertSettingsChanged(AlertType alert)
+    {
+        _alertRecipeSettings = alert;
+        SyncAlertRecipeParameters();
+        return Task.CompletedTask;
+    }
+
+    private void SyncAlertRecipeParameters()
+    {
+        if (SelectedRecipe is not AlertRecipe) return;
+        _parameters["AlertText"] = _alertRecipeSettings.Text ?? string.Empty;
+        _parameters["File"] = _alertRecipeSettings.File ?? string.Empty;
+        _parameters["AudioFile"] = _alertRecipeSettings.AudioFile ?? string.Empty;
+        _parameters["Duration"] = _alertRecipeSettings.Duration.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _parameters["Volume"] = _alertRecipeSettings.Volume.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _parameters["CSS"] = _alertRecipeSettings.CSS ?? string.Empty;
+        _parameters["AlertChannel"] = _alertRecipeSettings.AlertChannel ?? string.Empty;
+    }
 
     private void OnQueueChanged(string? queueName)
     {
@@ -420,6 +469,15 @@
         if (SelectedRecipe == null)
         {
             error = "Choose a recipe.";
+            return false;
+        }
+        SyncAlertRecipeParameters();
+        if (SelectedRecipe is AlertRecipe &&
+            (string.IsNullOrWhiteSpace(_alertRecipeSettings.Text) ||
+             _alertRecipeSettings.Duration is < 1 or > 60 ||
+             _alertRecipeSettings.Volume is < 0 or > 1))
+        {
+            error = "Enter alert text, a duration from 1 to 60 seconds, and a volume from 0 to 100%.";
             return false;
         }
         if (string.IsNullOrWhiteSpace(_actionName))

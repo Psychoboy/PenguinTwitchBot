@@ -54,18 +54,24 @@
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </div>
                 <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
-                    <MudButton Color="@(_filter == MediaTypeFilter.All ? Color.Primary : Color.Default)"
-                               Variant="@(_filter == MediaTypeFilter.All ? Variant.Filled : Variant.Outlined)"
-                               OnClick="@(() => _filter = MediaTypeFilter.All)">All</MudButton>
-                    <MudButton Color="@(_filter == MediaTypeFilter.Images ? Color.Primary : Color.Default)"
-                               Variant="@(_filter == MediaTypeFilter.Images ? Variant.Filled : Variant.Outlined)"
-                               OnClick="@(() => _filter = MediaTypeFilter.Images)">Images</MudButton>
-                    <MudButton Color="@(_filter == MediaTypeFilter.Videos ? Color.Primary : Color.Default)"
-                               Variant="@(_filter == MediaTypeFilter.Videos ? Variant.Filled : Variant.Outlined)"
-                               OnClick="@(() => _filter = MediaTypeFilter.Videos)">Videos</MudButton>
-                    <MudButton Color="@(_filter == MediaTypeFilter.Audio ? Color.Primary : Color.Default)"
-                               Variant="@(_filter == MediaTypeFilter.Audio ? Variant.Filled : Variant.Outlined)"
-                               OnClick="@(() => _filter = MediaTypeFilter.Audio)">Audio</MudButton>
+                    @if (!AudioOnly)
+                    {
+                        <MudButton Color="@(_filter == MediaTypeFilter.All ? Color.Primary : Color.Default)"
+                                   Variant="@(_filter == MediaTypeFilter.All ? Variant.Filled : Variant.Outlined)"
+                                   OnClick="@(() => _filter = MediaTypeFilter.All)">All</MudButton>
+                        <MudButton Color="@(_filter == MediaTypeFilter.Images ? Color.Primary : Color.Default)"
+                                   Variant="@(_filter == MediaTypeFilter.Images ? Variant.Filled : Variant.Outlined)"
+                                   OnClick="@(() => _filter = MediaTypeFilter.Images)">Images</MudButton>
+                        <MudButton Color="@(_filter == MediaTypeFilter.Videos ? Color.Primary : Color.Default)"
+                                   Variant="@(_filter == MediaTypeFilter.Videos ? Variant.Filled : Variant.Outlined)"
+                                   OnClick="@(() => _filter = MediaTypeFilter.Videos)">Videos</MudButton>
+                    }
+                    @if (!ImageVideoOnly)
+                    {
+                        <MudButton Color="@(_filter == MediaTypeFilter.Audio ? Color.Primary : Color.Default)"
+                                   Variant="@(_filter == MediaTypeFilter.Audio ? Variant.Filled : Variant.Outlined)"
+                                   OnClick="@(() => _filter = MediaTypeFilter.Audio)">Audio</MudButton>
+                    }
                 </MudButtonGroup>
                 <MudTooltip Text="Toggle Grid / List View">
                     <MudToggleIconButton @bind-Toggled="_isGridView"
@@ -267,6 +273,8 @@
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public bool SelectionMode { get; set; } = false;
+    [Parameter] public bool ImageVideoOnly { get; set; }
+    [Parameter] public bool AudioOnly { get; set; }
 
     private enum MediaTypeFilter { All, Images, Videos, Audio }
 
@@ -324,6 +332,8 @@
         return _files
             .Where(f =>
             {
+                if (AudioOnly && !f.IsAudio) return false;
+                if (ImageVideoOnly && !f.IsImage && !f.IsVideo) return false;
                 if (_filter == MediaTypeFilter.Images && !f.IsImage) return false;
                 if (_filter == MediaTypeFilter.Videos && !f.IsVideo) return false;
                 if (_filter == MediaTypeFilter.Audio && !f.IsAudio) return false;

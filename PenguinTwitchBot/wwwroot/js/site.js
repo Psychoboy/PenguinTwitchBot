@@ -30,6 +30,32 @@ window.setMediaVolume = function(elementId, volume) {
     }
 };
 
+window.alertPreviewBridge = (function () {
+    const readyFrames = new WeakSet();
+    const pendingAlerts = new WeakMap();
+
+    window.addEventListener('message', function (event) {
+        if (event.origin !== window.location.origin || !event.data || event.data.type !== 'alert_preview_ready' || !event.source) return;
+        readyFrames.add(event.source);
+        if (pendingAlerts.has(event.source)) {
+            event.source.postMessage({ type: 'alert_preview', alert: pendingAlerts.get(event.source) }, window.location.origin);
+            pendingAlerts.delete(event.source);
+        }
+    });
+
+    return {
+        send: function (frame, alert) {
+            const target = frame && frame.contentWindow;
+            if (!target) return;
+            if (readyFrames.has(target)) {
+                target.postMessage({ type: 'alert_preview', alert: alert }, window.location.origin);
+            } else {
+                pendingAlerts.set(target, alert);
+            }
+        }
+    };
+})();
+
 window.panScrollElementById = function (elementId, deltaX, deltaY) {
     const el = document.getElementById(elementId);
     if (!el) return;

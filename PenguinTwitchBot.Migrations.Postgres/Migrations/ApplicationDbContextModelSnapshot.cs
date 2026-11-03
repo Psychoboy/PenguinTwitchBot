@@ -2814,6 +2814,10 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("AudioFile")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("CSS")
                         .IsRequired()
                         .HasColumnType("text");
