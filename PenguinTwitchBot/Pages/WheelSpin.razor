@@ -5,6 +5,10 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.WheelSpin.IWheelService WheelService
 @inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 @implements IDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Wheel Spins</PageTitle>
@@ -29,6 +33,10 @@
                         @Wheels.Count Configured @(Wheels.Count == 1 ? "Wheel" : "Wheels")
                     </MudChip>
                 }
+                <MudButton Href="@OverlayUrl" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.OpenInNew">Open Overlay</MudButton>
+                <MudTooltip Text="Copy the wheel overlay URL to use as an OBS browser source (or add the Wheel widget in the Overlay Editor)">
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyOverlayUrlAsync">Copy OBS URL</MudButton>
+                </MudTooltip>
                 <HelpButton Topic="wheelspin" />
             </MudStack>
         </MudStack>
@@ -39,6 +47,12 @@
                 Wheel Spin is currently disabled. The current wheel version stays available, but controls are inactive until the feature is enabled.
             </MudAlert>
         }
+
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+            <b>Prize wheels</b> are saved below and spin on the overlay; the winning slice runs your Wheel Spin automations (see Automation).
+            The <b>viewer name wheel</b> is a separate live wheel filled by viewers typing <code>!join</code>.
+            Add the overlay to OBS with Copy OBS URL, then use Show and Spin to test with the real overlay.
+        </MudAlert>
 
         <!-- Viewer Wheel Live Controls Card -->
         <MudPaper Elevation="2" Class="pa-4">
@@ -128,7 +142,7 @@
                             </MudTd>
                         </RowTemplate>
                         <NoRecordsContent>
-                            <MudText Align="Align.Center" Color="Color.Secondary" Class="pa-4">No custom wheels found.</MudText>
+                            <MudText Align="Align.Center" Color="Color.Secondary" Class="pa-4">No wheels yet. Create one on the right: give it a name, a winning message and at least two slices, then save.</MudText>
                         </NoRecordsContent>
                     </MudTable>
                 </MudPaper>
@@ -163,6 +177,7 @@
                                           HelperText="Supports {WheelSpinResult} placeholder." />
 
                             <!-- Overlay Testing Controls -->
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Show, Spin and Hide control the real overlay, and a finished spin runs your Wheel Spin automations.</MudText>
                             <MudPaper Outlined="true" Class="pa-2">
                                 <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap">
                                     <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
@@ -250,6 +265,10 @@
                 </MudPaper>
             </MudItem>
         </MudGrid>
+
+        <MudPaper Elevation="2" Class="pa-4">
+            <GameOutcomeAutomationPanel DefaultCommandName="spinwheel" GameTitle="Wheel Spin" />
+        </MudPaper>
     </MudStack>
 </MudContainer>
 @code {
@@ -268,6 +287,17 @@
         _wasWheelFeatureEnabled = FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame);
         FeatureRuntimeCoordinator.StateChanged += HandleFeatureStateChanged;
         Wheels = await WheelService.GetWheels();
+        try { _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync(); }
+        catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Error); }
+    }
+
+    private string _overlayKey = string.Empty;
+    private string OverlayUrl => Navigation.ToAbsoluteUri($"wheel.html?key={Uri.EscapeDataString(_overlayKey)}").ToString();
+
+    private async Task CopyOverlayUrlAsync()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", OverlayUrl);
+        Snackbar.Add("OBS URL copied to clipboard!", Severity.Info);
     }
 
     private void HandleFeatureStateChanged()
