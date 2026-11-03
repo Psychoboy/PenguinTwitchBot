@@ -1,0 +1,327 @@
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Actions.Recipes
+@using PenguinTwitchBot.Bot.Commands
+@using PenguinTwitchBot.Bot.Queues
+@using PenguinTwitchBot.Database.Bot.Models.Commands
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@using PenguinTwitchBot.Database.Bot.Models.Queues
+@inject IActionRecipeRegistry RecipeRegistry
+@inject IActionManagementService ActionService
+@inject IActionCommandService CommandService
+@inject IQueueManager QueueManager
+@inject IActionRecipeTagStore RecipeTagStore
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Create from recipe</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudProgressLinear Value="@((_step + 1) * 33.3)" Color="Color.Primary" />
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+            }
+
+                @if (_step == 0)
+                {
+                    <MudText Typo="Typo.subtitle1">1. Choose a recipe</MudText>
+                    <MudSelect T="string" Label="Recipe" Variant="Variant.Outlined"
+                               Value="_selectedRecipeId" ValueChanged="OnRecipeChanged">
+                        @foreach (var recipe in _recipes)
+                        {
+                            <MudSelectItem T="string" Value="@recipe.Id">@recipe.Title</MudSelectItem>
+                        }
+                    </MudSelect>
+                    @if (SelectedRecipe is { } recipe)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">@recipe.Description</MudAlert>
+                    }
+                }
+                else if (_step == 1)
+                {
+                    <MudText Typo="Typo.subtitle1">2. Configure</MudText>
+                    <MudTextField T="string" Label="Action name" Variant="Variant.Outlined"
+                                  @bind-Value="_actionName" Required="true" />
+                    <MudTextField T="string" Label="Command" Variant="Variant.Outlined"
+                                  @bind-Value="_commandName" HelperText="Enter the name without !; an existing custom command will be reused." Required="true" />
+
+                    @if (SelectedRecipe is { } recipe)
+                    {
+                        @foreach (var parameter in recipe.Parameters)
+                        {
+                            <MudTextField T="string" Label="@parameter.Label" Variant="Variant.Outlined"
+                                          Lines="@(parameter.Type == ActionRecipeParameterType.Multiline ? 3 : 1)"
+                                          Value="@GetParameter(parameter.Key)"
+                                          ValueChanged="@(value => SetParameter(parameter.Key, value))"
+                                          HelperText="@parameter.HelperText"
+                                          Required="@parameter.Required" />
+                        }
+                    }
+
+                    <MudSelect T="string" Label="Queue" Variant="Variant.Outlined"
+                               Value="_selectedQueueName" ValueChanged="OnQueueChanged" Disabled="_createQueue">
+                        <MudSelectItem T="string" Value="@("Default")">Default</MudSelectItem>
+                        @foreach (var queue in _queues.OrderBy(queue => queue.Name, StringComparer.OrdinalIgnoreCase))
+                        {
+                            <MudSelectItem T="string" Value="@queue.Name">@queue.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_createQueue" Label="Create a dedicated queue" />
+                    @if (_createQueue)
+                    {
+                        <MudTextField T="string" Label="New queue name" Variant="Variant.Outlined"
+                                      @bind-Value="_newQueueName" HelperText="Created as a blocking queue with one action at a time." Required="true" />
+                    }
+                }
+                else
+                {
+                    <MudText Typo="Typo.subtitle1">3. Review</MudText>
+                    <MudList T="string" Dense="true">
+                        <MudListItem T="string">Recipe: @SelectedRecipe?.Title</MudListItem>
+                        <MudListItem T="string">Action: @_actionName</MudListItem>
+                        <MudListItem T="string">Command: !@NormalizedCommandName</MudListItem>
+                        <MudListItem T="string">Queue: @EffectiveQueueName</MudListItem>
+                        @foreach (var parameter in SelectedRecipe?.Parameters ?? [])
+                        {
+                            <MudListItem T="string">@parameter.Label: @GetParameter(parameter.Key)</MudListItem>
+                        }
+                    </MudList>
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Nothing is created until you confirm. The action will be tagged with its recipe and remain editable in Manage Actions.
+                    </MudAlert>
+                }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_isBusy">Cancel</MudButton>
+        @if (_step > 0)
+        {
+            <MudButton OnClick="Previous" Disabled="_isBusy">Back</MudButton>
+        }
+        @if (_step < 2)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Next" Disabled="@(!CanContinue || _isBusy)">Next</MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="@(_isBusy || !CanContinue)">
+                @if (_isBusy)
+            {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+                Create action
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Inject] private NavigationManager NavigationManager { get; set; } = null!;
+
+    private IReadOnlyList<IActionRecipe> _recipes = [];
+    private readonly Dictionary<string, string> _parameters = new(StringComparer.OrdinalIgnoreCase);
+    private List<QueueConfiguration> _queues = [];
+    private string _selectedRecipeId = string.Empty;
+    private string _actionName = string.Empty;
+    private string _commandName = string.Empty;
+    private string _selectedQueueName = "Default";
+    private string _newQueueName = string.Empty;
+    private string _error = string.Empty;
+    private int _step;
+    private bool _createQueue;
+    private bool _isBusy;
+
+    private IActionRecipe? SelectedRecipe =>
+        _recipes.FirstOrDefault(recipe => string.Equals(recipe.Id, _selectedRecipeId, StringComparison.OrdinalIgnoreCase));
+
+    private string NormalizedCommandName => ChatReplyRecipe.NormalizeCommandName(_commandName);
+    private string EffectiveQueueName => (_createQueue ? _newQueueName : _selectedQueueName).Trim();
+
+    private bool CanContinue => _step switch
+    {
+        0 => SelectedRecipe != null,
+        1 => ValidateConfiguration(out _),
+        _ => SelectedRecipe != null && ValidateConfiguration(out _)
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _recipes = RecipeRegistry.GetAll();
+        _queues = await QueueManager.GetAllQueuesAsync();
+        _selectedRecipeId = _recipes.FirstOrDefault()?.Id ?? string.Empty;
+        InitializeParameters();
+    }
+
+    private void OnRecipeChanged(string? recipeId)
+    {
+        _selectedRecipeId = recipeId ?? string.Empty;
+        _parameters.Clear();
+        InitializeParameters();
+    }
+
+    private void InitializeParameters()
+    {
+        if (SelectedRecipe == null) return;
+        foreach (var parameter in SelectedRecipe.Parameters)
+        {
+            _parameters[parameter.Key] = parameter.DefaultValue;
+        }
+
+        if (string.IsNullOrWhiteSpace(_actionName))
+        {
+            _actionName = SelectedRecipe.Id == "chat-command-reply" ? "Chat Reply" : SelectedRecipe.Title;
+        }
+    }
+
+    private string GetParameter(string key) => _parameters.GetValueOrDefault(key, string.Empty);
+
+    private void SetParameter(string key, string? value) => _parameters[key] = value ?? string.Empty;
+
+    private void OnQueueChanged(string? queueName) => _selectedQueueName = queueName ?? "Default";
+
+    private void Next()
+    {
+        _error = string.Empty;
+        if (_step == 1 && !ValidateConfiguration(out var error))
+        {
+            _error = error;
+            return;
+        }
+
+        _step = Math.Min(2, _step + 1);
+    }
+
+    private void Previous()
+    {
+        _error = string.Empty;
+        _step = Math.Max(0, _step - 1);
+    }
+
+    private bool ValidateConfiguration(out string error)
+    {
+        error = string.Empty;
+        if (SelectedRecipe == null)
+        {
+            error = "Choose a recipe.";
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(_actionName))
+        {
+            error = "Action name is required.";
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(NormalizedCommandName) || NormalizedCommandName.Any(char.IsWhiteSpace))
+        {
+            error = "Enter a single command name without spaces.";
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(EffectiveQueueName))
+        {
+            error = "Select or enter a queue name.";
+            return false;
+        }
+        foreach (var parameter in SelectedRecipe.Parameters.Where(parameter => parameter.Required))
+        {
+            if (string.IsNullOrWhiteSpace(GetParameter(parameter.Key)))
+            {
+                error = $"{parameter.Label} is required.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private async Task CreateAsync()
+    {
+        if (_isBusy || !ValidateConfiguration(out _)) return;
+        _isBusy = true;
+        _error = string.Empty;
+        try
+        {
+            var recipe = SelectedRecipe!;
+            var actionName = _actionName.Trim();
+            var existingActions = await ActionService.GetActionSummariesAsync();
+            if (existingActions.Any(action => string.Equals(action.Name, actionName, StringComparison.OrdinalIgnoreCase)))
+            {
+                _error = "An action with that name already exists.";
+                return;
+            }
+
+            var command = await CommandService.GetByCommandNameAsync(NormalizedCommandName);
+            if (command == null && await CommandService.CommandExistsAsync(NormalizedCommandName))
+            {
+                _error = "That command name is already used by another command type.";
+                return;
+            }
+
+            var queueName = EffectiveQueueName;
+            if (_createQueue)
+            {
+                if (queueName.Equals("Default", StringComparison.OrdinalIgnoreCase))
+                {
+                    _error = "Default is reserved. Choose another queue name.";
+                    return;
+                }
+                if (_queues.Any(queue => queue.Name.Equals(queueName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _error = "A queue with that name already exists. Select it instead.";
+                    return;
+                }
+
+                var createdQueue = await QueueManager.CreateQueueAsync(new QueueConfiguration
+                {
+                    Name = queueName,
+                    IsBlocking = true,
+                    Enabled = true,
+                    MaxConcurrentActions = 1
+                });
+                _queues.Add(createdQueue);
+                _selectedQueueName = createdQueue.Name;
+                _createQueue = false;
+                _newQueueName = string.Empty;
+            }
+
+            if (command == null)
+            {
+                command = await CommandService.AddAsync(new ActionCommand
+                {
+                    CommandName = NormalizedCommandName,
+                    Category = "Recipes / Chat",
+                    Description = $"Created by recipe: {recipe.Id}",
+                    Disabled = false,
+                    MinimumRank = Rank.Viewer,
+                    SourceOnly = true
+                });
+            }
+
+            var action = recipe.Build(
+                new ActionRecipeContext(actionName, queueName, command.CommandName, command.Id),
+                _parameters);
+            var createdAction = await ActionService.CreateActionAsync(action);
+            try
+            {
+                await RecipeTagStore.TagAsync(createdAction.Id, recipe.Id, _parameters);
+            }
+            catch (Exception tagException)
+            {
+                Snackbar.Add($"Action created, but its recipe tag could not be saved: {tagException.Message}", Severity.Warning);
+            }
+
+            MudDialog.Close(DialogResult.Ok(createdAction.Id));
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not create the recipe action: {ex.Message}";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

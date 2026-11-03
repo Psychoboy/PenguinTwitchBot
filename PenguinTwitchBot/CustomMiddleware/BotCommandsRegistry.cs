@@ -154,6 +154,9 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddScoped(typeof(PenguinTwitchBot.Database.Repository.IGenericRepository<>), typeof(PenguinTwitchBot.Database.Repository.Repositories.GenericRepository<>));
             services.AddScoped<PenguinTwitchBot.Database.Repository.IUnitOfWork, PenguinTwitchBot.Database.Repository.UnitOfWork>();
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.ChatReplyRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipeRegistry, Bot.Actions.Recipes.ActionRecipeRegistry>();
+            services.AddScoped<Bot.Actions.Recipes.IActionRecipeTagStore, Bot.Actions.Recipes.ActionRecipeTagStore>();
             services.AddScoped<Bot.Actions.IRaffleSetupService, Bot.Actions.RaffleSetupService>();
             services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();
             services.AddScoped<Bot.Commands.IActionKeywordService, Bot.Commands.ActionKeywordService>();
