@@ -93,7 +93,7 @@ async function handleQueue() {
                 isPlaying = true;
                 lastPlaying = Date.now();
 
-                if (event.alert_image !== undefined) {
+                if (event.alert !== undefined || event.alert_image !== undefined) {
                     handleGifAlert(event);
                 } else if (event.audio_panel_hook !== undefined) {
                     handleAudioHook(event);
@@ -122,6 +122,7 @@ async function handleQueue() {
 async function handleGifAlert(json) {
     // Make sure we can allow alerts.
     let defaultPath = '/gifs/',
+        alertData = json.alert,
         gifData = json.alert_image,
         gifDuration = 3000,
         gifVolume = '0.8',
@@ -133,8 +134,13 @@ async function handleGifAlert(json) {
         isVideo = false,
         hasAudio = false;
 
-    // If a comma is found, that means there are custom settings.
-    if (gifData.indexOf(',') !== -1) {
+    if (alertData && typeof alertData === 'object') {
+        gifFile = alertData.file || '';
+        gifDuration = Math.max(1, parseInt(alertData.duration, 10) || 3) * 1000;
+        gifVolume = String(alertData.volume ?? '0.8');
+        gifCss = alertData.css || '';
+        gifText = alertData.text || '';
+    } else if (typeof gifData === 'string' && gifData.indexOf(',') !== -1) {
         let gifSettingParts = gifData.split(',');
 
         // Loop through each setting and set it if found.
@@ -161,13 +167,16 @@ async function handleGifAlert(json) {
             }
         });
     } else {
-        gifFile = gifData;
+        gifFile = gifData || '';
     }
 
+    const isMediaLibraryFile = gifFile.startsWith('/media/');
+    const mediaUrl = isMediaLibraryFile ? gifFile : defaultPath + gifFile;
+
     // Check if the file is a gif, or video.
-    if (gifFile.match(/\.(webm|mp4|ogg|ogv)$/) !== null) {
+    if (gifFile && gifFile.match(/\.(webm|mp4|ogg|ogv)$/) !== null) {
         htmlObj = $('<video/>', {
-            'src': defaultPath + gifFile,
+            'src': mediaUrl,
             'preload': 'auto'
         });
 
@@ -178,9 +187,9 @@ async function handleGifAlert(json) {
         if (!videoFormats.probably.includes(ext) && !videoFormats.maybe.includes(ext)) {
             printDebug('Video format ' + ext + ' was not supported by the browser!', true);
         }
-    } else {
+    } else if (gifFile) {
         htmlObj = $('<img/>', {
-            'src': defaultPath + gifFile,
+            'src': mediaUrl,
             'alt': "Video"
         });
         try {
@@ -190,12 +199,15 @@ async function handleGifAlert(json) {
         }
     }
 
-    let audioPath = getAudioFile(gifFile.slice(0, gifFile.indexOf('.')), defaultPath);
-
-    if (audioPath.length > 0 && gifFile.substring(gifFile.lastIndexOf('.') + 1) !== audioPath.substring(audioPath.lastIndexOf('.') + 1)) {
+    const explicitAudioFile = alertData && typeof alertData.audioFile === 'string' ? alertData.audioFile : '';
+    let audioPath = explicitAudioFile;
+    if (explicitAudioFile) {
         hasAudio = true;
-        audio = new Audio(audioPath);
+    } else if (gifFile && !isMediaLibraryFile) {
+        audioPath = getAudioFile(gifFile.slice(0, gifFile.indexOf('.')), defaultPath);
+        hasAudio = audioPath.length > 0 && gifFile.substring(gifFile.lastIndexOf('.') + 1) !== audioPath.substring(audioPath.lastIndexOf('.') + 1);
     }
+    if (hasAudio) audio = new Audio(audioPath);
 
     // p object to hold custom gif alert text and style
     textObj = $('<p/>', {
@@ -228,13 +240,21 @@ async function handleGifAlert(json) {
         audio.oncanplaythrough = (event) => {
             isReady = true;
         };
+        if (explicitAudioFile) {
+            const onAudioLoadFailure = () => {
+                hasAudio = false;
+                isReady = true;
+            };
+            audio.onerror = onAudioLoadFailure;
+            audio.onabort = onAudioLoadFailure;
+        }
         const audioIsReady = () => {
             return isReady;
         };
 
         audio.load();
         await promisePoll(() => audioIsReady(), { pollIntervalMs: 250 });
-        audio.volume = gifVolume;
+        if (hasAudio) audio.volume = gifVolume;
     }
 
     await sleep(500);
@@ -249,44 +269,59 @@ async function handleGifAlert(json) {
         });
 
     // Append a new the image.
-    $('#alert').append(htmlObj).fadeIn(1e2, async function () {// Set the volume.
-        if (isVideo) {
-            // Play the sound.
-            htmlObj[0].play().catch(function () {
-                // Ignore.
+    if (htmlObj) {
+        $('#alert').append(htmlObj).fadeIn(1e2, async function () {// Set the volume.
+            if (isVideo) {
+                // Play the sound.
+                htmlObj[0].play().catch(function () {
+                    // Ignore.
+                });
+            }
+            if (hasAudio) {
+                audio.play().catch(function () {
+                    // Ignore.
+                });
+            }
+        }).delay(gifDuration) // Wait this time before removing this image.
+            .fadeOut(1e2, function () { // Remove the image with a fade out.
+                let t = $(this);
+
+                // Remove either the img tag or video tag.
+                if (!isVideo) {
+                    // Remove the image.
+                    t.find('img').remove();
+                } else {
+                    // Remove the video.
+                    t.find('video').remove();
+                }
+
+                if (hasAudio) {
+                    // Stop the audio.
+                    audio.pause();
+                    // Reset the duration.
+                    audio.currentTime = 0;
+                }
+                if (isVideo) {
+                    htmlObj[0].pause();
+                    htmlObj[0].currentTime = 0;
+                }
+                // Mark as done playing.
+                isPlaying = false;
             });
-        }
+    } else {
         if (hasAudio) {
             audio.play().catch(function () {
                 // Ignore.
             });
         }
-    }).delay(gifDuration) // Wait this time before removing this image.
-        .fadeOut(1e2, function () { // Remove the image with a fade out.
-            let t = $(this);
-
-            // Remove either the img tag or video tag.
-            if (!isVideo) {
-                // Remove the image.
-                t.find('img').remove();
-            } else {
-                // Remove the video.
-                t.find('video').remove();
-            }
-
-            if (hasAudio) {
-                // Stop the audio.
+        window.setTimeout(function () {
+            if (audio) {
                 audio.pause();
-                // Reset the duration.
                 audio.currentTime = 0;
             }
-            if (isVideo) {
-                htmlObj[0].pause();
-                htmlObj[0].currentTime = 0;
-            }
-            // Mark as done playing.
             isPlaying = false;
-        });
+        }, gifDuration + 200);
+    }
 
 }
 
@@ -485,51 +520,66 @@ connectionUrl = scheme + "://" + document.location.hostname + port + "/ws";
 
 //stateLabel.innerHTML = "Connecting";
 //socket = new WebSocket(connectionUrl);
-socket = getWebSocket();
-socket.onopen = function (event) {
-    updateState();
-    wsStatusShow(true);
-};
-socket.onclose = function (event) {
-    updateState();
-    wsStatusShow(false);
-};
-socket.onerror = updateState;
-socket.onmessage = function (event) {
-    try {
-        handleBrowserInteraction();
-        let rawMessage = event.data;
-        if (rawMessage == "ping") {
-            socket.send("pong");
+const alertPreviewMode = new URLSearchParams(window.location.search).get('preview') === '1';
+if (alertPreviewMode) {
+    window.addEventListener('message', function (event) {
+        if (event.origin !== window.location.origin || event.source !== window.parent || !event.data || event.data.type !== 'alert_preview') {
             return;
         }
-        let message = JSON.parse(rawMessage);
+        queue.length = 0;
+        isPlaying = false;
+        queue.push({ alert: event.data.alert });
+    });
+    if (window.parent !== window) {
+        window.parent.postMessage({ type: 'alert_preview_ready' }, window.location.origin);
+    }
+} else {
+    socket = getWebSocket();
+    socket.onopen = function (event) {
+        updateState();
+        wsStatusShow(true);
+    };
+    socket.onclose = function (event) {
+        updateState();
+        wsStatusShow(false);
+    };
+    socket.onerror = updateState;
+    socket.onmessage = function (event) {
+        try {
+            handleBrowserInteraction();
+            let rawMessage = event.data;
+            if (rawMessage == "ping") {
+                socket.send("pong");
+                return;
+            }
+            let message = JSON.parse(rawMessage);
 
-        if (message.alert_image !== undefined) {
-            const myChannel = queryMap.has('alertChannel') ? queryMap.get('alertChannel') : null;
-            const msgChannel = message.alertChannel;
-            const msgHasChannel = msgChannel !== undefined && msgChannel !== null && msgChannel !== '';
+            if (message.alert !== undefined || message.alert_image !== undefined) {
+                const myChannel = queryMap.has('alertChannel') ? queryMap.get('alertChannel') : null;
+                const msgChannel = message.alertChannel;
+                const msgHasChannel = msgChannel !== undefined && msgChannel !== null && msgChannel !== '';
 
-            if (msgHasChannel) {
-                if (myChannel === msgChannel) {
-                    queue.push(message);
+                if (msgHasChannel) {
+                    if (myChannel === msgChannel) {
+                        queue.push(message);
+                    } else {
+                        printDebug('Discarded alert for channel "' + msgChannel + '" (listening on "' + (myChannel || 'default') + '")');
+                    }
                 } else {
-                    printDebug('Discarded alert_image for channel "' + msgChannel + '" (listening on "' + (myChannel || 'default') + '")');
+                    if (myChannel === null || myChannel === '') {
+                        queue.push(message);
+                    } else {
+                        printDebug('Discarded default alert (listening on channel "' + myChannel + '")');
+                    }
                 }
             } else {
-                if (myChannel === null || myChannel === '') {
-                    queue.push(message);
-                } else {
-                    printDebug('Discarded default alert_image (listening on channel "' + myChannel + '")');
-                }
+                queue.push(message);
             }
-        } else {
-            queue.push(message);
+        } catch (ex) {
+            console.log('Failed to parse socket message [' + event.data + ']: ' + ex.stack)
         }
-    } catch (ex) {
-        console.log('Failed to parse socket message [' + event.data + ']: ' + ex.stack)
-    }
-};
+    };
+}
 
 setInterval(handleQueue, 500);
 

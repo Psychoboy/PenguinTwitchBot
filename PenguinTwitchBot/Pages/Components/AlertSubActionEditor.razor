@@ -6,6 +6,7 @@
 @inject MediaUploadService MediaUploadService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
 @implements IDisposable
 
 <MudStack Spacing="3">
@@ -23,7 +24,7 @@
     <!-- Image / Video File Picker -->
     <MudStack Spacing="1">
         <MudText Typo="Typo.caption" Color="Color.Secondary"><b>Media File (Image or Video)</b></MudText>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
             <div style="flex: 1 1 auto; min-width: 0;">
                 <MudAutocomplete T="string"
                                  Value="@Alert.File"
@@ -41,6 +42,13 @@
                                  AdornmentIcon="@(IsVideo(Alert.File) ? Icons.Material.Filled.Videocam : Icons.Material.Filled.Image)"
                                  Placeholder="Search or select image/video..." />
             </div>
+
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.PhotoLibrary"
+                       OnClick="OpenMediaLibraryAsync">
+                Browse Media Library
+            </MudButton>
 
             <!-- Upload Media Button -->
             <MudFileUpload T="IBrowserFile"
@@ -63,7 +71,7 @@
                         }
                         else
                         {
-                            <text>Upload Media</text>
+                            <text>Upload Legacy Media</text>
                         }
                     </MudButton>
                 </CustomContent>
@@ -72,12 +80,12 @@
         </MudStack>
 
         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-3" Style="margin-top: -2px;">
-            Path to media file in wwwroot/gifs/ (e.g. drinks.gif, ad-shots.webm)
+            Use the Media Library for assets in wwwroot/media. Existing wwwroot/gifs files remain supported with their legacy companion-audio matching.
         </MudText>
     </MudStack>
 
     <!-- Companion Sound (Optional, tied to selected Image/Video) -->
-    @if (!string.IsNullOrWhiteSpace(Alert.File))
+    @if (!string.IsNullOrWhiteSpace(Alert.File) && !IsMediaLibraryFile && string.IsNullOrWhiteSpace(Alert.AudioFile))
     {
         <MudPaper Outlined="true" Class="pa-3" Style="background: var(--mud-palette-background-grey);">
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
@@ -142,6 +150,37 @@
         </MudPaper>
     }
 
+    <MudPaper Outlined="true" Class="pa-3" Style="background: var(--mud-palette-background-grey);">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <div>
+                <MudText Typo="Typo.subtitle2">Explicit Audio (Optional)</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Select any audio file from the Media Library. It does not need to share a name with the image or video.
+                </MudText>
+                @if (!string.IsNullOrWhiteSpace(Alert.AudioFile))
+                {
+                    <MudText Typo="Typo.body2" Class="mt-1">@Alert.AudioFile</MudText>
+                }
+            </div>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                @if (!string.IsNullOrWhiteSpace(Alert.AudioFile))
+                {
+                    <MudTooltip Text="Clear selected audio">
+                        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                       Color="Color.Error"
+                                       OnClick="ClearExplicitAudioAsync" />
+                    </MudTooltip>
+                }
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.AudioFile"
+                           OnClick="OpenAudioLibraryAsync">
+                    @(string.IsNullOrWhiteSpace(Alert.AudioFile) ? "Select Audio" : "Change Audio")
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+
     <!-- Numeric Settings: Duration & Volume -->
     <MudGrid>
         <MudItem xs="12" sm="6">
@@ -172,32 +211,23 @@
 
     <!-- Custom CSS & CSS Generator -->
     <MudStack Spacing="1">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-            <MudText Typo="Typo.caption" Color="Color.Secondary"><b>Text Styling (CSS)</b></MudText>
-            <MudButton Variant="Variant.Outlined"
-                       Color="Color.Primary"
-                       Size="Size.Small"
-                       StartIcon="@(_showCssGenerator ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.AutoFixHigh)"
-                       OnClick="@(() => _showCssGenerator = !_showCssGenerator)">
-                @(_showCssGenerator ? "Hide CSS Helper" : "CSS Helper & Generator")
-            </MudButton>
-        </MudStack>
+        <MudText Typo="Typo.subtitle2"><b>Text Styling</b></MudText>
+        <MudExpansionPanels Elevation="0" Outlined="true">
+            <MudExpansionPanel Text="Advanced: Custom CSS">
+                <MudTextField @bind-Value="Alert.CSS"
+                              @bind-Value:after="NotifyChanged"
+                              Label="Custom CSS"
+                              Lines="2"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              HelperText="Inline CSS applied directly to the alert text." />
+            </MudExpansionPanel>
+        </MudExpansionPanels>
 
-        <MudTextField @bind-Value="Alert.CSS"
-                      @bind-Value:after="NotifyChanged"
-                      Label="Custom CSS"
-                      Lines="2"
-                      Variant="Variant.Outlined"
-                      Margin="Margin.Dense"
-                      HelperText="Inline CSS applied directly to the alert text. Enter custom CSS or use the visual generator below." />
-
-        @if (_showCssGenerator)
-        {
-            <AlertCssGenerator Css="@Alert.CSS"
-                               CssChanged="OnGeneratedCssChanged"
-                               SampleText="@Alert.Text"
-                               OnChanged="NotifyChanged" />
-        }
+        <AlertCssGenerator Css="@Alert.CSS"
+                           CssChanged="OnGeneratedCssChanged"
+                           SampleText="@Alert.Text"
+                           OnChanged="NotifyChanged" />
     </MudStack>
 
     <!-- Additional Options -->
@@ -257,43 +287,15 @@
             </MudStack>
         </MudStack>
 
-        <!-- Preview Stage matching alerts.html DOM and CSS -->
+        <!-- Preview stage runs the same alerts.html renderer used by OBS. -->
         <div style="width: 100%; height: 320px; background-color: #0a0a0a; background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 0); background-size: 16px 16px; border: 2px dashed rgba(255, 255, 255, 0.2); border-radius: 8px; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;">
             @if (_isPreviewing)
             {
-                <!-- Main Alert Media Container (from alerts.html) -->
-                <div class="main-alert" style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; width: 100%; max-width: 100%; overflow: hidden;">
-                    <div id="alert" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; min-width: 0;">
-                        @if (IsVideo(Alert.File))
-                        {
-                            <video id="@_previewVideoId"
-                                   src="@ResolveMediaUrl(Alert.File)"
-                                   autoplay
-                                   style="width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain;"></video>
-                        }
-                        else if (!string.IsNullOrWhiteSpace(Alert.File))
-                        {
-                            <img src="@ResolveMediaUrl(Alert.File)"
-                                 alt="Alert Media"
-                                 style="width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain;" />
-                        }
-                    </div>
-                </div>
-
-                <!-- Main Text Alert Container (from alerts.html) -->
-                <div class="main-text-alert" style="flex: 0 0 auto; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 0; overflow: hidden; padding-bottom: 8px;">
-                    <div id="alert-text" style="width: 100%; text-align: center; padding: 0 8px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                        <p style="margin: 0 auto; max-width: 100%; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; text-align: center; @Alert.CSS">
-                            @Alert.Text
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Synchronized Companion Audio -->
-                @if (!string.IsNullOrEmpty(_companionAudioUrl))
-                {
-                    <audio id="@_previewAudioId" src="@_companionAudioUrl" autoplay style="display: none;"></audio>
-                }
+                <iframe @ref="_previewFrame"
+                        src="/alerts.html?preview=1"
+                    @onload="OnPreviewFrameLoaded"
+                        title="Alert preview"
+                        style="position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent;"></iframe>
             }
             else
             {
@@ -321,17 +323,13 @@
     private bool _isPreviewing = false;
     private int _previewTimeRemaining = 0;
     private CancellationTokenSource? _previewCts;
-    private readonly string _previewVideoId = $"preview_video_{Guid.NewGuid():N}";
-    private readonly string _previewAudioId = $"preview_audio_{Guid.NewGuid():N}";
-    private string? _companionAudioUrl;
+    private ElementReference _previewFrame;
 
     // Standalone audio preview (small play button on companion audio row)
     private bool _isPlayingCompanionSound = false;
     private string? _standaloneAudioUrl;
     private string _standaloneAudioKey = Guid.NewGuid().ToString();
-
-    // CSS Generator toggle
-    private bool _showCssGenerator = false;
+    private bool IsMediaLibraryFile => Alert.File.StartsWith("/media/", StringComparison.OrdinalIgnoreCase);
 
     protected override void OnInitialized()
     {
@@ -351,7 +349,7 @@
 
     private void CheckCompanionAudio()
     {
-        _companionAudioFile = MediaUploadService.GetCompanionAudioFileName(Alert.File);
+        _companionAudioFile = IsMediaLibraryFile ? null : MediaUploadService.GetCompanionAudioFileName(Alert.File);
     }
 
     private Task<IEnumerable<string>> SearchMediaFiles(string value, CancellationToken cancellationToken)
@@ -377,6 +375,64 @@
         await NotifyChanged();
     }
 
+    private async Task OpenMediaLibraryAsync()
+    {
+        StopAlertPreview();
+        StopCompanionSoundPreview();
+        var parameters = new DialogParameters<MediaBrowserDialog>
+        {
+            { dialog => dialog.SelectionMode, true },
+            { dialog => dialog.ImageVideoOnly, true }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<MediaBrowserDialog>("Browse Media Library", parameters, options);
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: MediaFileInfo selectedFile }) return;
+
+        Alert.File = selectedFile.RelativeUrl;
+        CheckCompanionAudio();
+        await NotifyChanged();
+    }
+
+    private async Task OpenAudioLibraryAsync()
+    {
+        StopAlertPreview();
+        StopCompanionSoundPreview();
+        var parameters = new DialogParameters<MediaBrowserDialog>
+        {
+            { dialog => dialog.SelectionMode, true },
+            { dialog => dialog.AudioOnly, true }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<MediaBrowserDialog>("Select Alert Audio", parameters, options);
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: MediaFileInfo selectedFile }) return;
+
+        Alert.AudioFile = selectedFile.RelativeUrl;
+        await NotifyChanged();
+    }
+
+    private async Task ClearExplicitAudioAsync()
+    {
+        StopAlertPreview();
+        Alert.AudioFile = string.Empty;
+        await NotifyChanged();
+    }
+
     private async Task NotifyChanged()
     {
         await AlertChanged.InvokeAsync(Alert);
@@ -388,11 +444,6 @@
         if (string.IsNullOrWhiteSpace(fileName)) return false;
         var ext = Path.GetExtension(fileName).ToLowerInvariant();
         return MediaUploadService.SupportedVideoExtensions.Contains(ext);
-    }
-
-    private string? ResolveMediaUrl(string? fileName)
-    {
-        return MediaUploadService.ResolveAlertMediaUrl(fileName);
     }
 
     #region Upload Handlers
@@ -530,34 +581,12 @@
         StopAlertPreview();
         StopCompanionSoundPreview();
 
-        _companionAudioUrl = !string.IsNullOrEmpty(_companionAudioFile)
-            ? $"{MediaUploadService.ResolveAlertSoundUrl(_companionAudioFile)}?t={DateTime.UtcNow.Ticks}"
-            : null;
-
         _isPreviewing = true;
         _previewTimeRemaining = Math.Max(1, Alert.Duration);
         _previewCts = new CancellationTokenSource();
         var token = _previewCts.Token;
 
         StateHasChanged();
-
-        // Apply volume via JS
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(100);
-            try
-            {
-                if (IsVideo(Alert.File))
-                {
-                    await JSRuntime.InvokeVoidAsync("setMediaVolume", _previewVideoId, Alert.Volume);
-                }
-                if (!string.IsNullOrEmpty(_companionAudioUrl))
-                {
-                    await JSRuntime.InvokeVoidAsync("setMediaVolume", _previewAudioId, Alert.Volume);
-                }
-            }
-            catch { /* Ignore JS exceptions if preview ended quickly */ }
-        });
 
         // Run countdown timer for the configured duration
         _ = Task.Run(async () =>
@@ -585,6 +614,20 @@
         await NotifyChanged();
     }
 
+    private async Task OnPreviewFrameLoaded()
+    {
+        if (!_isPreviewing) return;
+        await JSRuntime.InvokeVoidAsync("alertPreviewBridge.send", _previewFrame, new
+        {
+            file = Alert.File,
+            audioFile = Alert.AudioFile,
+            duration = Alert.Duration,
+            volume = Alert.Volume,
+            css = Alert.CSS,
+            text = Alert.Text
+        });
+    }
+
     private void StopAlertPreview() => StopAlertPreviewCore(true);
 
     private void StopAlertPreviewCore(bool notify)
@@ -598,7 +641,6 @@
 
         _isPreviewing = false;
         _previewTimeRemaining = 0;
-        _companionAudioUrl = null;
         if (notify)
         {
             StateHasChanged();

@@ -2808,6 +2808,10 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AudioFile")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CSS")
                         .IsRequired()
                         .HasColumnType("TEXT");

@@ -19,16 +19,27 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         public float Volume { get; set; } = 0.8f;
         public string CSS { get; set; } = "";
         public string File { get; set; } = "";
+        public string AudioFile { get; set; } = "";
         public string AlertChannel { get; set; } = "";
 
         public string Generate()
         {
+            var legacyFile = File.StartsWith("/media/", StringComparison.OrdinalIgnoreCase) ? string.Empty : File;
             var alertImage = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}, {1}, {2:n1}, {3}, {4}",
-                File, Duration, Volume, CSS, Text);
+                legacyFile, Duration, Volume, CSS, Text);
 
             var payload = new Dictionary<string, object>
             {
                 ["alert_image"] = alertImage,
+                ["alert"] = new Dictionary<string, object>
+                {
+                    ["file"] = File,
+                    ["duration"] = Duration,
+                    ["volume"] = Volume,
+                    ["css"] = CSS,
+                    ["text"] = Text,
+                    ["audioFile"] = AudioFile
+                },
                 ["ignoreIsPlaying"] = false
             };
 
@@ -57,6 +68,13 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     Label = "Image/Video File",
                     FieldType = UIFieldType.Text,
                     HelperText = "Path to media file"
+                },
+                new()
+                {
+                    PropertyName = nameof(AudioFile),
+                    Label = "Audio File",
+                    FieldType = UIFieldType.Text,
+                    HelperText = "Optional explicit media library audio file"
                 },
                 new()
                 {
@@ -105,6 +123,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 { nameof(Text), Text },
                 { nameof(File), File },
+                { nameof(AudioFile), AudioFile },
                 { nameof(Duration), Duration },
                 { nameof(Volume), Volume },
                 { nameof(CSS), CSS },
@@ -119,6 +138,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 Text = text as string ?? "";
             if (values.TryGetValue(nameof(File), out var file))
                 File = file as string ?? "";
+            if (values.TryGetValue(nameof(AudioFile), out var audioFile))
+                AudioFile = audioFile as string ?? "";
             if (values.TryGetValue(nameof(Duration), out var duration))
                 Duration = duration as int? ?? 3;
             if (values.TryGetValue(nameof(Volume), out var volume))
