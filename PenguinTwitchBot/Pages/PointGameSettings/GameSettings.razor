@@ -59,7 +59,7 @@
                     </MudStack>
                 </MudItem>
                 <MudItem xs="12">
-                    <GameSettingsPanel Provider="@(_selectedProvider!)" />
+                    <GameSettingsPanel @key="_selectedProvider" Provider="@(_selectedProvider!)" />
                 </MudItem>
             }
         </MudGrid>
