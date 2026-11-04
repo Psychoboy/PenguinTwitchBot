@@ -13,7 +13,8 @@ public sealed class FireworksShowRecipe : IActionRecipe
             "BurstCount",
             "Burst count",
             "Number of bursts (1-100). Supports %variables% and $math(expression)$.",
-            DefaultValue: "10"),
+            DefaultValue: "10",
+            ReplaceDefaultWhenInsertingVariable: true),
         new(
             "CommandName",
             "Chat command (optional)",
@@ -24,7 +25,8 @@ public sealed class FireworksShowRecipe : IActionRecipe
             "DelayMilliseconds",
             "Delay between bursts (ms)",
             "Delay between bursts in milliseconds (0-60000). Supports %variables% and $math(expression)$.",
-            DefaultValue: "100"),
+            DefaultValue: "100",
+            ReplaceDefaultWhenInsertingVariable: true),
         new(
             "Shell",
             "Shell override (optional)",
@@ -47,6 +49,8 @@ public sealed class FireworksShowRecipe : IActionRecipe
     public bool AllowsAdditionalTriggers => true;
     public bool SupportsVariables => true;
     public string? RecommendedQueueName => "Fireworks";
+    public string? SuggestedGroupName => "Recipes / Fireworks";
+    public IReadOnlyList<string> VariableParameterKeys => ["BurstCount", "DelayMilliseconds"];
 
     public ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters)
     {

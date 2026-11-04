@@ -7,6 +7,31 @@ namespace PenguinTwitchBot.Test.Bot.Actions.Recipes;
 public class ActionRecipeTests
 {
     [Fact]
+    public void RecipesExposeSuggestedGroupsAndVariableFields()
+    {
+        Assert.Equal("Recipes / Chat Replies", new ChatReplyRecipe().SuggestedGroupName);
+        Assert.Equal("Recipes / Chat Messages", new SendMessageRecipe().SuggestedGroupName);
+        Assert.Equal("Recipes / Sounds", new SoundCommandRecipe().SuggestedGroupName);
+        Assert.Equal("Recipes / Alerts", new AlertRecipe().SuggestedGroupName);
+        Assert.Equal("Recipes / Fireworks", new FireworksShowRecipe().SuggestedGroupName);
+        Assert.Equal(["ReplyText"], new ChatReplyRecipe().VariableParameterKeys);
+        Assert.Equal(["MessageText"], new SendMessageRecipe().VariableParameterKeys);
+        Assert.Equal(["AlertText"], new AlertRecipe().VariableParameterKeys);
+        Assert.Equal(["BurstCount", "DelayMilliseconds"], new FireworksShowRecipe().VariableParameterKeys);
+    }
+
+    [Fact]
+    public void RecipeParameter_ReplacesOnlyConfiguredDefaultOnVariableInsertion()
+    {
+        var numericParameter = new FireworksShowRecipe().Parameters.Single(parameter => parameter.Key == "BurstCount");
+        var textParameter = new ActionRecipeParameter("Message", "Message", "", DefaultValue: "hello");
+
+        Assert.Equal("%Amount%", numericParameter.InsertVariableToken(numericParameter.DefaultValue, "%Amount%"));
+        Assert.Equal("5 + %Amount%", numericParameter.InsertVariableToken("5 + ", "%Amount%"));
+        Assert.Equal("hello%user%", textParameter.InsertVariableToken("hello", "%user%"));
+    }
+
+    [Fact]
     public void ChatReplyRecipe_BuildsCommandTriggerAndReplySubAction()
     {
         var recipe = new ChatReplyRecipe();

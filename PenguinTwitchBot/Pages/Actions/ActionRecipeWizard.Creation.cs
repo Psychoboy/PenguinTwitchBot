@@ -50,7 +50,9 @@ public partial class ActionRecipeWizard
         }
         if (SelectedQueueIsDisabled)
         {
-            error = "The selected queue is disabled. Choose an enabled queue or enable it in Actions > Queues.";
+            error = PendingQueueIsDisabled
+                ? "The new queue is disabled. Select another queue or create a new enabled queue."
+                : "The selected queue is disabled. Choose an enabled queue or enable it in Actions > Queues.";
             return false;
         }
         foreach (var parameter in SelectedRecipe.Parameters.Where(parameter => parameter.Required))
@@ -93,7 +95,7 @@ public partial class ActionRecipeWizard
                 }
             }
 
-            if (_createQueue)
+            if (_pendingQueue is { } pendingQueue)
             {
                 if (queueName.Equals("Default", StringComparison.OrdinalIgnoreCase))
                 {
@@ -106,17 +108,10 @@ public partial class ActionRecipeWizard
                     return;
                 }
 
-                var createdQueue = await QueueManager.CreateQueueAsync(new QueueConfiguration
-                {
-                    Name = queueName,
-                    IsBlocking = true,
-                    Enabled = true,
-                    MaxConcurrentActions = 1
-                });
+                var createdQueue = await QueueManager.CreateQueueAsync(pendingQueue);
                 _queues.Add(createdQueue);
                 _selectedQueueName = createdQueue.Name;
-                _createQueue = false;
-                _newQueueName = string.Empty;
+                _pendingQueue = null;
             }
 
             if (command == null && !string.IsNullOrWhiteSpace(RecipeCommandName))
@@ -127,6 +122,7 @@ public partial class ActionRecipeWizard
             var action = recipe.Build(
                 new ActionRecipeContext(actionName, queueName, command?.CommandName ?? string.Empty, command?.Id ?? Guid.Empty),
                 _parameters);
+            action.Group = EffectiveGroupName;
             action.Triggers ??= [];
             action.Triggers.AddRange(_additionalTriggers.Select(CloneTrigger));
             var createdAction = await ActionService.CreateActionAsync(action);
@@ -164,4 +160,26 @@ public partial class ActionRecipeWizard
             GlobalCooldown = recipe.SupportsCommandSettings ? _commandGlobalCooldown : 0,
             SourceOnly = true
         });
+
+    private Task<IEnumerable<string>> SearchGroups(string value, CancellationToken cancellationToken)
+    {
+        IEnumerable<string> groups = _groups;
+        if (!string.IsNullOrWhiteSpace(SelectedRecipe?.SuggestedGroupName))
+        {
+            groups = groups.Append(SelectedRecipe.SuggestedGroupName);
+        }
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            groups = groups.Where(group => group.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+        return Task.FromResult<IEnumerable<string>>(groups.Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group, StringComparer.OrdinalIgnoreCase)
+            .ToList());
+    }
+
+    private Task OnGroupChanged(string? groupName)
+    {
+        _groupName = groupName?.Trim() ?? string.Empty;
+        return Task.CompletedTask;
+    }
 }

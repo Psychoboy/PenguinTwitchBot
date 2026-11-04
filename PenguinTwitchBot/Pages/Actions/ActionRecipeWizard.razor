@@ -57,6 +57,11 @@
                     <MudText Typo="Typo.subtitle1">2. Configure</MudText>
                     <MudTextField T="string" Label="Action name" Variant="Variant.Outlined"
                                   @bind-Value="_actionName" Required="true" />
+                    <MudAutocomplete T="string" Label="Group (optional)" Variant="Variant.Outlined"
+                                     Value="_groupName" ValueChanged="OnGroupChanged"
+                                     SearchFunc="SearchGroups" Clearable="true"
+                                     CoerceText="false" CoerceValue="true" MaxItems="null"
+                                     HelperText="Suggested group is preselected; choose an existing group or enter a new one." />
                     @if (SelectedRecipe?.RequiresCommand != false)
                     {
                         <MudTextField T="string" Label="Command" Variant="Variant.Outlined"
@@ -120,12 +125,23 @@
                         }
                     }
 
-                    @if (SelectedRecipe?.SupportsVariables == true && _availableVariables.Count > 0)
+                    @if (SelectedRecipe is { SupportsVariables: true } variableRecipe &&
+                         variableRecipe.VariableParameterKeys.Count > 0 && _availableVariables.Count > 0)
                     {
                         <MudExpansionPanels Elevation="0" Outlined="true">
-                            <MudExpansionPanel Text="@($"Available Variables ({_availableVariables.Count})")"
+                            <MudExpansionPanel Text="@($"Insert Variables ({_availableVariables.Count})")"
                                                Icon="@Icons.Material.Filled.DataObject">
-                                <ActionVariablesReference Variables="_availableVariables" />
+                                <MudStack Spacing="2">
+                                    <MudSelect T="string" Label="Insert into" Variant="Variant.Outlined"
+                                               Value="_variableTargetKey" ValueChanged="OnVariableTargetChanged">
+                                        @foreach (var key in variableRecipe.VariableParameterKeys)
+                                        {
+                                            <MudSelectItem T="string" Value="@key">@GetVariableTargetLabel(key)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <ActionVariablesReference Variables="_availableVariables"
+                                                              OnVariableSelected="InsertVariableAsync" />
+                                </MudStack>
                             </MudExpansionPanel>
                         </MudExpansionPanels>
                     }
@@ -160,20 +176,46 @@
                     }
 
                     <MudSelect T="string" Label="Queue" Variant="Variant.Outlined"
-                               Value="_selectedQueueName" ValueChanged="OnQueueChanged" Disabled="_createQueue">
+                               Value="_selectedQueueName" ValueChanged="OnQueueChanged">
                         <MudSelectItem T="string" Value="@("Default")">Default</MudSelectItem>
+                        @if (_pendingQueue is not null)
+                        {
+                            <MudSelectItem T="string" Value="@_pendingQueue.Name">@_pendingQueue.Name (new)</MudSelectItem>
+                        }
                         @foreach (var queue in _queues.OrderBy(queue => queue.Name, StringComparer.OrdinalIgnoreCase))
                         {
                             <MudSelectItem T="string" Value="@queue.Name">@queue.Name @(queue.Enabled ? "" : "(disabled)")</MudSelectItem>
                         }
                     </MudSelect>
-                    <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_createQueue" Label="Create a dedicated queue" />
-                    @if (_createQueue)
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Default is shared across actions. Keep alerts and messages on Default; create a dedicated blocking queue only when execution must be serialized.
+                    </MudText>
+                    <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="CreateBlockingQueueAsync">
+                            Create queue
+                        </MudButton>
+                        @if (RecommendedQueueNeedsCreation)
+                        {
+                            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="CreateRecommendedQueueAsync">
+                                Create recommended '@SelectedRecipe?.RecommendedQueueName'
+                            </MudButton>
+                        }
+                    </MudStack>
+                    @if (_pendingQueue is not null)
                     {
-                        <MudTextField T="string" Label="New queue name" Variant="Variant.Outlined"
-                                      @bind-Value="_newQueueName" HelperText="Created as a blocking queue with one action at a time." Required="true" />
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            Queue '@_pendingQueue.Name' will be created when you confirm this action.
+                        </MudAlert>
                     }
-                    @if (SelectedQueueIsDisabled)
+                    @if (PendingQueueIsDisabled)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            This new queue is disabled. Select another queue or create a new enabled queue.
+                        </MudAlert>
+                    }
+                    else if (SavedQueueIsDisabled)
                     {
                         <MudAlert Severity="Severity.Warning" Dense="true">
                             This queue is disabled. Choose an enabled queue or enable it in Actions &gt; Queues.
@@ -192,6 +234,7 @@
                     <MudList T="string" Dense="true">
                         <MudListItem T="string">Recipe: @SelectedRecipe?.Title</MudListItem>
                         <MudListItem T="string">Queue: @EffectiveQueueName</MudListItem>
+                        <MudListItem T="string">Group: @(string.IsNullOrWhiteSpace(EffectiveGroupName) ? "Ungrouped" : EffectiveGroupName)</MudListItem>
                         <MudListItem T="string">Action: @_actionName</MudListItem>
                         @if (!string.IsNullOrWhiteSpace(RecipeCommandName))
                         {
@@ -272,17 +315,19 @@
     private readonly Dictionary<string, string> _parameters = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<TriggerType> _additionalTriggers = [];
     private List<QueueConfiguration> _queues = [];
+    private List<string> _groups = [];
     private string _selectedRecipeId = string.Empty;
     private string _actionName = string.Empty;
+    private string _groupName = string.Empty;
     private string _commandName = string.Empty;
     private string _selectedQueueName = "Default";
-    private string _newQueueName = string.Empty;
+    private string _variableTargetKey = string.Empty;
     private string _error = string.Empty;
     private int _commandUserCooldown;
     private int _commandGlobalCooldown;
     private Rank _commandMinimumRank = Rank.Viewer;
     private int _step;
-    private bool _createQueue;
+    private QueueConfiguration? _pendingQueue;
     private bool _isBusy;
     private bool _fireworksWidgetPresent;
     private AlertType _alertRecipeSettings = CreateDefaultAlertSettings();
@@ -303,9 +348,15 @@
     private string RecipeCommandName => SelectedRecipe?.RequiresCommand == false
         ? ChatCommandRecipeBase.NormalizeCommandName(GetParameter("CommandName"))
         : NormalizedCommandName;
-    private string EffectiveQueueName => (_createQueue ? _newQueueName : _selectedQueueName).Trim();
-    private bool SelectedQueueIsDisabled => !_createQueue && _queues.FirstOrDefault(queue =>
+    private string EffectiveQueueName => _selectedQueueName.Trim();
+    private string EffectiveGroupName => _groupName?.Trim() ?? string.Empty;
+    private bool PendingQueueIsDisabled => _pendingQueue is { Enabled: false } &&
+        _pendingQueue.Name.Equals(_selectedQueueName, StringComparison.OrdinalIgnoreCase);
+    private bool SavedQueueIsDisabled => _queues.FirstOrDefault(queue =>
         string.Equals(queue.Name, _selectedQueueName, StringComparison.OrdinalIgnoreCase)) is { Enabled: false };
+    private bool SelectedQueueIsDisabled => PendingQueueIsDisabled || SavedQueueIsDisabled;
+    private bool RecommendedQueueNeedsCreation => SelectedRecipe?.RecommendedQueueName is { } recommendedName &&
+        _pendingQueue is null && !_queues.Any(queue => queue.Name.Equals(recommendedName, StringComparison.OrdinalIgnoreCase));
     private bool RecommendedQueueDisabled => SelectedRecipe?.RecommendedQueueName is { } recommendedName &&
         string.Equals(_selectedQueueName, "Default", StringComparison.OrdinalIgnoreCase) &&
         _queues.Any(queue => !queue.Enabled && queue.Name.Equals(recommendedName, StringComparison.OrdinalIgnoreCase));
@@ -321,6 +372,13 @@
     {
         _recipes = RecipeRegistry.GetAll();
         _queues = await QueueManager.GetAllQueuesAsync();
+        _groups = (await ActionService.GetActionSummariesAsync())
+            .Select(action => action.Group?.Trim())
+            .Where(group => !string.IsNullOrWhiteSpace(group))
+            .Select(group => group!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         _selectedRecipeId = _recipes.FirstOrDefault(recipe => string.Equals(recipe.Id, InitialRecipeId, StringComparison.OrdinalIgnoreCase))?.Id
             ?? _recipes.FirstOrDefault()?.Id
             ?? string.Empty;
@@ -335,8 +393,7 @@
         _selectedRecipeId = recipeId ?? string.Empty;
         _parameters.Clear();
         _additionalTriggers.Clear();
-        _createQueue = false;
-        _newQueueName = string.Empty;
+        _pendingQueue = null;
         _selectedQueueName = "Default";
         _commandUserCooldown = 0;
         _commandGlobalCooldown = 0;
@@ -358,6 +415,9 @@
 
         _additionalTriggers.Clear();
 
+        _groupName = SelectedRecipe.SuggestedGroupName ?? string.Empty;
+        _variableTargetKey = SelectedRecipe.VariableParameterKeys.FirstOrDefault() ?? string.Empty;
+
         if (!string.IsNullOrWhiteSpace(SelectedRecipe.RecommendedQueueName))
         {
             var recommendedQueue = _queues.FirstOrDefault(queue => queue.Name.Equals(SelectedRecipe.RecommendedQueueName, StringComparison.OrdinalIgnoreCase));
@@ -365,15 +425,19 @@
             {
                 _selectedQueueName = recommendedQueue.Name;
             }
-            else if (recommendedQueue == null)
+            else if (recommendedQueue is null)
             {
-                _createQueue = true;
-                _newQueueName = SelectedRecipe.RecommendedQueueName;
+                _pendingQueue = new QueueConfiguration
+                {
+                    Name = SelectedRecipe.RecommendedQueueName,
+                    IsBlocking = true,
+                    Enabled = true,
+                    MaxConcurrentActions = 1
+                };
+                _selectedQueueName = _pendingQueue.Name;
             }
-            else
+            else if (recommendedQueue is { Enabled: false })
             {
-                _createQueue = false;
-                _newQueueName = string.Empty;
                 _selectedQueueName = "Default";
             }
         }
@@ -411,7 +475,11 @@
     private void OnQueueChanged(string? queueName)
     {
         _selectedQueueName = queueName ?? "Default";
-        _createQueue = false;
+        if (_pendingQueue is not null && _pendingQueue.Name.Equals(_selectedQueueName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+        _pendingQueue = null;
     }
 
     private void Next()
