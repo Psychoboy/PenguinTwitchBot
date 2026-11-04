@@ -16,6 +16,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         public string RaffleName { get; set; } = string.Empty;
         public string JoinCommand { get; set; } = string.Empty;
         public string PointGameName { get; set; } = "raffle";
+        public Guid? PointTypeId { get; set; }
         public int WinnerCount { get; set; } = 1;
         public string TotalAward { get; set; } = "0";
 
@@ -25,6 +26,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             new() { PropertyName = nameof(RaffleName), Label = "Raffle Name", FieldType = UIFieldType.Text, HelperText = "Display name written to variables for messages." },
             new() { PropertyName = nameof(JoinCommand), Label = "Join Command", FieldType = UIFieldType.Text, HelperText = "Optional command name written to variables for announcements." },
             new() { PropertyName = nameof(PointGameName), Label = "Point Game", FieldType = UIFieldType.Text, Required = true, DefaultValue = "raffle", HelperText = "Point game that winners will be awarded when the raffle ends." },
+            new() { PropertyName = nameof(PointTypeId), Label = "Point Type Override", FieldType = UIFieldType.Select, Clearable = true, HelperText = "Optional point type to use for this raffle. Empty keeps the point-game mapping." },
             new() { PropertyName = nameof(WinnerCount), Label = "Winner Count", FieldType = UIFieldType.Number, Required = true, DefaultValue = 1, Min = 1 },
             new() { PropertyName = nameof(TotalAward), Label = "Total Award", FieldType = UIFieldType.Text, Required = true, DefaultValue = "0", HelperText = "You can enter a number or a %variable%." },
             new() { PropertyName = nameof(Enabled), Label = "Enabled", FieldType = UIFieldType.Switch, SwitchColor = "Success", DefaultValue = true }
@@ -36,6 +38,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             [nameof(RaffleName)] = RaffleName,
             [nameof(JoinCommand)] = JoinCommand,
             [nameof(PointGameName)] = PointGameName,
+            [nameof(PointTypeId)] = PointTypeId?.ToString() ?? string.Empty,
             [nameof(WinnerCount)] = WinnerCount,
             [nameof(TotalAward)] = TotalAward,
             [nameof(Enabled)] = Enabled
@@ -47,6 +50,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             RaffleName = values.GetValueOrDefault(nameof(RaffleName))?.ToString() ?? string.Empty;
             JoinCommand = values.GetValueOrDefault(nameof(JoinCommand))?.ToString() ?? string.Empty;
             PointGameName = values.GetValueOrDefault(nameof(PointGameName))?.ToString() ?? "raffle";
+            PointTypeId = Guid.TryParse(values.GetValueOrDefault(nameof(PointTypeId))?.ToString(), out var pointTypeId)
+                ? pointTypeId
+                : null;
             WinnerCount = TryParseInt(values.GetValueOrDefault(nameof(WinnerCount)), 1);
             TotalAward = values.GetValueOrDefault(nameof(TotalAward))?.ToString() ?? "0";
             Enabled = TryParseBool(values.GetValueOrDefault(nameof(Enabled)), true);
@@ -57,6 +63,12 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             if (string.IsNullOrWhiteSpace(values.GetValueOrDefault(nameof(RaffleKey))?.ToString()))
             {
                 return "Raffle Key is required";
+            }
+
+            var pointTypeId = values.GetValueOrDefault(nameof(PointTypeId))?.ToString();
+            if (!string.IsNullOrWhiteSpace(pointTypeId) && !Guid.TryParse(pointTypeId, out _))
+            {
+                return "Point Type Override must be a valid point type";
             }
 
             if (TryParseInt(values.GetValueOrDefault(nameof(WinnerCount)), 0) < 1)

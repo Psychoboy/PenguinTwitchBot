@@ -142,6 +142,13 @@ namespace PenguinTwitchBot.Bot.Actions
                 errors.Add("Total award must be 0 or greater.");
             }
 
+            if (request.UseRandomTotalAward &&
+                (request.RandomTotalAwardMinimum < 0 || request.RandomTotalAwardMinimum > 1_000_000 ||
+                 request.RandomTotalAwardMaximum > 1_000_000 || request.RandomTotalAwardMaximum <= request.RandomTotalAwardMinimum))
+            {
+                errors.Add("Random total award must be between 0 and 1,000,000, with the maximum greater than the minimum.");
+            }
+
             if (request.DurationSeconds > 0)
             {
                 if (request.DurationSeconds is < 60 or > 86400)
@@ -197,6 +204,9 @@ namespace PenguinTwitchBot.Bot.Actions
                 PointTypeId = request.PointTypeId,
                 WinnerCount = Math.Max(1, request.WinnerCount),
                 TotalAward = Math.Max(0, request.TotalAward),
+                UseRandomTotalAward = request.UseRandomTotalAward,
+                RandomTotalAwardMinimum = request.RandomTotalAwardMinimum,
+                RandomTotalAwardMaximum = request.RandomTotalAwardMaximum,
                 IncludeStarterMessages = request.IncludeStarterMessages,
                 CreateEndCommand = request.CreateEndCommand,
                 DurationSeconds = Math.Max(0, request.DurationSeconds),
@@ -237,25 +247,34 @@ namespace PenguinTwitchBot.Bot.Actions
 
         private static ActionType CreateStartAction(RaffleSetupRequest request, ActionCommand command)
         {
-            var subActions = new List<SubActionType>
+            var subActions = new List<SubActionType>();
+            if (request.UseRandomTotalAward)
             {
-                new RaffleStartType
+                subActions.Add(new RandomIntType
                 {
-                    Index = 0,
-                    RaffleKey = request.RaffleKey,
-                    RaffleName = request.RaffleName,
-                    JoinCommand = request.JoinCommandName,
-                    PointGameName = request.RaffleKey,
-                    WinnerCount = request.WinnerCount,
-                    TotalAward = request.TotalAward.ToString()
-                }
-            };
+                    Index = subActions.Count,
+                    Min = request.RandomTotalAwardMinimum,
+                    Max = request.RandomTotalAwardMaximum
+                });
+            }
+
+            subActions.Add(new RaffleStartType
+            {
+                Index = subActions.Count,
+                RaffleKey = request.RaffleKey,
+                RaffleName = request.RaffleName,
+                JoinCommand = request.JoinCommandName,
+                PointGameName = request.RaffleKey,
+                PointTypeId = request.PointTypeId,
+                WinnerCount = request.WinnerCount,
+                TotalAward = request.UseRandomTotalAward ? "%random_int%" : request.TotalAward.ToString()
+            });
 
             if (request.IncludeStarterMessages)
             {
                 subActions.Add(new SendMessageType
                 {
-                    Index = 1,
+                    Index = subActions.Count,
                     Text = "%raffle_name% started. Type !%raffle_join_command% to enter. %raffle_winner_count% winner(s), %raffle_total_award% %raffle_point_game% total.",
                     UseBot = true,
                     FallBack = true,
@@ -275,6 +294,7 @@ namespace PenguinTwitchBot.Bot.Actions
                         Duration = (request.AnnouncementIntervalSeconds * 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
                     });
                     elapsedSeconds += request.AnnouncementIntervalSeconds;
+                    subActions.Add(CreateBreakIfRaffleEnded(subActions.Count));
                     var message = request.AnnouncementMessages[messageIndex++ % request.AnnouncementMessages.Count];
                     subActions.Add(new SendMessageType
                     {
@@ -294,6 +314,7 @@ namespace PenguinTwitchBot.Bot.Actions
                         Index = subActions.Count,
                         Duration = (remainingSeconds * 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
                     });
+                    subActions.Add(CreateBreakIfRaffleEnded(subActions.Count));
                 }
 
                 subActions.Add(new RaffleEndType { Index = subActions.Count, RaffleKey = request.RaffleKey });
@@ -419,6 +440,15 @@ namespace PenguinTwitchBot.Bot.Actions
             ]
         };
 
+        private static LogicIfElseType CreateBreakIfRaffleEnded(int index) => new()
+        {
+            Index = index,
+            LeftValue = "%raffle_is_active%",
+            RightValue = "true",
+            Operator = ComparisonOperator.Equals,
+            FalseSubActions = [new BreakType { Index = 0 }]
+        };
+
         private static ActionType CreateAction(string name, RaffleSetupRequest request, List<SubActionType> subActions, ActionCommand command, string? queueName = null)
         {
             return new ActionType
@@ -512,10 +542,13 @@ namespace PenguinTwitchBot.Bot.Actions
         public int WinnerCount { get; set; } = 1;
         public long TotalAward { get; set; }
         public bool IncludeStarterMessages { get; set; } = true;
-        public bool CreateEndCommand { get; set; } = true;
+            public bool CreateEndCommand { get; set; } = true;
         public int DurationSeconds { get; set; }
         public int AnnouncementIntervalSeconds { get; set; }
         public List<string> AnnouncementMessages { get; set; } = [];
+            public bool UseRandomTotalAward { get; set; }
+            public int RandomTotalAwardMinimum { get; set; }
+            public int RandomTotalAwardMaximum { get; set; }
     }
 
     public sealed class RaffleSetupResult

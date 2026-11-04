@@ -41,6 +41,7 @@ public static class SubActionUIFieldEnhancer
             ObsSetSourceFilterStateType sourceFilter => EnhanceObsSourceFilterState(fields, sourceFilter, scope.ServiceProvider),
             ObsSetSourceMuteStateType mute => EnhanceObsSourceMuteState(fields, mute, scope.ServiceProvider),
             ObsSetSourceVisibilityType visibility => EnhanceObsSourceVisibility(fields, visibility, scope.ServiceProvider),
+            RaffleStartType raffleStart => EnhanceRaffleStart(fields, scope.ServiceProvider),
             ObsSetTextType text => EnhanceObsTextSource(fields, text, scope.ServiceProvider),
             ExecuteActionType execute => EnhanceExecuteAction(fields, execute, scope.ServiceProvider),
             FishingGiveItemToPlayerType fishingGiveItem => EnhanceFishingGiveItemToPlayer(fields, fishingGiveItem, scope.ServiceProvider),
@@ -855,6 +856,23 @@ public static class SubActionUIFieldEnhancer
             HelperText = "The name of the channel point reward to enable or disable"
         });
 
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceRaffleStart(List<SubActionUIField> fields, IServiceProvider serviceProvider)
+    {
+        var pointsSystem = serviceProvider.GetRequiredService<IPointsSystem>();
+        var pointTypes = Task.Run(async () => await pointsSystem.GetPointTypes()).GetAwaiter().GetResult();
+        var pointTypeField = fields.FirstOrDefault(field => field.PropertyName == nameof(RaffleStartType.PointTypeId));
+        if (pointTypeField is null)
+            return fields;
+
+        pointTypeField.FieldType = UIFieldType.Select;
+        pointTypeField.Clearable = true;
+        pointTypeField.SelectOptions = pointTypes
+            .OrderBy(pointType => pointType.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(pointType => new SelectOption { Id = pointType.Id, Name = pointType.Name })
+            .ToList();
         return fields;
     }
 

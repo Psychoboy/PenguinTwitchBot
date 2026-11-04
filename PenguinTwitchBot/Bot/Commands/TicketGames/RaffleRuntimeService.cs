@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using PenguinTwitchBot.Bot.Core.Points;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 
 namespace PenguinTwitchBot.Bot.Commands.TicketGames
 {
@@ -33,8 +34,30 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             var winnerCount = Math.Max(1, request.WinnerCount);
             var totalAward = Math.Max(0, request.TotalAward);
 
-            await pointsSystem.RegisterDefaultPointForGame(pointGameName);
-            var pointType = await pointsSystem.GetPointTypeForGame(pointGameName);
+            await _lock.WaitAsync();
+            try
+            {
+                if (_raffles.TryGetValue(raffleKey, out var existingRaffle))
+                    return CreateResult(existingRaffle, "already_running", success: false);
+            }
+            finally
+            {
+                _lock.Release();
+            }
+
+            PointType? pointType;
+            if (request.PointTypeId.HasValue)
+            {
+                pointType = await pointsSystem.GetPointTypeById(request.PointTypeId.Value);
+                if (pointType == null)
+                    return RaffleOperationResult.InvalidPointType(raffleKey);
+            }
+            else
+            {
+                await pointsSystem.RegisterDefaultPointForGame(pointGameName);
+                pointType = await pointsSystem.GetPointTypeForGame(pointGameName);
+            }
+
             var pointTypeName = string.IsNullOrWhiteSpace(pointType.Name) ? pointGameName : pointType.Name;
 
             var raffle = new ActiveRaffle(
@@ -42,6 +65,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 raffleName,
                 joinCommand,
                 pointGameName,
+                pointType.Id,
                 pointTypeName,
                 winnerCount,
                 totalAward);
@@ -49,10 +73,8 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             await _lock.WaitAsync();
             try
             {
-                if (_raffles.ContainsKey(raffleKey))
-                {
-                    return CreateResult(_raffles[raffleKey], "already_running", success: false);
-                }
+                if (_raffles.TryGetValue(raffleKey, out var existingRaffle))
+                    return CreateResult(existingRaffle, "already_running", success: false);
 
                 _raffles[raffleKey] = raffle;
                 return CreateResult(raffle, "started");
@@ -171,7 +193,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                         continue;
                     }
 
-                    await pointsSystem.AddPointsByUsernameAndGame(winner, raffle.PointGameName, eachAward);
+                    await pointsSystem.AddPointsByUsername(winner, raffle.PointTypeId, eachAward);
 
                     await _lock.WaitAsync();
                     try
@@ -365,6 +387,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             string raffleName,
             string joinCommand,
             string pointGameName,
+            Guid pointTypeId,
             string pointTypeName,
             int winnerCount,
             long totalAward)
@@ -373,6 +396,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             public string RaffleName { get; } = raffleName;
             public string JoinCommand { get; } = joinCommand;
             public string PointGameName { get; } = pointGameName;
+            public Guid PointTypeId { get; } = pointTypeId;
             public string PointTypeName { get; } = pointTypeName;
             public int WinnerCount { get; set; } = winnerCount;
             public long TotalAward { get; set; } = totalAward;
@@ -390,6 +414,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         public string RaffleName { get; init; } = string.Empty;
         public string JoinCommand { get; init; } = string.Empty;
         public string PointGameName { get; init; } = "raffle";
+        public Guid? PointTypeId { get; init; }
         public int WinnerCount { get; init; } = 1;
         public long TotalAward { get; init; }
     }
@@ -419,6 +444,14 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         {
             Success = false,
             Status = "invalid_request",
+            RaffleKey = raffleKey,
+            IsActive = false
+        };
+
+        public static RaffleOperationResult InvalidPointType(string raffleKey) => new()
+        {
+            Success = false,
+            Status = "invalid_point_type",
             RaffleKey = raffleKey,
             IsActive = false
         };

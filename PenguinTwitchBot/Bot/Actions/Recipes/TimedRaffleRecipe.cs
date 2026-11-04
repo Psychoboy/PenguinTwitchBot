@@ -11,10 +11,16 @@ public sealed class TimedRaffleRecipe : IRaffleSetupActionRecipe
         new("RaffleKey", "Raffle key", "Unique key used internally by raffle actions.", DefaultValue: "timedraffle"),
         new("JoinCommandName", "Join command", "Viewer command to enter, without !.", DefaultValue: "jointimedraffle"),
         new("StartCommandName", "Start command", "Moderator command to start the timed raffle, without !.", DefaultValue: "starttimedraffle"),
+        new("EndCommandName", "End command", "Moderator command to end the raffle early, without !.", DefaultValue: "endtimedraffle"),
+        new("PointTypeId", "Award point type", "Choose a point type, or leave on Default to use the raffle key's default point mapping.", Required: false),
+        new("IncludeStarterMessages", "Include raffle chat messages", "Announce raffle start, joins, and end results.", DefaultValue: "true"),
         new("DurationSeconds", "Duration (seconds)", "Raffle duration from 60 to 86400 seconds.", DefaultValue: "600"),
         new("AnnouncementIntervalSeconds", "Announcement cadence (seconds)", "Repeat an announcement every 30 to 3600 seconds.", DefaultValue: "120"),
         new("WinnerCount", "Winner count", "Number of raffle winners.", DefaultValue: "1"),
-        new("TotalAward", "Total award", "Total points split among winners; 0 uses the point game's configured behavior.", DefaultValue: "0"),
+        new("UseRandomTotalAward", "Randomize total award", "Roll the total points pool once when the raffle starts.", DefaultValue: "false"),
+        new("RandomTotalAwardMinimum", "Random award minimum", "Inclusive minimum total award.", DefaultValue: "1", Required: false),
+        new("RandomTotalAwardMaximum", "Random award maximum", "Inclusive maximum total award.", DefaultValue: "100", Required: false),
+        new("TotalAward", "Total award", "Fixed total points pool split among winners.", DefaultValue: "0", Required: false),
         new("Announcement1", "Announcement 1", "First periodic announcement.", ActionRecipeParameterType.Multiline, "%raffle_name% is still open! Join with !%raffle_join_command%.", ReplaceDefaultWhenInsertingVariable: true),
         new("Announcement2", "Announcement 2 (optional)", "Optional second announcement, alternated with the first.", ActionRecipeParameterType.Multiline, Required: false),
         new("Announcement3", "Announcement 3 (optional)", "Optional third announcement, alternated with the others.", ActionRecipeParameterType.Multiline, Required: false)
@@ -40,7 +46,26 @@ public sealed class TimedRaffleRecipe : IRaffleSetupActionRecipe
         var duration = ParseInt(parameters, "DurationSeconds", 60, 86400);
         var interval = ParseInt(parameters, "AnnouncementIntervalSeconds", 30, 3600);
         var winnerCount = ParseInt(parameters, "WinnerCount", 1, 100);
-        var totalAward = ParseLong(parameters, "TotalAward", 0, long.MaxValue);
+        var useRandomTotalAward = bool.TryParse(GetParameter(parameters, "UseRandomTotalAward"), out var randomAward) && randomAward;
+        var totalAward = useRandomTotalAward ? 0 : ParseLong(parameters, "TotalAward", 0, long.MaxValue);
+        var randomTotalAwardMinimum = 0;
+        var randomTotalAwardMaximum = 0;
+        if (useRandomTotalAward &&
+            (!int.TryParse(GetParameter(parameters, "RandomTotalAwardMinimum"), out randomTotalAwardMinimum) ||
+             !int.TryParse(GetParameter(parameters, "RandomTotalAwardMaximum"), out randomTotalAwardMaximum) ||
+             randomTotalAwardMinimum < 0 || randomTotalAwardMinimum > 1_000_000 ||
+             randomTotalAwardMaximum > 1_000_000 || randomTotalAwardMaximum <= randomTotalAwardMinimum))
+        {
+            throw new ArgumentException("Random total award must be between 0 and 1,000,000, with the maximum greater than the minimum.", nameof(parameters));
+        }
+        var pointTypeIdText = GetParameter(parameters, "PointTypeId").Trim();
+        Guid? pointTypeId = null;
+        if (!string.IsNullOrEmpty(pointTypeIdText))
+        {
+            if (!Guid.TryParse(pointTypeIdText, out var parsedPointTypeId) || parsedPointTypeId == Guid.Empty)
+                throw new ArgumentException("Choose a valid point type or Default.", nameof(parameters));
+            pointTypeId = parsedPointTypeId;
+        }
         if (interval > duration)
             throw new ArgumentException("Announcement cadence cannot exceed the raffle duration.", nameof(parameters));
 
@@ -62,14 +87,18 @@ public sealed class TimedRaffleRecipe : IRaffleSetupActionRecipe
             EndQueueName = "Default",
             JoinCommandName = GetParameter(parameters, "JoinCommandName").Trim(),
             StartCommandName = GetParameter(parameters, "StartCommandName").Trim(),
-            EndCommandName = string.Empty,
-            CreateEndCommand = false,
+            EndCommandName = GetParameter(parameters, "EndCommandName").Trim(),
+            CreateEndCommand = true,
+            PointTypeId = pointTypeId,
             WinnerCount = winnerCount,
             TotalAward = totalAward,
+            UseRandomTotalAward = useRandomTotalAward,
+            RandomTotalAwardMinimum = randomTotalAwardMinimum,
+            RandomTotalAwardMaximum = randomTotalAwardMaximum,
             DurationSeconds = duration,
             AnnouncementIntervalSeconds = interval,
             AnnouncementMessages = announcements,
-            IncludeStarterMessages = true
+            IncludeStarterMessages = !bool.TryParse(GetParameter(parameters, "IncludeStarterMessages"), out var includeMessages) || includeMessages
         };
     }
 

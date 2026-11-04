@@ -34,9 +34,6 @@
             <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.FileUpload" OnClick="OpenImportDialog">
                 Import
             </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.LibraryBooks" OnClick="OpenLibraryDialog">
-                Library
-            </MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="OpenExportDialog">
                 Export
             </MudButton>
@@ -45,9 +42,6 @@
             </MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome" OnClick="OpenRecipeWizard">
                 Create from recipe
-            </MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Casino" OnClick="OpenCreateRaffleDialog">
-                Create Raffle
             </MudButton>
         </MudStack>
     </MudStack>
@@ -709,8 +703,7 @@
         var parameters = new DialogParameters<ImportActionsDialog>
         {
             { x => x.AvailableQueues, _availableQueues },
-            { x => x.Groups, _groups },
-            { x => x.StartInLibraryMode, false }
+            { x => x.Groups, _groups }
         };
 
         var options = new DialogOptions
@@ -727,32 +720,6 @@
         {
             await LoadActions();
             Snackbar.Add($"{importedCount} action(s) imported successfully.", Severity.Success);
-        }
-    }
-
-    private async Task OpenLibraryDialog()
-    {
-        var parameters = new DialogParameters<ImportActionsDialog>
-        {
-            { x => x.AvailableQueues, _availableQueues },
-            { x => x.Groups, _groups },
-            { x => x.StartInLibraryMode, true }
-        };
-
-        var options = new DialogOptions
-        {
-            CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.Medium,
-            FullWidth = true
-        };
-
-        var dialog = await DialogService.ShowAsync<ImportActionsDialog>("Action Library", parameters, options);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false, Data: int importedCount } && importedCount > 0)
-        {
-            await LoadActions();
-            Snackbar.Add($"{importedCount} action(s) imported successfully from the library.", Severity.Success);
         }
     }
 
@@ -775,43 +742,6 @@
                 await OnActionSelected(createdAction);
             }
         }
-    }
-
-    private async Task OpenCreateRaffleDialog()
-    {
-        var parameters = new DialogParameters<CreateRaffleDialog>
-        {
-            { x => x.AvailableQueues, _availableQueues }
-        };
-
-        var options = new DialogOptions
-        {
-            CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.Medium,
-            FullWidth = true
-        };
-
-        var dialog = await DialogService.ShowAsync<CreateRaffleDialog>("Create Raffle", parameters, options);
-        var result = await dialog.Result;
-
-        if (result is null || result.Canceled || result.Data is not RaffleSetupResult raffleSetup)
-        {
-            return;
-        }
-
-        await LoadActions();
-
-        var actionIdToSelect = raffleSetup.StartActionId ?? raffleSetup.JoinActionId ?? raffleSetup.EndActionId;
-        if (actionIdToSelect.HasValue)
-        {
-            var createdAction = _actions.FirstOrDefault(a => a.Id == actionIdToSelect.Value);
-            if (createdAction != null)
-            {
-                await OnActionSelected(createdAction);
-            }
-        }
-
-        Snackbar.Add($"Raffle '{raffleSetup.RaffleKey}' created with commands '!{raffleSetup.StartCommandName}', '!{raffleSetup.JoinCommandName}', and '!{raffleSetup.EndCommandName}'.", Severity.Success);
     }
 
     private void GoToGlobalVariables()

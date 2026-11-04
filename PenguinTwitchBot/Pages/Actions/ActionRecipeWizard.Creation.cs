@@ -46,7 +46,7 @@ public partial class ActionRecipeWizard
         if (SelectedRecipe is PointsRewardRecipe &&
             (!_pointTypeNames.Contains(GetParameter("PointTypeName"), StringComparer.OrdinalIgnoreCase) ||
              !Enum.TryParse<ManagePointsOperation>(GetParameter("Operation"), true, out _) ||
-             string.IsNullOrWhiteSpace(GetParameter("Amount")) ||
+                         string.IsNullOrWhiteSpace(GetParameter("Amount")) ||
              (!GetParameter("Operation").Equals(nameof(ManagePointsOperation.AddActive), StringComparison.OrdinalIgnoreCase) &&
               string.IsNullOrWhiteSpace(GetParameter("TargetUser")))))
         {

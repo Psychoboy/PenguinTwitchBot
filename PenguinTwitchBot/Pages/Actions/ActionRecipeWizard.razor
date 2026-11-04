@@ -402,7 +402,23 @@
                                                           Value="@GetParameter("JoinCommandName")" ValueChanged="@(value => OnRecipeParameterChanged("JoinCommandName", value))" Required="true" />
                                             <MudTextField T="string" Label="Start command" Variant="Variant.Outlined"
                                                           Value="@GetParameter("StartCommandName")" ValueChanged="@(value => OnRecipeParameterChanged("StartCommandName", value))" Required="true" />
+                                            <MudTextField T="string" Label="End command" Variant="Variant.Outlined"
+                                                          Value="@GetParameter("EndCommandName")" ValueChanged="@(value => OnRecipeParameterChanged("EndCommandName", value))" Required="true" />
                                         </MudStack>
+                                        <MudSelect T="string" Label="Award point type" Variant="Variant.Outlined"
+                                                   Value="@GetParameter("PointTypeId")" ValueChanged="OnRafflePointTypeChanged">
+                                            <MudSelectItem T="string" Value="@string.Empty">Default point type</MudSelectItem>
+                                            @foreach (var pointType in _rafflePointTypes)
+                                            {
+                                                <MudSelectItem T="string" Value="@pointType.Id.ToString()">@pointType.Name</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        @if (_rafflePointTypes.Count == 0)
+                                        {
+                                            <MudAlert Severity="Severity.Info" Dense="true">
+                                                No point types found. The raffle will use the default point type.
+                                            </MudAlert>
+                                        }
                                         <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
                                             <MudNumericField T="int" Label="Duration (seconds)" Min="60" Max="86400"
                                                              Value="@GetTimedAnnouncementNumber("DurationSeconds", 600)"
@@ -415,9 +431,27 @@
                                             <MudNumericField T="int" Label="Winner count" Min="1" Max="100"
                                                              Value="@GetTimedAnnouncementNumber("WinnerCount", 1)"
                                                              ValueChanged="@(value => OnTimedAnnouncementNumberChanged("WinnerCount", value))" />
+                                            <MudSwitch T="bool" Value="@GetRewardBoolean("UseRandomTotalAward")"
+                                                       ValueChanged="@(value => OnRewardBooleanChanged("UseRandomTotalAward", value))"
+                                                       Label="Randomize total award" Color="Color.Primary" />
+                                        </MudStack>
+                                        @if (GetRewardBoolean("UseRandomTotalAward"))
+                                        {
+                                            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                                                <MudNumericField T="int" Label="Inclusive award minimum" Min="0" Max="1000000"
+                                                                 Value="@GetTimedAnnouncementNumber("RandomTotalAwardMinimum", 1)"
+                                                                 ValueChanged="@(value => OnTimedAnnouncementNumberChanged("RandomTotalAwardMinimum", value))" />
+                                                <MudNumericField T="int" Label="Inclusive award maximum" Min="1" Max="1000000"
+                                                                 Value="@GetTimedAnnouncementNumber("RandomTotalAwardMaximum", 100)"
+                                                                 ValueChanged="@(value => OnTimedAnnouncementNumberChanged("RandomTotalAwardMaximum", value))" />
+                                            </MudStack>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">One total award is rolled when the raffle starts and split among winners.</MudText>
+                                        }
+                                        else
+                                        {
                                             <MudNumericField T="long" Label="Total award" Min="0"
                                                              Value="@GetTimedRaffleAward()" ValueChanged="OnTimedRaffleAwardChanged" />
-                                        </MudStack>
+                                        }
                                         @for (var index = 1; index <= 3; index++)
                                         {
                                             var messageNumber = index;
@@ -430,6 +464,9 @@
                                         <MudAlert Severity="Severity.Info" Dense="true">
                                             The host start action uses the Raffles queue until the raffle closes. Viewer joins stay on Default so entries remain responsive.
                                         </MudAlert>
+                                        <MudSwitch T="bool" Value="@GetRewardBoolean("IncludeStarterMessages")"
+                                                   ValueChanged="@(value => OnRewardBooleanChanged("IncludeStarterMessages", value))"
+                                                   Label="Include raffle chat messages" Color="Color.Primary" />
                                     }
                         else
                         {
@@ -581,9 +618,15 @@
                                 ? parameter.Key == "MessageText"
                                 : SelectedRecipe is not TwitchResponseRecipeBase || parameter.Key == "MessageText")
                             .Where(parameter => SelectedRecipe is not KeywordReactionRecipe || parameter.Key == "MessageText")
-                            .Where(parameter => SelectedRecipe is not CommandGroupToggleRecipe || parameter.Key == "Operation"))
+                            .Where(parameter => SelectedRecipe is not CommandGroupToggleRecipe || parameter.Key == "Operation")
+                            .Where(parameter => SelectedRecipe is not PointsRewardRecipe || parameter.Key != "Amount"))
                         {
                             <MudListItem T="string">@parameter.Label: @GetParameter(parameter.Key)</MudListItem>
+                        }
+                        @if (SelectedRecipe is PointsRewardRecipe)
+                        {
+                            <MudListItem T="string">Amount: @GetParameter("Amount")
+                            </MudListItem>
                         }
                         @if (SelectedRecipe is TwitchResponseRecipeBase)
                         {
@@ -763,6 +806,7 @@
         await LoadPointTypeNamesAsync();
         await LoadCommandNamesAsync();
         await LoadCounterNamesAsync();
+        await LoadRafflePointTypesAsync();
         await LoadChannelPointRewardsAsync();
         await LoadFireworksWidgetPresenceAsync();
         await LoadAvailableVariablesAsync();
@@ -787,6 +831,7 @@
         await LoadPointTypeNamesAsync();
         await LoadCommandNamesAsync();
         await LoadCounterNamesAsync();
+        await LoadRafflePointTypesAsync();
         await LoadChannelPointRewardsAsync();
         await LoadAvailableVariablesAsync();
     }

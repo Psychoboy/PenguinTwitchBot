@@ -314,7 +314,7 @@ Raffles are now built from the same Action and SubAction system used elsewhere i
 
 - Create fully custom raffle flows with `Raffle Start`, `Raffle Enter`, `Raffle End`, and the related raffle subactions.
 - Run multiple raffles at the same time by giving each raffle its own key and commands.
-- Use the `Create Raffle` button in Action Management to scaffold a full raffle setup quickly.
+- Use **Create from recipe > Timed raffle** in Action Management to configure join/start/end commands, award point type, timed announcements, and automatic closing.
 
 Full setup guide: [PenguinTwitchBot/Docs/Raffles.md](PenguinTwitchBot/Docs/Raffles.md)
 

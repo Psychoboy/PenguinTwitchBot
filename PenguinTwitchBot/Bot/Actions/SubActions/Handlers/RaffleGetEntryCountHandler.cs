@@ -18,6 +18,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             var raffleKey = VariableReplacer.ReplaceVariables(raffleGetEntryCount.RaffleKey, variables);
             var result = await raffleRuntimeService.GetEntryCountAsync(raffleKey);
+            if (result.Status == "not_running" &&
+                variables.TryGetValue("raffle_success", out var previousSuccess) &&
+                previousSuccess == "true")
+            {
+                variables["raffle_is_active"] = "false";
+                return;
+            }
+
             RaffleSubActionVariableWriter.Write(variables, result);
         }
     }

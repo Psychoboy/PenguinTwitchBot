@@ -16,8 +16,6 @@
 @inject IActionKeywordService KeywordService
 @inject IAutoTimers TimerService
 @inject ICommandHandler CommandHandler
-@inject IWebHostEnvironment HostEnvironment
-@inject ILogger<ImportActionsDialog> Logger
 
 <MudDialog>
     <TitleContent>
@@ -31,83 +29,16 @@
             @if (_importedPackage == null)
             {
                 <MudText Typo="Typo.body2">
-                    Choose a file export or browse the built-in library. After loading a package, the wizard will walk through trigger conflicts before anything is imported.
+                    Choose a JSON action export. The wizard will walk through trigger conflicts before anything is imported.
                 </MudText>
 
-                <MudPaper Outlined="true" Class="pa-3">
-                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-                        <MudButton Variant="@(_sourceMode == ImportSourceMode.File ? Variant.Filled : Variant.Outlined)"
-                                   Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.UploadFile"
-                                   OnClick="@(() => _sourceMode = ImportSourceMode.File)">
-                            File Import
+                <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".json">
+                    <CustomContent>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="@context.OpenFilePickerAsync">
+                            Select File
                         </MudButton>
-                        <MudButton Variant="@(_sourceMode == ImportSourceMode.Library ? Variant.Filled : Variant.Outlined)"
-                                   Color="Color.Secondary"
-                                   StartIcon="@Icons.Material.Filled.LibraryBooks"
-                                   OnClick="@(() => _sourceMode = ImportSourceMode.Library)">
-                            Library
-                        </MudButton>
-                    </MudStack>
-                </MudPaper>
-
-                @if (_sourceMode == ImportSourceMode.File)
-                {
-                    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".json">
-                        <CustomContent>
-                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="@context.OpenFilePickerAsync">
-                                Select File
-                            </MudButton>
-                        </CustomContent>
-                    </MudFileUpload>
-                }
-                else
-                {
-                    <MudTextField @bind-Value="_librarySearch" Label="Search library" Variant="Variant.Outlined"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                                  Immediate="true" />
-
-                    @if (_isLoadingLibrary)
-                    {
-                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
-                    }
-                    else if (_libraryItems.Count == 0)
-                    {
-                        <MudAlert Severity="Severity.Warning" Dense="true">
-                            No library packages were found in Data/SampleActions.
-                        </MudAlert>
-                    }
-                    else
-                    {
-                        <MudStack Spacing="2">
-                            @foreach (var item in FilterLibraryItems())
-                            {
-                                <MudPaper Outlined="true" Class="pa-3">
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Wrap="Wrap.Wrap">
-                                        <MudStack Spacing="1">
-                                            <MudText Typo="Typo.subtitle1">@item.DisplayName</MudText>
-                                            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                                @item.ActionCount action(s) across @item.GroupSummary
-                                            </MudText>
-                                            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Info">@item.TriggerCount trigger(s)</MudChip>
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@item.RelativePath</MudChip>
-                                                @if (item.ExportedAt.HasValue)
-                                                {
-                                                    <MudChip T="string" Size="Size.Small" Color="Color.Default"><ToLocal DateTime="item.ExportedAt.Value" Format="m/d/yyyy h:MM TT" /></MudChip>
-                                                }
-                                            </MudStack>
-                                        </MudStack>
-                                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Download"
-                                                   OnClick="@(() => LoadLibraryItemAsync(item))">
-                                            Use Package
-                                        </MudButton>
-                                    </MudStack>
-                                </MudPaper>
-                            }
-                        </MudStack>
-                    }
-                }
+                    </CustomContent>
+                </MudFileUpload>
 
                 @if (!string.IsNullOrEmpty(_parseError))
                 {
@@ -351,15 +282,11 @@
 
     [Parameter] public List<string> AvailableQueues { get; set; } = [];
     [Parameter] public List<string> Groups { get; set; } = [];
-    [Parameter] public bool StartInLibraryMode { get; set; }
 
     private ActionsImportExportPackage? _importedPackage;
-    private ImportSourceMode _sourceMode;
     private string _sourceLabel = "selected package";
     private string _parseError = "";
-    private string _librarySearch = "";
 
-    private readonly List<LibraryItemSummary> _libraryItems = [];
     private readonly List<ImportResourcePlan> _resourcePlans = [];
     private readonly List<string> _blockingIssues = [];
     private readonly List<string> _importErrors = [];
@@ -376,104 +303,14 @@
     private bool _useFileQueueName = true;
     private bool _useFileGroup = true;
     private bool _isImporting;
-    private bool _isLoadingLibrary;
     private string _overrideQueueName = "Default";
     private string _overrideGroup = "";
     private int _importedCount;
     private int _relinkCount;
 
-    protected override async Task OnInitializedAsync()
-    {
-        _sourceMode = StartInLibraryMode ? ImportSourceMode.Library : ImportSourceMode.File;
-        await LoadLibraryAsync();
-    }
-
     protected override void OnParametersSet()
     {
         _overrideQueueName = AvailableQueues.Contains("Default") ? "Default" : AvailableQueues.FirstOrDefault() ?? "Default";
-    }
-
-    private async Task LoadLibraryAsync()
-    {
-        _isLoadingLibrary = true;
-        _libraryItems.Clear();
-
-        try
-        {
-            var libraryRoot = Path.Combine(HostEnvironment.ContentRootPath, "Data", "SampleActions");
-            if (!Directory.Exists(libraryRoot))
-                return;
-
-            var options = CreateJsonOptions();
-            var files = Directory.EnumerateFiles(libraryRoot, "*.json", SearchOption.AllDirectories)
-                .Where(path => !Path.GetFileName(path).Equals("ActionGroup_Fireworks.json", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var filePath in files)
-            {
-                try
-                {
-                    var json = await File.ReadAllTextAsync(filePath);
-                    var package = JsonSerializer.Deserialize<ActionsImportExportPackage>(json, options);
-                    if (package == null)
-                        continue;
-
-                    var triggerCount = package.Actions.Sum(action => action.Triggers?.Count ?? 0);
-                    var groups = package.Actions
-                        .Select(action => string.IsNullOrWhiteSpace(action.Group) ? "Ungrouped" : action.Group!.Trim())
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .OrderBy(group => group, StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-
-                    _libraryItems.Add(new LibraryItemSummary
-                    {
-                        DisplayName = Path.GetFileNameWithoutExtension(filePath).Replace('_', ' '),
-                        RelativePath = Path.GetRelativePath(libraryRoot, filePath).Replace('\\', '/'),
-                        FilePath = filePath,
-                        ExportedAt = package.ExportedAt == default ? null : package.ExportedAt,
-                        ActionCount = package.Actions.Count,
-                        TriggerCount = triggerCount,
-                        GroupSummary = groups.Count == 0 ? "0 groups" : string.Join(", ", groups)
-                    });
-                }
-                catch (Exception ex)
-                {
-                    var relativePath = Path.GetRelativePath(libraryRoot, filePath).Replace('\\', '/');
-                    Logger.LogWarning(ex, "Skipping invalid action library file {RelativePath}", relativePath);
-                }
-            }
-        }
-        finally
-        {
-            _isLoadingLibrary = false;
-        }
-    }
-
-    private IEnumerable<LibraryItemSummary> FilterLibraryItems()
-    {
-        if (string.IsNullOrWhiteSpace(_librarySearch))
-            return _libraryItems;
-
-        return _libraryItems.Where(item =>
-            item.DisplayName.Contains(_librarySearch, StringComparison.OrdinalIgnoreCase) ||
-            item.RelativePath.Contains(_librarySearch, StringComparison.OrdinalIgnoreCase) ||
-            item.GroupSummary.Contains(_librarySearch, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private async Task LoadLibraryItemAsync(LibraryItemSummary item)
-    {
-        string json;
-        try
-        {
-            json = await File.ReadAllTextAsync(item.FilePath);
-        }
-        catch (Exception ex)
-        {
-            _parseError = $"Error reading library package '{item.RelativePath}': {ex.Message}";
-            return;
-        }
-
-        await LoadPackageFromJsonAsync(json, item.DisplayName);
     }
 
     private async Task OnFileSelected(IBrowserFile? file)
@@ -1431,12 +1268,6 @@
     private void Cancel() => MudDialog.Cancel();
     private void Done() => MudDialog.Close(DialogResult.Ok(_importedCount));
 
-    private enum ImportSourceMode
-    {
-        File,
-        Library
-    }
-
     private enum ImportResourceType
     {
         Command,
@@ -1449,17 +1280,6 @@
     {
         UseExisting,
         CreateNew
-    }
-
-    private sealed class LibraryItemSummary
-    {
-        public string DisplayName { get; set; } = "";
-        public string RelativePath { get; set; } = "";
-        public string FilePath { get; set; } = "";
-        public DateTime? ExportedAt { get; set; }
-        public int ActionCount { get; set; }
-        public int TriggerCount { get; set; }
-        public string GroupSummary { get; set; } = "";
     }
 
     private sealed class ImportResourcePlan

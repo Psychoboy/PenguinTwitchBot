@@ -4122,6 +4122,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("PointTypeId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("RaffleKey")
                         .IsRequired()
                         .HasColumnType("text");

@@ -303,6 +303,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions
                 return Task.FromResult(action);
             });
             var pointsSystem = Substitute.For<IPointsSystem>();
+            var pointTypeId = Guid.CreateVersion7();
+            pointsSystem.SetPointTypeForGame("timed", pointTypeId).Returns(Task.CompletedTask);
             pointsSystem.RegisterDefaultPointForGame(Arg.Any<string>()).Returns(Task.CompletedTask);
             var service = CreateService(unitOfWork, actionCommandService, pointsSystem);
 
@@ -317,6 +319,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions
                 JoinCommandName = "jointimed",
                 StartCommandName = "starttimed",
                 CreateEndCommand = false,
+                PointTypeId = pointTypeId,
+                UseRandomTotalAward = true,
+                RandomTotalAwardMinimum = 1,
+                RandomTotalAwardMaximum = 100,
                 WinnerCount = 1,
                 DurationSeconds = 300,
                 AnnouncementIntervalSeconds = 120,
@@ -329,9 +335,23 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             var startAction = Assert.Single(createdActions, action => action.Name.EndsWith("Start", StringComparison.Ordinal));
             Assert.Equal("Default", joinAction.QueueName);
             Assert.Equal("Raffles", startAction.QueueName);
+            var startActions = startAction.SubActions.OrderBy(subAction => subAction.Index).ToList();
+            var randomAward = Assert.IsType<RandomIntType>(startActions[0]);
+            Assert.Equal(1, randomAward.Min);
+            Assert.Equal(100, randomAward.Max);
+            var raffleStart = Assert.IsType<RaffleStartType>(startActions[1]);
+            Assert.Equal(pointTypeId, raffleStart.PointTypeId);
+            Assert.Equal("%random_int%", raffleStart.TotalAward);
+            Assert.Equal(Enumerable.Range(0, startActions.Count), startActions.Select(subAction => subAction.Index));
             Assert.Equal(["120000", "120000", "60000"], startAction.SubActions.OfType<DelayType>().Select(delay => delay.Duration));
+            var lifecycleChecks = startActions.OfType<LogicIfElseType>()
+                .Where(subAction => subAction.LeftValue == "%raffle_is_active%")
+                .ToList();
+            Assert.Equal(startAction.SubActions.OfType<DelayType>().Count(), lifecycleChecks.Count);
+            Assert.All(lifecycleChecks, check => Assert.IsType<BreakType>(Assert.Single(check.FalseSubActions)));
             Assert.Single(startAction.SubActions.OfType<RaffleEndType>());
-            var resultAnnouncement = Assert.Single(startAction.SubActions.OfType<LogicIfElseType>());
+            var resultAnnouncement = Assert.Single(startActions.OfType<LogicIfElseType>(),
+                subAction => subAction.LeftValue == "%raffle_has_entries%");
             Assert.Equal("%raffle_has_entries%", resultAnnouncement.LeftValue);
             Assert.Contains("%raffle_winners%", Assert.IsType<SendMessageType>(Assert.Single(resultAnnouncement.TrueSubActions)).Text);
             Assert.Equal("%raffle_name% ended with no entries.", Assert.IsType<SendMessageType>(Assert.Single(resultAnnouncement.FalseSubActions)).Text);

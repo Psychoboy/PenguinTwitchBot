@@ -28,6 +28,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 RaffleName = VariableReplacer.ReplaceVariables(raffleStart.RaffleName, variables),
                 JoinCommand = VariableReplacer.ReplaceVariables(raffleStart.JoinCommand, variables),
                 PointGameName = VariableReplacer.ReplaceVariables(raffleStart.PointGameName, variables),
+                PointTypeId = raffleStart.PointTypeId,
                 WinnerCount = raffleStart.WinnerCount,
                 TotalAward = totalAward
             });

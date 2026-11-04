@@ -552,6 +552,9 @@ public class ActionRecipeTests
             ["RaffleKey"] = "summer",
             ["JoinCommandName"] = "joinSummer",
             ["StartCommandName"] = "startSummer",
+            ["EndCommandName"] = "endSummer",
+            ["PointTypeId"] = Guid.NewGuid().ToString(),
+            ["IncludeStarterMessages"] = "false",
             ["DurationSeconds"] = "600",
             ["AnnouncementIntervalSeconds"] = "120",
             ["WinnerCount"] = "2",
@@ -563,8 +566,37 @@ public class ActionRecipeTests
         Assert.Equal(120, request.AnnouncementIntervalSeconds);
         Assert.Equal("Raffles", request.StartQueueName);
         Assert.Equal("Default", request.JoinQueueName);
-        Assert.False(request.CreateEndCommand);
+        Assert.True(request.CreateEndCommand);
+        Assert.Equal("endSummer", request.EndCommandName);
+        Assert.NotNull(request.PointTypeId);
+        Assert.False(request.IncludeStarterMessages);
         Assert.Equal(["Join now!"], request.AnnouncementMessages);
+    }
+
+    [Fact]
+    public void TimedRaffleRecipe_BuildsRandomTotalAwardRequest()
+    {
+        var recipe = new TimedRaffleRecipe();
+        var request = recipe.BuildRequest("Raffles", "Raffles", new Dictionary<string, string>
+        {
+            ["RaffleName"] = "Lucky raffle",
+            ["RaffleKey"] = "lucky",
+            ["JoinCommandName"] = "joinlucky",
+            ["StartCommandName"] = "startlucky",
+            ["EndCommandName"] = "endlucky",
+            ["UseRandomTotalAward"] = "true",
+            ["RandomTotalAwardMinimum"] = "1",
+            ["RandomTotalAwardMaximum"] = "100",
+            ["WinnerCount"] = "1",
+            ["DurationSeconds"] = "600",
+            ["AnnouncementIntervalSeconds"] = "120",
+            ["Announcement1"] = "Join now!"
+        });
+
+        Assert.True(request.UseRandomTotalAward);
+        Assert.Equal(1, request.RandomTotalAwardMinimum);
+        Assert.Equal(100, request.RandomTotalAwardMaximum);
+        Assert.Equal(0, request.TotalAward);
     }
 
     [Fact]

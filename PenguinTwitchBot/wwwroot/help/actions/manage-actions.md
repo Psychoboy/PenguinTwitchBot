@@ -21,8 +21,7 @@ Use **Timed raffle** to create viewer-join and moderator-start commands, periodi
 - **Context-Aware Available Variables**: View and search all available template variables directly within the action and subaction dialogs with click-to-copy tokens.
 - **Error Catch Handlers**: Dedicated **Catch SubActions** block that triggers automatically if an error occurs during execution, providing the `%ActionErrorMessage%` variable.
 - **Queue Assignment**: Direct actions into dedicated queues (such as blocking audio queues or concurrent background tasks).
-- **Import & Export**: Share action setups or back them up as JSON.
-- **Sample Actions Library**: Browse and import available action packages. New Fireworks setups should use the dedicated Fireworks sub-action.
+- **Import & Export**: Import user-provided JSON action packages or export actions for backup and sharing. Recipes provide guided setup for common workflows.
 
 ---
 
