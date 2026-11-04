@@ -36,5 +36,7 @@ public interface IActionRecipe
     bool SupportsVariables => false;
     bool AllowsAdditionalTriggers => false;
     string? RecommendedQueueName => null;
+    string? SuggestedGroupName => null;
+    IReadOnlyList<string> VariableParameterKeys => [];
     ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters);
 }

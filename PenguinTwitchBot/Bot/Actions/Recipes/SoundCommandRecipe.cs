@@ -19,6 +19,7 @@ public sealed class SoundCommandRecipe : IActionRecipe
     public string Description => "Create a chat command that plays a selected audio file.";
     public IReadOnlyList<ActionRecipeParameter> Parameters => RecipeParameters;
     public bool SupportsCommandSettings => true;
+    public string? SuggestedGroupName => "Recipes / Sounds";
 
     public ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters)
     {

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using PenguinTwitchBot.Bot.Actions.Variables;
+using PenguinTwitchBot.Bot.Actions.Recipes;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 
 namespace PenguinTwitchBot.Pages.Actions;
@@ -60,5 +61,30 @@ public partial class ActionRecipeWizard
         return string.Equals(key, "CommandName", StringComparison.OrdinalIgnoreCase)
             ? LoadAvailableVariablesAsync()
             : Task.CompletedTask;
+    }
+
+    private Task OnVariableTargetChanged(string? key)
+    {
+        _variableTargetKey = key ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private string GetVariableTargetLabel(string key) =>
+        SelectedRecipe?.Parameters.FirstOrDefault(parameter => parameter.Key.Equals(key, StringComparison.OrdinalIgnoreCase))?.Label
+        ?? (key.Equals("AlertText", StringComparison.OrdinalIgnoreCase) ? "Alert text" : key);
+
+    private Task InsertVariableAsync(string token)
+    {
+        if (string.IsNullOrWhiteSpace(_variableTargetKey)) return Task.CompletedTask;
+
+        if (SelectedRecipe is AlertRecipe && _variableTargetKey.Equals("AlertText", StringComparison.OrdinalIgnoreCase))
+        {
+            _alertRecipeSettings.Text = (_alertRecipeSettings.Text ?? string.Empty) + token;
+            SyncAlertRecipeParameters();
+            return Task.CompletedTask;
+        }
+
+        SetParameter(_variableTargetKey, GetParameter(_variableTargetKey) + token);
+        return Task.CompletedTask;
     }
 }

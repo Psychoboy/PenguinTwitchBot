@@ -47,6 +47,8 @@ public sealed class FireworksShowRecipe : IActionRecipe
     public bool AllowsAdditionalTriggers => true;
     public bool SupportsVariables => true;
     public string? RecommendedQueueName => "Fireworks";
+    public string? SuggestedGroupName => "Recipes / Fireworks";
+    public IReadOnlyList<string> VariableParameterKeys => ["BurstCount", "DelayMilliseconds"];
 
     public ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters)
     {

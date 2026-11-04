@@ -27,6 +27,8 @@ public sealed class AlertRecipe : IActionRecipe
     public bool RequiresCommand => false;
     public bool AllowsAdditionalTriggers => true;
     public bool SupportsVariables => true;
+    public string? SuggestedGroupName => "Recipes / Alerts";
+    public IReadOnlyList<string> VariableParameterKeys => ["AlertText"];
 
     public ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters)
     {
