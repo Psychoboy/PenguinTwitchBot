@@ -97,6 +97,63 @@ public class SubActionUIFieldEnhancerTests
     }
 
     [Fact]
+    public void GetEnhancedFields_ObsSourceVisibility_UsesSceneItemsAndObsSceneOrder()
+    {
+        var services = new ServiceCollection();
+        var connectionManager = Substitute.For<IOBSConnectionManager>();
+        var obs = Substitute.For<IOBSWebsocket>();
+        obs.GetSceneList().Returns(new GetSceneListInfo
+        {
+            Scenes =
+            [
+                new() { Name = "Scene Z", Index = "0" },
+                new() { Name = "Scene A", Index = "1" }
+            ]
+        });
+        obs.GetSceneItemList("Scene Z").Returns(new List<SceneItemDetails>
+        {
+            new SceneItemDetails { SourceName = "Top Source" },
+            new SceneItemDetails { SourceName = "Bottom Source" }
+        });
+        obs.GetInputList(Arg.Any<string>()).Returns(new List<InputBasicInfo>
+        {
+            new() { InputName = "Source In Another Scene", InputKind = "browser_source" }
+        });
+
+        var connectionId = Guid.CreateVersion7();
+        var connectionConfig = new OBSConnection
+        {
+            Id = connectionId,
+            Name = "Main",
+            Url = "ws://localhost:4455",
+            Password = "test",
+            Enabled = true
+        };
+        var logger = Substitute.For<ILogger<ManagedOBSConnection>>();
+        var connection = new ManagedOBSConnection(connectionConfig, obs, logger);
+        typeof(ManagedOBSConnection).GetProperty("IsConnected")!.SetValue(connection, true);
+
+        connectionManager.GetAllManagedConnections().Returns(new List<ManagedOBSConnection> { connection });
+        connectionManager.GetAllConnectionsAsync().Returns(Task.FromResult(new List<OBSConnection> { connectionConfig }));
+        services.AddSingleton(connectionManager);
+        var provider = services.BuildServiceProvider();
+        var subAction = new ObsSetSourceVisibilityType
+        {
+            OBSConnectionId = connectionId,
+            SceneName = "Scene Z"
+        };
+
+        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+
+        var sceneField = result.First(field => field.PropertyName == nameof(ObsSetSourceVisibilityType.SceneName));
+        Assert.Equal(["Scene A", "Scene Z"], sceneField.SelectOptions!.Select(option => option.Name));
+        var sourceField = result.First(field => field.PropertyName == nameof(ObsSetSourceVisibilityType.SourceName));
+        Assert.Equal(["Top Source", "Bottom Source"], sourceField.SelectOptions!.Select(option => option.Name));
+        Assert.DoesNotContain(sourceField.SelectOptions!, option => option.Name == "Source In Another Scene");
+        obs.DidNotReceive().GetInputList(Arg.Any<string>());
+    }
+
+    [Fact]
     public void GetEnhancedFields_NullSubAction_ReturnsEmpty()
     {
         SubActionType? subAction = null;

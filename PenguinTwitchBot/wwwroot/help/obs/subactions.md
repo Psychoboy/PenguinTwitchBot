@@ -22,6 +22,8 @@ All 13 OBS sub-actions available when building custom Actions in [Manage Actions
 | **Set Color Source Color** (`ObsSetColorSourceColorType`) | Changes the color of a solid color source. | Flash background red on damage alerts. |
 | **Trigger Hotkey** (`ObsTriggerHotkeyType`) | Simulates pressing an OBS hotkey shortcut. | Trigger replay buffer save or start virtual camera. |
 
+For a timed show/hide sequence, use **Actions > Create from recipe > Show OBS source**. Select a configured connection, scene, and source, then choose a duration. The generated action shows the source, waits, and hides it; it remains editable in Manage Actions. You can start it with a chat command or add another trigger such as a Twitch event.
+
 ---
 
 ### Chaining with Delays & Logic

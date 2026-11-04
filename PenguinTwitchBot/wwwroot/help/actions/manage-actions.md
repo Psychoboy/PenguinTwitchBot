@@ -7,6 +7,16 @@ Actions are the core automation engine of Penguin Twitch Bot. An action is a nam
 ## Key Features
 
 - **Multi-Trigger Execution**: A single action can be triggered by multiple distinct events (chat commands, channel point redemptions, follows, raids, timers, or hotkeys).
+
+Use **Actions > Create from recipe > Points reward or command** to add a Manage Points sub-action with a point type, operation, amount or `$math(...)$` formula, optional chat message, and command or event trigger.
+
+Use **Message sequence** to send up to five chat messages from one action, with a configurable delay before each message after the first.
+
+Use **Counter command** with an existing counter to create an increment command and display the updated value. Create the counter first in Actions > Counters.
+
+Use **Timed announcements** to create a repeating timer group with an interval, minimum chat activity, and up to five message variants. Each timer run chooses one message action.
+
+Use **Timed raffle** to create viewer-join and moderator-start commands, periodic announcements, winner settings, and automatic closing. The start action occupies the Raffles queue for the configured duration; viewer entries remain on the shared Default queue.
 - **Sequential Sub-Action Pipeline**: Sub-actions execute in order from top to bottom, with support for delays, logic conditions, and variable passing.
 - **Context-Aware Available Variables**: View and search all available template variables directly within the action and subaction dialogs with click-to-copy tokens.
 - **Error Catch Handlers**: Dedicated **Catch SubActions** block that triggers automatically if an error occurs during execution, providing the `%ActionErrorMessage%` variable.

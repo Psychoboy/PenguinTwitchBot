@@ -9,6 +9,7 @@
 @using PenguinTwitchBot.Database.Bot.Models.Queues
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI
 @using PenguinTwitchBot.Helpers
 @using PenguinTwitchBot.Database.Repository
 @using Microsoft.Extensions.DependencyInjection
@@ -18,12 +19,15 @@
 @inject IActionManagementService ActionService
 @inject IActionCommandService CommandService
 @inject IQueueManager QueueManager
+@inject PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimerService
+@inject IRaffleSetupService RaffleSetupService
 @inject IActionRecipeTagStore RecipeTagStore
 @inject IDialogService DialogService
 @inject IServiceScopeFactory ScopeFactory
 @inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
 @inject ISnackbar Snackbar
 @inject IActionVariableResolver VariableResolver
+@inject PenguinTwitchBot.Bot.TwitchServices.ITwitchService TwitchService
 
 <MudDialog>
     <TitleContent>
@@ -111,6 +115,322 @@
                                 </MudButton>
                             </MudStack>
                         }
+                        else if (recipe is ObsSourceVisibilityRecipe)
+                        {
+                            <MudTextField T="string" Label="Chat command (optional)" Variant="Variant.Outlined"
+                                          Value="@GetParameter("CommandName")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("CommandName", value))"
+                                          HelperText="Enter a command without !, or leave blank to use another trigger." />
+                            <MudSelect T="string" Label="OBS connection" Variant="Variant.Outlined"
+                                       Value="@GetParameter("OBSConnectionId")" ValueChanged="OnObsConnectionChanged" Required="true">
+                                @foreach (var connection in _obsConnectionOptions)
+                                {
+                                    <MudSelectItem T="string" Value="@connection.Id.ToString()">@connection.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudSelect T="string" Label="Scene" Variant="Variant.Outlined"
+                                       Value="@GetParameter("SceneName")" ValueChanged="OnObsSceneChanged" Required="true"
+                                       Disabled="@string.IsNullOrWhiteSpace(GetParameter("OBSConnectionId"))">
+                                @foreach (var scene in _obsSceneOptions)
+                                {
+                                    <MudSelectItem T="string" Value="@(scene.Value ?? scene.Name)">@scene.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudAutocomplete T="string" Label="Source" Variant="Variant.Outlined"
+                                             Value="@GetParameter("SourceName")" ValueChanged="OnObsSourceChanged"
+                                             SearchFunc="SearchObsSources" CoerceValue="true" Clearable="true" Required="true"
+                                             Disabled="@string.IsNullOrWhiteSpace(GetParameter("SceneName"))"
+                                             HelperText="Choose a source reported by OBS, or enter its exact name." />
+                            <MudNumericField T="int" Label="Visible for (seconds)" Min="1" Max="3600"
+                                             Value="@GetObsDurationSeconds()" ValueChanged="OnObsDurationChanged"
+                                             Variant="Variant.Outlined" Required="true" />
+                            @if (_obsConnectionOptions.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">
+                                    No OBS connections are configured. Add and connect one in OBS Connections, then reopen this recipe.
+                                </MudAlert>
+                            }
+                        }
+                        else if (recipe is ChannelPointActionRecipe)
+                        {
+                            <MudSelect T="string" Label="Reward setup" Variant="Variant.Outlined"
+                                       Value="@GetParameter("RewardMode")" ValueChanged="OnChannelPointRewardModeChanged">
+                                <MudSelectItem T="string" Value="@("Existing")">Use existing reward</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("CreateNew")">Create new reward</MudSelectItem>
+                            </MudSelect>
+                            @if (IsCreatingChannelPointReward)
+                            {
+                                <MudTextField T="string" Label="New reward title" Variant="Variant.Outlined"
+                                              Value="@GetParameter("NewRewardTitle")"
+                                              ValueChanged="@(value => OnRecipeParameterChanged("NewRewardTitle", value))" Required="true" />
+                                <MudNumericField T="int" Label="Cost" Min="1"
+                                                 Value="@GetChannelPointRewardCost()" ValueChanged="OnChannelPointRewardCostChanged" Required="true" />
+                                <MudTextField T="string" Label="Prompt (optional)" Variant="Variant.Outlined"
+                                              Value="@GetParameter("RewardPrompt")"
+                                              ValueChanged="@(value => OnRecipeParameterChanged("RewardPrompt", value))" />
+                                <MudSwitch T="bool" Value="@GetRewardBoolean("RewardRequiresInput")"
+                                           ValueChanged="@(value => OnRewardBooleanChanged("RewardRequiresInput", value))"
+                                           Label="Require viewer input" Color="Color.Primary" />
+                                <MudSwitch T="bool" Value="@GetRewardBoolean("RewardSkipQueue")"
+                                           ValueChanged="@(value => OnRewardBooleanChanged("RewardSkipQueue", value))"
+                                           Label="Skip Queue" Color="Color.Primary" />
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    Skip Queue is a Twitch reward setting; Twitch handles fulfillment when redemptions bypass its request queue.
+                                </MudText>
+                            }
+                            else
+                            {
+                                <MudSelect T="string" Label="Existing channel point reward" Variant="Variant.Outlined"
+                                           Value="@GetParameter("RewardTitle")" ValueChanged="OnChannelPointRewardTitleChanged" Required="true">
+                                    @foreach (var rewardTitle in _channelPointRewardTitles)
+                                    {
+                                        <MudSelectItem T="string" Value="@rewardTitle">@rewardTitle</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                @if (_channelPointRewardTitles.Count == 0)
+                                {
+                                    <MudAlert Severity="Severity.Warning" Dense="true">
+                                        No manageable rewards found. Choose “Create new reward” or add one in <MudLink Href="/settings/channel-points">Channel Points</MudLink>.
+                                    </MudAlert>
+                                }
+                            }
+                            <MudTextField T="string" Label="Chat message" Variant="Variant.Outlined" Lines="3"
+                                          Value="@GetParameter("MessageText")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("MessageText", value))"
+                                          HelperText="Use redemption variables such as %user%, %RewardName%, and %UserInput%." Required="true" />
+                            <MudSwitch T="bool" Value="@IsTwitchAlertEnabled" ValueChanged="OnTwitchAlertEnabledChanged"
+                                       Color="Color.Primary" Label="Add an overlay alert" />
+                            @if (IsTwitchAlertEnabled)
+                            {
+                                <AlertSubActionEditor Alert="@_alertRecipeSettings" AlertChanged="OnAlertSettingsChanged" />
+                            }
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                                <MudTextField T="string" Label="Additional sound" Variant="Variant.Outlined"
+                                              Value="@GetParameter("SoundFile")" ReadOnly="true" />
+                                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PhotoLibrary"
+                                           OnClick="OpenTwitchSoundLibraryAsync">Browse Media Library</MudButton>
+                            </MudStack>
+                            <MudNumericField T="int" Label="Fireworks bursts" Min="0" Max="100"
+                                             Value="@GetTwitchFireworksCount()" ValueChanged="OnTwitchFireworksCountChanged" />
+                        }
+                        else if (recipe is TwitchEventReactionRecipe)
+                        {
+                            <MudTextField T="string" Label="Chat message" Variant="Variant.Outlined"
+                                          Lines="3" Value="@GetParameter("MessageText")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("MessageText", value))"
+                                          HelperText="Use event variables such as %user%, %amount%, or %numberofviewers%." Required="true" />
+                            <MudSwitch T="bool" Value="@IsTwitchAlertEnabled" ValueChanged="OnTwitchAlertEnabledChanged"
+                                       Color="Color.Primary" Label="Add an overlay alert" />
+                            @if (IsTwitchAlertEnabled)
+                            {
+                                <AlertSubActionEditor Alert="@_alertRecipeSettings" AlertChanged="OnAlertSettingsChanged" />
+                            }
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                                <MudTextField T="string" Label="Additional sound" Variant="Variant.Outlined"
+                                              Value="@GetParameter("SoundFile")" ReadOnly="true"
+                                              HelperText="Optional sound to play with the event response." />
+                                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PhotoLibrary"
+                                           OnClick="OpenTwitchSoundLibraryAsync">
+                                    Browse Media Library
+                                </MudButton>
+                                @if (!string.IsNullOrWhiteSpace(GetParameter("SoundFile")))
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="Clear selected sound"
+                                                   OnClick="ClearTwitchSound" />
+                                }
+                            </MudStack>
+                            <MudNumericField T="int" Label="Fireworks bursts" Min="0" Max="100"
+                                             Value="@GetTwitchFireworksCount()" ValueChanged="OnTwitchFireworksCountChanged"
+                                             HelperText="Set to 0 for none. A Fireworks overlay widget is required." />
+                            @if (GetTwitchFireworksCount() > 0 && !_fireworksWidgetPresent)
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">
+                                    No enabled Fireworks widget is configured. Add one in the <MudLink Href="/overlay/editor">Overlay Editor</MudLink> or set bursts to 0.
+                                </MudAlert>
+                            }
+                        }
+                        else if (recipe is PointsRewardRecipe)
+                        {
+                            <MudTextField T="string" Label="Chat command (optional)" Variant="Variant.Outlined"
+                                          Value="@GetParameter("CommandName")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("CommandName", value))"
+                                          HelperText="Leave blank to add an event trigger instead." />
+                            <MudSelect T="string" Label="Point type" Variant="Variant.Outlined"
+                                       Value="@GetParameter("PointTypeName")" ValueChanged="OnPointTypeChanged" Required="true">
+                                @foreach (var pointType in _pointTypeNames)
+                                {
+                                    <MudSelectItem T="string" Value="@pointType">@pointType</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudSelect T="string" Label="Operation" Variant="Variant.Outlined"
+                                       Value="@GetParameter("Operation")" ValueChanged="@(value => OnRecipeParameterChanged("Operation", value))">
+                                @foreach (var operation in Enum.GetNames<ManagePointsOperation>())
+                                {
+                                    <MudSelectItem T="string" Value="@operation">@operation</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudTextField T="string" Label="Amount or formula" Variant="Variant.Outlined"
+                                          Value="@GetParameter("Amount")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("Amount", value))"
+                                          HelperText="Examples: 10, %Score%, $math(%Score% * 2)$" Required="true" />
+                            @if (!GetParameter("Operation").Equals(nameof(ManagePointsOperation.AddActive), StringComparison.OrdinalIgnoreCase))
+                            {
+                                <MudTextField T="string" Label="Target user" Variant="Variant.Outlined"
+                                              Value="@GetParameter("TargetUser")"
+                                              ValueChanged="@(value => OnRecipeParameterChanged("TargetUser", value))"
+                                              HelperText="Defaults to %user%." />
+                            }
+                            <MudTextField T="string" Label="Chat message (optional)" Variant="Variant.Outlined" Lines="3"
+                                          Value="@GetParameter("MessageText")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("MessageText", value))" />
+                            @if (_pointTypeNames.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">
+                                    No point types exist yet. Create one in <MudLink Href="/settings/points">Point Settings</MudLink> first.
+                                </MudAlert>
+                            }
+                        }
+                        else if (recipe is KeywordReactionRecipe)
+                        {
+                            <MudTextField T="string" Label="Chat message" Variant="Variant.Outlined" Lines="3"
+                                          Value="@GetParameter("MessageText")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("MessageText", value))"
+                                          HelperText="Use variables such as %user%." Required="true" />
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                                <MudTextField T="string" Label="Sound file (optional)" Variant="Variant.Outlined"
+                                              Value="@GetParameter("SoundFile")" ReadOnly="true" />
+                                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PhotoLibrary"
+                                           OnClick="OpenKeywordSoundLibraryAsync">
+                                    Browse Media Library
+                                </MudButton>
+                                @if (!string.IsNullOrWhiteSpace(GetParameter("SoundFile")))
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="Clear selected sound"
+                                                   OnClick="ClearKeywordSound" />
+                                }
+                            </MudStack>
+                        }
+                        else if (recipe is CommandAliasRecipe)
+                        {
+                            <MudSelect T="string" Label="Command to run" Variant="Variant.Outlined"
+                                       Value="@GetParameter("TargetCommand")" ValueChanged="OnAliasTargetCommandChanged" Required="true">
+                                @foreach (var commandName in _enabledCommandNames)
+                                {
+                                    <MudSelectItem T="string" Value="@commandName">!@commandName</MudSelectItem>
+                                }
+                            </MudSelect>
+                            @if (_enabledCommandNames.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">
+                                    No enabled custom commands are available to alias.
+                                </MudAlert>
+                            }
+                            <MudTextField T="string" Label="Arguments to pass" Variant="Variant.Outlined"
+                                          Value="@GetParameter("Arguments")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("Arguments", value))"
+                                          HelperText="Defaults to %message% so arguments after the alias are forwarded." />
+                        }
+                        else if (recipe is CommandGroupToggleRecipe)
+                        {
+                            <MudSelect T="string" Label="Commands" Variant="Variant.Outlined" MultiSelection="true"
+                                       SelectedValues="@GetSelectedToggleCommands()" SelectedValuesChanged="OnToggleCommandsChanged"
+                                       ToStringFunc="@(commandName => $"!{commandName}")" Required="true">
+                                @foreach (var commandName in _commandNames)
+                                {
+                                    <MudSelectItem T="string" Value="@commandName">!@commandName</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudSelect T="string" Label="Change" Variant="Variant.Outlined"
+                                       Value="@GetParameter("Operation")"
+                                       ValueChanged="@(value => OnRecipeParameterChanged("Operation", value))">
+                                <MudSelectItem T="string" Value="@("Disable")">Disable selected commands</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Enable")">Enable selected commands</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else if (recipe is CounterCommandRecipe)
+                        {
+                            <MudSelect T="string" Label="Counter" Variant="Variant.Outlined"
+                                       Value="@GetParameter("CounterName")" ValueChanged="OnCounterNameChanged" Required="true">
+                                @foreach (var counterName in _counterNames)
+                                {
+                                    <MudSelectItem T="string" Value="@counterName">@counterName</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudNumericField T="int" Label="Increment amount" Min="1"
+                                             Value="@GetCounterStep()" ValueChanged="OnCounterStepChanged"
+                                             Variant="Variant.Outlined" Required="true" />
+                            <MudTextField T="string" Label="Display message" Variant="Variant.Outlined" Lines="3"
+                                          Value="@GetParameter("ResponseMessage")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("ResponseMessage", value))"
+                                          HelperText="Available variables: %counter_display_name%, %counter_value%, %counter_old_value%." />
+                            @if (_counterNames.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">
+                                    Create a counter in <MudLink Href="/actions/counters">Counters</MudLink> before adding its command.
+                                </MudAlert>
+                            }
+                        }
+                        else if (recipe is TimedAnnouncementRecipe)
+                        {
+                            <MudTextField T="string" Label="Timer name" Variant="Variant.Outlined"
+                                          Value="@GetParameter("TimerName")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("TimerName", value))" Required="true" />
+                            <MudNumericField T="int" Label="Interval (seconds)" Min="30" Max="86400"
+                                             Value="@GetTimedAnnouncementNumber("IntervalSeconds", 300)"
+                                             ValueChanged="@(value => OnTimedAnnouncementNumberChanged("IntervalSeconds", value))" />
+                            <MudNumericField T="int" Label="Minimum chat messages" Min="0" Max="10000"
+                                             Value="@GetTimedAnnouncementNumber("MinimumMessages", 15)"
+                                             ValueChanged="@(value => OnTimedAnnouncementNumberChanged("MinimumMessages", value))" />
+                            @for (var index = 1; index <= 5; index++)
+                            {
+                                var messageNumber = index;
+                                var parameterKey = $"Message{messageNumber}";
+                                <MudTextField T="string" Label="@($"Announcement {messageNumber}")" Variant="Variant.Outlined" Lines="2"
+                                              Value="@GetParameter(parameterKey)"
+                                              ValueChanged="@(value => OnRecipeParameterChanged(parameterKey, value))"
+                                              Required="@(messageNumber == 1)" />
+                            }
+                        }
+                                    else if (recipe is TimedRaffleRecipe)
+                                    {
+                                        <MudTextField T="string" Label="Raffle name" Variant="Variant.Outlined"
+                                                      Value="@GetParameter("RaffleName")" ValueChanged="@(value => OnRecipeParameterChanged("RaffleName", value))" Required="true" />
+                                        <MudTextField T="string" Label="Raffle key" Variant="Variant.Outlined"
+                                                      Value="@GetParameter("RaffleKey")" ValueChanged="@(value => OnRecipeParameterChanged("RaffleKey", value))" Required="true" />
+                                        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                                            <MudTextField T="string" Label="Join command" Variant="Variant.Outlined"
+                                                          Value="@GetParameter("JoinCommandName")" ValueChanged="@(value => OnRecipeParameterChanged("JoinCommandName", value))" Required="true" />
+                                            <MudTextField T="string" Label="Start command" Variant="Variant.Outlined"
+                                                          Value="@GetParameter("StartCommandName")" ValueChanged="@(value => OnRecipeParameterChanged("StartCommandName", value))" Required="true" />
+                                        </MudStack>
+                                        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                                            <MudNumericField T="int" Label="Duration (seconds)" Min="60" Max="86400"
+                                                             Value="@GetTimedAnnouncementNumber("DurationSeconds", 600)"
+                                                             ValueChanged="@(value => OnTimedAnnouncementNumberChanged("DurationSeconds", value))" />
+                                            <MudNumericField T="int" Label="Announcement cadence (seconds)" Min="30" Max="3600"
+                                                             Value="@GetTimedAnnouncementNumber("AnnouncementIntervalSeconds", 120)"
+                                                             ValueChanged="@(value => OnTimedAnnouncementNumberChanged("AnnouncementIntervalSeconds", value))" />
+                                        </MudStack>
+                                        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                                            <MudNumericField T="int" Label="Winner count" Min="1" Max="100"
+                                                             Value="@GetTimedAnnouncementNumber("WinnerCount", 1)"
+                                                             ValueChanged="@(value => OnTimedAnnouncementNumberChanged("WinnerCount", value))" />
+                                            <MudNumericField T="long" Label="Total award" Min="0"
+                                                             Value="@GetTimedRaffleAward()" ValueChanged="OnTimedRaffleAwardChanged" />
+                                        </MudStack>
+                                        @for (var index = 1; index <= 3; index++)
+                                        {
+                                            var messageNumber = index;
+                                            var parameterKey = $"Announcement{messageNumber}";
+                                            <MudTextField T="string" Label="@($"Periodic announcement {messageNumber}")" Variant="Variant.Outlined" Lines="2"
+                                                          Value="@GetParameter(parameterKey)"
+                                                          ValueChanged="@(value => OnRecipeParameterChanged(parameterKey, value))"
+                                                          Required="@(messageNumber == 1)" />
+                                        }
+                                        <MudAlert Severity="Severity.Info" Dense="true">
+                                            The host start action uses the Raffles queue until the raffle closes. Viewer joins stay on Default so entries remain responsive.
+                                        </MudAlert>
+                                    }
                         else
                         {
                             @foreach (var parameter in recipe.Parameters)
@@ -146,10 +466,16 @@
                         </MudExpansionPanels>
                     }
 
-                    @if (SelectedRecipe?.AllowsAdditionalTriggers == true)
+                    @if (SelectedRecipe is { AllowsAdditionalTriggers: true } triggerRecipe)
                     {
                         <MudDivider Class="my-2" />
-                        <MudText Typo="Typo.subtitle1">Additional triggers</MudText>
+                        <MudText Typo="Typo.subtitle1">@(triggerRecipe.RequiresTrigger ? "Required trigger" : "Additional triggers")</MudText>
+                        @if (triggerRecipe.RequiresTrigger && !_additionalTriggers.Any(triggerRecipe.IsRequiredTrigger))
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true">
+                                Add a @triggerRecipe.TriggerRequirementDescription to continue. Filters are available in the trigger setup.
+                            </MudAlert>
+                        }
                         <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
                             @foreach (var trigger in _additionalTriggers)
                             {
@@ -163,7 +489,7 @@
                         </MudStack>
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add"
                                    OnClick="AddAdditionalTriggerAsync">
-                            Add trigger
+                            @(triggerRecipe.RequiresTrigger ? triggerRecipe.TriggerButtonLabel : "Add trigger")
                         </MudButton>
                     }
 
@@ -249,9 +575,50 @@
                         {
                             <MudListItem T="string">Trigger: @trigger.Name</MudListItem>
                         }
-                        @foreach (var parameter in SelectedRecipe?.Parameters ?? [])
+                        @foreach (var parameter in (SelectedRecipe?.Parameters ?? [])
+                            .Where(parameter => SelectedRecipe is not ObsSourceVisibilityRecipe || parameter.Key == "CommandName")
+                            .Where(parameter => SelectedRecipe is ChannelPointActionRecipe
+                                ? parameter.Key == "MessageText"
+                                : SelectedRecipe is not TwitchResponseRecipeBase || parameter.Key == "MessageText")
+                            .Where(parameter => SelectedRecipe is not KeywordReactionRecipe || parameter.Key == "MessageText")
+                            .Where(parameter => SelectedRecipe is not CommandGroupToggleRecipe || parameter.Key == "Operation"))
                         {
                             <MudListItem T="string">@parameter.Label: @GetParameter(parameter.Key)</MudListItem>
+                        }
+                        @if (SelectedRecipe is TwitchResponseRecipeBase)
+                        {
+                            <MudListItem T="string">Overlay alert: @(IsTwitchAlertEnabled ? _alertRecipeSettings.Text : "Off")</MudListItem>
+                            <MudListItem T="string">Additional sound: @(string.IsNullOrWhiteSpace(GetParameter("SoundFile")) ? "None" : GetParameter("SoundFile"))</MudListItem>
+                            <MudListItem T="string">Fireworks bursts: @GetTwitchFireworksCount()</MudListItem>
+                        }
+                        @if (SelectedRecipe is ChannelPointActionRecipe)
+                        {
+                            var isNewReward = IsCreatingChannelPointReward;
+                            var rewardTitle = isNewReward ? GetParameter("NewRewardTitle") : GetParameter("RewardTitle");
+                            var existingRewardCost = _channelPointRewards.FirstOrDefault(reward =>
+                                reward.Title.Equals(rewardTitle, StringComparison.OrdinalIgnoreCase))?.Cost;
+                            <MudListItem T="string">Reward: @rewardTitle</MudListItem>
+                            <MudListItem T="string">Setup: @(isNewReward ? "Create new reward" : "Existing reward")</MudListItem>
+                            <MudListItem T="string">Cost: @(isNewReward ? GetChannelPointRewardCost() : existingRewardCost) points</MudListItem>
+                            @if (isNewReward)
+                            {
+                                <MudListItem T="string">Skip Queue: @(GetRewardBoolean("RewardSkipQueue") ? "On" : "Off")</MudListItem>
+                            }
+                        }
+                        @if (SelectedRecipe is KeywordReactionRecipe)
+                        {
+                            <MudListItem T="string">Sound: @(string.IsNullOrWhiteSpace(GetParameter("SoundFile")) ? "None" : GetParameter("SoundFile"))</MudListItem>
+                        }
+                        @if (SelectedRecipe is CommandGroupToggleRecipe)
+                        {
+                            <MudListItem T="string">Commands: @string.Join(", ", GetSelectedToggleCommands().Select(commandName => $"!{commandName}"))</MudListItem>
+                            <MudListItem T="string">Change: @GetParameter("Operation")</MudListItem>
+                        }
+                        @if (SelectedRecipe is ObsSourceVisibilityRecipe)
+                        {
+                            <MudListItem T="string">OBS connection: @_obsConnectionOptions.FirstOrDefault(connection => connection.Id.ToString() == GetParameter("OBSConnectionId"))?.Name</MudListItem>
+                            <MudListItem T="string">Source: @GetParameter("SceneName") / @GetParameter("SourceName")</MudListItem>
+                            <MudListItem T="string">Visibility duration: @GetParameter("DurationSeconds") seconds</MudListItem>
                         }
                         @if (SelectedRecipe is AlertRecipe)
                         {
@@ -265,10 +632,19 @@
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Nothing is created until you confirm. Created actions will be tagged with their recipe and remain editable in Manage Actions.
                     </MudAlert>
-                    @if (string.IsNullOrWhiteSpace(RecipeCommandName) && _additionalTriggers.Count == 0)
+                    @if (SelectedRecipe is not (ITimerGroupActionRecipe or IRaffleSetupActionRecipe or ChannelPointActionRecipe) &&
+                        string.IsNullOrWhiteSpace(RecipeCommandName) && _additionalTriggers.Count == 0)
                     {
                         <MudAlert Severity="Severity.Warning" Dense="true">
                             This action has no trigger yet. You can create it now and link it to an event later in Manage Actions.
+                        </MudAlert>
+                    }
+                    @if (SelectedRecipe is not ChannelPointActionRecipe &&
+                        SelectedRecipe is { RequiresTrigger: true } requiredTriggerRecipe &&
+                         !_additionalTriggers.Any(requiredTriggerRecipe.IsRequiredTrigger))
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            This recipe needs a @requiredTriggerRecipe.TriggerRequirementDescription before it can be created.
                         </MudAlert>
                     }
                     @if (SelectedRecipe is FireworksShowRecipe)
@@ -383,6 +759,11 @@
             ?? _recipes.FirstOrDefault()?.Id
             ?? string.Empty;
         InitializeParameters();
+        await LoadObsSourceOptionsAsync();
+        await LoadPointTypeNamesAsync();
+        await LoadCommandNamesAsync();
+        await LoadCounterNamesAsync();
+        await LoadChannelPointRewardsAsync();
         await LoadFireworksWidgetPresenceAsync();
         await LoadAvailableVariablesAsync();
     }
@@ -400,8 +781,13 @@
         _commandMinimumRank = Rank.Viewer;
         if (oldRecipe != null && string.Equals(_actionName, GetDefaultActionName(oldRecipe), StringComparison.OrdinalIgnoreCase))
             _actionName = string.Empty;
-        _alertRecipeSettings = SelectedRecipe is AlertRecipe ? CreateDefaultAlertSettings() : new AlertType();
+        _alertRecipeSettings = SelectedRecipe is AlertRecipe or TwitchResponseRecipeBase ? CreateDefaultAlertSettings() : new AlertType();
         InitializeParameters();
+        await LoadObsSourceOptionsAsync();
+        await LoadPointTypeNamesAsync();
+        await LoadCommandNamesAsync();
+        await LoadCounterNamesAsync();
+        await LoadChannelPointRewardsAsync();
         await LoadAvailableVariablesAsync();
     }
 
@@ -461,15 +847,26 @@
 
     private void SyncAlertRecipeParameters()
     {
-        if (SelectedRecipe is not AlertRecipe) return;
-        _parameters["AlertText"] = _alertRecipeSettings.Text ?? string.Empty;
-        _parameters["File"] = _alertRecipeSettings.File ?? string.Empty;
-        _parameters["AudioFile"] = _alertRecipeSettings.AudioFile ?? string.Empty;
-        _parameters["Duration"] = _alertRecipeSettings.Duration.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        _parameters["Volume"] = _alertRecipeSettings.Volume.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        _parameters["CSS"] = _alertRecipeSettings.CSS ?? string.Empty;
-        _parameters["AlertChannel"] = _alertRecipeSettings.AlertChannel ?? string.Empty;
-        _parameters["Enabled"] = _alertRecipeSettings.Enabled.ToString();
+        if (SelectedRecipe is AlertRecipe)
+        {
+            _parameters["AlertText"] = _alertRecipeSettings.Text ?? string.Empty;
+            _parameters["File"] = _alertRecipeSettings.File ?? string.Empty;
+            _parameters["AudioFile"] = _alertRecipeSettings.AudioFile ?? string.Empty;
+            _parameters["Duration"] = _alertRecipeSettings.Duration.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _parameters["Volume"] = _alertRecipeSettings.Volume.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _parameters["CSS"] = _alertRecipeSettings.CSS ?? string.Empty;
+            _parameters["AlertChannel"] = _alertRecipeSettings.AlertChannel ?? string.Empty;
+            _parameters["Enabled"] = _alertRecipeSettings.Enabled.ToString();
+        }
+        else if (SelectedRecipe is TwitchResponseRecipeBase)
+        {
+            _parameters["AlertText"] = _alertRecipeSettings.Text ?? string.Empty;
+            _parameters["AlertFile"] = _alertRecipeSettings.File ?? string.Empty;
+            _parameters["AlertAudioFile"] = _alertRecipeSettings.AudioFile ?? string.Empty;
+            _parameters["AlertDuration"] = _alertRecipeSettings.Duration.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _parameters["AlertVolume"] = _alertRecipeSettings.Volume.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _parameters["AlertCss"] = _alertRecipeSettings.CSS ?? string.Empty;
+        }
     }
 
     private void OnQueueChanged(string? queueName)

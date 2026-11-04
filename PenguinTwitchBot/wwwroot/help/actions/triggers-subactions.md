@@ -10,6 +10,10 @@ Triggers define the circumstances that initiate an action:
 
 - **Game Outcomes & Default Commands**: Configure Win, Bullseye, Podium, Lose, Popped, Knockout, Race Match Concluded, UFO Claw Result, Starship Expedition events, and round lifecycle events from a game's **Outcome Automations** panel, or directly in [Manage Actions](/actions/manage). The game wizard creates regular actions and default-command trigger records; those triggers are the unified outcome automation path.
 - **Twitch Events**: Follows, subscriptions, resubscriptions, gift subs, raids, cheers (Bits), channel point custom rewards, hype trains, ad breaks, charity donations, shoutouts, and stream online/offline.
+
+For common follow, subscription, gift, cheer, and raid responses, **Actions > Create from recipe > Twitch event reaction** builds one editable action with a chat message and optional alert, sound, or fireworks. Add the event trigger in the wizard and use its filters to limit tiers, amounts, or raid size.
+
+**Keyword reaction** creates an editable chat reply with an optional sound. Add a configured Keyword trigger in the wizard; create the keyword first in Keywords if needed.
 - **Chat Commands & Keywords**: Custom prefixes, specific keywords detected in chat messages, or user-level filters (moderator, subscriber, VIP, broadcaster).
 - **Timer Groups**: Scheduled ticks from configured background timers.
 - **Fishing Events**: Fish catches, item breakage, accidents, and tournament starts/catches/conclusions.

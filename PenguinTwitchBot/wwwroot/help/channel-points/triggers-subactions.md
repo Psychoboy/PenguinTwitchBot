@@ -6,6 +6,8 @@ Channel Point redemptions deeply integrate with PenguinTwitchBot's Actions and A
 
 Any channel point redemption can initiate automated bot actions:
 - **Trigger Type**: `TwitchEvent` with event name `ChannelPointsCustomRewardRedemptionAdd`.
+
+For a redemption response, use **Actions > Create from recipe > Channel point redeem**. Choose an existing reward or create one, then configure the chat message and optional alert, sound, or fireworks. New rewards can set **Skip Queue**, a Twitch reward setting that causes Twitch to fulfill redemptions without placing them in the request queue; the bot does not fulfill redemptions itself.
 - **Targeting Specific Rewards**: You can bind an action to a specific reward by entering its exact title, or leave the filter empty to react to all redemptions.
 - **Redemption Context Variables**:
   When a redemption fires an action, the following runtime variables are automatically made available to subsequent sub-actions:

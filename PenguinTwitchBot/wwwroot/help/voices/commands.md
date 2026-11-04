@@ -2,6 +2,8 @@
 
 Integrate Text-to-Speech directly with Twitch chat commands, channel points, and automated Action workflows.
 
+Use **Actions > Create from recipe > TTS reader** to read `%message%` aloud from a chat command or another trigger. The default voice username is `%user%`, so each chatter's configured voice is used when available; the existing TTS system's fallback behavior remains in effect.
+
 ---
 
 ### Default Chat Commands

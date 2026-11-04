@@ -1,5 +1,6 @@
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Models.Timers;
 
 namespace PenguinTwitchBot.Bot.Actions.Recipes;
 
@@ -42,8 +43,28 @@ public interface IActionRecipe
     bool SupportsCommandSettings => false;
     bool SupportsVariables => false;
     bool AllowsAdditionalTriggers => false;
+    bool RequiresTrigger => false;
+    string TriggerRequirementDescription => "supported trigger";
+    string TriggerButtonLabel => "Add trigger";
+    IReadOnlyCollection<TriggerTypes>? AllowedTriggerTypes => null;
+    IReadOnlyCollection<string>? AllowedTwitchEventNames => null;
+    bool IsRequiredTrigger(TriggerType trigger) => true;
     string? RecommendedQueueName => null;
     string? SuggestedGroupName => null;
     IReadOnlyList<string> VariableParameterKeys => [];
     ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters);
+}
+
+public interface ITimerGroupActionRecipe : IActionRecipe
+{
+    TimerGroup BuildTimerGroup(IReadOnlyDictionary<string, string> parameters);
+    IReadOnlyList<ActionType> BuildTimerActions(ActionRecipeContext context, TimerGroup timerGroup, IReadOnlyDictionary<string, string> parameters);
+}
+
+public interface IRaffleSetupActionRecipe : IActionRecipe
+{
+    PenguinTwitchBot.Bot.Actions.RaffleSetupRequest BuildRequest(
+        string groupName,
+        string queueName,
+        IReadOnlyDictionary<string, string> parameters);
 }

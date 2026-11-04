@@ -260,5 +260,81 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.False(result.Success);
             Assert.Contains("An error occurred while creating", result.Errors.FirstOrDefault()!);
         }
+
+        [Fact]
+        public async Task CreateAsync_TimedRaffleRejectsAnnouncementCadenceLongerThanDuration()
+        {
+            var (unitOfWork, actionsRepo) = CreateUnitOfWork();
+            var actionCommandService = Substitute.For<IActionCommandService>();
+            actionCommandService.CommandExistsAsync(Arg.Any<string>()).Returns(false);
+            actionsRepo.GetAllWithDetailsAsync().Returns([]);
+            var service = CreateService(unitOfWork, actionCommandService);
+
+            var result = await service.CreateAsync(new RaffleSetupRequest
+            {
+                RaffleName = "Timed raffle",
+                RaffleKey = "timed",
+                JoinCommandName = "jointimed",
+                StartCommandName = "starttimed",
+                CreateEndCommand = false,
+                WinnerCount = 1,
+                DurationSeconds = 600,
+                AnnouncementIntervalSeconds = 700,
+                AnnouncementMessages = ["Still open!"]
+            });
+
+            Assert.False(result.Success);
+            Assert.Contains(result.Errors, error => error.Contains("Announcement interval", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public async Task CreateAsync_TimedRaffleAddsAutomaticEndAndKeepsJoinOnDefaultQueue()
+        {
+            var (unitOfWork, actionsRepo) = CreateUnitOfWork();
+            var actionCommandService = Substitute.For<IActionCommandService>();
+            actionCommandService.CommandExistsAsync(Arg.Any<string>()).Returns(false);
+            actionsRepo.GetAllWithDetailsAsync().Returns([]);
+            var createdActions = new List<ActionType>();
+            actionsRepo.CreateActionAsync(Arg.Any<ActionType>()).Returns(callInfo =>
+            {
+                var action = callInfo.Arg<ActionType>();
+                action.Id = Guid.CreateVersion7();
+                createdActions.Add(action);
+                return Task.FromResult(action);
+            });
+            var pointsSystem = Substitute.For<IPointsSystem>();
+            pointsSystem.RegisterDefaultPointForGame(Arg.Any<string>()).Returns(Task.CompletedTask);
+            var service = CreateService(unitOfWork, actionCommandService, pointsSystem);
+
+            var result = await service.CreateAsync(new RaffleSetupRequest
+            {
+                RaffleName = "Timed raffle",
+                RaffleKey = "timed",
+                Group = "Raffles",
+                QueueName = "Raffles",
+                StartQueueName = "Raffles",
+                JoinQueueName = "Default",
+                JoinCommandName = "jointimed",
+                StartCommandName = "starttimed",
+                CreateEndCommand = false,
+                WinnerCount = 1,
+                DurationSeconds = 300,
+                AnnouncementIntervalSeconds = 120,
+                AnnouncementMessages = ["Still open!", "Join now!"]
+            });
+
+            Assert.True(result.Success);
+            Assert.Null(result.EndActionId);
+            var joinAction = Assert.Single(createdActions, action => action.Name.EndsWith("Join", StringComparison.Ordinal));
+            var startAction = Assert.Single(createdActions, action => action.Name.EndsWith("Start", StringComparison.Ordinal));
+            Assert.Equal("Default", joinAction.QueueName);
+            Assert.Equal("Raffles", startAction.QueueName);
+            Assert.Equal(["120000", "120000", "60000"], startAction.SubActions.OfType<DelayType>().Select(delay => delay.Duration));
+            Assert.Single(startAction.SubActions.OfType<RaffleEndType>());
+            var resultAnnouncement = Assert.Single(startAction.SubActions.OfType<LogicIfElseType>());
+            Assert.Equal("%raffle_has_entries%", resultAnnouncement.LeftValue);
+            Assert.Contains("%raffle_winners%", Assert.IsType<SendMessageType>(Assert.Single(resultAnnouncement.TrueSubActions)).Text);
+            Assert.Equal("%raffle_name% ended with no entries.", Assert.IsType<SendMessageType>(Assert.Single(resultAnnouncement.FalseSubActions)).Text);
+        }
     }
 }

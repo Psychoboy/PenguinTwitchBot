@@ -120,7 +120,7 @@ public static class SubActionUIFieldEnhancer
                         var sceneField = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetSceneType.SceneName));
                         if (sceneField != null)
                         {
-                            ApplySelectOptions(sceneField, scenes, "Select the OBS scene to switch to");
+                            ApplySelectOptions(sceneField, scenes, "Select the OBS scene to switch to", preserveOrder: true);
                         }
                     }
                 }
@@ -163,7 +163,7 @@ public static class SubActionUIFieldEnhancer
         if (sceneField != null)
         {
             var scenes = GetSceneNames(connected);
-            ApplySelectOptions(sceneField, scenes, "Select the OBS scene");
+            ApplySelectOptions(sceneField, scenes, "Select the OBS scene", preserveOrder: true);
         }
 
         var filterField = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetSceneFilterStateType.FilterName));
@@ -195,7 +195,7 @@ public static class SubActionUIFieldEnhancer
         if (sceneField != null)
         {
             var scenes = GetSceneNames(connected);
-            ApplySelectOptions(sceneField, scenes, "Select the OBS scene");
+            ApplySelectOptions(sceneField, scenes, "Select the OBS scene", preserveOrder: true);
         }
 
         var sourceField = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetSourceVisibilityType.SourceName));
@@ -206,12 +206,8 @@ public static class SubActionUIFieldEnhancer
 
         if (sourceField != null && !string.IsNullOrWhiteSpace(visibility.SceneName))
         {
-            var sources = GetInputNames(connected)
-                .Concat(GetSceneNames(connected))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            ApplySelectOptions(sourceField, sources, "Select the OBS source in the scene");
+            var sources = GetSceneItemNames(connected, visibility.SceneName);
+            ApplySelectOptions(sourceField, sources, "Select the OBS source in the scene", preserveOrder: true);
             sourceField.AllowCustomValue = true;
         }
 
@@ -310,18 +306,21 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static void ApplySelectOptions(SubActionUIField? field, IEnumerable<string> options, string helperText)
+    private static void ApplySelectOptions(SubActionUIField? field, IEnumerable<string> options, string helperText, bool preserveOrder = false)
     {
         if (field == null)
             return;
 
-        field.FieldType = UIFieldType.Select;
-        field.SelectOptions = options
+        var selectOptions = options
             .Where(option => !string.IsNullOrWhiteSpace(option))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(option => option, StringComparer.OrdinalIgnoreCase)
             .Select(option => new SelectOption { Name = option, Value = option })
             .ToList();
+        if (!preserveOrder)
+            selectOptions = selectOptions.OrderBy(option => option.Name, StringComparer.OrdinalIgnoreCase).ToList();
+
+        field.FieldType = UIFieldType.Select;
+        field.SelectOptions = selectOptions;
         field.HelperText = helperText;
     }
 
@@ -336,7 +335,7 @@ public static class SubActionUIFieldEnhancer
         return names
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .Reverse()
             .ToList();
     }
 
@@ -366,7 +365,6 @@ public static class SubActionUIFieldEnhancer
         return names
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 

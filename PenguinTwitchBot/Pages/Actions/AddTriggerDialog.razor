@@ -539,6 +539,8 @@
     [Parameter] public Guid ActionId { get; set; }
     [Parameter] public TriggerType? ExistingTrigger { get; set; }
     [Parameter] public bool DisableResourceCreation { get; set; }
+    [Parameter] public IReadOnlyCollection<TriggerTypes>? AllowedTriggerTypes { get; set; }
+    [Parameter] public IReadOnlyCollection<string>? AllowedTwitchEventNames { get; set; }
     [Inject] private IActionCommandService CommandService { get; set; } = null!;
     [Inject] private IActionKeywordService KeywordService { get; set; } = null!;
     [Inject] private PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService { get; set; } = null!;
@@ -790,17 +792,32 @@
 
     private List<TriggerCategoryInfo> GetAvailableCategories()
     {
-        return TriggerCatalog.GetAvailableCategories(FeatureRuntimeCoordinator);
+        return TriggerCatalog.GetAvailableCategories(FeatureRuntimeCoordinator)
+            .Where(category => TriggerCatalog.GetTriggersForCategory(category.Id, FeatureRuntimeCoordinator).Any(IsTriggerAllowed))
+            .ToList();
     }
 
     private List<TriggerItemInfo> GetCategoryTriggers(TriggerCategoryInfo category)
     {
-        return TriggerCatalog.GetTriggersForCategory(category.Id, FeatureRuntimeCoordinator);
+        return TriggerCatalog.GetTriggersForCategory(category.Id, FeatureRuntimeCoordinator)
+            .Where(IsTriggerAllowed)
+            .ToList();
     }
 
     private List<TriggerItemInfo> GetSearchResults()
     {
-        return TriggerCatalog.SearchTriggers(_searchText, FeatureRuntimeCoordinator);
+        return TriggerCatalog.SearchTriggers(_searchText, FeatureRuntimeCoordinator)
+            .Where(IsTriggerAllowed)
+            .ToList();
+    }
+
+    private bool IsTriggerAllowed(TriggerItemInfo item)
+    {
+        if (AllowedTriggerTypes is { Count: > 0 } && !AllowedTriggerTypes.Contains(item.Type))
+            return false;
+        if (item.Type == TriggerTypes.TwitchEvent && AllowedTwitchEventNames is not null)
+            return AllowedTwitchEventNames.Contains(item.TwitchEventName ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+        return true;
     }
 
     private void SelectCategory(TriggerCategoryInfo category)
@@ -813,6 +830,9 @@
 
     private void SelectTrigger(TriggerItemInfo item)
     {
+        if (!IsTriggerAllowed(item))
+            return;
+
         _selectedItem = item;
         _selectedType = item.Type;
         _previousStep = _currentStep;
@@ -1392,6 +1412,8 @@
 
     private bool CanSubmit()
     {
+        if (_selectedItem is not null && !IsTriggerAllowed(_selectedItem))
+            return false;
         if (_currentStep != WizardStep.Configure) return false;
         if (string.IsNullOrWhiteSpace(_triggerName)) return false;
         if (_selectedType.HasValue && !IsTriggerTypeAvailable(_selectedType.Value)) return false;
@@ -1410,6 +1432,9 @@
 
         // For Twitch event type, require an event to be selected
         if (_selectedType == TriggerTypes.TwitchEvent && string.IsNullOrEmpty(_selectedTwitchEvent))
+            return false;
+        if (_selectedType == TriggerTypes.TwitchEvent && AllowedTwitchEventNames is not null &&
+            !AllowedTwitchEventNames.Contains(_selectedTwitchEvent, StringComparer.OrdinalIgnoreCase))
             return false;
 
         // For default command type, require a command and event type to be selected

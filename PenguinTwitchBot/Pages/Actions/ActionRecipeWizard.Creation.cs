@@ -1,6 +1,7 @@
 using MudBlazor;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.Recipes;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Bot.Models.Points;
@@ -27,6 +28,115 @@ public partial class ActionRecipeWizard
             error = "Enter alert text, a duration from 1 to 60 seconds, and a volume from 0 to 100%.";
             return false;
         }
+        if (SelectedRecipe is TwitchResponseRecipeBase && IsTwitchAlertEnabled &&
+            (string.IsNullOrWhiteSpace(_alertRecipeSettings.Text) ||
+             _alertRecipeSettings.Duration is < 1 or > 60 ||
+             _alertRecipeSettings.Volume is < 0 or > 1 ||
+             !int.TryParse(GetParameter("FireworksCount"), out var fireworksCount) || fireworksCount is < 0 or > 100))
+        {
+            error = "Enter alert text, a valid alert duration and volume, and fireworks bursts from 0 to 100.";
+            return false;
+        }
+        if (SelectedRecipe is TwitchResponseRecipeBase &&
+            (!int.TryParse(GetParameter("FireworksCount"), out var reactionFireworksCount) || reactionFireworksCount is < 0 or > 100))
+        {
+            error = "Fireworks bursts must be between 0 and 100.";
+            return false;
+        }
+        if (SelectedRecipe is PointsRewardRecipe &&
+            (!_pointTypeNames.Contains(GetParameter("PointTypeName"), StringComparer.OrdinalIgnoreCase) ||
+             !Enum.TryParse<ManagePointsOperation>(GetParameter("Operation"), true, out _) ||
+             string.IsNullOrWhiteSpace(GetParameter("Amount")) ||
+             (!GetParameter("Operation").Equals(nameof(ManagePointsOperation.AddActive), StringComparison.OrdinalIgnoreCase) &&
+              string.IsNullOrWhiteSpace(GetParameter("TargetUser")))))
+        {
+            error = "Choose an existing point type, a valid operation, and its required amount and target user.";
+            return false;
+        }
+        if (SelectedRecipe is ChannelPointActionRecipe channelPointRecipe)
+        {
+            if (IsCreatingChannelPointReward)
+            {
+                try
+                {
+                    var request = channelPointRecipe.BuildRewardRequest(_parameters);
+                    if (_channelPointRewardTitles.Contains(request.Title, StringComparer.OrdinalIgnoreCase))
+                    {
+                        error = "A reward with that title already exists. Select it from the existing reward list instead.";
+                        return false;
+                    }
+                }
+                catch (ArgumentException ex)
+                {
+                    error = ex.Message;
+                    return false;
+                }
+            }
+            else if (!_channelPointRewardTitles.Contains(GetParameter("RewardTitle"), StringComparer.OrdinalIgnoreCase))
+            {
+                error = "Choose an existing reward or switch to Create new reward.";
+                return false;
+            }
+        }
+        var aliasTargetCommandName = ChatCommandRecipeBase.NormalizeCommandName(GetParameter("TargetCommand"));
+        if (SelectedRecipe is CommandAliasRecipe &&
+            !_enabledCommandNames.Any(commandName =>
+                ChatCommandRecipeBase.NormalizeCommandName(commandName).Equals(aliasTargetCommandName, StringComparison.OrdinalIgnoreCase)))
+        {
+            error = "Choose an existing enabled command to alias.";
+            return false;
+        }
+        if (SelectedRecipe is CommandAliasRecipe && aliasTargetCommandName.Equals(NormalizedCommandName, StringComparison.OrdinalIgnoreCase))
+        {
+            error = "Choose an enabled target command that differs from the alias command.";
+            return false;
+        }
+        if (SelectedRecipe is CommandGroupToggleRecipe &&
+            (GetSelectedToggleCommands().Count == 0 ||
+             GetSelectedToggleCommands().Any(commandName => !_commandNames.Contains(commandName, StringComparer.OrdinalIgnoreCase)) ||
+             (!GetParameter("Operation").Equals("Enable", StringComparison.OrdinalIgnoreCase) &&
+              !GetParameter("Operation").Equals("Disable", StringComparison.OrdinalIgnoreCase))))
+        {
+            error = "Choose at least one existing command and select Enable or Disable.";
+            return false;
+        }
+        if (SelectedRecipe is CounterCommandRecipe &&
+            (!_counterNames.Contains(GetParameter("CounterName"), StringComparer.OrdinalIgnoreCase) ||
+             !int.TryParse(GetParameter("Step"), out var counterStep) || counterStep <= 0))
+        {
+            error = "Choose an existing counter and enter a positive increment amount.";
+            return false;
+        }
+        if (SelectedRecipe is TimedAnnouncementRecipe &&
+            (string.IsNullOrWhiteSpace(GetParameter("TimerName")) ||
+             !int.TryParse(GetParameter("IntervalSeconds"), out var intervalSeconds) || intervalSeconds is < 30 or > 86400 ||
+             !int.TryParse(GetParameter("MinimumMessages"), out var minimumMessages) || minimumMessages is < 0 or > 10000 ||
+             !Enumerable.Range(1, 5).Any(index => !string.IsNullOrWhiteSpace(GetParameter($"Message{index}")))))
+        {
+            error = "Enter a unique timer name, interval from 30 to 86400 seconds, a valid chat activity threshold, and at least one message.";
+            return false;
+        }
+        if (SelectedRecipe is TimedRaffleRecipe raffleRecipe)
+        {
+            try
+            {
+                raffleRecipe.BuildRequest(EffectiveGroupName, EffectiveQueueName, _parameters);
+            }
+            catch (ArgumentException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+        if (SelectedRecipe is ObsSourceVisibilityRecipe &&
+            (!Guid.TryParse(GetParameter("OBSConnectionId"), out var connectionId) || connectionId == Guid.Empty ||
+             string.IsNullOrWhiteSpace(GetParameter("SceneName")) ||
+             string.IsNullOrWhiteSpace(GetParameter("SourceName")) ||
+             !int.TryParse(GetParameter("DurationSeconds"), out var durationSeconds) || durationSeconds is < 1 or > 3600))
+        {
+            error = "Choose an OBS connection, scene, source, and a visibility duration from 1 to 3600 seconds.";
+            return false;
+        }
         if (string.IsNullOrWhiteSpace(_actionName))
         {
             error = "Action name is required.";
@@ -36,6 +146,11 @@ public partial class ActionRecipeWizard
             (string.IsNullOrWhiteSpace(NormalizedCommandName) || NormalizedCommandName.Any(char.IsWhiteSpace)))
         {
             error = "Enter a single command name without spaces.";
+            return false;
+        }
+        if (SelectedRecipe.RequiresTrigger && !_additionalTriggers.Any(SelectedRecipe.IsRequiredTrigger))
+        {
+            error = $"Add a supported trigger for {SelectedRecipe.Title}.";
             return false;
         }
         if (!SelectedRecipe.RequiresCommand && RecipeCommandName.Any(char.IsWhiteSpace))
@@ -72,11 +187,23 @@ public partial class ActionRecipeWizard
         if (_isBusy || !ValidateConfiguration(out _)) return;
         _isBusy = true;
         _error = string.Empty;
+        Guid? newlyCreatedChannelPointRewardId = null;
         try
         {
             var recipe = SelectedRecipe!;
             var actionName = _actionName.Trim();
             var queueName = EffectiveQueueName;
+            if (recipe is ITimerGroupActionRecipe timerRecipe)
+            {
+                await CreateTimerGroupActionsAsync(timerRecipe, actionName, queueName);
+                return;
+            }
+            if (recipe is IRaffleSetupActionRecipe raffleRecipe)
+            {
+                await CreateRaffleSetupAsync(raffleRecipe, queueName);
+                return;
+            }
+
             var existingActions = await ActionService.GetActionSummariesAsync();
             if (existingActions.Any(action => string.Equals(action.Name, actionName, StringComparison.OrdinalIgnoreCase)))
             {
@@ -115,9 +242,10 @@ public partial class ActionRecipeWizard
             }
 
             if (command == null && !string.IsNullOrWhiteSpace(RecipeCommandName))
-            {
                 command = await CreateRecipeCommandAsync(RecipeCommandName, recipe);
-            }
+
+            if (recipe is ChannelPointActionRecipe && IsCreatingChannelPointReward)
+                newlyCreatedChannelPointRewardId = await CreateChannelPointRewardAsync();
 
             var action = recipe.Build(
                 new ActionRecipeContext(actionName, queueName, command?.CommandName ?? string.Empty, command?.Id ?? Guid.Empty),
@@ -126,6 +254,7 @@ public partial class ActionRecipeWizard
             action.Triggers ??= [];
             action.Triggers.AddRange(_additionalTriggers.Select(CloneTrigger));
             var createdAction = await ActionService.CreateActionAsync(action);
+            newlyCreatedChannelPointRewardId = null;
             try
             {
                 await RecipeTagStore.TagAsync(createdAction.Id, recipe.Id, _parameters);
@@ -140,6 +269,17 @@ public partial class ActionRecipeWizard
         }
         catch (Exception ex)
         {
+            if (newlyCreatedChannelPointRewardId.HasValue)
+            {
+                try
+                {
+                    await TwitchService.DeleteChannelPointReward(newlyCreatedChannelPointRewardId.Value.ToString());
+                }
+                catch (Exception cleanupException)
+                {
+                    Snackbar.Add($"The action failed to save and the new Twitch reward could not be removed: {cleanupException.Message}", Severity.Warning);
+                }
+            }
             _error = $"Could not create the recipe action: {ex.Message}";
         }
         finally
