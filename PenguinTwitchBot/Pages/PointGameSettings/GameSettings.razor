@@ -153,15 +153,24 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        _selectedGame = GameDescriptorRegistry.FindById(SelectedGameId);
-        _selectedProvider = CreateSettingsProvider(_selectedGame);
+        var selectedGame = GameDescriptorRegistry.FindById(SelectedGameId);
+        _selectedGame = selectedGame;
+        _selectedProvider = CreateSettingsProvider(selectedGame);
         _activeTabIndex = 0;
-        _gameCommands = _selectedGame == null
-            ? []
-            : (await CommandHandler.GetDefaultCommandsFromDb())
-                .Where(command => _selectedGame.CommandNames.Contains(command.CommandName, StringComparer.OrdinalIgnoreCase))
-                .OrderBy(command => command.CustomCommandName)
-                .ToList();
+        if (selectedGame == null)
+        {
+            _gameCommands = [];
+            return;
+        }
+
+        var commands = await CommandHandler.GetDefaultCommandsFromDb();
+        if (!ReferenceEquals(_selectedGame, selectedGame))
+            return;
+
+        _gameCommands = commands
+            .Where(command => selectedGame.CommandNames.Contains(command.CommandName, StringComparer.OrdinalIgnoreCase))
+            .OrderBy(command => command.CustomCommandName)
+            .ToList();
     }
 
     private static IGameSettingsFormProvider? CreateSettingsProvider(GameDescriptor? game) =>

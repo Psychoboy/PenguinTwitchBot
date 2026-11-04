@@ -28,7 +28,7 @@
         </MudItem>
 
         <MudItem xs="12">
-            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Class="pa-4">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" KeepPanelsAlive="true" Class="pa-4">
 
                 @* -- Tab 1: Point Types -- *@
                 <MudTabPanel Text="Point Types" Icon="@Icons.Material.Filled.MonetizationOn">
@@ -243,6 +243,7 @@
         new AddActiveSettingsProvider(),
         new ModSpamSettingsProvider(),
     ];
+
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     [Inject] ISnackbar Snackbar { get; set; } = default!;
 
