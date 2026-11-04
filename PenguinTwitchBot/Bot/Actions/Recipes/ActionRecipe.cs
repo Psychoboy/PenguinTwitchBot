@@ -15,7 +15,14 @@ public sealed record ActionRecipeParameter(
     string HelperText,
     ActionRecipeParameterType Type = ActionRecipeParameterType.Text,
     string DefaultValue = "",
-    bool Required = true);
+    bool Required = true,
+    bool ReplaceDefaultWhenInsertingVariable = false)
+{
+    public string InsertVariableToken(string currentValue, string token) =>
+        ReplaceDefaultWhenInsertingVariable && currentValue.Equals(DefaultValue, StringComparison.Ordinal)
+            ? token
+            : currentValue + token;
+}
 
 public sealed record ActionRecipeContext(
     string ActionName,

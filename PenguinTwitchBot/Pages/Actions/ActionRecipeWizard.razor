@@ -209,7 +209,13 @@
                             Queue '@_pendingQueue.Name' will be created when you confirm this action.
                         </MudAlert>
                     }
-                    @if (SelectedQueueIsDisabled)
+                    @if (PendingQueueIsDisabled)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            This new queue is disabled. Select another queue or create a new enabled queue.
+                        </MudAlert>
+                    }
+                    else if (SavedQueueIsDisabled)
                     {
                         <MudAlert Severity="Severity.Warning" Dense="true">
                             This queue is disabled. Choose an enabled queue or enable it in Actions &gt; Queues.
@@ -343,12 +349,12 @@
         ? ChatCommandRecipeBase.NormalizeCommandName(GetParameter("CommandName"))
         : NormalizedCommandName;
     private string EffectiveQueueName => _selectedQueueName.Trim();
-    private string EffectiveGroupName => string.IsNullOrWhiteSpace(_groupName)
-        ? SelectedRecipe?.SuggestedGroupName ?? string.Empty
-        : _groupName.Trim();
-    private bool SelectedQueueIsDisabled =>
-        (_pendingQueue is not null && _pendingQueue.Name.Equals(_selectedQueueName, StringComparison.OrdinalIgnoreCase) && !_pendingQueue.Enabled) ||
-        _queues.FirstOrDefault(queue => string.Equals(queue.Name, _selectedQueueName, StringComparison.OrdinalIgnoreCase)) is { Enabled: false };
+    private string EffectiveGroupName => _groupName?.Trim() ?? string.Empty;
+    private bool PendingQueueIsDisabled => _pendingQueue is { Enabled: false } &&
+        _pendingQueue.Name.Equals(_selectedQueueName, StringComparison.OrdinalIgnoreCase);
+    private bool SavedQueueIsDisabled => _queues.FirstOrDefault(queue =>
+        string.Equals(queue.Name, _selectedQueueName, StringComparison.OrdinalIgnoreCase)) is { Enabled: false };
+    private bool SelectedQueueIsDisabled => PendingQueueIsDisabled || SavedQueueIsDisabled;
     private bool RecommendedQueueNeedsCreation => SelectedRecipe?.RecommendedQueueName is { } recommendedName &&
         _pendingQueue is null && !_queues.Any(queue => queue.Name.Equals(recommendedName, StringComparison.OrdinalIgnoreCase));
     private bool RecommendedQueueDisabled => SelectedRecipe?.RecommendedQueueName is { } recommendedName &&

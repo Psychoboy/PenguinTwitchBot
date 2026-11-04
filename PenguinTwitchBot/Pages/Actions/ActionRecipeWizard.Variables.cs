@@ -84,7 +84,12 @@ public partial class ActionRecipeWizard
             return Task.CompletedTask;
         }
 
-        SetParameter(_variableTargetKey, GetParameter(_variableTargetKey) + token);
+        var target = SelectedRecipe?.Parameters.FirstOrDefault(parameter =>
+            parameter.Key.Equals(_variableTargetKey, StringComparison.OrdinalIgnoreCase));
+        if (target is not null)
+        {
+            SetParameter(_variableTargetKey, target.InsertVariableToken(GetParameter(_variableTargetKey), token));
+        }
         return Task.CompletedTask;
     }
 }

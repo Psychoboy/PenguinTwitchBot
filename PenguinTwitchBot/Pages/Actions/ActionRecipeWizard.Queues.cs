@@ -23,7 +23,8 @@ public partial class ActionRecipeWizard
                     MaxConcurrentActions = 1
                 }
             },
-            { dialog => dialog.IsNew, true }
+            { dialog => dialog.IsNew, true },
+            { dialog => dialog.RequireEnabled, true }
         };
         var dialog = await DialogService.ShowAsync<QueueEditDialog>("Create Action Queue", parameters, new DialogOptions
         {

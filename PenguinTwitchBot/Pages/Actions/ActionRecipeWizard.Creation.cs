@@ -50,7 +50,9 @@ public partial class ActionRecipeWizard
         }
         if (SelectedQueueIsDisabled)
         {
-            error = "The selected queue is disabled. Choose an enabled queue or enable it in Actions > Queues.";
+            error = PendingQueueIsDisabled
+                ? "The new queue is disabled. Select another queue or create a new enabled queue."
+                : "The selected queue is disabled. Choose an enabled queue or enable it in Actions > Queues.";
             return false;
         }
         foreach (var parameter in SelectedRecipe.Parameters.Where(parameter => parameter.Required))
