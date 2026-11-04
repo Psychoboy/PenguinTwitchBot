@@ -75,6 +75,19 @@ public class TaxPointTypePolicySettingsTests
     }
 
     [Fact]
+    public void GetCandidateViewerCutoff_UsesShortestEnabledInactivityThreshold()
+    {
+        var now = new DateTime(2026, 11, 4, 12, 0, 0, DateTimeKind.Utc);
+        TaxPointTypePolicy[] enabledPolicies =
+        [
+            new() { Enabled = true, InactiveDays = 1 },
+            new() { Enabled = true, InactiveDays = 7 }
+        ];
+
+        Assert.Equal(now.AddDays(-1), TaxPointTypePolicySettings.GetCandidateViewerCutoff(now, enabledPolicies));
+    }
+
+    [Fact]
     public async Task SaveAsync_PersistsPolicyByPointTypeId()
     {
         var pointTypeId = Guid.NewGuid();

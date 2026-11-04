@@ -51,7 +51,8 @@ public class MiscPointAssignmentFilterTests
                     TrueSubActions =
                     [
                         new RaffleStartType { RaffleKey = "main-raffle", PointGameName = "main-points", PointTypeId = Guid.NewGuid() },
-                        new RaffleStartType { RaffleKey = "default-raffle", PointGameName = "" }
+                        new RaffleStartType { RaffleKey = "default-raffle", PointGameName = "" },
+                        new RaffleStartType { RaffleKey = "loyalty-raffle", PointGameName = "loyalty" }
                     ],
                     FalseSubActions = [new RaffleEndType { RaffleKey = "alternate-raffle" }]
                 }
@@ -64,6 +65,7 @@ public class MiscPointAssignmentFilterTests
             Mapping("main-points"),
             Mapping("default-raffle"),
             Mapping("raffle"),
+            Mapping("loyalty"),
             Mapping("alternate-raffle"),
             Mapping("catch-raffle"),
             Mapping("stale-raffle")
@@ -71,9 +73,9 @@ public class MiscPointAssignmentFilterTests
 
         var result = MiscPointAssignmentFilter.Filter(assignments, [action]);
 
-        Assert.Single(result);
-        Assert.All(result, assignment => Assert.False(assignment.CanEdit));
-        Assert.Contains(result, assignment => assignment.Assignment.Setting.GameName == "raffle");
+        Assert.Equal(2, result.Count);
+        Assert.False(result.Single(assignment => assignment.Assignment.Setting.GameName == "raffle").CanEdit);
+        Assert.True(result.Single(assignment => assignment.Assignment.Setting.GameName == "loyalty").CanEdit);
         Assert.DoesNotContain(result, assignment => assignment.Assignment.Setting.GameName == "main-raffle");
         Assert.DoesNotContain(result, assignment => assignment.Assignment.Setting.GameName == "main-points");
         Assert.DoesNotContain(result, assignment => assignment.Assignment.Setting.GameName == "stale-raffle");

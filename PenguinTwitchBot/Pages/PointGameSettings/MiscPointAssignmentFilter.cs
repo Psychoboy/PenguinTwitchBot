@@ -39,7 +39,8 @@ public static class MiscPointAssignmentFilter
                 rafflePointGameNames.Contains(assignment.Setting.GameName))
             .Select(assignment => new MiscPointAssignment(
                 assignment,
-                rafflePointGameNames.Contains(assignment.Setting.GameName)))
+                rafflePointGameNames.Contains(assignment.Setting.GameName) &&
+                !MiscellaneousPointGameNames.Contains(assignment.Setting.GameName)))
             .OrderBy(assignment => assignment.Assignment.Setting.GameName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }

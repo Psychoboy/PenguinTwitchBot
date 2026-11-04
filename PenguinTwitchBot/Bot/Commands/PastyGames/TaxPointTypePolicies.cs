@@ -61,6 +61,9 @@ public static class TaxPointTypePolicySettings
         return (long)Math.Min(percentageDeduction, policy.MaximumDeduction);
     }
 
+    public static DateTime GetCandidateViewerCutoff(DateTime now, IEnumerable<TaxPointTypePolicy> enabledPolicies) =>
+        now.AddDays(-enabledPolicies.Min(policy => policy.InactiveDays));
+
     public static void Validate(TaxPointTypePolicy policy)
     {
         if (policy.PointTypeId == Guid.Empty)

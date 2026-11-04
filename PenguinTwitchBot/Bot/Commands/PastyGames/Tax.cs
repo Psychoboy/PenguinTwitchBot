@@ -70,7 +70,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     return;
                 }
 
-                var oldestCutoff = now.AddDays(-policies.Max(entry => entry.Policy.InactiveDays));
+                var oldestCutoff = TaxPointTypePolicySettings.GetCandidateViewerCutoff(now, policies.Select(entry => entry.Policy));
                 List<Viewer> viewers;
                 Dictionary<Guid, string> pointTypeNames;
                 await using (var scope = _scopeFactory.CreateAsyncScope())

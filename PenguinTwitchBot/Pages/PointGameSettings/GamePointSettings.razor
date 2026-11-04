@@ -7,7 +7,7 @@
 @using PenguinTwitchBot.Database.Bot.Actions
 
 <MudPaper Elevation="2">
-    <MudTable Items="@PointSettings" CanCancelEdit="true" RowEditCommit="ItemHasBeenCommitted">
+    <MudTable Items="@PointSettings" CanCancelEdit="true" EditTrigger="TableEditTrigger.EditButton" RowEditCommit="ItemHasBeenCommitted">
         <ToolBarContent>
             <MudStack Spacing="0">
                 <MudText Typo="Typo.h6">Misc Point Assignments</MudText>
