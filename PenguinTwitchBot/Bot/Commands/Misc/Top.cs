@@ -1,5 +1,6 @@
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Fishing;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
@@ -15,7 +16,8 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         ICommandHandler commandHandler,
         Application.Notifications.IPenguinDispatcher dispatcher,
         IPointsSystem pointsSystem,
-        IFishingService fishingService
+        IFishingService fishingService,
+        IGameSettingsService gameSettingsService
             ) : BaseCommandService(serviceBackbone, commandHandler, "Top", dispatcher), IHostedService
     {
         public override async Task Register()
@@ -40,10 +42,10 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             switch (command.CommandProperties.CommandName)
             {
                 case "top10":
-                    await SayPointsTopN(10);
+                    await SayPointsTopN(10, GetRequestedPointTypeName(e), e);
                     break;
                 case "top5":
-                    await SayPointsTopN(5);
+                    await SayPointsTopN(5, GetRequestedPointTypeName(e), e);
                     break;
                 case "toptime":
                     await SayTimeTopN(5);
@@ -94,19 +96,27 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             await ServiceBackbone.SendChatMessage(string.Format("Top {0} Loudest: {1}", topN, names));
         }
 
-        private async Task SayPointsTopN(int topN)
+        private async Task SayPointsTopN(int topN, string? requestedPointTypeName, CommandEventArgs eventArgs)
         {
-            var broadcasterName = ServiceBackbone.BroadcasterName;
-            var botName = ServiceBackbone.BotName ?? "";
+            var pointType = await TopPointTypeSelection.ResolveAsync(pointsSystem, gameSettingsService, requestedPointTypeName);
+            if (pointType == null)
+            {
+                await ServiceBackbone.ResponseWithMessage(
+                    eventArgs,
+                    $"Point type '{requestedPointTypeName}' was not found. Use the exact point type name or omit it for the default.");
+                return;
+            }
 
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
             var top = await db.UserPoints.GetRankedPoints(pointType.Id, limit: topN).ToListAsync();
             var names = string.Join(", ", top.Select(x => x.Ranking + ". " + x.Username + " " + x.Points.ToString("N0")));
             await ServiceBackbone.SendChatMessage(string.Format("Top {0} in {1}: {2}", topN, pointType.Name, names));
         }
+
+        private static string? GetRequestedPointTypeName(CommandEventArgs eventArgs) =>
+            TopPointTypeSelection.GetRequestedPointTypeName(eventArgs.Args);
 
         private async Task SayTimeTopN(int topN)
         {

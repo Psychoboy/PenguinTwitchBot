@@ -23,8 +23,7 @@ public static class MiscPointAssignmentFilter
         "First",
         "loyalty",
         "Roll",
-        "Steal",
-        "Top"
+        "Steal"
     };
 
     public static IReadOnlyList<MiscPointAssignment> Filter(

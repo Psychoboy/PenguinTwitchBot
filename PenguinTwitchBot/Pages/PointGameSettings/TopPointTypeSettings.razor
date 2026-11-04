@@ -1,0 +1,64 @@
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.Misc
+@using PenguinTwitchBot.Bot.Core.Points
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@inject IPointsSystem PointSystem
+@inject IGameSettingsService GameSettingsService
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="3" Class="pa-4">
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        The selected point type is used by @("!top5") and @("!top10") when no type is specified. To show another currency, include its exact point type name, for example @("!top10 Tickets"). Time, tournament, and loudest leaderboards are independent.
+    </MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+        <MudSelect T="Guid?" Label="Default point type" Value="_selectedPointTypeId"
+                   ValueChanged="OnPointTypeChanged" Variant="Variant.Outlined" Style="min-width: 260px;">
+            @foreach (var pointType in _pointTypes)
+            {
+                <MudSelectItem T="Guid?" Value="@((Guid?)pointType.Id)">@pointType.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@(!_selectedPointTypeId.HasValue || _saving)" OnClick="SaveAsync">
+            @(_saving ? "Saving..." : "Save")
+        </MudButton>
+    </MudStack>
+</MudStack>
+
+@code {
+    private List<PointType> _pointTypes = [];
+    private Guid? _selectedPointTypeId;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pointTypes = (await PointSystem.GetPointTypes()).ToList();
+        var defaultPointType = await TopPointTypeSelection.GetDefaultAsync(PointSystem, GameSettingsService);
+        _selectedPointTypeId = defaultPointType.Id;
+    }
+
+    private void OnPointTypeChanged(Guid? pointTypeId) => _selectedPointTypeId = pointTypeId;
+
+    private async Task SaveAsync()
+    {
+        if (_selectedPointTypeId is not { } pointTypeId)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            await TopPointTypeSelection.SaveDefaultAsync(GameSettingsService, pointTypeId);
+            Snackbar.Add("Default Top leaderboard point type saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Could not save Top settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

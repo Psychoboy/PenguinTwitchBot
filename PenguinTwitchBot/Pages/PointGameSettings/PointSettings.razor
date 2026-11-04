@@ -137,6 +137,10 @@
                     <TaxPointTypeSettings />
                 </MudTabPanel>
 
+                <MudTabPanel Text="Top Leaderboards" Icon="@Icons.Material.Filled.Leaderboard">
+                    <TopPointTypeSettings />
+                </MudTabPanel>
+
                 @* -- Tab 3: Passive Points -- *@
                 <MudTabPanel Text="Passive Points" Icon="@Icons.Material.Filled.Schedule">
                     <PassivePointSettings PointTypes="@PointTypes" OnPointTypesUpdated="RefreshPointType" />

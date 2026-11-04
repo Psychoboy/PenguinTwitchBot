@@ -27,14 +27,15 @@ public class MiscPointAssignmentFilterTests
             Mapping("TwitchEventBonus"),
             Mapping("GiveawayFeature"),
             Mapping("Tax"),
+            Mapping("Top"),
             Mapping("Lurkbait"),
-            Mapping("Top")
+            Mapping("loyalty")
         });
 
         var result = MiscPointAssignmentFilter.Filter(assignments, []);
 
         var assignment = Assert.Single(result);
-        Assert.Equal("Top", assignment.Assignment.Setting.GameName);
+        Assert.Equal("loyalty", assignment.Assignment.Setting.GameName);
         Assert.True(assignment.CanEdit);
     }
 

@@ -16,6 +16,10 @@ For stream overlay minigames (**Parachute Drop**, **Plinko Bounce**, **Balloon A
 
 Open **Point Settings > Tax** to configure the inactivity threshold, minimum balance, percentage, and maximum deduction independently for each point type. The point type previously selected by the Tax mapping starts enabled with the existing defaults; other point types start disabled. After a stream ends, each enabled policy is applied once after 30 minutes if the bot remains offline.
 
+## Top Leaderboards
+
+Open **Point Settings > Top Leaderboards** to choose the default currency used by `!top5` and `!top10`. To show a different currency, add its exact point type name after the command, for example `!top10 Bonus Tickets`. Time, tournament, and loudest leaderboards are not affected.
+
 ## Automation & Sub-Actions
 
 Point balances can be manipulated seamlessly within the Actions engine via dedicated sub-actions under **Points & Rewards**:
