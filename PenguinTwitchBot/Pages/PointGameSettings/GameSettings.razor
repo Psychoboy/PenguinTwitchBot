@@ -125,13 +125,16 @@
                                     <GameSettingsPanel @key="_selectedGame.Id" Provider="_selectedProvider" />
                                 </MudPaper>
                             </MudTabPanel>
-                            <MudTabPanel Text="Automation" Icon="@Icons.Material.Filled.Bolt">
-                                <MudPaper Class="pa-4">
-                                    <GameOutcomeAutomationPanel DefaultCommandName="@_selectedGame.DefaultCommandName"
-                                                                GameTitle="@_selectedGame.Title"
-                                                                IsActive="@(_activeTabIndex == 1)" />
-                                </MudPaper>
-                            </MudTabPanel>
+                            @if (_selectedGame.GetOutcomeEvents(_selectedGame.DefaultCommandName).Count > 0)
+                            {
+                                <MudTabPanel Text="Automation" Icon="@Icons.Material.Filled.Bolt">
+                                    <MudPaper Class="pa-4">
+                                        <GameOutcomeAutomationPanel DefaultCommandName="@_selectedGame.DefaultCommandName"
+                                                                    GameTitle="@_selectedGame.Title"
+                                                                    IsActive="@(_activeTabIndex == 1)" />
+                                    </MudPaper>
+                                </MudTabPanel>
+                            }
                         </MudTabs>
                     }
                 </MudItem>

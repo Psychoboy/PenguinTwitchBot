@@ -3,13 +3,15 @@
 @using PenguinTwitchBot.Database.Bot.Models.Games
 @using PenguinTwitchBot.Database.Bot.Models.Points
 @using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Database.Bot.Actions
 
 <MudPaper Elevation="2">
     <MudTable Items="@PointSettings" CanCancelEdit="true" RowEditCommit="ItemHasBeenCommitted">
         <ToolBarContent>
             <MudStack Spacing="0">
-                <MudText Typo="Typo.h6">Game Point Assignments</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Choose which point type each game uses. Click the edit icon on a row to change it.</MudText>
+                <MudText Typo="Typo.h6">Misc Point Assignments</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Edit miscellaneous point mappings here. Dedicated games, activities, giveaways, and raffle point types are managed in their own settings or actions.</MudText>
             </MudStack>
         </ToolBarContent>
         <HeaderContent>
@@ -17,13 +19,19 @@
             <MudTh>Point Type</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Name">@context.Setting.GameName</MudTd>
-            <MudTd DataLabel="PointType">@context.PointType.Name</MudTd>
+            <MudTd DataLabel="Name">
+                @context.Assignment.Setting.GameName
+                @if (context.IsRaffleMapping)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" Class="ml-2">Raffle action</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="PointType">@context.Assignment.PointType.Name</MudTd>
         </RowTemplate>
         <RowEditingTemplate>
-            <MudTd DataLabel="Name">@context.Setting.GameName</MudTd>
+            <MudTd DataLabel="Name">@context.Assignment.Setting.GameName</MudTd>
             <MudTd DataLabel="PointType">
-                <MudSelect Label="Point Type" @bind-Value="context.PointType" ToStringFunc="@ConvertFunction">
+                <MudSelect Label="Point Type" @bind-Value="context.Assignment.PointType" ToStringFunc="@ConvertFunction">
                     @foreach (var pointType in PointTypes)
                     {
                         <MudSelectItem Value="@pointType" />
@@ -32,7 +40,7 @@
             </MudTd>
         </RowEditingTemplate>
         <EditButtonContent Context="button">
-            <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" Class="pa-0" OnClick="@button.ButtonAction" />
+            <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" Class="pa-0" OnClick="@button.ButtonAction" Disabled="@(button.Item is not MiscPointAssignment item || !item.CanEdit)" />
         </EditButtonContent>
     </MudTable>
 </MudPaper>
@@ -40,19 +48,27 @@
 @code {
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
-    [Inject] IGameSettingsService gameSettingsService { get; set; } = null!;
-    private List<PointGamePair> PointSettings { get; set; } = null!;
+    [Inject] IActionManagementService actionManagementService { get; set; } = default!;
+    private IReadOnlyList<MiscPointAssignment> PointSettings { get; set; } = [];
 
     protected override async Task OnInitializedAsync()
     {
-        PointSettings = await pointSystem.GetPointTypesForGames();
+        var assignmentsTask = pointSystem.GetPointTypesForGames();
+        var actionsTask = actionManagementService.GetAllActionsAsync();
+        await Task.WhenAll(assignmentsTask, actionsTask);
+        PointSettings = MiscPointAssignmentFilter.Filter(assignmentsTask.Result, actionsTask.Result);
         PointTypes = await pointSystem.GetPointTypes();
     }
 
     private async void ItemHasBeenCommitted(object element)
     {
-        var pointSettings = (PointGamePair)element;
-        await pointSystem.SetPointTypeForGame(pointSettings.Setting.GameName, pointSettings.PointType.Id);
+        var assignment = (MiscPointAssignment)element;
+        if (!assignment.CanEdit)
+        {
+            return;
+        }
+
+        await pointSystem.SetPointTypeForGame(assignment.Assignment.Setting.GameName, assignment.Assignment.PointType.Id);
     }
 
     private string ConvertFunction(PointType? pointType)
