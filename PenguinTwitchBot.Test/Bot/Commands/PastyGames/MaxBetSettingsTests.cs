@@ -68,16 +68,16 @@ public class MaxBetSettingsTests
     }
 
     [Fact]
-    public async Task GetForGameAsync_PrefersGameOverrideOverPointTypeDefault()
+    public async Task GetForGameAsync_AllowsGameOverrideAbovePointTypeDefault()
     {
         var settings = CreateSettings(defaultMaxBet: 50_000);
         var points = Substitute.For<IPointsSystem>();
         points.GetPointTypeForGame("Gamble").Returns(new PointType { Id = Guid.NewGuid(), Name = "Tickets" });
-        settings.GetLongSetting("Gamble", MaxBetSettings.GameOverrideSettingName, 0).Returns(10_000);
+        settings.GetLongSetting("Gamble", MaxBetSettings.GameOverrideSettingName, 0).Returns(75_000);
 
         var result = await MaxBetSettings.GetForGameAsync(points, settings, "Gamble");
 
-        Assert.Equal(10_000, result);
+        Assert.Equal(75_000, result);
     }
 
     [Fact]

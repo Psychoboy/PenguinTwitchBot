@@ -128,7 +128,8 @@
 
     private async Task SaveAsync(RafflePointGameDefaultEntry entry)
     {
-        if (entry.Definition.IsDynamic || entry.PointTypeId is not { } pointTypeId || entry.Saving)
+        if (entry.Definition.IsDynamic || entry.Definition.IsOwnedByOtherSettingsSurface ||
+            entry.PointTypeId is not { } pointTypeId || entry.Saving)
         {
             return;
         }

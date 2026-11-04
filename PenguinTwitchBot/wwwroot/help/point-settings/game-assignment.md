@@ -24,7 +24,7 @@ Open **Point Settings > Top Leaderboards** to choose the default currency used b
 
 ## Max Bet
 
-Open **Point Settings > Max Bet** to set the default wager cap for each point type. Gamble, Slots, and Heist can optionally override that cap in their game settings. Roulette keeps its own per-bet and per-stream limits, and Duel and Steal keep their configured wager/transfer limits; all remain bounded by the selected point type's default cap. Dice Roll awards payouts without a wager, so it has no Max Bet override. Existing installations inherit the previous 200,000,069 default until per-point values are customized. The hard ceiling is 2,147,483,647 to keep payout calculations within 64-bit balance limits.
+Open **Point Settings > Max Bet** to set the default wager cap for each point type. A positive Gamble, Slots, or Heist game-specific override replaces that point-type default for that game and may be higher or lower; `0` uses the point-type default. Roulette keeps its own per-bet and per-stream limits, and Duel and Steal keep their configured wager/transfer limits; those limits remain bounded by the selected point type's default cap. Dice Roll awards payouts without a wager, so it has no Max Bet override. Existing installations inherit the previous 200,000,069 default until per-point values are customized. The hard ceiling is 2,147,483,647 to keep payout calculations within 64-bit balance limits.
 
 ## Automation & Sub-Actions
 

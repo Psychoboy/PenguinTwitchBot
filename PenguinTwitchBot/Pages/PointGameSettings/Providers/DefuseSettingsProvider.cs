@@ -57,7 +57,7 @@ public class DefuseSettingsProvider : IGameSettingsFormProvider
         new()
         {
             Title = "Gameplay",
-            Description = "Payout formula: Cost x Multiplier ± Cost / Multiplier",
+            Description = "Payout formula: Cost x Multiplier +/- Cost / Multiplier",
             Icon = Icons.Material.Filled.Settings,
             Columns = 2,
             Fields =

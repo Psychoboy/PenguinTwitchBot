@@ -12,7 +12,13 @@ public sealed record StealGameOptions(int MinimumTransfer, int MaximumTransfer, 
 
     public static async Task<StealGameOptions> LoadAsync(IPointsSystem pointsSystem, IGameSettingsService settingsService)
     {
-        var maxBet = (int)await MaxBetSettings.GetPointTypeDefaultForGameAsync(pointsSystem, settingsService, GameName);
+        var pointType = await pointsSystem.GetPointTypeForGame(GameName);
+        return await LoadAsync(pointType.Id, settingsService);
+    }
+
+    public static async Task<StealGameOptions> LoadAsync(Guid pointTypeId, IGameSettingsService settingsService)
+    {
+        var maxBet = (int)await MaxBetSettings.GetForPointTypeAsync(settingsService, pointTypeId);
         var minimum = Math.Clamp(await settingsService.GetIntSetting(GameName, MinimumTransferSetting, 100), 1, maxBet);
         var maximum = Math.Clamp(await settingsService.GetIntSetting(GameName, MaximumTransferSetting, 10_000), minimum, maxBet);
         var successChance = Math.Clamp(await settingsService.GetDoubleSetting(GameName, SuccessChanceSetting, 100d / 3d), 0d, 100d);

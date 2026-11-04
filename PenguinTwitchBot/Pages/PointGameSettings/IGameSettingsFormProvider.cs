@@ -52,11 +52,11 @@ public static class GameSettingsProviderHelpers
         FieldType = GameSettingFieldType.Int,
         Min = 0,
         Max = MaxBetSettings.MaximumAllowedBet,
-        HelperText = "0 uses the default Max Bet for this game's selected point type."
+        HelperText = "0 uses the point-type default. A positive value replaces it for this game and may be higher or lower."
     };
 
     public static T Get<T>(Dictionary<string, object?> values, string key)
-        {
+    {
         if (!values.TryGetValue(key, out var v))
             throw new KeyNotFoundException($"Setting key '{key}' was not found in values dictionary.");
         if (v is T t)

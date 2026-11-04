@@ -151,7 +151,6 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
 
         private async Task Duel(CommandEventArgs e)
         {
-            var options = await DuelGameOptions.LoadAsync(pointsSystem, gameSettingsService);
             if (string.IsNullOrWhiteSpace(e.TargetUser))
             {
                 await ServiceBackbone.ResponseWithMessage(e, "You need to specify a target.");
@@ -169,6 +168,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 throw new SkipCooldownException();
             }
 
+            var options = await DuelGameOptions.LoadAsync(pointsSystem, gameSettingsService);
             if (amount < options.MinimumWager || amount > options.MaximumWager)
             {
                 await ServiceBackbone.ResponseWithMessage(e, $"To duel you must choose an amount between {options.MinimumWager:N0} and {options.MaximumWager:N0}");

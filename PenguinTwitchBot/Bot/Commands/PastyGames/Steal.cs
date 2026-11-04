@@ -42,8 +42,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var options = await StealGameOptions.LoadAsync(pointsSystem, gameSettingsService);
             var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
+            var options = await StealGameOptions.LoadAsync(pointType.Id, gameSettingsService);
 
             var userPasties = await pointsSystem.GetUserPointsByUserIdAndGame(e.UserId, ModuleName);
             if (userPasties.Points < options.MaximumTransfer)
@@ -52,19 +52,18 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            await StealFromUser(e, options);
+            await StealFromUser(e, options, pointType.Name);
         }
 
-        private async Task StealFromUser(CommandEventArgs e, StealGameOptions options)
+        private async Task StealFromUser(CommandEventArgs e, StealGameOptions options, string pointTypeName)
         {
             var targetPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.TargetUser, ModuleName);
             var targetDisplayName = await viewerFeature.GetNameWithTitle(e.TargetUser);
             var amount = (int)Random.Shared.NextInt64(options.MinimumTransfer, (long)options.MaximumTransfer + 1);
-            var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
             if (targetPasties.Points < options.MaximumTransfer)
             {
                 await ServiceBackbone.ResponseWithMessage(e,
-                string.Format("{0} is too poor for you to steal from them, instead you give them {1} {2}.", targetDisplayName, amount.ToString("N0"), pointType.Name));
+                string.Format("{0} is too poor for you to steal from them, instead you give them {1} {2}.", targetDisplayName, amount.ToString("N0"), pointTypeName));
                 await MovePoints(e.Name, e.TargetUser, amount);
 
                 // Trigger default command event for too poor
@@ -83,7 +82,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             if (StaticTools.NextDouble() * 100 < options.SuccessChancePercent)
             {
                 await ServiceBackbone.SendChatMessage(string.Format("{0} successfully stole {1} {2} from {3}",
-                e.DisplayName, amount, pointType.Name, targetDisplayName));
+                e.DisplayName, amount, pointTypeName, targetDisplayName));
 
                 await MovePoints(e.TargetUser, e.Name, amount);
 
@@ -102,7 +101,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             else
             {
                 await ServiceBackbone.SendChatMessage(string.Format("{0} failed to steal {1} {2} from {3}, {3} gets {1} {2} from {0} instead",
-               e.DisplayName, amount, pointType.Name, targetDisplayName));
+               e.DisplayName, amount, pointTypeName, targetDisplayName));
                 await MovePoints(e.Name, e.TargetUser, amount);
 
                 // Trigger default command event for failed

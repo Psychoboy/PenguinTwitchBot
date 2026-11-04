@@ -38,13 +38,14 @@ public class HeistSettingsProvider : IGameSettingsFormProvider
             [MaxBetSettings.GameOverrideSettingName] = await GameSettingsProviderHelpers.LoadMaxBetOverrideAsync(serviceProvider, Heist.GAMENAME),
         };
     }
-        public string? Validate(Dictionary<string, object?> values)
-        {
-            var multiplier = Get<double>(values, Heist.WIN_MULTIPLIER);
-            return double.IsFinite(multiplier) && multiplier is >= 1d and <= MaxBetSettings.MaximumSafePayoutMultiplier
-                ? null
-                : $"Win multiplier must be between 1 and {MaxBetSettings.MaximumSafePayoutMultiplier:N0}.";
-        }
+
+    public string? Validate(Dictionary<string, object?> values)
+    {
+        var multiplier = Get<double>(values, Heist.WIN_MULTIPLIER);
+        return double.IsFinite(multiplier) && multiplier is >= 1d and <= MaxBetSettings.MaximumSafePayoutMultiplier
+            ? null
+            : $"Win multiplier must be between 1 and {MaxBetSettings.MaximumSafePayoutMultiplier:N0}.";
+    }
 
     public async Task SaveAsync(IServiceProvider serviceProvider, Dictionary<string, object?> values)
     {
