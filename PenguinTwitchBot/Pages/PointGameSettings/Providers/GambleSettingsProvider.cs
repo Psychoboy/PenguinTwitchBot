@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
@@ -23,8 +23,8 @@ public class GambleSettingsProvider : IGameSettingsFormProvider
             [Gamble.MINIMUM_FOR_WIN]      = await svc.GetIntSetting(Gamble.GAMENAME, Gamble.MINIMUM_FOR_WIN, 48),
             [Gamble.MINIMUM_BET]          = await svc.GetIntSetting(Gamble.GAMENAME, Gamble.MINIMUM_BET, 5),
             [Gamble.WINNING_MULTIPLIER]   = await svc.GetIntSetting(Gamble.GAMENAME, Gamble.WINNING_MULTIPLIER, 2),
-            [Gamble.JACKPOT_CONTRIBUTION] = Math.Clamp(MaxBetSettings.ClampPayoutMultiplier(
-                await svc.GetDoubleSetting(Gamble.GAMENAME, Gamble.JACKPOT_CONTRIBUTION, 0.10)), 0d, 1d),
+            [Gamble.JACKPOT_CONTRIBUTION] = Gamble.ClampJackpotContribution(
+                await svc.GetDoubleSetting(Gamble.GAMENAME, Gamble.JACKPOT_CONTRIBUTION, 0.10)),
             [Gamble.CURRENT_JACKPOT_MESSAGE] = await svc.GetStringSetting(Gamble.GAMENAME, Gamble.CURRENT_JACKPOT_MESSAGE, "The current jackpot is {Jackpot}"),
             [Gamble.INCORRECT_ARGS]       = await svc.GetStringSetting(Gamble.GAMENAME, Gamble.INCORRECT_ARGS, "To gamble, do !{Command} amount or !{Command} max/all"),
             [Gamble.INCORRECT_BET]        = await svc.GetStringSetting(Gamble.GAMENAME, Gamble.INCORRECT_BET, "The max bet is {MaxBet} {PointType} and must be greater than {MinBet} {PointType}"),

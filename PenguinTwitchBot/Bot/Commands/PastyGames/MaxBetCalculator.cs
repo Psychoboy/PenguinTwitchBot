@@ -19,19 +19,12 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
             else if(betAmount.Contains('%'))
             {
-                try
-                {
-                    var result = new Percentage(betAmount);
-                    if (result.Value <= 0 || result.Value > 100)
-                    {
-                        return CreateResult(ParseResult.InvalidValue, maxAllowedBet);
-                    }
-                    amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(userId, gameName, maxAllowedBet) * result.Value);
-                }
-                catch
+                if (!TryParseBetPercentage(betAmount, out var fraction))
                 {
                     return CreateResult(ParseResult.InvalidValue, maxAllowedBet);
                 }
+
+                amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(userId, gameName, maxAllowedBet) * fraction);
             }
             else if (!Int64.TryParse(betAmount, out amount))
             {
@@ -53,6 +46,25 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 return CreateResult(ParseResult.NotEnough, maxAllowedBet);
             }
             return new MaxBet { Amount = amount, MaximumAllowedBet = maxAllowedBet, Result = ParseResult.Success };
+        }
+
+        /// <summary>
+        /// Parses a percentage bet such as "50%" into a fraction (0.5). Only finite values
+        /// greater than 0% and up to 100% are accepted.
+        /// </summary>
+        public static bool TryParseBetPercentage(string betAmount, out double fraction)
+        {
+            fraction = 0;
+            try
+            {
+                fraction = new Percentage(betAmount).Value;
+            }
+            catch
+            {
+                return false;
+            }
+
+            return double.IsFinite(fraction) && fraction > 0 && fraction <= 1;
         }
 
         private static MaxBet CreateResult(ParseResult result, long maximumAllowedBet) =>

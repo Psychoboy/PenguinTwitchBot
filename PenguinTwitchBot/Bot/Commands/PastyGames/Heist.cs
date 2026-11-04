@@ -109,24 +109,13 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
             else if (amountStr.Contains('%'))
             {
-                Percentage percentage;
-                try
-                {
-                    percentage = new Percentage(amountStr);
-                }
-                catch
+                if (!MaxBetCalculator.TryParseBetPercentage(amountStr, out var fraction))
                 {
                     await SendInvalidArgsMessage(e, e.Command);
                     throw new SkipCooldownException();
                 }
 
-                if (!double.IsFinite(percentage.Value) || percentage.Value <= 0 || percentage.Value > 1)
-                {
-                    await SendInvalidArgsMessage(e, e.Command);
-                    throw new SkipCooldownException();
-                }
-
-                amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, maxBetLimit) * percentage.Value);
+                amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, maxBetLimit) * fraction);
             }
             else if (!Int64.TryParse(amountStr, out amount))
             {

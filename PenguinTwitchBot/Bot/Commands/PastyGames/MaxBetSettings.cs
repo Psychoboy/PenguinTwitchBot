@@ -24,17 +24,6 @@ public static class MaxBetSettings
         return Clamp(configuredValue);
     }
 
-    public static async Task<long> GetAsync(IGameSettingsService settingsService)
-    {
-        return await GetLegacyDefaultAsync(settingsService);
-    }
-
-    public static async Task SetAsync(IGameSettingsService settingsService, long maxBet)
-    {
-        Validate(maxBet);
-        await settingsService.SetLongSetting(LegacyGameName, LegacySettingName, maxBet);
-    }
-
     public static async Task<long> GetForPointTypeAsync(IGameSettingsService settingsService, Guid pointTypeId)
     {
         var legacyDefault = await GetLegacyDefaultAsync(settingsService);

@@ -9,39 +9,40 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames;
 public class MaxBetSettingsTests
 {
     [Fact]
-    public async Task GetAsync_PreservesTheLegacyDefaultWhenUnconfigured()
+    public async Task GetLegacyDefaultAsync_PreservesTheLegacyDefaultWhenUnconfigured()
     {
         var settings = Substitute.For<IGameSettingsService>();
         settings.GetLongSetting(MaxBetSettings.LegacyGameName, MaxBetSettings.LegacySettingName, MaxBetSettings.DefaultMaxBet)
             .Returns(MaxBetSettings.DefaultMaxBet);
 
-        var result = await MaxBetSettings.GetAsync(settings);
+        var result = await MaxBetSettings.GetLegacyDefaultAsync(settings);
 
         Assert.Equal(200_000_069, result);
     }
 
     [Fact]
-    public async Task GetAsync_ClampsStoredValuesToTheSafeAbsoluteMaximum()
+    public async Task GetLegacyDefaultAsync_ClampsStoredValuesToTheSafeAbsoluteMaximum()
     {
         var settings = Substitute.For<IGameSettingsService>();
         settings.GetLongSetting(MaxBetSettings.LegacyGameName, MaxBetSettings.LegacySettingName, MaxBetSettings.DefaultMaxBet)
             .Returns(long.MaxValue);
 
-        var result = await MaxBetSettings.GetAsync(settings);
+        var result = await MaxBetSettings.GetLegacyDefaultAsync(settings);
 
         Assert.Equal(MaxBetSettings.MaximumAllowedBet, result);
     }
 
     [Fact]
-    public async Task SetAsync_RejectsUnsafeValuesAndPersistsValidLimits()
+    public async Task SetForPointTypeAsync_RejectsUnsafeValues()
     {
         var settings = Substitute.For<IGameSettingsService>();
+        var pointTypeId = Guid.NewGuid();
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
-            () => MaxBetSettings.SetAsync(settings, (long)MaxBetSettings.MaximumAllowedBet + 1));
-        await MaxBetSettings.SetAsync(settings, 500_000_000);
-
-        await settings.Received(1).SetLongSetting(MaxBetSettings.LegacyGameName, MaxBetSettings.LegacySettingName, 500_000_000);
+            () => MaxBetSettings.SetForPointTypeAsync(settings, pointTypeId, (long)MaxBetSettings.MaximumAllowedBet + 1));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => MaxBetSettings.SetForPointTypeAsync(settings, pointTypeId, 0));
+        await settings.DidNotReceive().SetLongSetting(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
     }
 
     [Fact]
@@ -147,6 +148,53 @@ public class MaxBetSettingsTests
         Assert.Equal(MaxBet.ParseResult.ToMuch, result.Result);
         Assert.Equal(5000, result.MaximumAllowedBet);
         await points.DidNotReceive().RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
+    }
+
+    [Theory]
+    [InlineData("0%")]
+    [InlineData("-5%")]
+    [InlineData("101%")]
+    [InlineData("500%")]
+    [InlineData("abc%")]
+    public async Task CalculatorRejectsOutOfRangePercentagesBeforeBalanceLookup(string betAmount)
+    {
+        var settings = CreateSettings(5000L);
+        var points = Substitute.For<IPointsSystem>();
+        points.GetPointTypeForGame("game").Returns(new PointType { Id = Guid.NewGuid(), Name = "Tickets" });
+        var calculator = new MaxBetCalculator(points, settings);
+
+        var result = await calculator.CheckAndRemovePoints("viewer", "game", betAmount, 1);
+
+        Assert.Equal(MaxBet.ParseResult.InvalidValue, result.Result);
+        await points.DidNotReceive().GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
+        await points.DidNotReceive().RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
+    }
+
+    [Fact]
+    public async Task CalculatorAppliesValidPercentageToCappedBalance()
+    {
+        var settings = CreateSettings(5000L);
+        var points = Substitute.For<IPointsSystem>();
+        points.GetPointTypeForGame("game").Returns(new PointType { Id = Guid.NewGuid(), Name = "Tickets" });
+        points.GetMaxPointsByUserIdAndGame("viewer", "game", 5000L).Returns(5000L);
+        points.RemovePointsFromUserByUserIdAndGame("viewer", "game", 2500L).Returns(true);
+        var calculator = new MaxBetCalculator(points, settings);
+
+        var result = await calculator.CheckAndRemovePoints("viewer", "game", "50%", 1);
+
+        Assert.Equal(MaxBet.ParseResult.Success, result.Result);
+        Assert.Equal(2500L, result.Amount);
+    }
+
+    [Theory]
+    [InlineData(10_000L, 5_000L, 5_000L, 10_000L)]
+    [InlineData(10_000L, 2_500L, 5_000L, 5_000L)]
+    [InlineData(10_000L, 1L, 5_000L, 2L)]
+    [InlineData(10_000L, 0L, 5_000L, 0L)]
+    [InlineData(long.MaxValue, int.MaxValue, int.MaxValue, long.MaxValue)]
+    public void GambleJackpotShareIsProportionalToMaxBet(long jackpot, long amount, long maxBet, long expected)
+    {
+        Assert.Equal(expected, Gamble.CalculateJackpotShare(jackpot, amount, maxBet));
     }
 
     private static IGameSettingsService CreateSettings(long defaultMaxBet)

@@ -130,7 +130,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             //Checks to see if they hit the jackpot
             if (value == jackpotNumber && ServiceBackbone.IsOnline) 
             {
-                var jackpotWinnings = jackpot * (amount / maxBet.MaximumAllowedBet);
+                var jackpotWinnings = CalculateJackpotShare(jackpot, amount, maxBet.MaximumAllowedBet);
                 var winnings = amount * winningMultiplier;
                 var totalWinnings = SaturatingAdd(winnings, jackpotWinnings);
                 jackpot -= jackpotWinnings;
@@ -193,10 +193,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             //Otherwise they lose
             else
             {
-                var jackpotContribution = Math.Clamp(
-                    MaxBetSettings.ClampPayoutMultiplier(await gameSettingsService.GetDoubleSetting(ModuleName, JACKPOT_CONTRIBUTION, 0.10)),
-                    0d,
-                    1d);
+                var jackpotContribution = ClampJackpotContribution(
+                    await gameSettingsService.GetDoubleSetting(ModuleName, JACKPOT_CONTRIBUTION, 0.10));
                 await UpdateJackpot(Convert.ToInt64(amount * jackpotContribution), false);
                 var loseMessage = await gameSettingsService.GetStringSetting(ModuleName, LOSE_MESSAGE, "{Name} rolled {Rolled} and lost {Points} {PointType}");
                 loseMessage = loseMessage
@@ -221,6 +219,25 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 
         private static long SaturatingAdd(long left, long right) =>
             left > long.MaxValue - right ? long.MaxValue : left + right;
+
+        /// <summary>
+        /// Awards a share of the jackpot proportional to the bet relative to the max bet,
+        /// so a max bet wins the full jackpot and smaller bets win a matching fraction.
+        /// </summary>
+        public static long CalculateJackpotShare(long jackpot, long amount, long maximumAllowedBet)
+        {
+            if (jackpot <= 0 || amount <= 0 || maximumAllowedBet <= 0)
+            {
+                return 0;
+            }
+
+            var boundedAmount = Math.Min(amount, maximumAllowedBet);
+            var share = (decimal)boundedAmount / maximumAllowedBet;
+            return (long)Math.Floor(jackpot * share);
+        }
+
+        public static double ClampJackpotContribution(double value) =>
+            double.IsFinite(value) ? Math.Clamp(value, 0d, 1d) : 0d;
 
         private async Task UpdateJackpot(long amount, bool reset)
         {
