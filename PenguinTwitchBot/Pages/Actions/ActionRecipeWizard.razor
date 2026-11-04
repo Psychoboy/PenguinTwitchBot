@@ -1,9 +1,11 @@
 @using PenguinTwitchBot.Bot.Actions
 @using PenguinTwitchBot.Bot.Actions.Recipes
+@using PenguinTwitchBot.Bot.Actions.Variables
 @using PenguinTwitchBot.Bot.Commands
 @using PenguinTwitchBot.Bot.Queues
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @using PenguinTwitchBot.Database.Bot.Models.Points
+@using PenguinTwitchBot.Database.Bot.Models
 @using PenguinTwitchBot.Database.Bot.Models.Queues
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
@@ -21,6 +23,7 @@
 @inject IServiceScopeFactory ScopeFactory
 @inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
 @inject ISnackbar Snackbar
+@inject IActionVariableResolver VariableResolver
 
 <MudDialog>
     <TitleContent>
@@ -57,7 +60,28 @@
                     @if (SelectedRecipe?.RequiresCommand != false)
                     {
                         <MudTextField T="string" Label="Command" Variant="Variant.Outlined"
-                                      @bind-Value="_commandName" HelperText="Enter the name without !; an existing custom command will be reused." Required="true" />
+                                      Value="_commandName" ValueChanged="OnCommandNameChanged"
+                                      HelperText="Enter the name without !; an existing custom command will be reused." Required="true" />
+                    }
+                    @if (SelectedRecipe?.SupportsCommandSettings == true)
+                    {
+                        <MudDivider />
+                        <MudText Typo="Typo.subtitle2">New command settings</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            These settings apply only when the wizard creates a new command. Reused commands keep their current settings.
+                        </MudText>
+                        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                            <MudNumericField T="int" Label="User cooldown (seconds)" Min="0" Max="86400"
+                                             @bind-Value="_commandUserCooldown" Variant="Variant.Outlined" />
+                            <MudNumericField T="int" Label="Global cooldown (seconds)" Min="0" Max="86400"
+                                             @bind-Value="_commandGlobalCooldown" Variant="Variant.Outlined" />
+                            <MudSelect T="Rank" Label="Minimum rank" @bind-Value="_commandMinimumRank" Variant="Variant.Outlined">
+                                @foreach (var rank in Enum.GetValues<Rank>())
+                                {
+                                    <MudSelectItem T="Rank" Value="@rank">@rank</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudStack>
                     }
 
                     @if (SelectedRecipe is { } recipe)
@@ -66,10 +90,21 @@
                         {
                             <MudTextField T="string" Label="Chat command (optional)" Variant="Variant.Outlined"
                                           Value="@GetParameter("CommandName")"
-                                          ValueChanged="@(value => SetParameter("CommandName", value))"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("CommandName", value))"
                                           HelperText="Enter a command without !, or leave blank to use another trigger." />
                             <AlertSubActionEditor Alert="@_alertRecipeSettings"
                                                   AlertChanged="OnAlertSettingsChanged" />
+                        }
+                        else if (recipe is SoundCommandRecipe)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                                <MudTextField T="string" Label="Audio file" Variant="Variant.Outlined"
+                                              Value="@GetParameter("File")" ReadOnly="true" Required="true" />
+                                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PhotoLibrary"
+                                           OnClick="OpenSoundLibraryAsync">
+                                    Browse Media Library
+                                </MudButton>
+                            </MudStack>
                         }
                         else
                         {
@@ -78,11 +113,21 @@
                                 <MudTextField T="string" Label="@parameter.Label" Variant="Variant.Outlined"
                                               Lines="@(parameter.Type == ActionRecipeParameterType.Multiline ? 3 : 1)"
                                               Value="@GetParameter(parameter.Key)"
-                                              ValueChanged="@(value => SetParameter(parameter.Key, value))"
+                                              ValueChanged="@(value => OnRecipeParameterChanged(parameter.Key, value))"
                                               HelperText="@parameter.HelperText"
                                               Required="@parameter.Required" />
                             }
                         }
+                    }
+
+                    @if (SelectedRecipe?.SupportsVariables == true && _availableVariables.Count > 0)
+                    {
+                        <MudExpansionPanels Elevation="0" Outlined="true">
+                            <MudExpansionPanel Text="@($"Available Variables ({_availableVariables.Count})")"
+                                               Icon="@Icons.Material.Filled.DataObject">
+                                <ActionVariablesReference Variables="_availableVariables" />
+                            </MudExpansionPanel>
+                        </MudExpansionPanels>
                     }
 
                     @if (SelectedRecipe?.AllowsAdditionalTriggers == true)
@@ -96,7 +141,7 @@
                                     <MudChip T="string" Size="Size.Small" Color="Color.Info">@trigger.Name</MudChip>
                                     <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
                                                    aria-label="Remove trigger"
-                                                   OnClick="@(() => RemoveAdditionalTrigger(trigger))" />
+                                                   OnClick="@(() => RemoveAdditionalTriggerAsync(trigger))" />
                                 </MudStack>
                             }
                         </MudStack>
@@ -151,6 +196,11 @@
                         @if (!string.IsNullOrWhiteSpace(RecipeCommandName))
                         {
                             <MudListItem T="string">Command: !@RecipeCommandName</MudListItem>
+                        }
+                        @if (SelectedRecipe?.SupportsCommandSettings == true)
+                        {
+                            <MudListItem T="string">New command minimum rank: @_commandMinimumRank</MudListItem>
+                            <MudListItem T="string">New command cooldowns: user @_commandUserCooldown s, global @_commandGlobalCooldown s</MudListItem>
                         }
                         @foreach (var trigger in _additionalTriggers)
                         {
@@ -228,6 +278,9 @@
     private string _selectedQueueName = "Default";
     private string _newQueueName = string.Empty;
     private string _error = string.Empty;
+    private int _commandUserCooldown;
+    private int _commandGlobalCooldown;
+    private Rank _commandMinimumRank = Rank.Viewer;
     private int _step;
     private bool _createQueue;
     private bool _isBusy;
@@ -246,9 +299,9 @@
         CSS = AlertCssHelper.GenerateCss(AlertCssHelper.Presets["Classic White with Outline"])
     };
 
-    private string NormalizedCommandName => ChatReplyRecipe.NormalizeCommandName(_commandName);
+    private string NormalizedCommandName => ChatCommandRecipeBase.NormalizeCommandName(_commandName);
     private string RecipeCommandName => SelectedRecipe?.RequiresCommand == false
-        ? ChatReplyRecipe.NormalizeCommandName(GetParameter("CommandName"))
+        ? ChatCommandRecipeBase.NormalizeCommandName(GetParameter("CommandName"))
         : NormalizedCommandName;
     private string EffectiveQueueName => (_createQueue ? _newQueueName : _selectedQueueName).Trim();
     private bool SelectedQueueIsDisabled => !_createQueue && _queues.FirstOrDefault(queue =>
@@ -273,9 +326,10 @@
             ?? string.Empty;
         InitializeParameters();
         await LoadFireworksWidgetPresenceAsync();
+        await LoadAvailableVariablesAsync();
     }
 
-    private void OnRecipeChanged(string? recipeId)
+    private async Task OnRecipeChanged(string? recipeId)
     {
         var oldRecipe = SelectedRecipe;
         _selectedRecipeId = recipeId ?? string.Empty;
@@ -284,10 +338,14 @@
         _createQueue = false;
         _newQueueName = string.Empty;
         _selectedQueueName = "Default";
+        _commandUserCooldown = 0;
+        _commandGlobalCooldown = 0;
+        _commandMinimumRank = Rank.Viewer;
         if (oldRecipe != null && string.Equals(_actionName, GetDefaultActionName(oldRecipe), StringComparison.OrdinalIgnoreCase))
             _actionName = string.Empty;
         _alertRecipeSettings = SelectedRecipe is AlertRecipe ? CreateDefaultAlertSettings() : new AlertType();
         InitializeParameters();
+        await LoadAvailableVariablesAsync();
     }
 
     private void InitializeParameters()
@@ -356,96 +414,6 @@
         _createQueue = false;
     }
 
-    private static TriggerType CloneTrigger(TriggerType trigger) => new()
-    {
-        Name = trigger.Name,
-        Type = trigger.Type,
-        Configuration = trigger.Configuration,
-        Enabled = true,
-        CommandId = trigger.CommandId,
-        DefaultCommandId = trigger.DefaultCommandId,
-        KeywordId = trigger.KeywordId,
-        TimerGroupId = trigger.TimerGroupId
-    };
-
-    private void RemoveAdditionalTrigger(TriggerType trigger) => _additionalTriggers.Remove(trigger);
-
-    private async Task AddAdditionalTriggerAsync()
-    {
-        var parameters = new DialogParameters<AddTriggerDialog>
-        {
-            { dialog => dialog.DisableResourceCreation, true }
-        };
-        var dialog = await DialogService.ShowAsync<AddTriggerDialog>("Add Trigger", parameters, new DialogOptions
-        {
-            CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.Medium,
-            FullWidth = true
-        });
-        var result = await dialog.Result;
-        if (result is not { Canceled: false, Data: not null }) return;
-
-        dynamic data = result.Data;
-        var trigger = new TriggerType
-        {
-            Name = (string)data.TriggerName,
-            Type = (TriggerTypes)data.TriggerType,
-            Configuration = (string)data.Configuration,
-            Enabled = true,
-            CommandId = (Guid?)data.CommandId,
-            DefaultCommandId = (Guid?)data.DefaultCommandId,
-            KeywordId = (Guid?)data.KeywordId,
-            TimerGroupId = (Guid?)data.TimerGroupId
-        };
-        _additionalTriggers.Add(trigger);
-    }
-
-    private async Task LoadFireworksWidgetPresenceAsync()
-    {
-        try
-        {
-            await using var scope = ScopeFactory.CreateAsyncScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var layouts = await unitOfWork.OverlayLayouts.GetAllWithWidgetsAsync();
-            _fireworksWidgetPresent = layouts.SelectMany(layout => layout.Widgets).Any(widget =>
-                widget.IsEnabled && widget.WidgetType.Equals("fireworks", StringComparison.OrdinalIgnoreCase));
-        }
-        catch
-        {
-            _fireworksWidgetPresent = false;
-        }
-    }
-
-    private async Task TestFireworksAsync()
-    {
-        if (!_fireworksWidgetPresent || _isBusy) return;
-        try
-        {
-            var count = ParseTestValue("BurstCount", 1, 100, 1);
-            var delay = ParseTestValue("DelayMilliseconds", 0, 60000, 100);
-            await WebSocketMessenger.AddToQueue(new WsEvent
-            {
-                Event = new WsEventType { Source = "SubAction", Type = "Fireworks" },
-                Data = new Dictionary<string, object>
-                {
-                    ["jobId"] = Guid.NewGuid().ToString("N"),
-                    ["count"] = count,
-                    ["delayMs"] = delay,
-                    ["shell"] = GetParameter("Shell").Trim(),
-                    ["size"] = GetParameter("Size").Trim()
-                }
-            });
-            Snackbar.Add("Fireworks test show queued.", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            _error = $"Could not send the Fireworks test: {ex.Message}";
-        }
-    }
-
-    private int ParseTestValue(string key, int min, int max, int fallback) =>
-        int.TryParse(GetParameter(key), out var value) ? Math.Clamp(value, min, max) : fallback;
-
     private void Next()
     {
         _error = string.Empty;
@@ -463,159 +431,6 @@
         _error = string.Empty;
         _step = Math.Max(0, _step - 1);
     }
-
-    private bool ValidateConfiguration(out string error)
-    {
-        error = string.Empty;
-        if (SelectedRecipe == null)
-        {
-            error = "Choose a recipe.";
-            return false;
-        }
-        SyncAlertRecipeParameters();
-        if (SelectedRecipe is AlertRecipe &&
-            (string.IsNullOrWhiteSpace(_alertRecipeSettings.Text) ||
-             _alertRecipeSettings.Duration is < 1 or > 60 ||
-             _alertRecipeSettings.Volume is < 0 or > 1))
-        {
-            error = "Enter alert text, a duration from 1 to 60 seconds, and a volume from 0 to 100%.";
-            return false;
-        }
-        if (string.IsNullOrWhiteSpace(_actionName))
-        {
-            error = "Action name is required.";
-            return false;
-        }
-        if (SelectedRecipe.RequiresCommand &&
-            (string.IsNullOrWhiteSpace(NormalizedCommandName) || NormalizedCommandName.Any(char.IsWhiteSpace)))
-        {
-            error = "Enter a single command name without spaces.";
-            return false;
-        }
-        if (!SelectedRecipe.RequiresCommand && RecipeCommandName.Any(char.IsWhiteSpace))
-        {
-            error = "Enter a single command name without spaces, or leave it blank.";
-            return false;
-        }
-        if (string.IsNullOrWhiteSpace(EffectiveQueueName))
-        {
-            error = "Select or enter a queue name.";
-            return false;
-        }
-        if (SelectedQueueIsDisabled)
-        {
-            error = "The selected queue is disabled. Choose an enabled queue or enable it in Actions > Queues.";
-            return false;
-        }
-        foreach (var parameter in SelectedRecipe.Parameters.Where(parameter => parameter.Required))
-        {
-            if (string.IsNullOrWhiteSpace(GetParameter(parameter.Key)))
-            {
-                error = $"{parameter.Label} is required.";
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private async Task CreateAsync()
-    {
-        if (_isBusy || !ValidateConfiguration(out _)) return;
-        _isBusy = true;
-        _error = string.Empty;
-        try
-        {
-            var recipe = SelectedRecipe!;
-            var actionName = _actionName.Trim();
-            var queueName = EffectiveQueueName;
-            var existingActions = await ActionService.GetActionSummariesAsync();
-            if (existingActions.Any(action => string.Equals(action.Name, actionName, StringComparison.OrdinalIgnoreCase)))
-            {
-                _error = "An action with that name already exists.";
-                return;
-            }
-
-            ActionCommand? command = null;
-            if (!string.IsNullOrWhiteSpace(RecipeCommandName))
-            {
-                command = await CommandService.GetByCommandNameAsync(RecipeCommandName);
-                if (command == null && await CommandService.CommandExistsAsync(RecipeCommandName))
-                {
-                    _error = $"The command !{RecipeCommandName} is already used by another command type.";
-                    return;
-                }
-            }
-
-            if (_createQueue)
-            {
-                if (queueName.Equals("Default", StringComparison.OrdinalIgnoreCase))
-                {
-                    _error = "Default is reserved. Choose another queue name.";
-                    return;
-                }
-                if (_queues.Any(queue => queue.Name.Equals(queueName, StringComparison.OrdinalIgnoreCase)))
-                {
-                    _error = "A queue with that name already exists. Select it instead.";
-                    return;
-                }
-
-                var createdQueue = await QueueManager.CreateQueueAsync(new QueueConfiguration
-                {
-                    Name = queueName,
-                    IsBlocking = true,
-                    Enabled = true,
-                    MaxConcurrentActions = 1
-                });
-                _queues.Add(createdQueue);
-                _selectedQueueName = createdQueue.Name;
-                _createQueue = false;
-                _newQueueName = string.Empty;
-            }
-
-            if (command == null && !string.IsNullOrWhiteSpace(RecipeCommandName))
-            {
-                command = await CreateRecipeCommandAsync(RecipeCommandName, recipe);
-            }
-
-            var action = recipe.Build(
-                new ActionRecipeContext(actionName, queueName, command?.CommandName ?? string.Empty, command?.Id ?? Guid.Empty),
-                _parameters);
-            action.Triggers ??= [];
-            action.Triggers.AddRange(_additionalTriggers.Select(CloneTrigger));
-            var createdAction = await ActionService.CreateActionAsync(action);
-            try
-            {
-                await RecipeTagStore.TagAsync(createdAction.Id, recipe.Id, _parameters);
-            }
-            catch (Exception tagException)
-            {
-                Snackbar.Add($"Action created, but its recipe tag could not be saved: {tagException.Message}", Severity.Warning);
-            }
-
-            Snackbar.Add($"Created action '{createdAction.Name}' from {recipe.Title}.", Severity.Success);
-            MudDialog.Close(DialogResult.Ok(createdAction.Id));
-        }
-        catch (Exception ex)
-        {
-            _error = $"Could not create the recipe action: {ex.Message}";
-        }
-        finally
-        {
-            _isBusy = false;
-        }
-    }
-
-    private async Task<ActionCommand> CreateRecipeCommandAsync(string commandName, IActionRecipe recipe) =>
-        await CommandService.AddAsync(new ActionCommand
-        {
-            CommandName = commandName,
-            Category = $"Recipes / {recipe.Category}",
-            Description = $"Created by recipe: {recipe.Id}",
-            Disabled = false,
-            MinimumRank = Rank.Viewer,
-            SourceOnly = true
-        });
 
     private void Cancel() => MudDialog.Cancel();
 }

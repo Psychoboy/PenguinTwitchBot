@@ -10,6 +10,7 @@ public class ActionRecipeTests
     public void ChatReplyRecipe_BuildsCommandTriggerAndReplySubAction()
     {
         var recipe = new ChatReplyRecipe();
+        Assert.True(recipe.SupportsCommandSettings);
         var commandId = Guid.NewGuid();
         var action = recipe.Build(
             new ActionRecipeContext("Hello reply", "Default", "!Hello", commandId),
@@ -36,6 +37,68 @@ public class ActionRecipeTests
         Assert.Throws<ArgumentException>(() => recipe.Build(context, new Dictionary<string, string>()));
         Assert.Throws<ArgumentException>(() => recipe.Build(
             context with { CommandId = Guid.NewGuid() },
+            new Dictionary<string, string>()));
+    }
+
+    [Fact]
+    public void SendMessageRecipe_BuildsCommandTriggerAndSendMessageSubAction()
+    {
+        var recipe = new SendMessageRecipe();
+        var commandId = Guid.NewGuid();
+        var action = recipe.Build(
+            new ActionRecipeContext("Welcome Message", "Default", "!welcome", commandId),
+            new Dictionary<string, string> { ["MessageText"] = "Welcome, %user%!" });
+
+        Assert.Equal("Recipes / Chat Messages", action.Group);
+        Assert.True(recipe.SupportsCommandSettings);
+        Assert.True(recipe.SupportsVariables);
+        var message = Assert.IsType<SendMessageType>(Assert.Single(action.SubActions));
+        Assert.Equal("Welcome, %user%!", message.Text);
+        Assert.True(message.Enabled);
+        var trigger = Assert.Single(action.Triggers);
+        Assert.Equal(TriggerTypes.Command, trigger.Type);
+        Assert.Equal(commandId, trigger.CommandId);
+        Assert.Equal("!welcome", trigger.Name);
+    }
+
+    [Fact]
+    public void SendMessageRecipe_RequiresMessageAndPersistedCommand()
+    {
+        var recipe = new SendMessageRecipe();
+        var context = new ActionRecipeContext("Welcome Message", "Default", "welcome", Guid.Empty);
+
+        Assert.Throws<ArgumentException>(() => recipe.Build(context, new Dictionary<string, string>()));
+        Assert.Throws<ArgumentException>(() => recipe.Build(
+            context with { CommandId = Guid.NewGuid() },
+            new Dictionary<string, string>()));
+    }
+
+    [Fact]
+    public void SoundCommandRecipe_BuildsCommandTriggerAndPlaySoundSubAction()
+    {
+        var recipe = new SoundCommandRecipe();
+        Assert.True(recipe.SupportsCommandSettings);
+        var commandId = Guid.NewGuid();
+        var action = recipe.Build(
+            new ActionRecipeContext("Sound Command", "Default", "!sound", commandId),
+            new Dictionary<string, string> { ["File"] = "/media/sounds/hello.mp3" });
+
+        Assert.Equal("Recipes / Sounds", action.Group);
+        var sound = Assert.IsType<PlaySoundType>(Assert.Single(action.SubActions));
+        Assert.Equal("/media/sounds/hello.mp3", sound.File);
+        var trigger = Assert.Single(action.Triggers);
+        Assert.Equal(TriggerTypes.Command, trigger.Type);
+        Assert.Equal(commandId, trigger.CommandId);
+        Assert.Equal("!sound", trigger.Name);
+    }
+
+    [Fact]
+    public void SoundCommandRecipe_RequiresAnAudioFile()
+    {
+        var recipe = new SoundCommandRecipe();
+
+        Assert.Throws<ArgumentException>(() => recipe.Build(
+            new ActionRecipeContext("Sound Command", "Default", "sound", Guid.NewGuid()),
             new Dictionary<string, string>()));
     }
 

@@ -32,6 +32,8 @@ public interface IActionRecipe
     string Description { get; }
     IReadOnlyList<ActionRecipeParameter> Parameters { get; }
     bool RequiresCommand => true;
+    bool SupportsCommandSettings => false;
+    bool SupportsVariables => false;
     bool AllowsAdditionalTriggers => false;
     string? RecommendedQueueName => null;
     ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters);

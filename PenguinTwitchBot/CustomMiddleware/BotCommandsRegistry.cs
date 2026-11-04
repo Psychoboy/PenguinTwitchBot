@@ -155,6 +155,8 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddScoped<PenguinTwitchBot.Database.Repository.IUnitOfWork, PenguinTwitchBot.Database.Repository.UnitOfWork>();
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.ChatReplyRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.SendMessageRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.SoundCommandRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.FireworksShowRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.AlertRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipeRegistry, Bot.Actions.Recipes.ActionRecipeRegistry>();
