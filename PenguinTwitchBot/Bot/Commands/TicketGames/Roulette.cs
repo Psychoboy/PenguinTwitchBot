@@ -69,19 +69,24 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             {
                 case "roulette":
                     {
-                        var globalMaxBet = (int)await MaxBetSettings.GetPointTypeDefaultForGameAsync(_pointsSystem, _gameSettings, GAMENAME);
-                        var MaxAmount = Math.Clamp(await _gameSettings.GetIntSetting(
+                        var configuredMaxAmount = await _gameSettings.GetIntSetting(
                             Roulette.GAMENAME,
                             Roulette.MAX_AMOUNT,
-                            1000), 1, globalMaxBet);
+                            1000);
+                        var MaxAmount = configuredMaxAmount <= 0
+                            ? (int)await MaxBetSettings.GetPointTypeDefaultForGameAsync(_pointsSystem, _gameSettings, GAMENAME)
+                            : Math.Clamp(configuredMaxAmount, 1, MaxBetSettings.MaximumAllowedBet);
                         var MustBeatValue = await _gameSettings.GetIntSetting(
                             GAMENAME,
                             MUST_BEAT,
                             52);
-                        var MaxPerBet = Math.Clamp(await _gameSettings.GetIntSetting(
+                        var configuredMaxPerBet = await _gameSettings.GetIntSetting(
                             GAMENAME,
                             MAX_PER_BET,
-                            500), 1, MaxAmount);
+                            500);
+                        var MaxPerBet = configuredMaxPerBet <= 0
+                            ? MaxAmount
+                            : Math.Clamp(configuredMaxPerBet, 1, MaxAmount);
                         if (await _gameSettings.GetBoolSetting(GAMENAME, ONLINE_ONLY, true))
                         {
                             if (ServiceBackbone.IsOnline == false) return;

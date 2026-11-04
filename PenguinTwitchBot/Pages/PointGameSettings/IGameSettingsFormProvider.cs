@@ -1,4 +1,4 @@
-﻿using MudBlazor;
+using MudBlazor;
 using Microsoft.Extensions.DependencyInjection;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
@@ -54,6 +54,17 @@ public static class GameSettingsProviderHelpers
         Max = MaxBetSettings.MaximumAllowedBet,
         HelperText = "0 uses the point-type default. A positive value replaces it for this game and may be higher or lower."
     };
+
+    public static string? ValidateMaxBetOverride(Dictionary<string, object?> values)
+    {
+        if (!values.ContainsKey(MaxBetSettings.GameOverrideSettingName))
+            return null;
+
+        var maxBet = Get<int>(values, MaxBetSettings.GameOverrideSettingName);
+        return maxBet is >= 0 and <= MaxBetSettings.MaximumAllowedBet
+            ? null
+            : $"Game Max Bet Override must be 0 (point-type default) or between 1 and {MaxBetSettings.MaximumAllowedBet:N0}.";
+    }
 
     public static T Get<T>(Dictionary<string, object?> values, string key)
     {

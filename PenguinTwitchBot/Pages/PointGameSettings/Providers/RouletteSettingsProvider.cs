@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using PenguinTwitchBot.Bot.Commands.TicketGames;
 using PenguinTwitchBot.Bot.Core.Points;
@@ -18,10 +18,9 @@ public class RouletteSettingsProvider : IGameSettingsFormProvider
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {
         var svc = serviceProvider.GetRequiredService<IGameSettingsService>();
-        var pointsSystem = serviceProvider.GetRequiredService<IPointsSystem>();
-        var globalMaxBet = (int)await MaxBetSettings.GetPointTypeDefaultForGameAsync(pointsSystem, svc, Roulette.GAMENAME);
-        var maxAmount = Math.Clamp(await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MAX_AMOUNT, 1000), 1, globalMaxBet);
-        var maxPerBet = Math.Clamp(await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MAX_PER_BET, 500), 1, maxAmount);
+        var maxAmount = Math.Clamp(await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MAX_AMOUNT, 1000), 0, MaxBetSettings.MaximumAllowedBet);
+        var maxPerBetBound = maxAmount == 0 ? MaxBetSettings.MaximumAllowedBet : maxAmount;
+        var maxPerBet = Math.Clamp(await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MAX_PER_BET, 500), 0, maxPerBetBound);
         return new Dictionary<string, object?>
         {
             [Roulette.MUST_BEAT]    = await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MUST_BEAT, 52),
@@ -62,9 +61,13 @@ public class RouletteSettingsProvider : IGameSettingsFormProvider
 
     public string? Validate(Dictionary<string, object?> values)
     {
+        if (values.ContainsKey(Roulette.MUST_BEAT) && Get<int>(values, Roulette.MUST_BEAT) is < 1 or > 99)
+            return "Must beat value must be between 1 and 99.";
         var maxPerBet = Get<int>(values, Roulette.MAX_PER_BET);
         var maxAmount = Get<int>(values, Roulette.MAX_AMOUNT);
-        if (maxPerBet > maxAmount)
+        if (maxPerBet < 0 || maxPerBet > MaxBetSettings.MaximumAllowedBet || maxAmount < 0 || maxAmount > MaxBetSettings.MaximumAllowedBet)
+            return $"Roulette limits must be 0 (default) or between 1 and {MaxBetSettings.MaximumAllowedBet:N0}.";
+        if (maxAmount > 0 && maxPerBet > maxAmount)
             return "Max per bet cannot exceed the per-stream max amount.";
         return null;
     }
@@ -79,8 +82,8 @@ public class RouletteSettingsProvider : IGameSettingsFormProvider
             Fields =
             [
                 new() { Key = Roulette.MUST_BEAT, Label = "Must Beat (1–99)", FieldType = GameSettingFieldType.Int, Min = 1, Max = 99, HelperText = "Roll above this to win" },
-                new() { Key = Roulette.MAX_PER_BET, Label = "Max Per Bet", FieldType = GameSettingFieldType.Int, Min = 1, Max = MaxBetSettings.MaximumAllowedBet, HelperText = "Maximum bet per attempt, also limited by Global Max Bet" },
-                new() { Key = Roulette.MAX_AMOUNT, Label = "Per-Stream Limit", FieldType = GameSettingFieldType.Int, Min = 1, Max = MaxBetSettings.MaximumAllowedBet, HelperText = "Total a viewer can roulette per stream, also limited by Global Max Bet" },
+                new() { Key = Roulette.MAX_PER_BET, Label = "Max Per Bet", FieldType = GameSettingFieldType.Int, Min = 0, Max = MaxBetSettings.MaximumAllowedBet, HelperText = "Maximum bet per attempt. 0 uses the per-stream limit (or point-type default)." },
+                new() { Key = Roulette.MAX_AMOUNT, Label = "Per-Stream Limit", FieldType = GameSettingFieldType.Int, Min = 0, Max = MaxBetSettings.MaximumAllowedBet, HelperText = "Total a viewer can roulette per stream. 0 uses the point-type default; a positive value replaces it and may be higher or lower." },
                 new() { Key = Roulette.ONLINE_ONLY, Label = "Live Only", FieldType = GameSettingFieldType.Bool, HelperText = "Restrict to when stream is live" },
             ]
         },

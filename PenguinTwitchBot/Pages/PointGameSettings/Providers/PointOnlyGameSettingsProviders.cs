@@ -34,14 +34,17 @@ public sealed class DuelGameSettingsProvider : PointOnlyGameSettingsProvider
     public override async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {
         var settings = serviceProvider.GetRequiredService<IGameSettingsService>();
-        var pointsSystem = serviceProvider.GetRequiredService<IPointsSystem>();
-        var options = await DuelGameOptions.LoadAsync(pointsSystem, settings);
+        var maximum = Math.Clamp(await settings.GetIntSetting(DuelGameOptions.GameName, DuelGameOptions.MaximumWagerSetting, 100), 0, MaxBetSettings.MaximumAllowedBet);
+        var minimumBound = maximum == 0 ? MaxBetSettings.MaximumAllowedBet : maximum;
+        var minimum = Math.Clamp(await settings.GetIntSetting(DuelGameOptions.GameName, DuelGameOptions.MinimumWagerSetting, 1), 1, minimumBound);
+        var winChance = Math.Clamp(await settings.GetIntSetting(DuelGameOptions.GameName, DuelGameOptions.WinChanceSetting, 50), 0, 100);
+        var timeout = Math.Clamp(await settings.GetIntSetting(DuelGameOptions.GameName, DuelGameOptions.ChallengeTimeoutSetting, 2), 1, 120);
         return new Dictionary<string, object?>
         {
-            [DuelGameOptions.MinimumWagerSetting] = options.MinimumWager,
-            [DuelGameOptions.MaximumWagerSetting] = options.MaximumWager,
-            [DuelGameOptions.WinChanceSetting] = options.WinChancePercent,
-            [DuelGameOptions.ChallengeTimeoutSetting] = options.ChallengeTimeoutMinutes
+            [DuelGameOptions.MinimumWagerSetting] = minimum,
+            [DuelGameOptions.MaximumWagerSetting] = maximum,
+            [DuelGameOptions.WinChanceSetting] = winChance,
+            [DuelGameOptions.ChallengeTimeoutSetting] = timeout
         };
     }
 
@@ -61,8 +64,8 @@ public sealed class DuelGameSettingsProvider : PointOnlyGameSettingsProvider
         var maximum = Get<int>(values, DuelGameOptions.MaximumWagerSetting);
         var winChance = Get<int>(values, DuelGameOptions.WinChanceSetting);
         var timeout = Get<int>(values, DuelGameOptions.ChallengeTimeoutSetting);
-        if (minimum < 1 || maximum < minimum || maximum > MaxBetSettings.MaximumAllowedBet)
-            return $"Duel wagers must be between 1 and {MaxBetSettings.MaximumAllowedBet:N0}, with the maximum no lower than the minimum.";
+        if (minimum < 1 || minimum > MaxBetSettings.MaximumAllowedBet || maximum < 0 || maximum > MaxBetSettings.MaximumAllowedBet || (maximum > 0 && maximum < minimum))
+            return $"Duel wagers must be between 1 and {MaxBetSettings.MaximumAllowedBet:N0}, with a positive maximum no lower than the minimum (0 uses the point-type default).";
         if (winChance is < 0 or > 100)
             return "Duel win chance must be between 0 and 100 percent.";
         if (timeout is < 1 or > 120)
@@ -80,7 +83,7 @@ public sealed class DuelGameSettingsProvider : PointOnlyGameSettingsProvider
             Fields =
             [
                 new() { Key = DuelGameOptions.MinimumWagerSetting, Label = "Minimum Wager", FieldType = GameSettingFieldType.Int, Min = 1, Max = MaxBetSettings.MaximumAllowedBet },
-                new() { Key = DuelGameOptions.MaximumWagerSetting, Label = "Maximum Wager", FieldType = GameSettingFieldType.Int, Min = 1, Max = MaxBetSettings.MaximumAllowedBet },
+                new() { Key = DuelGameOptions.MaximumWagerSetting, Label = "Maximum Wager", FieldType = GameSettingFieldType.Int, Min = 0, Max = MaxBetSettings.MaximumAllowedBet, HelperText = "0 uses the point-type default. A positive value replaces it for this game and may be higher or lower." },
                 new() { Key = DuelGameOptions.WinChanceSetting, Label = "Win Chance (%)", FieldType = GameSettingFieldType.Int, Min = 0, Max = 100 },
                 new() { Key = DuelGameOptions.ChallengeTimeoutSetting, Label = "Challenge Timeout (minutes)", FieldType = GameSettingFieldType.Int, Min = 1, Max = 120 }
             ]
@@ -147,13 +150,15 @@ public sealed class StealSettingsProvider : PointOnlyGameSettingsProvider
     public override async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {
         var settings = serviceProvider.GetRequiredService<IGameSettingsService>();
-        var pointsSystem = serviceProvider.GetRequiredService<IPointsSystem>();
-        var options = await StealGameOptions.LoadAsync(pointsSystem, settings);
+        var maximum = Math.Clamp(await settings.GetIntSetting(StealGameOptions.GameName, StealGameOptions.MaximumTransferSetting, 10_000), 0, MaxBetSettings.MaximumAllowedBet);
+        var minimumBound = maximum == 0 ? MaxBetSettings.MaximumAllowedBet : maximum;
+        var minimum = Math.Clamp(await settings.GetIntSetting(StealGameOptions.GameName, StealGameOptions.MinimumTransferSetting, 100), 1, minimumBound);
+        var successChance = Math.Clamp(await settings.GetDoubleSetting(StealGameOptions.GameName, StealGameOptions.SuccessChanceSetting, 100d / 3d), 0d, 100d);
         return new Dictionary<string, object?>
         {
-            [StealGameOptions.MinimumTransferSetting] = options.MinimumTransfer,
-            [StealGameOptions.MaximumTransferSetting] = options.MaximumTransfer,
-            [StealGameOptions.SuccessChanceSetting] = options.SuccessChancePercent
+            [StealGameOptions.MinimumTransferSetting] = minimum,
+            [StealGameOptions.MaximumTransferSetting] = maximum,
+            [StealGameOptions.SuccessChanceSetting] = successChance
         };
     }
 
@@ -171,8 +176,8 @@ public sealed class StealSettingsProvider : PointOnlyGameSettingsProvider
         var minimum = Get<int>(values, StealGameOptions.MinimumTransferSetting);
         var maximum = Get<int>(values, StealGameOptions.MaximumTransferSetting);
         var successChance = Get<double>(values, StealGameOptions.SuccessChanceSetting);
-        if (minimum < 1 || maximum < minimum || maximum > MaxBetSettings.MaximumAllowedBet)
-            return $"Steal transfers must be between 1 and {MaxBetSettings.MaximumAllowedBet:N0}, with the maximum no lower than the minimum.";
+        if (minimum < 1 || minimum > MaxBetSettings.MaximumAllowedBet || maximum < 0 || maximum > MaxBetSettings.MaximumAllowedBet || (maximum > 0 && maximum < minimum))
+            return $"Steal transfers must be between 1 and {MaxBetSettings.MaximumAllowedBet:N0}, with a positive maximum no lower than the minimum (0 uses the point-type default).";
         if (successChance is < 0 or > 100)
             return "Steal success chance must be between 0 and 100 percent.";
         return null;
@@ -188,7 +193,7 @@ public sealed class StealSettingsProvider : PointOnlyGameSettingsProvider
             Fields =
             [
                 new() { Key = StealGameOptions.MinimumTransferSetting, Label = "Minimum Transfer", FieldType = GameSettingFieldType.Int, Min = 1, Max = MaxBetSettings.MaximumAllowedBet },
-                new() { Key = StealGameOptions.MaximumTransferSetting, Label = "Maximum Transfer", FieldType = GameSettingFieldType.Int, Min = 1, Max = MaxBetSettings.MaximumAllowedBet, HelperText = "Also determines the minimum balance required to play or be targeted." },
+                new() { Key = StealGameOptions.MaximumTransferSetting, Label = "Maximum Transfer", FieldType = GameSettingFieldType.Int, Min = 0, Max = MaxBetSettings.MaximumAllowedBet, HelperText = "Also determines the minimum balance required to play or be targeted. 0 uses the point-type default; a positive value replaces it and may be higher or lower." },
                 new() { Key = StealGameOptions.SuccessChanceSetting, Label = "Success Chance (%)", FieldType = GameSettingFieldType.Double, Min = 0d, Max = 100d }
             ]
         }

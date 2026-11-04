@@ -59,10 +59,14 @@ public class GambleSettingsProvider : IGameSettingsFormProvider
 
     public string? Validate(Dictionary<string, object?> values)
     {
+        if (values.ContainsKey(Gamble.MINIMUM_BET) && Get<int>(values, Gamble.MINIMUM_BET) < 1)
+            return "Minimum bet must be at least 1.";
+        if (values.ContainsKey(Gamble.WINNING_MULTIPLIER) && Get<int>(values, Gamble.WINNING_MULTIPLIER) < 1)
+            return "Win multiplier must be at least 1.";
         var contribution = Get<double>(values, Gamble.JACKPOT_CONTRIBUTION);
-        return double.IsFinite(contribution) && contribution is >= 0d and <= 1d
-            ? null
-            : "Jackpot contribution must be between 0 and 1 (0% to 100%).";
+        if (!double.IsFinite(contribution) || contribution is < 0d or > 1d)
+            return "Jackpot contribution must be between 0 and 1 (0% to 100%).";
+        return ValidateMaxBetOverride(values);
     }
 
     public List<GameSettingSection> GetSections() =>

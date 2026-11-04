@@ -44,7 +44,7 @@ public class PointOnlyGameOptionsTests
     }
 
     [Fact]
-    public async Task PointTypeDefaultCapsDuelAndStealWithoutASeparateGameOverride()
+    public async Task DuelAndSteal_CanExceedPointTypeDefaultOrUseZeroForPointTypeDefault()
     {
         var points = CreateDefaultPoints();
         var settings = CreateDefaultSettings();
@@ -56,14 +56,21 @@ public class PointOnlyGameOptionsTests
         });
         settings.GetLongSetting(MaxBetSettings.PointTypeSettingsGameName, $"PointType{pointTypeId:N}", Arg.Any<long>())
             .Returns(50);
-        settings.GetLongSetting(DuelGameOptions.GameName, MaxBetSettings.GameOverrideSettingName, 0).Returns(10);
-        settings.GetLongSetting(StealGameOptions.GameName, MaxBetSettings.GameOverrideSettingName, 0).Returns(10);
 
-        var duel = await DuelGameOptions.LoadAsync(points, settings);
-        var steal = await StealGameOptions.LoadAsync(points, settings);
+        var duelWithDefault = await DuelGameOptions.LoadAsync(points, settings);
+        var stealWithDefault = await StealGameOptions.LoadAsync(points, settings);
 
-        Assert.Equal(50, duel.MaximumWager);
-        Assert.Equal(50, steal.MaximumTransfer);
+        Assert.Equal(100, duelWithDefault.MaximumWager);
+        Assert.Equal(10_000, stealWithDefault.MaximumTransfer);
+
+        settings.GetIntSetting(DuelGameOptions.GameName, DuelGameOptions.MaximumWagerSetting, 100).Returns(0);
+        settings.GetIntSetting(StealGameOptions.GameName, StealGameOptions.MaximumTransferSetting, 10_000).Returns(0);
+
+        var duelUsingPointTypeDefault = await DuelGameOptions.LoadAsync(points, settings);
+        var stealUsingPointTypeDefault = await StealGameOptions.LoadAsync(points, settings);
+
+        Assert.Equal(50, duelUsingPointTypeDefault.MaximumWager);
+        Assert.Equal(50, stealUsingPointTypeDefault.MaximumTransfer);
     }
 
     [Fact]
@@ -97,6 +104,31 @@ public class PointOnlyGameOptionsTests
         Assert.NotNull(new DuelGameSettingsProvider().Validate(duelValues));
         Assert.NotNull(new RollSettingsProvider().Validate(rollValues));
         Assert.NotNull(new StealSettingsProvider().Validate(stealValues));
+        Assert.NotNull(new GambleSettingsProvider().Validate(new Dictionary<string, object?>
+        {
+            [Gamble.JACKPOT_CONTRIBUTION] = 0.1d,
+            [MaxBetSettings.GameOverrideSettingName] = -1
+        }));
+        Assert.NotNull(new HeistSettingsProvider().Validate(new Dictionary<string, object?>
+        {
+            [Heist.WIN_MULTIPLIER] = 1.5d,
+            [MaxBetSettings.GameOverrideSettingName] = -1
+        }));
+        Assert.NotNull(new SlotsSettingsProvider().Validate(new Dictionary<string, object?>
+        {
+            [Slots.GAMESETTING_EMOTES] = "a,b,c",
+            [Slots.GAMESETTING_3_OF_A_KIND] = 3.5d,
+            [Slots.GAMESETTING_2_OF_A_KIND] = 0.3d,
+            [Slots.GAMESETTING_FIRST_2_MULTIPLIER] = 2.5d,
+            [Slots.GAMESETTING_LAST_2_MULTIPLIER] = 1.5d,
+            [MaxBetSettings.GameOverrideSettingName] = -1
+        }));
+        Assert.NotNull(new RouletteSettingsProvider().Validate(new Dictionary<string, object?>
+        {
+            [Roulette.MUST_BEAT] = 52,
+            [Roulette.MAX_PER_BET] = -1,
+            [Roulette.MAX_AMOUNT] = 1000
+        }));
     }
 
     [Fact]

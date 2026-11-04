@@ -1,5 +1,4 @@
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
-using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
@@ -122,7 +121,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 
             var jackpot = await GetJackpot();
 
-            var winningMultiplier = await gameSettingsService.GetIntSetting(ModuleName, WINNING_MULTIPLIER, 2);
+            var winningMultiplier = Math.Max(1, await gameSettingsService.GetIntSetting(ModuleName, WINNING_MULTIPLIER, 2));
             var jackpotNumber = await gameSettingsService.GetIntSetting(ModuleName, JACKPOT_NUMBER, 69);
             var winRange = await gameSettingsService.GetIntSetting(ModuleName, MINIMUM_FOR_WIN, 48);
             var value = tools.Next(1, 100 + 1);

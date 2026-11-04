@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
@@ -42,9 +42,9 @@ public class HeistSettingsProvider : IGameSettingsFormProvider
     public string? Validate(Dictionary<string, object?> values)
     {
         var multiplier = Get<double>(values, Heist.WIN_MULTIPLIER);
-        return double.IsFinite(multiplier) && multiplier is >= 1d and <= MaxBetSettings.MaximumSafePayoutMultiplier
-            ? null
-            : $"Win multiplier must be between 1 and {MaxBetSettings.MaximumSafePayoutMultiplier:N0}.";
+        if (!double.IsFinite(multiplier) || multiplier is < 1d or > MaxBetSettings.MaximumSafePayoutMultiplier)
+            return $"Win multiplier must be between 1 and {MaxBetSettings.MaximumSafePayoutMultiplier:N0}.";
+        return ValidateMaxBetOverride(values);
     }
 
     public async Task SaveAsync(IServiceProvider serviceProvider, Dictionary<string, object?> values)

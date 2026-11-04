@@ -8,7 +8,7 @@
 
 <MudStack Spacing="3" Class="pa-4">
     <MudText Typo="Typo.body2" Color="Color.Secondary">
-        Set the default wager cap for each point type. Gamble, Slots, and Heist can replace it with a game-specific override, which may be higher or lower. Games with their own wager or transfer limits remain bounded by this point-type cap. Dice Roll awards payouts without a wager. Existing setups inherit the previous global default until a point-type value is saved.
+        Set the default wager cap for each point type when a game uses 0 for its max limit. Individual games can override this default with a higher or lower value. Dice Roll awards payouts without a wager. Existing setups inherit the previous global default until a point-type value is saved.
     </MudText>
     @if (_loading)
     {

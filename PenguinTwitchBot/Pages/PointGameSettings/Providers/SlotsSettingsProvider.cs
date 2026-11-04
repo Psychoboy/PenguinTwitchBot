@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
@@ -56,7 +56,7 @@ public class SlotsSettingsProvider : IGameSettingsFormProvider
         }.Select(key => Get<double>(values, key));
         if (multipliers.Any(value => !double.IsFinite(value) || value is < 0d or > MaxBetSettings.MaximumSafePayoutMultiplier))
             return $"Payout multipliers must be between 0 and {MaxBetSettings.MaximumSafePayoutMultiplier:N0}.";
-        return null;
+        return ValidateMaxBetOverride(values);
     }
 
     public List<GameSettingSection> GetSections() =>
