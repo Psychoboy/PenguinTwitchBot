@@ -10,10 +10,7 @@ using PenguinTwitchBot.Pages.PointGameSettings.Providers;
 
 namespace PenguinTwitchBot.Pages.PointGameSettings;
 
-public sealed record MiscPointAssignment(PointGamePair Assignment, bool IsRaffleMapping)
-{
-    public bool CanEdit => !IsRaffleMapping;
-}
+public sealed record MiscPointAssignment(PointGamePair Assignment);
 
 public static class MiscPointAssignmentFilter
 {
@@ -26,21 +23,14 @@ public static class MiscPointAssignmentFilter
         "Steal"
     };
 
-    public static IReadOnlyList<MiscPointAssignment> Filter(
-        IEnumerable<PointGamePair> assignments,
-        IEnumerable<ActionType> actions)
+    public static IReadOnlyList<MiscPointAssignment> Filter(IEnumerable<PointGamePair> assignments)
     {
         var ownedPointGameNames = GetDedicatedPointGameNames();
-        var rafflePointGameNames = GetRafflePointGameNamesUsingFallback(actions);
 
         return assignments
             .Where(assignment => !ownedPointGameNames.Contains(assignment.Setting.GameName))
-            .Where(assignment => MiscellaneousPointGameNames.Contains(assignment.Setting.GameName) ||
-                rafflePointGameNames.Contains(assignment.Setting.GameName))
-            .Select(assignment => new MiscPointAssignment(
-                assignment,
-                rafflePointGameNames.Contains(assignment.Setting.GameName) &&
-                !MiscellaneousPointGameNames.Contains(assignment.Setting.GameName)))
+            .Where(assignment => MiscellaneousPointGameNames.Contains(assignment.Setting.GameName))
+            .Select(assignment => new MiscPointAssignment(assignment))
             .OrderBy(assignment => assignment.Assignment.Setting.GameName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -61,35 +51,6 @@ public static class MiscPointAssignmentFilter
             TwitchEventsBonus.GAMENAME,
             "GiveawayFeature"
         ]), StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static HashSet<string> GetRafflePointGameNamesUsingFallback(IEnumerable<ActionType> actions)
-    {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var action in actions)
-        {
-            AddRafflePointGameNames(action.SubActions, names);
-            AddRafflePointGameNames(action.CatchSubActions, names);
-        }
-
-        return names;
-    }
-
-    private static void AddRafflePointGameNames(IEnumerable<SubActionType> subActions, HashSet<string> names)
-    {
-        foreach (var subAction in subActions)
-        {
-            switch (subAction)
-            {
-                case RaffleStartType { PointTypeId: null } start:
-                    AddIfNotEmpty(names, string.IsNullOrWhiteSpace(start.PointGameName) ? "raffle" : start.PointGameName);
-                    break;
-                case LogicIfElseType logic:
-                    AddRafflePointGameNames(logic.TrueSubActions, names);
-                    AddRafflePointGameNames(logic.FalseSubActions, names);
-                    break;
-            }
-        }
     }
 
     private static void AddIfNotEmpty(HashSet<string> names, string? name)

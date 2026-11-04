@@ -32,15 +32,14 @@ public class MiscPointAssignmentFilterTests
             Mapping("loyalty")
         });
 
-        var result = MiscPointAssignmentFilter.Filter(assignments, []);
+        var result = MiscPointAssignmentFilter.Filter(assignments);
 
         var assignment = Assert.Single(result);
         Assert.Equal("loyalty", assignment.Assignment.Setting.GameName);
-        Assert.True(assignment.CanEdit);
     }
 
     [Fact]
-    public void Filter_OnlyKeepsFallbackRafflePointMappings_ReadOnly()
+    public void Filter_LeavesRaffleMappingsToDedicatedPage()
     {
         var action = new ActionType
         {
@@ -71,14 +70,10 @@ public class MiscPointAssignmentFilterTests
             Mapping("stale-raffle")
         };
 
-        var result = MiscPointAssignmentFilter.Filter(assignments, [action]);
+        var result = MiscPointAssignmentFilter.Filter(assignments);
 
-        Assert.Equal(2, result.Count);
-        Assert.False(result.Single(assignment => assignment.Assignment.Setting.GameName == "raffle").CanEdit);
-        Assert.True(result.Single(assignment => assignment.Assignment.Setting.GameName == "loyalty").CanEdit);
-        Assert.DoesNotContain(result, assignment => assignment.Assignment.Setting.GameName == "main-raffle");
-        Assert.DoesNotContain(result, assignment => assignment.Assignment.Setting.GameName == "main-points");
-        Assert.DoesNotContain(result, assignment => assignment.Assignment.Setting.GameName == "stale-raffle");
+        Assert.Single(result);
+        Assert.Equal("loyalty", result[0].Assignment.Setting.GameName);
     }
 
     private static PointGamePair Mapping(string gameName) => new()

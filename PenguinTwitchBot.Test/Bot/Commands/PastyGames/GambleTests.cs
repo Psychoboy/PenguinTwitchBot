@@ -37,13 +37,19 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
         {
             _logger = Substitute.For<ILogger<Gamble>>();
             _gameSettingsService = Substitute.For<IGameSettingsService>();
+            _gameSettingsService.GetLongSetting(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>())
+                .Returns(call => call.ArgAt<long>(2));
+            _gameSettingsService.GetLongSetting(MaxBetSettings.LegacyGameName, MaxBetSettings.LegacySettingName, MaxBetSettings.DefaultMaxBet)
+                .Returns(MaxBetSettings.DefaultMaxBet);
             _pointsSystem = Substitute.For<IPointsSystem>();
+            _pointsSystem.GetPointTypeForGame(Arg.Is<string>(name => string.Equals(name, Gamble.GAMENAME, StringComparison.OrdinalIgnoreCase)))
+                .Returns(new PointType { Id = Guid.NewGuid(), Name = "Points" });
             _twitchService = Substitute.For<ITwitchService>();
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _commandHandler = Substitute.For<ICommandHandler>();
             dispatcherSubstitute = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
             _tools = Substitute.For<ITools>();
-            _maxBetCalculator = new MaxBetCalculator(_pointsSystem);
+            _maxBetCalculator = new MaxBetCalculator(_pointsSystem, _gameSettingsService);
             _defaultCommandTriggerService = Substitute.For<IDefaultCommandTriggerService>();
 
             _gamble = new Gamble(
@@ -243,7 +249,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
             await _gameSettingsService.Received(1).SetLongSetting(
                 Gamble.GAMENAME,
                 Gamble.CURRENT_JACKPOT,
-                Arg.Is<long>(l => l == 10)); // 10% of 100
+                Arg.Is<long>(l => l == 1010)); // Default jackpot 1000 plus 10% of 100
         }
     }
 }

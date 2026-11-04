@@ -21,10 +21,6 @@
         <RowTemplate>
             <MudTd DataLabel="Name">
                 @context.Assignment.Setting.GameName
-                @if (context.IsRaffleMapping)
-                {
-                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" Class="ml-2">Raffle action</MudChip>
-                }
             </MudTd>
             <MudTd DataLabel="PointType">@context.Assignment.PointType.Name</MudTd>
         </RowTemplate>
@@ -40,7 +36,7 @@
             </MudTd>
         </RowEditingTemplate>
         <EditButtonContent Context="button">
-            <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" Class="pa-0" OnClick="@button.ButtonAction" Disabled="@(button.Item is not MiscPointAssignment item || !item.CanEdit)" />
+            <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" Class="pa-0" OnClick="@button.ButtonAction" />
         </EditButtonContent>
     </MudTable>
 </MudPaper>
@@ -48,26 +44,17 @@
 @code {
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
-    [Inject] IActionManagementService actionManagementService { get; set; } = default!;
     private IReadOnlyList<MiscPointAssignment> PointSettings { get; set; } = [];
 
     protected override async Task OnInitializedAsync()
     {
-        var assignmentsTask = pointSystem.GetPointTypesForGames();
-        var actionsTask = actionManagementService.GetAllActionsAsync();
-        await Task.WhenAll(assignmentsTask, actionsTask);
-        PointSettings = MiscPointAssignmentFilter.Filter(assignmentsTask.Result, actionsTask.Result);
+        PointSettings = MiscPointAssignmentFilter.Filter(await pointSystem.GetPointTypesForGames());
         PointTypes = await pointSystem.GetPointTypes();
     }
 
     private async void ItemHasBeenCommitted(object element)
     {
         var assignment = (MiscPointAssignment)element;
-        if (!assignment.CanEdit)
-        {
-            return;
-        }
-
         await pointSystem.SetPointTypeForGame(assignment.Assignment.Setting.GameName, assignment.Assignment.PointType.Id);
     }
 

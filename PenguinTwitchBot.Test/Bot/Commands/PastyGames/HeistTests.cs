@@ -36,6 +36,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
         {
             _pointsSystem = Substitute.For<IPointsSystem>();
             _gameSettingsService = Substitute.For<IGameSettingsService>();
+            _gameSettingsService.GetLongSetting(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>())
+                .Returns(call => call.ArgAt<long>(2));
+            _gameSettingsService.GetLongSetting(MaxBetSettings.LegacyGameName, MaxBetSettings.LegacySettingName, MaxBetSettings.DefaultMaxBet)
+                .Returns(MaxBetSettings.DefaultMaxBet);
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _logger = Substitute.For<ILogger<Heist>>();
             _commandHandler = Substitute.For<ICommandHandler>();
@@ -113,7 +117,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
         {
             // Arrange
             _commandHandler.GetCommand("heist").Returns(new Command(new BaseCommandProperties { CommandName = "heist" }, _heist));
-            _pointsSystem.GetMaxPointsByUserIdAndGame("user123", Heist.GAMENAME, PointsSystem.MaxBet)
+            _pointsSystem.GetMaxPointsByUserIdAndGame("user123", Heist.GAMENAME, MaxBetSettings.DefaultMaxBet)
                 .Returns(1000L);
             _pointsSystem.GetPointTypeForGame(Heist.GAMENAME)
                 .Returns(new PointType { Name = "Points" });
@@ -155,7 +159,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
         {
             // Arrange
             _commandHandler.GetCommand("heist").Returns(new Command(new BaseCommandProperties { CommandName = "heist" }, _heist));
-            _pointsSystem.GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, PointsSystem.MaxBet)
+            _pointsSystem.GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, MaxBetSettings.DefaultMaxBet)
                 .Returns(1000L);
             _pointsSystem.GetPointTypeForGame(Heist.GAMENAME)
                 .Returns(new PointType { Name = "Points" });
@@ -225,7 +229,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
                 .Returns(new PointType { Name = "Points" });
             _gameSettingsService.GetIntSetting(Heist.GAMENAME, Heist.MINBET, 10)
                 .Returns(10);
-            _pointsSystem.GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, PointsSystem.MaxBet)
+            _pointsSystem.GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, MaxBetSettings.DefaultMaxBet)
                 .Returns(1000L);
             _pointsSystem.RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, Arg.Any<long>())
                 .Returns(true);

@@ -11,5 +11,6 @@ namespace PenguinTwitchBot.Bot.Models.Duel
         public string Defender { get; set; } = null!;
         public long Amount { get; set; }
         public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddMinutes(2);
+        public int WinChancePercent { get; set; } = 50;
     }
 }

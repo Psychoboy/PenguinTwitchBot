@@ -4,11 +4,13 @@ Configured point types can be assigned across various bot features, games, and a
 
 ## Assigning Point Types to Games
 
-Each chat game in PenguinTwitchBot (Heist, FFA, Gamble, Slots, Roulette, Defuse, ModSpam, etc.) can be bound to any point type:
+Chat games with a dedicated settings surface can be bound to a point type from their game settings:
 1. Navigate to [Game Settings](/settings/games).
 2. Select any game provider card.
 3. In the game configuration panel, locate the **Point Type** dropdown selector.
 4. Choose the desired currency. When viewers play that game, entry costs are deducted from and winnings are deposited into that specific currency balance.
+
+Raffle point-game defaults are configured separately from **Games > Raffle Defaults**. This list is for supported miscellaneous mappings only.
 
 For stream overlay minigames (**Parachute Drop**, **Plinko Bounce**, **Balloon Ascent**, **Curling**, **Golf**, **Racing**, and **UFO Claw**), point rewards are configured either through the game's built-in point settings or through the **Outcome Automations** wizard on the game's page, which creates standard Actions using the `ManagePoints` sub-action.
 
@@ -19,6 +21,10 @@ Open **Point Settings > Tax** to configure the inactivity threshold, minimum bal
 ## Top Leaderboards
 
 Open **Point Settings > Top Leaderboards** to choose the default currency used by `!top5` and `!top10`. To show a different currency, add its exact point type name after the command, for example `!top10 Bonus Tickets`. Time, tournament, and loudest leaderboards are not affected.
+
+## Max Bet
+
+Open **Point Settings > Max Bet** to set the default wager cap for each point type. Gamble, Slots, and Heist can optionally override that cap in their game settings. Roulette keeps its own per-bet and per-stream limits, and Duel and Steal keep their configured wager/transfer limits; all remain bounded by the selected point type's default cap. Dice Roll awards payouts without a wager, so it has no Max Bet override. Existing installations inherit the previous 200,000,069 default until per-point values are customized. The hard ceiling is 2,147,483,647 to keep payout calculations within 64-bit balance limits.
 
 ## Automation & Sub-Actions
 

@@ -12,6 +12,7 @@
             NotEnough
         }
         public long Amount { get; set; }
+        public long MaximumAllowedBet { get; set; } = MaxBetSettings.DefaultMaxBet;
         public ParseResult Result { get; set; }
 
     }

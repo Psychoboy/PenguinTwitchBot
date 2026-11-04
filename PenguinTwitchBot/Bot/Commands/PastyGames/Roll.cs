@@ -14,16 +14,12 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
         IServiceBackbone serviceBackbone,
         Application.Notifications.IPenguinDispatcher dispatcher,
         ICommandHandler commandHandler,
-        IDefaultCommandTriggerService defaultCommandTriggerService
+        IDefaultCommandTriggerService defaultCommandTriggerService,
+        PenguinTwitchBot.Bot.Commands.Games.IGameSettingsService gameSettingsService
             ) : BaseCommandService(serviceBackbone, commandHandler, "Roll", dispatcher), IHostedService
     {
         private readonly List<string> WinMessages = LoadWinMessages();
         private readonly List<string> LostMessages = LoadLostMessages();
-        private readonly List<int> prizes = new()
-        {
-            40, 160,360,
-            640, 1000, 1440
-        };
 
         public override async Task Register()
         {
@@ -60,6 +56,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             var dice2 = StaticTools.RandomRange(1, 6);
             var resultMessage = string.Format("{0} rolls a [{1}] and [{2}]. ", e.DisplayName, dice1, dice2);
             var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
+            var prizes = await DiceRollGameSettings.LoadPayoutsAsync(gameSettingsService);
             if (dice1 == dice2)
             {
                 string prizeName = "";
@@ -213,7 +210,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 "Hey! Don\'t worry about it! You know... being bad and all!",
                 "The tragedy of all losers is that they think they were on the verge of victory.",
                 "Hm! You should go back to playing puzzle games!",
-                "The past is the past man. If you are a loser now, then you’re a loser period.",
+                "The past is the past man. If you are a loser now, then youï¿½re a loser period.",
                 "The reason you lost is quite simple: you\'re bad!",
                 "Remember that one time during the game when it looked like you might actually win? No? Me neither.",
                 "Is that all you can do? You wouldn\'t have gone very far with that anyway.",

@@ -57,6 +57,20 @@
                         }
                     </MudGrid>
                 }
+                @if (kind == GameKind.Chat)
+                {
+                    <MudPaper Outlined="true" Class="pa-3 mt-3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                            <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Primary" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.subtitle1"><b>Raffle Defaults</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Set default point types for saved raffle actions.</MudText>
+                            </MudStack>
+                            <MudSpacer />
+                            <MudButton Href="/games/raffles" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Settings">Manage raffle defaults</MudButton>
+                        </MudStack>
+                    </MudPaper>
+                }
             </section>
         }
 

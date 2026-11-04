@@ -1,5 +1,7 @@
 ﻿using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.PastyGames;
 using PenguinTwitchBot.Bot.Commands.TicketGames;
+using PenguinTwitchBot.Bot.Core.Points;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 using static PenguinTwitchBot.Pages.PointGameSettings.GameSettingsProviderHelpers;
@@ -16,11 +18,15 @@ public class RouletteSettingsProvider : IGameSettingsFormProvider
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {
         var svc = serviceProvider.GetRequiredService<IGameSettingsService>();
+        var pointsSystem = serviceProvider.GetRequiredService<IPointsSystem>();
+        var globalMaxBet = (int)await MaxBetSettings.GetPointTypeDefaultForGameAsync(pointsSystem, svc, Roulette.GAMENAME);
+        var maxAmount = Math.Clamp(await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MAX_AMOUNT, 1000), 1, globalMaxBet);
+        var maxPerBet = Math.Clamp(await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MAX_PER_BET, 500), 1, maxAmount);
         return new Dictionary<string, object?>
         {
             [Roulette.MUST_BEAT]    = await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MUST_BEAT, 52),
-            [Roulette.MAX_AMOUNT]   = await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MAX_AMOUNT, 1000),
-            [Roulette.MAX_PER_BET]  = await svc.GetIntSetting(Roulette.GAMENAME, Roulette.MAX_PER_BET, 500),
+            [Roulette.MAX_AMOUNT]   = maxAmount,
+            [Roulette.MAX_PER_BET]  = maxPerBet,
             [Roulette.ONLINE_ONLY]  = await svc.GetBoolSetting(Roulette.GAMENAME, Roulette.ONLINE_ONLY, true),
             [Roulette.WIN_MESSAGE]  = await svc.GetStringSetting(Roulette.GAMENAME, Roulette.WIN_MESSAGE,
                 "{Name} rolled a {Rolled} and won {WonPoints} {PointsName} and now has {TotalPoints} {PointsName}! Rouletted {TotalBet} of {MaxBet} limit"),
@@ -73,8 +79,8 @@ public class RouletteSettingsProvider : IGameSettingsFormProvider
             Fields =
             [
                 new() { Key = Roulette.MUST_BEAT, Label = "Must Beat (1–99)", FieldType = GameSettingFieldType.Int, Min = 1, Max = 99, HelperText = "Roll above this to win" },
-                new() { Key = Roulette.MAX_PER_BET, Label = "Max Per Bet", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Maximum bet per attempt" },
-                new() { Key = Roulette.MAX_AMOUNT, Label = "Per-Stream Limit", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Total a viewer can roulette per stream" },
+                new() { Key = Roulette.MAX_PER_BET, Label = "Max Per Bet", FieldType = GameSettingFieldType.Int, Min = 1, Max = MaxBetSettings.MaximumAllowedBet, HelperText = "Maximum bet per attempt, also limited by Global Max Bet" },
+                new() { Key = Roulette.MAX_AMOUNT, Label = "Per-Stream Limit", FieldType = GameSettingFieldType.Int, Min = 1, Max = MaxBetSettings.MaximumAllowedBet, HelperText = "Total a viewer can roulette per stream, also limited by Global Max Bet" },
                 new() { Key = Roulette.ONLINE_ONLY, Label = "Live Only", FieldType = GameSettingFieldType.Bool, HelperText = "Restrict to when stream is live" },
             ]
         },

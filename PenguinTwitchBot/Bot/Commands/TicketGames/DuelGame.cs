@@ -12,7 +12,8 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         IViewerFeature viewerFeature,
         ICommandHandler commandHandler,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        ILogger<DuelGame> logger
+        ILogger<DuelGame> logger,
+        PenguinTwitchBot.Bot.Commands.Games.IGameSettingsService gameSettingsService
             ) : BaseCommandService(serviceBackbone, commandHandler, "DuelGame", dispatcher), IHostedService
     {
         List<PendingDuel> PendingDuels { get; set; } = [];
@@ -136,7 +137,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             }
 
             var winner = StaticTools.Next(0, 100);
-            if (winner < 50)
+            if (winner < existingDuel.WinChancePercent)
             {
                 await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount * 2);
                 await ServiceBackbone.SendChatMessage($"/me {existingDuel.Attacker} won the Duel vs {existingDuel.Defender} PogChamp {existingDuel.Attacker} won {existingDuel.Amount} tickets FeelsGoodMan");
@@ -150,6 +151,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
 
         private async Task Duel(CommandEventArgs e)
         {
+            var options = await DuelGameOptions.LoadAsync(pointsSystem, gameSettingsService);
             if (string.IsNullOrWhiteSpace(e.TargetUser))
             {
                 await ServiceBackbone.ResponseWithMessage(e, "You need to specify a target.");
@@ -167,9 +169,9 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 throw new SkipCooldownException();
             }
 
-            if (amount < 1 || amount > 100)
+            if (amount < options.MinimumWager || amount > options.MaximumWager)
             {
-                await ServiceBackbone.ResponseWithMessage(e, "To duel you must choose an amount between 1 and 100");
+                await ServiceBackbone.ResponseWithMessage(e, $"To duel you must choose an amount between {options.MinimumWager:N0} and {options.MaximumWager:N0}");
                 throw new SkipCooldownException();
             }
             var attackerTickets = await pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
@@ -215,7 +217,9 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             {
                 Attacker = e.Name,
                 Defender = defender.Username,
-                Amount = amount
+                Amount = amount,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(options.ChallengeTimeoutMinutes),
+                WinChancePercent = options.WinChancePercent
             };
 
             try
@@ -227,7 +231,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             {
                 _semaphoreSlim.Release();
             }
-            await ServiceBackbone.SendChatMessage(defender.DisplayName, $"{e.DisplayName} has challenged you to a duel for {amount} tickets. You have 2 minutes to !accept or !deny the duel.");
+            await ServiceBackbone.SendChatMessage(defender.DisplayName, $"{e.DisplayName} has challenged you to a duel for {amount} tickets. You have {options.ChallengeTimeoutMinutes} minutes to !accept or !deny the duel.");
         }
 
         private async Task<bool> CheckIfAlreadyInDuel(string name)

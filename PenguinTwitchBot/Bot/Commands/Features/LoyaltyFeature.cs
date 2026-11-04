@@ -64,8 +64,6 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             }
         }
 
-        public static Int64 MaxBet { get; } = 200000069; // TODO Move this and make configurable.
-
         public async Task OnChatMessage(ChatMessageEventArgs e)
         {
             if (!IsFeatureEnabled()) return;

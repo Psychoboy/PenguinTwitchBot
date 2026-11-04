@@ -100,23 +100,25 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
 
             var amountStr = e.Args.First();
+            var maxBetLimit = await MaxBetSettings.GetForGameAsync(pointsSystem, gameSettingsService, ModuleName);
             var amount = 0L;
             if (amountStr.Equals("all", StringComparison.OrdinalIgnoreCase) ||
                amountStr.Equals("max", StringComparison.OrdinalIgnoreCase))
             {
-                amount = await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet);
+                amount = await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, maxBetLimit);
             }
             else if (amountStr.Contains('%'))
             {
                 try
                 {
                     var result = new Percentage(amountStr);
-                    if (result.Value <= 0 || result.Value > 100)
+                    foreach (var participant in Survivors)
                     {
-                        await SendInvalidArgsMessage(e, e.Command);
-                        throw new SkipCooldownException();
+                        var winMultiplier = MaxBetSettings.ClampPayoutMultiplier(
+                            await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5), 1d);
+                        var pay = Convert.ToInt64(participant.Bet * winMultiplier);
                     }
-                    amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet) * result.Value);
+                    amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, maxBetLimit) * result.Value);
                 }
                 catch
                 {
@@ -131,11 +133,11 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
             var pointType = await pointsSystem.GetPointTypeForGame(GAMENAME);
             var minBet = await gameSettingsService.GetIntSetting(GAMENAME, MINBET, 10);
-            if (amount > LoyaltyFeature.MaxBet || amount < minBet)
+            if (amount > maxBetLimit || amount < minBet)
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, INVALIDBET, "The max amount to join the heist is {MaxBet} {PointType} and must be greater then {MinBet} {PointType}");
                 message = message
-                    .Replace("{MaxBet}", LoyaltyFeature.MaxBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{MaxBet}", maxBetLimit.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{MinBet}", minBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.ResponseWithMessage(e, message); //INVALIDBET
