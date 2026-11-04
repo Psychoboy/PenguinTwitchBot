@@ -303,6 +303,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions
                 return Task.FromResult(action);
             });
             var pointsSystem = Substitute.For<IPointsSystem>();
+            var pointTypeId = Guid.CreateVersion7();
+            pointsSystem.SetPointTypeForGame("timed", pointTypeId).Returns(Task.CompletedTask);
             pointsSystem.RegisterDefaultPointForGame(Arg.Any<string>()).Returns(Task.CompletedTask);
             var service = CreateService(unitOfWork, actionCommandService, pointsSystem);
 
@@ -317,6 +319,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions
                 JoinCommandName = "jointimed",
                 StartCommandName = "starttimed",
                 CreateEndCommand = false,
+                PointTypeId = pointTypeId,
+                UseRandomTotalAward = true,
+                RandomTotalAwardMinimum = 1,
+                RandomTotalAwardMaximum = 100,
                 WinnerCount = 1,
                 DurationSeconds = 300,
                 AnnouncementIntervalSeconds = 120,
@@ -329,6 +335,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             var startAction = Assert.Single(createdActions, action => action.Name.EndsWith("Start", StringComparison.Ordinal));
             Assert.Equal("Default", joinAction.QueueName);
             Assert.Equal("Raffles", startAction.QueueName);
+            var startActions = startAction.SubActions.OrderBy(subAction => subAction.Index).ToList();
+            var randomAward = Assert.IsType<RandomIntType>(startActions[0]);
+            Assert.Equal(1, randomAward.Min);
+            Assert.Equal(100, randomAward.Max);
+            var raffleStart = Assert.IsType<RaffleStartType>(startActions[1]);
+            Assert.Equal(pointTypeId, raffleStart.PointTypeId);
+            Assert.Equal("%random_int%", raffleStart.TotalAward);
+            Assert.Equal(Enumerable.Range(0, startActions.Count), startActions.Select(subAction => subAction.Index));
             Assert.Equal(["120000", "120000", "60000"], startAction.SubActions.OfType<DelayType>().Select(delay => delay.Duration));
             Assert.Single(startAction.SubActions.OfType<RaffleEndType>());
             var resultAnnouncement = Assert.Single(startAction.SubActions.OfType<LogicIfElseType>());

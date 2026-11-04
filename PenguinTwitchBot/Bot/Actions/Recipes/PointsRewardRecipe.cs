@@ -81,7 +81,7 @@ public sealed class PointsRewardRecipe : IActionRecipe
         };
         var message = GetParameter(parameters, "MessageText").Trim();
         if (!string.IsNullOrWhiteSpace(message))
-            subActions.Add(new SendMessageType { Index = 1, Text = message, Enabled = true });
+            subActions.Add(new SendMessageType { Index = subActions.Count, Text = message, Enabled = true });
 
         return new ActionType
         {

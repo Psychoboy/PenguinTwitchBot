@@ -4116,6 +4116,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("PointTypeId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("RaffleKey")
                         .IsRequired()
                         .HasColumnType("TEXT");

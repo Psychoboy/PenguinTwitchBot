@@ -4,11 +4,13 @@ using NSubstitute;
 using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Types;
 using PenguinTwitchBot.Bot.Actions.SubActions;
+using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.ObsConnector;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 using PenguinTwitchBot.Database.Bot.Models.Obs;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using PenguinTwitchBot.Database.Bot.Models.Timers;
 using System.Linq;
 using Xunit;
@@ -47,6 +49,30 @@ public class SubActionUIFieldEnhancerTests
         Assert.True(timerGroupField.Required);
         Assert.NotNull(timerGroupField.SelectOptions);
         Assert.Equal(2, timerGroupField.SelectOptions.Count);
+    }
+
+    [Fact]
+    public void GetEnhancedFields_RaffleStart_PopulatesPointTypeChoices()
+    {
+        var pointTypeId = Guid.CreateVersion7();
+        var pointsSystem = Substitute.For<IPointsSystem>();
+        pointsSystem.GetPointTypes().Returns(Task.FromResult<IEnumerable<PointType>>(
+        [new PointType { Id = pointTypeId, Name = "Tickets" }]));
+        var services = new ServiceCollection();
+        services.AddSingleton(pointsSystem);
+        var provider = services.BuildServiceProvider();
+        var subAction = new RaffleStartType();
+
+        var fields = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+
+        var pointTypeField = fields.Single(field => field.PropertyName == nameof(RaffleStartType.PointTypeId));
+        Assert.Equal(UIFieldType.Select, pointTypeField.FieldType);
+        var pointTypeOption = Assert.Single(pointTypeField.SelectOptions!);
+        Assert.Equal(pointTypeId, pointTypeOption.Id);
+        Assert.Equal("Tickets", pointTypeOption.Name);
+
+        subAction.SetValues(new Dictionary<string, object?> { [nameof(RaffleStartType.PointTypeId)] = pointTypeId.ToString() });
+        Assert.Equal(pointTypeId, subAction.PointTypeId);
     }
 
     [Fact]

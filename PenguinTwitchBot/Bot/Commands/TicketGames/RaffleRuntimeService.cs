@@ -34,6 +34,8 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             var totalAward = Math.Max(0, request.TotalAward);
 
             await pointsSystem.RegisterDefaultPointForGame(pointGameName);
+            if (request.PointTypeId.HasValue)
+                await pointsSystem.SetPointTypeForGame(pointGameName, request.PointTypeId.Value);
             var pointType = await pointsSystem.GetPointTypeForGame(pointGameName);
             var pointTypeName = string.IsNullOrWhiteSpace(pointType.Name) ? pointGameName : pointType.Name;
 
@@ -390,6 +392,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         public string RaffleName { get; init; } = string.Empty;
         public string JoinCommand { get; init; } = string.Empty;
         public string PointGameName { get; init; } = "raffle";
+        public Guid? PointTypeId { get; init; }
         public int WinnerCount { get; init; } = 1;
         public long TotalAward { get; init; }
     }

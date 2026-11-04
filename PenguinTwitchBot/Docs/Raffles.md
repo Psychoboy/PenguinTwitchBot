@@ -6,18 +6,18 @@ This gives you:
 
 - Multiple raffles running at the same time as long as each raffle uses a different raffle key and different commands.
 - Full control over start, join, end, messages, reminders, and follow-up logic from the Action Management UI.
-- No raffle-specific timer or announcement logic hidden in code. If you want announcements or reminders, add them as SubActions.
+- A guided **Timed Raffle** recipe that creates join, start, and end commands, selects the award point type, and optionally adds timed announcements and automatic closing.
 
 ## Quick Start
 
-The fastest way to create a working raffle is from Action Management.
+Create a raffle from the guided recipe in Action Management.
 
-1. Open Action Management.
-2. Click `Create Raffle`.
-3. Fill in the raffle name, raffle key, join command, start command, and end command.
-4. Set the winner count, total award, point game, group, and queue.
-5. Leave `Include starter chat messages` enabled if you want the wizard to add basic start, join, and end chat responses.
-6. Save.
+1. Open Action Management and choose **Create from recipe > Timed raffle**.
+2. Set the raffle name/key and join, start, and end commands.
+3. Choose an award point type, winner count, and total award.
+4. Configure duration, announcement cadence, and message variants.
+5. Choose the action group and queue, and whether to include starter chat messages.
+6. Create the raffle.
 
 The wizard creates three actions for you:
 
@@ -25,13 +25,14 @@ The wizard creates three actions for you:
 - `Raffle: NAME Join`
 - `Raffle: NAME End`
 
-It also creates three action commands and wires each action to its command trigger.
+It also creates the corresponding action commands and wires each action to its command trigger. The start sequence can close the raffle automatically after its configured duration; the end command remains available to moderators for early closure.
 
 By default:
 
 - The join command is viewer-usable.
 - The start command is moderator-only.
 - The end command is moderator-only.
+- The timed start sequence uses the `Raffles` queue; join and end commands remain on `Default` so they can run while the timed sequence is waiting.
 
 You can change command permissions or cooldowns later from the Action Commands page.
 

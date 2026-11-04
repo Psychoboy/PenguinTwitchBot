@@ -13,17 +13,19 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         {
             var raffleService = Substitute.For<IRaffleRuntimeService>();
             var handler = new RaffleStartHandler(raffleService);
+            var pointTypeId = Guid.CreateVersion7();
 
             var result = new RaffleOperationResult { Success = true, Status = "started", EntryCount = 0 };
             raffleService.StartAsync(Arg.Is<RaffleStartRequest>(r =>
                 r.RaffleKey == "test" &&
                 r.RaffleName == "My Raffle" &&
+                r.PointTypeId == pointTypeId &&
                 r.WinnerCount == 2 &&
                 r.TotalAward == 100
             )).Returns(result);
 
-            var type = new RaffleStartType { RaffleKey = "test", RaffleName = "My Raffle", WinnerCount = 2, TotalAward = "100" };
-            var variables = new ConcurrentDictionary<string, string>();
+            var type = new RaffleStartType { RaffleKey = "test", RaffleName = "My Raffle", PointTypeId = pointTypeId, WinnerCount = 2, TotalAward = "%random_int%" };
+            var variables = new ConcurrentDictionary<string, string> { ["random_int"] = "100" };
 
             await handler.ExecuteAsync(type, variables);
 

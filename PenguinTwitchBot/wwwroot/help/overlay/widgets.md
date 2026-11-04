@@ -63,7 +63,6 @@ Provides real-time visual feedback for the chat-based fishing mini-game.
 
 - **How It Is Triggered**:
   - **Triggered Only via Sub-Actions**: The fishing overlay widget is triggered *exclusively* by executing the **Fishing** sub-action (`SubActionTypes.Fishing`). When an action containing this sub-action runs, it calculates the catch, rolls rarity, awards XP, and broadcasts the event over the `fishing` WebSocket topic.
-  - **Sample Actions Available**: Complete sample actions for fishing (including casting mechanics, chat responses for catches and accidents, and point/gold payouts) are provided in `Data/SampleActions/ActionGroup_Fishing.json` and can be imported via [Manage Actions](/actions/manage).
 - **Features**:
   - Subscribes to the `fishing` WebSocket topic.
   - Displays the catching viewer's avatar and username.
