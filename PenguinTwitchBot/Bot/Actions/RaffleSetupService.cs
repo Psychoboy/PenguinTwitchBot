@@ -294,6 +294,7 @@ namespace PenguinTwitchBot.Bot.Actions
                         Duration = (request.AnnouncementIntervalSeconds * 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
                     });
                     elapsedSeconds += request.AnnouncementIntervalSeconds;
+                    subActions.Add(CreateBreakIfRaffleEnded(subActions.Count));
                     var message = request.AnnouncementMessages[messageIndex++ % request.AnnouncementMessages.Count];
                     subActions.Add(new SendMessageType
                     {
@@ -313,6 +314,7 @@ namespace PenguinTwitchBot.Bot.Actions
                         Index = subActions.Count,
                         Duration = (remainingSeconds * 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
                     });
+                    subActions.Add(CreateBreakIfRaffleEnded(subActions.Count));
                 }
 
                 subActions.Add(new RaffleEndType { Index = subActions.Count, RaffleKey = request.RaffleKey });
@@ -436,6 +438,15 @@ namespace PenguinTwitchBot.Bot.Actions
                     StreamOnly = true
                 }
             ]
+        };
+
+        private static LogicIfElseType CreateBreakIfRaffleEnded(int index) => new()
+        {
+            Index = index,
+            LeftValue = "%raffle_is_active%",
+            RightValue = "true",
+            Operator = ComparisonOperator.Equals,
+            FalseSubActions = [new BreakType { Index = 0 }]
         };
 
         private static ActionType CreateAction(string name, RaffleSetupRequest request, List<SubActionType> subActions, ActionCommand command, string? queueName = null)

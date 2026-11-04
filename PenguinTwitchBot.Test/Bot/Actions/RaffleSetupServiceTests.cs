@@ -344,8 +344,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.Equal("%random_int%", raffleStart.TotalAward);
             Assert.Equal(Enumerable.Range(0, startActions.Count), startActions.Select(subAction => subAction.Index));
             Assert.Equal(["120000", "120000", "60000"], startAction.SubActions.OfType<DelayType>().Select(delay => delay.Duration));
+            var lifecycleChecks = startActions.OfType<LogicIfElseType>()
+                .Where(subAction => subAction.LeftValue == "%raffle_is_active%")
+                .ToList();
+            Assert.Equal(startAction.SubActions.OfType<DelayType>().Count(), lifecycleChecks.Count);
+            Assert.All(lifecycleChecks, check => Assert.IsType<BreakType>(Assert.Single(check.FalseSubActions)));
             Assert.Single(startAction.SubActions.OfType<RaffleEndType>());
-            var resultAnnouncement = Assert.Single(startAction.SubActions.OfType<LogicIfElseType>());
+            var resultAnnouncement = Assert.Single(startActions.OfType<LogicIfElseType>(),
+                subAction => subAction.LeftValue == "%raffle_has_entries%");
             Assert.Equal("%raffle_has_entries%", resultAnnouncement.LeftValue);
             Assert.Contains("%raffle_winners%", Assert.IsType<SendMessageType>(Assert.Single(resultAnnouncement.TrueSubActions)).Text);
             Assert.Equal("%raffle_name% ended with no entries.", Assert.IsType<SendMessageType>(Assert.Single(resultAnnouncement.FalseSubActions)).Text);

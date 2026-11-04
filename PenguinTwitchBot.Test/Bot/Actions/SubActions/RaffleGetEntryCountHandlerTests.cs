@@ -54,5 +54,25 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             Assert.Equal("0", variables["raffle_entry_count"]);
             Assert.Equal("not_running", variables["raffle_status"]);
         }
+
+        [Fact]
+        public async Task NotRunningAfterSuccessfulStart_PreservesPreviousOutcomeAndMarksInactive()
+        {
+            var raffleService = Substitute.For<IRaffleRuntimeService>();
+            var handler = new RaffleGetEntryCountHandler(raffleService);
+            raffleService.GetEntryCountAsync("timed").Returns(RaffleOperationResult.NotRunning("timed"));
+            var variables = new ConcurrentDictionary<string, string>
+            {
+                ["raffle_success"] = "true",
+                ["raffle_status"] = "started",
+                ["raffle_is_active"] = "true"
+            };
+
+            await handler.ExecuteAsync(new RaffleGetEntryCountType { RaffleKey = "timed" }, variables);
+
+            Assert.Equal("true", variables["raffle_success"]);
+            Assert.Equal("started", variables["raffle_status"]);
+            Assert.Equal("false", variables["raffle_is_active"]);
+        }
     }
 }

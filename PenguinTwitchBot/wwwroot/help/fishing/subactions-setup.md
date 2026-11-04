@@ -13,7 +13,7 @@ In Penguin Twitch Bot, fishing is powered entirely through the **Actions & Sub-A
 
 ## Set Up Fishing Actions
 
-Create fishing workflows from **Manage Actions** using the fishing sub-actions listed below. A basic chat fishing action combines **Fishing (Cast & Catch)** with a **Send Message** sub-action for its result; add tournament or inventory actions separately as needed. User-provided JSON action exports can still be imported from Manage Actions.
+Create fishing workflows from **Manage Actions** using the fishing sub-actions listed below. A basic chat fishing action combines **Fishing** (Cast & Catch) with a **Send Message** sub-action for its result; add tournament or inventory actions separately as needed. User-provided JSON action exports can still be imported from Manage Actions.
 
 ---
 
