@@ -4,6 +4,7 @@
 @using PenguinTwitchBot.Database.Bot.Actions
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
+@using PenguinTwitchBot.Pages.Games
 @using MudBlazor
 @inject IActionManagementService ActionService
 @inject IDialogService DialogService
@@ -62,9 +63,12 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        var game = GameDescriptorRegistry.FindByCommandName(DefaultCommandName);
+        var eventTypes = game?.GetOutcomeEvents(DefaultCommandName);
         _outcomes = TriggerCatalog.AllTriggers.Where(item =>
             item.Type == TriggerTypes.DefaultCommand &&
-            string.Equals(item.DefaultCommandName, DefaultCommandName, StringComparison.OrdinalIgnoreCase)).ToList();
+            string.Equals(item.DefaultCommandName, DefaultCommandName, StringComparison.OrdinalIgnoreCase) &&
+            (eventTypes == null || eventTypes.Contains(item.DefaultCommandEventType ?? string.Empty, StringComparer.OrdinalIgnoreCase))).ToList();
         if (IsActive && !_hasLoadedActions) await LoadActions();
     }
 
