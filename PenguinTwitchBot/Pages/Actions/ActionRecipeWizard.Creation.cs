@@ -159,9 +159,9 @@ public partial class ActionRecipeWizard
             Category = $"Recipes / {recipe.Category}",
             Description = $"Created by recipe: {recipe.Id}",
             Disabled = false,
-            MinimumRank = recipe is ChatCommandRecipeBase ? _commandMinimumRank : Rank.Viewer,
-            UserCooldown = recipe is ChatCommandRecipeBase ? _commandUserCooldown : 0,
-            GlobalCooldown = recipe is ChatCommandRecipeBase ? _commandGlobalCooldown : 0,
+            MinimumRank = recipe.SupportsCommandSettings ? _commandMinimumRank : Rank.Viewer,
+            UserCooldown = recipe.SupportsCommandSettings ? _commandUserCooldown : 0,
+            GlobalCooldown = recipe.SupportsCommandSettings ? _commandGlobalCooldown : 0,
             SourceOnly = true
         });
 }

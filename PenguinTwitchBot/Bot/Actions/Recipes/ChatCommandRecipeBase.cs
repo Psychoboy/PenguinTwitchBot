@@ -17,6 +17,7 @@ public abstract class ChatCommandRecipeBase : IActionRecipe
     public abstract string Icon { get; }
     public abstract string Description { get; }
     public abstract IReadOnlyList<ActionRecipeParameter> Parameters { get; }
+    public bool SupportsCommandSettings => true;
     public bool SupportsVariables => true;
 
     public ActionType Build(ActionRecipeContext context, IReadOnlyDictionary<string, string> parameters)

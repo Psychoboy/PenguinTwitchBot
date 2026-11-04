@@ -63,7 +63,7 @@
                                       Value="_commandName" ValueChanged="OnCommandNameChanged"
                                       HelperText="Enter the name without !; an existing custom command will be reused." Required="true" />
                     }
-                    @if (SelectedRecipe is ChatCommandRecipeBase)
+                    @if (SelectedRecipe?.SupportsCommandSettings == true)
                     {
                         <MudDivider />
                         <MudText Typo="Typo.subtitle2">New command settings</MudText>
@@ -197,7 +197,7 @@
                         {
                             <MudListItem T="string">Command: !@RecipeCommandName</MudListItem>
                         }
-                        @if (SelectedRecipe is ChatCommandRecipeBase)
+                        @if (SelectedRecipe?.SupportsCommandSettings == true)
                         {
                             <MudListItem T="string">New command minimum rank: @_commandMinimumRank</MudListItem>
                             <MudListItem T="string">New command cooldowns: user @_commandUserCooldown s, global @_commandGlobalCooldown s</MudListItem>

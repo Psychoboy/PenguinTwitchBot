@@ -369,6 +369,10 @@ function getAudioFile(name, path) {
     let defaultPath = '/audio/',
         fileName = '';
 
+    if (typeof name === 'string' && name.startsWith('/media/')) {
+        return name;
+    }
+
     if (path !== undefined) {
         defaultPath = path;
     }

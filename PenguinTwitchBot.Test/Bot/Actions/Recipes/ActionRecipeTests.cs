@@ -10,6 +10,7 @@ public class ActionRecipeTests
     public void ChatReplyRecipe_BuildsCommandTriggerAndReplySubAction()
     {
         var recipe = new ChatReplyRecipe();
+        Assert.True(recipe.SupportsCommandSettings);
         var commandId = Guid.NewGuid();
         var action = recipe.Build(
             new ActionRecipeContext("Hello reply", "Default", "!Hello", commandId),
@@ -49,6 +50,7 @@ public class ActionRecipeTests
             new Dictionary<string, string> { ["MessageText"] = "Welcome, %user%!" });
 
         Assert.Equal("Recipes / Chat Messages", action.Group);
+        Assert.True(recipe.SupportsCommandSettings);
         Assert.True(recipe.SupportsVariables);
         var message = Assert.IsType<SendMessageType>(Assert.Single(action.SubActions));
         Assert.Equal("Welcome, %user%!", message.Text);
@@ -75,6 +77,7 @@ public class ActionRecipeTests
     public void SoundCommandRecipe_BuildsCommandTriggerAndPlaySoundSubAction()
     {
         var recipe = new SoundCommandRecipe();
+        Assert.True(recipe.SupportsCommandSettings);
         var commandId = Guid.NewGuid();
         var action = recipe.Build(
             new ActionRecipeContext("Sound Command", "Default", "!sound", commandId),
