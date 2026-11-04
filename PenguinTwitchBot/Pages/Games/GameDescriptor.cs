@@ -2,6 +2,8 @@ using MudBlazor;
 using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Pages.PointGameSettings;
+using PenguinTwitchBot.Pages.PointGameSettings.Providers;
 
 namespace PenguinTwitchBot.Pages.Games;
 
@@ -25,7 +27,8 @@ public sealed record GameDescriptor(
     IReadOnlyList<string>? AdditionalCommandNames = null,
     IReadOnlyDictionary<string, IReadOnlyList<string>>? OutcomeEventsByCommand = null,
     string? HelpTopic = null,
-    string? TriggerGroupTitle = null)
+    string? TriggerGroupTitle = null,
+    Type? SettingsProviderType = null)
 {
     public IReadOnlyList<string> CommandNames =>
         [DefaultCommandName, .. AdditionalCommandNames ?? []];
@@ -66,17 +69,17 @@ public static class GameDescriptorRegistry
         Create("wheelspin", "Wheel Spin", GameKind.Overlay, "/wheelspin", "spinwheel", FeatureKeys.WheeledGame,
             Icons.Material.Filled.Casino, Color.Success, "Configure the prize wheel and spin automations.", helpTopic: "wheelspin"),
         Create("defuse", "Defuse", GameKind.Chat, "/games/chat-settings?game=defuse", "defuse", FeatureKeys.Defuse,
-            Icons.Material.Filled.Warning, Color.Error, "Choose a wire and try to defuse the bomb.", helpTopic: "game-settings", triggerGroupTitle: "Bomb Defuse"),
+            Icons.Material.Filled.Warning, Color.Error, "Choose a wire and try to defuse the bomb.", helpTopic: "game-settings", triggerGroupTitle: "Bomb Defuse", settingsProviderType: typeof(DefuseSettingsProvider)),
         Create("heist", "Heist", GameKind.Chat, "/games/chat-settings?game=heist", "heist", FeatureKeys.Heist,
-            Icons.Material.Filled.AccountBalance, Color.Warning, "Join a team heist and try to escape with the loot.", helpTopic: "game-settings", triggerGroupTitle: "Bank Heist"),
+            Icons.Material.Filled.AccountBalance, Color.Warning, "Join a team heist and try to escape with the loot.", helpTopic: "game-settings", triggerGroupTitle: "Bank Heist", settingsProviderType: typeof(HeistSettingsProvider)),
         Create("gamble", "Gamble", GameKind.Chat, "/games/chat-settings?game=gamble", "gamble", FeatureKeys.Gamble,
-            Icons.Material.Filled.Casino, Color.Secondary, "Roll for points and build toward the jackpot.", helpTopic: "game-settings"),
+            Icons.Material.Filled.Casino, Color.Secondary, "Roll for points and build toward the jackpot.", helpTopic: "game-settings", settingsProviderType: typeof(GambleSettingsProvider)),
         Create("slots", "Slots", GameKind.Chat, "/games/chat-settings?game=slots", "slot", FeatureKeys.Slots,
-            Icons.Material.Filled.ViewWeek, Color.Info, "Spin the slots for a point payout.", helpTopic: "game-settings"),
+            Icons.Material.Filled.ViewWeek, Color.Info, "Spin the slots for a point payout.", helpTopic: "game-settings", settingsProviderType: typeof(SlotsSettingsProvider)),
         Create("roulette", "Roulette", GameKind.Chat, "/games/chat-settings?game=roulette", "roulette", FeatureKeys.Roulette,
-            Icons.Material.Filled.Autorenew, Color.Error, "Risk points in a high-stakes roulette game.", helpTopic: "game-settings"),
+            Icons.Material.Filled.Autorenew, Color.Error, "Risk points in a high-stakes roulette game.", helpTopic: "game-settings", settingsProviderType: typeof(RouletteSettingsProvider)),
         Create("ffa", "FFA", GameKind.Chat, "/games/chat-settings?game=ffa", "ffa", FeatureKeys.FFA,
-            Icons.Material.Filled.EmojiEvents, Color.Success, "Join a free-for-all and try to be the last viewer standing.", helpTopic: "game-settings")
+            Icons.Material.Filled.EmojiEvents, Color.Success, "Join a free-for-all and try to be the last viewer standing.", helpTopic: "game-settings", settingsProviderType: typeof(FFASettingsProvider))
     ];
 
     public static IReadOnlyList<GameDescriptor> All => Games;
@@ -100,7 +103,8 @@ public static class GameDescriptorRegistry
         IReadOnlyList<string>? additionalCommands = null,
         string? displayCommand = null,
         string? helpTopic = null,
-        string? triggerGroupTitle = null)
+        string? triggerGroupTitle = null,
+        Type? settingsProviderType = null)
     {
         var commandNames = new[] { commandName }.Concat(additionalCommands ?? []).Distinct(StringComparer.OrdinalIgnoreCase);
         var outcomesByCommand = commandNames.ToDictionary(
@@ -116,6 +120,6 @@ public static class GameDescriptorRegistry
             StringComparer.OrdinalIgnoreCase);
 
         return new GameDescriptor(id, title, kind, route, commandName, featureKey, icon, color, description,
-            displayCommand, additionalCommands, outcomesByCommand, helpTopic, triggerGroupTitle);
+            displayCommand, additionalCommands, outcomesByCommand, helpTopic, triggerGroupTitle, settingsProviderType);
     }
 }

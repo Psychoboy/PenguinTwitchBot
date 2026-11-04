@@ -1,6 +1,7 @@
 using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Pages.Games;
+using PenguinTwitchBot.Pages.PointGameSettings;
 
 namespace PenguinTwitchBot.Test.Pages.Games;
 
@@ -36,5 +37,19 @@ public class GameDescriptorRegistryTests
                 Assert.Equal(expected, game.GetOutcomeEvents(commandName));
             }
         }
+    }
+
+    [Fact]
+    public void ChatGames_HaveDistinctSettingsProvidersAndOutcomeEvents()
+    {
+        var chatGames = GameDescriptorRegistry.All.Where(game => game.Kind == GameKind.Chat).ToArray();
+
+        Assert.All(chatGames, game =>
+        {
+            Assert.NotNull(game.SettingsProviderType);
+            Assert.True(typeof(IGameSettingsFormProvider).IsAssignableFrom(game.SettingsProviderType));
+            Assert.NotEmpty(game.OutcomeEventTypes);
+        });
+        Assert.Equal(chatGames.Length, chatGames.Select(game => game.SettingsProviderType).Distinct().Count());
     }
 }

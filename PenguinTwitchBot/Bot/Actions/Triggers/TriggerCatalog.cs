@@ -1094,6 +1094,48 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "roulette-win",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "gambling",
+                CategoryName = "Gambling & Points",
+                DisplayName = "Roulette - Win",
+                Description = "Triggers when a valid !roulette bet wins",
+                Icon = Icons.Material.Filled.ThumbUp,
+                Color = Color.Warning,
+                FeatureKey = FeatureKeys.Roulette,
+                DefaultCommandName = "roulette",
+                DefaultCommandEventType = DefaultCommandEventTypes.RouletteWin
+            },
+            new()
+            {
+                Id = "roulette-lose",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "gambling",
+                CategoryName = "Gambling & Points",
+                DisplayName = "Roulette - Lose",
+                Description = "Triggers when a valid !roulette bet loses",
+                Icon = Icons.Material.Filled.ThumbDown,
+                Color = Color.Warning,
+                FeatureKey = FeatureKeys.Roulette,
+                DefaultCommandName = "roulette",
+                DefaultCommandEventType = DefaultCommandEventTypes.RouletteLose
+            },
+            new()
+            {
+                Id = "ffa-win",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "FFA - Winner",
+                Description = "Triggers when the free-for-all selects and pays its winner",
+                Icon = Icons.Material.Filled.EmojiEvents,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.FFA,
+                DefaultCommandName = "ffa",
+                DefaultCommandEventType = DefaultCommandEventTypes.FfaWin
+            },
+            new()
+            {
                 Id = "slots-3ofakind",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "gambling",
