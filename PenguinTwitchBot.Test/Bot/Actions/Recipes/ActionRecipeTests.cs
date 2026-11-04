@@ -507,6 +507,8 @@ public class ActionRecipeTests
         Assert.Equal("deaths", counter.Name);
         Assert.Equal(CounterOperation.Increment, counter.Operation);
         Assert.Equal(2, counter.Value);
+        Assert.Null(counter.Min);
+        Assert.Null(counter.Max);
         Assert.Equal("%counter_display_name%: %counter_value%", Assert.IsType<SendMessageType>(action.SubActions[1]).Text);
         Assert.Equal(commandId, Assert.Single(action.Triggers).CommandId);
     }

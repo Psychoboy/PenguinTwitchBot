@@ -1433,6 +1433,9 @@
         // For Twitch event type, require an event to be selected
         if (_selectedType == TriggerTypes.TwitchEvent && string.IsNullOrEmpty(_selectedTwitchEvent))
             return false;
+        if (_selectedType == TriggerTypes.TwitchEvent && AllowedTwitchEventNames is not null &&
+            !AllowedTwitchEventNames.Contains(_selectedTwitchEvent, StringComparer.OrdinalIgnoreCase))
+            return false;
 
         // For default command type, require a command and event type to be selected
         if (_selectedType == TriggerTypes.DefaultCommand && 

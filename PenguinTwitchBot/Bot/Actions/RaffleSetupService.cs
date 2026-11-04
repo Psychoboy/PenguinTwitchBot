@@ -297,14 +297,8 @@ namespace PenguinTwitchBot.Bot.Actions
                 }
 
                 subActions.Add(new RaffleEndType { Index = subActions.Count, RaffleKey = request.RaffleKey });
-                subActions.Add(new SendMessageType
-                {
-                    Index = subActions.Count,
-                    Text = $"{request.RaffleName} is closed.",
-                    UseBot = true,
-                    FallBack = true,
-                    StreamOnly = true
-                });
+                if (request.IncludeStarterMessages)
+                    subActions.Add(CreateEndResultAnnouncement(subActions.Count));
             }
 
             return CreateAction($"Raffle: {request.RaffleName} Start", request, subActions, command, request.StartQueueName);
@@ -390,40 +384,40 @@ namespace PenguinTwitchBot.Bot.Actions
             };
 
             if (request.IncludeStarterMessages)
-            {
-                subActions.Add(new LogicIfElseType
-                {
-                    Index = 1,
-                    LeftValue = "%raffle_has_entries%",
-                    RightValue = "true",
-                    Operator = ComparisonOperator.Equals,
-                    TrueSubActions =
-                    [
-                        new SendMessageType
-                        {
-                            Index = 0,
-                            Text = "%raffle_name% ended. Winner(s): %raffle_winners%. %raffle_each_award% %raffle_point_game% each.",
-                            UseBot = true,
-                            FallBack = true,
-                            StreamOnly = true
-                        }
-                    ],
-                    FalseSubActions =
-                    [
-                        new SendMessageType
-                        {
-                            Index = 0,
-                            Text = "%raffle_name% ended with no entries.",
-                            UseBot = true,
-                            FallBack = true,
-                            StreamOnly = true
-                        }
-                    ]
-                });
-            }
+                subActions.Add(CreateEndResultAnnouncement(1));
 
             return CreateAction($"Raffle: {request.RaffleName} End", request, subActions, command, request.EndQueueName);
         }
+
+        private static LogicIfElseType CreateEndResultAnnouncement(int index) => new()
+        {
+            Index = index,
+            LeftValue = "%raffle_has_entries%",
+            RightValue = "true",
+            Operator = ComparisonOperator.Equals,
+            TrueSubActions =
+            [
+                new SendMessageType
+                {
+                    Index = 0,
+                    Text = "%raffle_name% ended. Winner(s): %raffle_winners%. %raffle_each_award% %raffle_point_game% each.",
+                    UseBot = true,
+                    FallBack = true,
+                    StreamOnly = true
+                }
+            ],
+            FalseSubActions =
+            [
+                new SendMessageType
+                {
+                    Index = 0,
+                    Text = "%raffle_name% ended with no entries.",
+                    UseBot = true,
+                    FallBack = true,
+                    StreamOnly = true
+                }
+            ]
+        };
 
         private static ActionType CreateAction(string name, RaffleSetupRequest request, List<SubActionType> subActions, ActionCommand command, string? queueName = null)
         {

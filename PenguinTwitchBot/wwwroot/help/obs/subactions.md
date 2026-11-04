@@ -10,8 +10,6 @@ All 13 OBS sub-actions available when building custom Actions in [Manage Actions
 | :--- | :--- | :--- |
 | **Set Scene** (`ObsSetSceneType`) | Switches the active OBS program scene. | Switch to "BRB" on stream break, or "Celebration" scene on hype train. |
 | **Set Source Visibility** (`ObsSetSourceVisibilityType`) | Shows or hides an item in a specific scene. | Pop up an image meme, show webcam frame, toggle emote wall. |
-
-For a timed show/hide sequence, use **Actions > Create from recipe > Show OBS source**. Select a configured connection, scene, and source, then choose a duration. The generated action shows the source, waits, and hides it; it remains editable in Manage Actions. You can start it with a chat command or add another trigger such as a Twitch event.
 | **Set Source Mute State** (`ObsSetSourceMuteStateType`) | Mutes, unmutes, or toggles an audio input. | Mute mic during cough trigger, unmute sound effects channel. |
 | **Set Media State** (`ObsSetMediaStateType`) | Plays, pauses, restarts, or stops a media source. | Play a video clip or victory sting on follow/sub. |
 | **Set Text** (`ObsSetTextType`) | Updates GDI+ / Freetype2 text source content. | Display latest subscriber name, high score, or shoutout target. |
@@ -23,6 +21,8 @@ For a timed show/hide sequence, use **Actions > Create from recipe > Show OBS so
 | **Set Audio Track State** (`ObsSetSourceAudioTrackStateType`) | Controls routing of audio to specific OBS tracks (1-6). | Ensure VOD track excludes copyrighted music. |
 | **Set Color Source Color** (`ObsSetColorSourceColorType`) | Changes the color of a solid color source. | Flash background red on damage alerts. |
 | **Trigger Hotkey** (`ObsTriggerHotkeyType`) | Simulates pressing an OBS hotkey shortcut. | Trigger replay buffer save or start virtual camera. |
+
+For a timed show/hide sequence, use **Actions > Create from recipe > Show OBS source**. Select a configured connection, scene, and source, then choose a duration. The generated action shows the source, waits, and hides it; it remains editable in Manage Actions. You can start it with a chat command or add another trigger such as a Twitch event.
 
 ---
 

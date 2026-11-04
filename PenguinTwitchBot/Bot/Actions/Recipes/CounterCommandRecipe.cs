@@ -50,6 +50,8 @@ public sealed class CounterCommandRecipe : IActionRecipe
                 Name = counterName,
                 Operation = CounterOperation.Increment,
                 Value = step,
+                Min = null,
+                Max = null,
                 Enabled = true
             }
         };

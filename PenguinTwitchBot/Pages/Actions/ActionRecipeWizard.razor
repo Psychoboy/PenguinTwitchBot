@@ -577,7 +577,9 @@
                         }
                         @foreach (var parameter in (SelectedRecipe?.Parameters ?? [])
                             .Where(parameter => SelectedRecipe is not ObsSourceVisibilityRecipe || parameter.Key == "CommandName")
-                            .Where(parameter => SelectedRecipe is not TwitchResponseRecipeBase || parameter.Key == "MessageText")
+                            .Where(parameter => SelectedRecipe is ChannelPointActionRecipe
+                                ? parameter.Key == "MessageText"
+                                : SelectedRecipe is not TwitchResponseRecipeBase || parameter.Key == "MessageText")
                             .Where(parameter => SelectedRecipe is not KeywordReactionRecipe || parameter.Key == "MessageText")
                             .Where(parameter => SelectedRecipe is not CommandGroupToggleRecipe || parameter.Key == "Operation"))
                         {
@@ -588,6 +590,20 @@
                             <MudListItem T="string">Overlay alert: @(IsTwitchAlertEnabled ? _alertRecipeSettings.Text : "Off")</MudListItem>
                             <MudListItem T="string">Additional sound: @(string.IsNullOrWhiteSpace(GetParameter("SoundFile")) ? "None" : GetParameter("SoundFile"))</MudListItem>
                             <MudListItem T="string">Fireworks bursts: @GetTwitchFireworksCount()</MudListItem>
+                        }
+                        @if (SelectedRecipe is ChannelPointActionRecipe)
+                        {
+                            var isNewReward = IsCreatingChannelPointReward;
+                            var rewardTitle = isNewReward ? GetParameter("NewRewardTitle") : GetParameter("RewardTitle");
+                            var existingRewardCost = _channelPointRewards.FirstOrDefault(reward =>
+                                reward.Title.Equals(rewardTitle, StringComparison.OrdinalIgnoreCase))?.Cost;
+                            <MudListItem T="string">Reward: @rewardTitle</MudListItem>
+                            <MudListItem T="string">Setup: @(isNewReward ? "Create new reward" : "Existing reward")</MudListItem>
+                            <MudListItem T="string">Cost: @(isNewReward ? GetChannelPointRewardCost() : existingRewardCost) points</MudListItem>
+                            @if (isNewReward)
+                            {
+                                <MudListItem T="string">Skip Queue: @(GetRewardBoolean("RewardSkipQueue") ? "On" : "Off")</MudListItem>
+                            }
                         }
                         @if (SelectedRecipe is KeywordReactionRecipe)
                         {
@@ -616,14 +632,15 @@
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Nothing is created until you confirm. Created actions will be tagged with their recipe and remain editable in Manage Actions.
                     </MudAlert>
-                    @if (SelectedRecipe is not (ITimerGroupActionRecipe or IRaffleSetupActionRecipe) &&
+                    @if (SelectedRecipe is not (ITimerGroupActionRecipe or IRaffleSetupActionRecipe or ChannelPointActionRecipe) &&
                         string.IsNullOrWhiteSpace(RecipeCommandName) && _additionalTriggers.Count == 0)
                     {
                         <MudAlert Severity="Severity.Warning" Dense="true">
                             This action has no trigger yet. You can create it now and link it to an event later in Manage Actions.
                         </MudAlert>
                     }
-                    @if (SelectedRecipe is { RequiresTrigger: true } requiredTriggerRecipe &&
+                    @if (SelectedRecipe is not ChannelPointActionRecipe &&
+                        SelectedRecipe is { RequiresTrigger: true } requiredTriggerRecipe &&
                          !_additionalTriggers.Any(requiredTriggerRecipe.IsRequiredTrigger))
                     {
                         <MudAlert Severity="Severity.Warning" Dense="true">

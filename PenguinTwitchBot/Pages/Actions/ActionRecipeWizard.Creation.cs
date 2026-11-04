@@ -78,10 +78,17 @@ public partial class ActionRecipeWizard
                 return false;
             }
         }
+        var aliasTargetCommandName = ChatCommandRecipeBase.NormalizeCommandName(GetParameter("TargetCommand"));
         if (SelectedRecipe is CommandAliasRecipe &&
-            !_enabledCommandNames.Contains(GetParameter("TargetCommand"), StringComparer.OrdinalIgnoreCase))
+            !_enabledCommandNames.Any(commandName =>
+                ChatCommandRecipeBase.NormalizeCommandName(commandName).Equals(aliasTargetCommandName, StringComparison.OrdinalIgnoreCase)))
         {
             error = "Choose an existing enabled command to alias.";
+            return false;
+        }
+        if (SelectedRecipe is CommandAliasRecipe && aliasTargetCommandName.Equals(NormalizedCommandName, StringComparison.OrdinalIgnoreCase))
+        {
+            error = "Choose an enabled target command that differs from the alias command.";
             return false;
         }
         if (SelectedRecipe is CommandGroupToggleRecipe &&

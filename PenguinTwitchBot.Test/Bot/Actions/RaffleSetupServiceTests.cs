@@ -331,6 +331,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.Equal("Raffles", startAction.QueueName);
             Assert.Equal(["120000", "120000", "60000"], startAction.SubActions.OfType<DelayType>().Select(delay => delay.Duration));
             Assert.Single(startAction.SubActions.OfType<RaffleEndType>());
+            var resultAnnouncement = Assert.Single(startAction.SubActions.OfType<LogicIfElseType>());
+            Assert.Equal("%raffle_has_entries%", resultAnnouncement.LeftValue);
+            Assert.Contains("%raffle_winners%", Assert.IsType<SendMessageType>(Assert.Single(resultAnnouncement.TrueSubActions)).Text);
+            Assert.Equal("%raffle_name% ended with no entries.", Assert.IsType<SendMessageType>(Assert.Single(resultAnnouncement.FalseSubActions)).Text);
         }
     }
 }
