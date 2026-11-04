@@ -1,0 +1,78 @@
+@page "/games"
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Games
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@attribute [Authorize(Roles = "Streamer, Editor")]
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Games</PageTitle>
+
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudStack Spacing="4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.SportsEsports" Color="Color.Primary" Size="Size.Large" />
+            <div>
+                <MudText Typo="Typo.h4">Games</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Manage overlay games and chat games.</MudText>
+            </div>
+        </MudStack>
+
+        @foreach (var kind in new[] { GameKind.Overlay, GameKind.Chat })
+        {
+            var games = GetGames(kind).ToList();
+            <section>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
+                    <MudText Typo="Typo.h6">@(kind == GameKind.Overlay ? "Overlay Games" : "Chat Games")</MudText>
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@games.Count</MudChip>
+                </MudStack>
+                @if (games.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">No games are available with the current feature settings.</MudText>
+                }
+                else
+                {
+                    <MudGrid Spacing="2">
+                        @foreach (var game in games)
+                        {
+                            var enabled = FeatureRuntimeCoordinator.IsEnabled(game.FeatureKey);
+                            <MudItem xs="12" sm="6" lg="4" xl="3">
+                                <MudPaper Outlined="true" Class="pa-3" Style="height:100%;">
+                                    <MudStack Spacing="2" Style="height:100%;">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudIcon Icon="@game.Icon" Color="@game.Color" Size="Size.Large" />
+                                            <MudText Typo="Typo.subtitle1"><b>@game.Title</b></MudText>
+                                            <MudSpacer />
+                                            <MudChip T="string" Size="Size.Small" Color="@(enabled ? Color.Success : Color.Default)" Variant="Variant.Outlined">
+                                                @(enabled ? "Enabled" : "Disabled")
+                                            </MudChip>
+                                        </MudStack>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@game.Description</MudText>
+                                        <MudText Typo="Typo.caption">Command: <code>@game.CommandLabel</code></MudText>
+                                        <MudSpacer />
+                                        <MudButton Href="@game.SettingsHref" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Settings">
+                                            @(kind == GameKind.Overlay ? "Manage game" : "Game settings")
+                                        </MudButton>
+                                    </MudStack>
+                                </MudPaper>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                }
+            </section>
+        }
+
+        @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Palette" Color="Color.Secondary" />
+                <MudText Typo="Typo.subtitle1">Themes &amp; Assets</MudText>
+                <MudSpacer />
+                <MudButton Href="/games/themes" Variant="Variant.Text" EndIcon="@Icons.Material.Filled.ChevronRight">Manage themes</MudButton>
+            </MudStack>
+        }
+    </MudStack>
+</MudContainer>
+
+@code {
+    private IEnumerable<GameDescriptor> GetGames(GameKind kind) => GameDescriptorRegistry.All
+        .Where(game => game.Kind == kind);
+}

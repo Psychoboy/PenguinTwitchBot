@@ -5,6 +5,7 @@
 @inject IQuickSearchService QuickSearchService
 @using PenguinTwitchBot.Helpers
 @using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Games
 @using PenguinTwitchBot.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
@@ -82,20 +83,25 @@
                 <MudNavLink Icon="@Icons.Material.Filled.Queue" Href="/overlay/fireworks-queue" Match="NavLinkMatch.Prefix">Fireworks Queue</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/overlay/timer" Match="NavLinkMatch.Prefix">Stream Timer</MudNavLink>
             </MudNavGroup>
-            @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
-            {
-                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Minigames" Expanded="@GetGroupExpanded("minigames", "games/balloon", "games/curling", "games/golf", "games/parachute", "games/plinko", "games/racing", "games/starship", "games/themes")">
-                    <MudNavLink Icon="@Icons.Material.Filled.Air" Href="/games/balloon" Match="NavLinkMatch.Prefix">Balloon Ascent</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.SportsHockey" Href="/games/curling" Match="NavLinkMatch.Prefix">Curling / Shuffleboard</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.GolfCourse" Href="/games/golf" Match="NavLinkMatch.Prefix">Golf (Chip & Putt)</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.Paragliding" Href="/games/parachute" Match="NavLinkMatch.Prefix">Parachute Drop</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.Grain" Href="/games/plinko" Match="NavLinkMatch.Prefix">Plinko Bounce</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.DirectionsCar" Href="/games/racing" Match="NavLinkMatch.Prefix">Racing</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.RocketLaunch" Href="/games/starship" Match="NavLinkMatch.Prefix">Starship Expedition</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.CardGiftcard" Href="/games/ufoclaw" Match="NavLinkMatch.Prefix">UFO Claw</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.Palette" Href="/games/themes" Match="NavLinkMatch.Prefix">Themes & Assets</MudNavLink>
+            <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Games" Expanded="@GetGroupExpanded("games", GetGamesNavRoutes())">
+                <MudNavLink Icon="@Icons.Material.Filled.Dashboard" Href="/games" Match="NavLinkMatch.All">All Games</MudNavLink>
+                <MudNavGroup Icon="@Icons.Material.Filled.Layers" Title="Overlay Games" Expanded="@GetGroupExpanded("overlayGames", GetGameRoutes(GameKind.Overlay))">
+                    @foreach (var game in GetVisibleGames(GameKind.Overlay))
+                    {
+                        <MudNavLink Icon="@game.Icon" Href="@game.Route" Match="NavLinkMatch.Prefix">@game.Title</MudNavLink>
+                    }
                 </MudNavGroup>
-            }
+                <MudNavGroup Icon="@Icons.Material.Filled.Chat" Title="Chat Games" Expanded="@GetGroupExpanded("chatGames", GetGameRoutes(GameKind.Chat))">
+                    @foreach (var game in GetVisibleGames(GameKind.Chat))
+                    {
+                        <MudNavLink Icon="@game.Icon" Href="@game.SettingsHref" Match="NavLinkMatch.Prefix">@game.Title</MudNavLink>
+                    }
+                </MudNavGroup>
+                @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
+                {
+                    <MudNavLink Icon="@Icons.Material.Filled.Palette" Href="/games/themes" Match="NavLinkMatch.Prefix">Themes &amp; Assets</MudNavLink>
+                }
+            </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.Code" Title="Commands" Expanded="@GetGroupExpanded("commands", "commands/default", "commands/aliases", "commands/cooldowns", "commands/external", "actions/commands", "actions/keywords", "actions/audiocommands")">
                 <MudNavLink Icon="@Icons.Material.Filled.Code" Href="/commands/default" Match="NavLinkMatch.Prefix">Default Commands</MudNavLink>
                 @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias))
@@ -130,7 +136,7 @@
                 }
                 <MudNavLink Icon="@Icons.Material.Filled.Block" Href="/blacklist" Match="NavLinkMatch.Prefix">Blacklist</MudNavLink>
             </MudNavGroup>
-            <MudNavGroup Icon="@Icons.Material.Filled.CardGiftcard" Title="Giveaways" Expanded="@GetGroupExpanded("giveaways", "giveaway", "wheelspin")">
+            <MudNavGroup Icon="@Icons.Material.Filled.CardGiftcard" Title="Giveaways" Expanded="@GetGroupExpanded("giveaways", "giveaway")">
                 @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
                 {
                     <MudNavLink Icon="@Icons.Material.Filled.Public" Href="/giveaway" Match="NavLinkMatch.All">Viewer Giveaway Page</MudNavLink>
@@ -138,10 +144,6 @@
                     <MudNavLink Icon="@Icons.Material.Filled.Settings" Href="/giveaway/settings" Match="NavLinkMatch.Prefix">Giveaway Settings</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.History" Href="/giveaway/history" Match="NavLinkMatch.Prefix">Giveaway History</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Block" Href="/giveaway/exclusions" Match="NavLinkMatch.Prefix">Giveaway Exclusions</MudNavLink>
-                }
-                @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
-                {
-                    <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
                 }
             </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "settings/bot-auth", "voices", "tools", "backups", "validation-status", "settings/channel-points", "settings/loyalty-bonuses", "settings/points", "settings/games", "settings/raidrewards", "obs/connections", "settings/updates", "settings/themes")">
@@ -162,11 +164,10 @@
                     <MudNavLink Icon="@Icons.Material.Filled.Backup" Href="/backups" Match="NavLinkMatch.Prefix">Backups</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.BugReport" Href="/validation-status" Match="NavLinkMatch.Prefix">Validation Status</MudNavLink>
                 </MudNavGroup>
-                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Points & Rewards" Expanded="@GetGroupExpanded("pointsRewards", "settings/points", "settings/games", "settings/loyalty-bonuses", "settings/channel-points", "settings/raidrewards")">
+                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Points & Rewards" Expanded="@GetGroupExpanded("pointsRewards", "settings/points", "settings/loyalty-bonuses", "settings/channel-points", "settings/raidrewards")">
                     <MudNavLink Icon="@Icons.Material.Filled.Stars" Href="/settings/channel-points" Match="NavLinkMatch.Prefix">Channel Points</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Loyalty" Href="/settings/loyalty-bonuses" Match="NavLinkMatch.Prefix">Loyalty Bonuses</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Money" Href="/settings/points" Match="NavLinkMatch.Prefix">Point Settings</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.Games" Href="/settings/games" Match="NavLinkMatch.Prefix">Game Settings</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.GroupAdd" Href="/settings/raidrewards" Match="NavLinkMatch.Prefix">Raid Rewards</MudNavLink>
                 </MudNavGroup>
                 <MudNavLink Icon="@Icons.Material.Filled.Videocam" Href="/obs/connections" Match="NavLinkMatch.Prefix">OBS Connections</MudNavLink>
@@ -359,6 +360,15 @@
         return _groupExpandedState.GetValueOrDefault(groupKey, false);
     }
 
+    private IEnumerable<GameDescriptor> GetVisibleGames(GameKind kind) => GameDescriptorRegistry.All
+        .Where(game => game.Kind == kind && FeatureRuntimeCoordinator.IsEnabled(game.FeatureKey));
+
+    private string[] GetGameRoutes(GameKind kind) => GetVisibleGames(kind)
+        .Select(game => game.Route.TrimStart('/'))
+        .ToArray();
+
+    private string[] GetGamesNavRoutes() => ["games", "settings/games", "gamesettings", "wheelspin"];
+
     private IEnumerable<NavQuickLink> GetQuickLinks()
     {
         var links = new List<NavQuickLink>
@@ -399,7 +409,7 @@
             CreateQuickLink("Channel Points", "/settings/channel-points", Icons.Material.Filled.Stars, "Configuration", "points rewards"),
             CreateQuickLink("Loyalty Bonuses", "/settings/loyalty-bonuses", Icons.Material.Filled.Loyalty, "Configuration", "points rewards"),
             CreateQuickLink("Point Settings", "/settings/points", Icons.Material.Filled.Money, "Configuration", "games points rewards"),
-            CreateQuickLink("Game Settings", "/settings/games", Icons.Material.Filled.Games, "Configuration", "games points rewards"),
+            CreateQuickLink("All Games", "/games", Icons.Material.Filled.SportsEsports, "Games", "minigames overlay chat"),
             CreateQuickLink("OBS Connections", "/obs/connections", Icons.Material.Filled.Videocam, "Configuration", "obs"),
             CreateQuickLink("Home", "/", Icons.Material.Filled.Home, "Viewer Pages", "dashboard"),
             CreateQuickLink("Commands (Viewer Page)", "/commands", Icons.Material.Filled.ChatBubble, "Viewer Pages", "chat commands list"),
@@ -429,22 +439,14 @@
             links.Add(CreateQuickLink("Giveaway Exclusions", "/giveaway/exclusions", Icons.Material.Filled.Block, "Giveaways", "bots exclusions"));
         }
 
-        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        foreach (var game in GetVisibleGames(GameKind.Overlay).Concat(GetVisibleGames(GameKind.Chat)))
         {
-            links.Add(CreateQuickLink("Wheel Spin", "/wheelspin", Icons.Material.Filled.Casino, "Giveaways", "wheel"));
+            links.Add(CreateQuickLink(game.Title, game.SettingsHref, game.Icon, "Games", game.Description, game.CommandLabel));
         }
 
         if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
         {
-            links.Add(CreateQuickLink("Balloon Ascent", "/games/balloon", Icons.Material.Filled.Air, "Minigames", "balloon ascent minigames"));
-            links.Add(CreateQuickLink("Curling / Shuffleboard", "/games/curling", Icons.Material.Filled.SportsHockey, "Minigames", "curling shuffleboard puck stones minigames"));
-            links.Add(CreateQuickLink("Golf (Chip & Putt)", "/games/golf", Icons.Material.Filled.GolfCourse, "Minigames", "golf putt chip cup green minigames"));
-            links.Add(CreateQuickLink("Parachute Drop", "/games/parachute", Icons.Material.Filled.Paragliding, "Minigames", "parachute drop droplets minigames"));
-            links.Add(CreateQuickLink("Plinko Bounce", "/games/plinko", Icons.Material.Filled.Grain, "Minigames", "plinko bounce minigames"));
-            links.Add(CreateQuickLink("Racing", "/games/racing", Icons.Material.Filled.DirectionsCar, "Minigames", "racing race karts speed minigames"));
-            links.Add(CreateQuickLink("Starship Expedition", "/games/starship", Icons.Material.Filled.RocketLaunch, "Minigames", "starship expedition voyage crew space salvage minigames"));
-            links.Add(CreateQuickLink("UFO Claw", "/games/ufoclaw", Icons.Material.Filled.CardGiftcard, "Minigames", "ufo claw prizes viewers draw minigames"));
-            links.Add(CreateQuickLink("Minigame Themes", "/games/themes", Icons.Material.Filled.Palette, "Minigames", "themes skins assets minigames"));
+            links.Add(CreateQuickLink("Themes & Assets", "/games/themes", Icons.Material.Filled.Palette, "Games", "themes skins assets"));
         }
 
         if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.AutoTimer))

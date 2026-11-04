@@ -1,5 +1,6 @@
-@page "/settings/games"
+@page "/games/chat-settings"
 @using PenguinTwitchBot.Pages.PointGameSettings.Providers
+@using PenguinTwitchBot.Pages.Games
 @attribute [Authorize(Roles = "Streamer, Editor")]
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Game Settings</PageTitle>
 <CascadingAuthenticationState>
@@ -50,8 +51,7 @@
             {
                 <MudItem xs="12">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudButton StartIcon="@Icons.Material.Filled.ArrowBack"
-                                   OnClick="@(() => _selectedProvider = null)">
+                           <MudButton Href="/games/chat-settings" StartIcon="@Icons.Material.Filled.ArrowBack">
                             All Games
                         </MudButton>
                         <MudIcon Icon="@_selectedProvider.Icon" Color="Color.Primary" />
@@ -59,13 +59,15 @@
                     </MudStack>
                 </MudItem>
                 <MudItem xs="12">
-                    <GameSettingsPanel Provider="@(_selectedProvider!)" />
+                    <GameSettingsPanel @key="_selectedProvider" Provider="@(_selectedProvider!)" />
                 </MudItem>
             }
         </MudGrid>
     </MudContainer>
 </CascadingAuthenticationState>
 @code {
+    [SupplyParameterFromQuery(Name = "game")] public string? SelectedGameId { get; set; }
+
     private IGameSettingsFormProvider? _selectedProvider;
 
     private readonly List<IGameSettingsFormProvider> _providers =
@@ -81,4 +83,13 @@
         new SlotsSettingsProvider(),
         new TwitchEventBonusSettingsProvider(),
     ];
+
+    protected override void OnParametersSet()
+    {
+        var game = GameDescriptorRegistry.FindById(SelectedGameId);
+        _selectedProvider = game?.Kind == GameKind.Chat
+            ? _providers.FirstOrDefault(provider =>
+                string.Equals(provider.DisplayName, game.Title, StringComparison.OrdinalIgnoreCase))
+            : null;
+    }
 }
