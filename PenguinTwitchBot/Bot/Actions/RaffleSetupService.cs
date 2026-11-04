@@ -44,10 +44,9 @@ namespace PenguinTwitchBot.Bot.Actions
                     $"Start the {normalized.RaffleName} raffle",
                     Rank.Moderator);
 
-                var endCommand = CreateCommand(
-                    normalized.EndCommandName,
-                    $"End the {normalized.RaffleName} raffle",
-                    Rank.Moderator);
+                var endCommand = normalized.CreateEndCommand
+                    ? CreateCommand(normalized.EndCommandName, $"End the {normalized.RaffleName} raffle", Rank.Moderator)
+                    : null;
 
                 Guid? joinActionId;
                 Guid? startActionId;
@@ -57,16 +56,19 @@ namespace PenguinTwitchBot.Bot.Actions
                 {
                     await unitOfWork.ActionCommands.AddAsync(joinCommand);
                     await unitOfWork.ActionCommands.AddAsync(startCommand);
-                    await unitOfWork.ActionCommands.AddAsync(endCommand);
+                    if (endCommand is not null)
+                        await unitOfWork.ActionCommands.AddAsync(endCommand);
                     await unitOfWork.SaveChangesAsync();
 
                     var joinAction = await unitOfWork.Actions.CreateActionAsync(CreateJoinAction(normalized, joinCommand));
                     var startAction = await unitOfWork.Actions.CreateActionAsync(CreateStartAction(normalized, startCommand));
-                    var endAction = await unitOfWork.Actions.CreateActionAsync(CreateEndAction(normalized, endCommand));
+                    var endAction = endCommand is null
+                        ? null
+                        : await unitOfWork.Actions.CreateActionAsync(CreateEndAction(normalized, endCommand));
 
                     joinActionId = joinAction.Id;
                     startActionId = startAction.Id;
-                    endActionId = endAction.Id;
+                    endActionId = endAction?.Id;
 
                     await transaction.CommitAsync();
                 }
@@ -126,7 +128,8 @@ namespace PenguinTwitchBot.Bot.Actions
 
             if (string.IsNullOrWhiteSpace(request.EndCommandName))
             {
-                errors.Add("End command is required.");
+                if (request.CreateEndCommand)
+                    errors.Add("End command is required.");
             }
 
             if (request.WinnerCount < 1)
@@ -139,7 +142,19 @@ namespace PenguinTwitchBot.Bot.Actions
                 errors.Add("Total award must be 0 or greater.");
             }
 
-            var commandNames = new[] { request.JoinCommandName, request.StartCommandName, request.EndCommandName };
+            if (request.DurationSeconds > 0)
+            {
+                if (request.DurationSeconds is < 60 or > 86400)
+                    errors.Add("Timed raffle duration must be between 60 and 86400 seconds.");
+                if (request.AnnouncementIntervalSeconds is < 30 or > 3600 || request.AnnouncementIntervalSeconds > request.DurationSeconds)
+                    errors.Add("Announcement interval must be between 30 and 3600 seconds and no longer than the raffle duration.");
+                if (request.AnnouncementMessages.Count == 0)
+                    errors.Add("At least one timed raffle announcement is required.");
+            }
+
+            var commandNames = new[] { request.JoinCommandName, request.StartCommandName, request.EndCommandName }
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .ToArray();
             if (commandNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != commandNames.Length)
             {
                 errors.Add("Join, start, and end commands must all be different.");
@@ -176,12 +191,25 @@ namespace PenguinTwitchBot.Bot.Actions
                 JoinCommandName = NormalizeCommandName(request.JoinCommandName),
                 StartCommandName = NormalizeCommandName(request.StartCommandName),
                 EndCommandName = NormalizeCommandName(request.EndCommandName),
+                StartQueueName = NormalizeQueueName(request.StartQueueName, request.QueueName),
+                JoinQueueName = NormalizeQueueName(request.JoinQueueName, request.QueueName),
+                EndQueueName = NormalizeQueueName(request.EndQueueName, request.QueueName),
                 PointTypeId = request.PointTypeId,
                 WinnerCount = Math.Max(1, request.WinnerCount),
                 TotalAward = Math.Max(0, request.TotalAward),
-                IncludeStarterMessages = request.IncludeStarterMessages
+                IncludeStarterMessages = request.IncludeStarterMessages,
+                CreateEndCommand = request.CreateEndCommand,
+                DurationSeconds = Math.Max(0, request.DurationSeconds),
+                AnnouncementIntervalSeconds = Math.Max(0, request.AnnouncementIntervalSeconds),
+                AnnouncementMessages = request.AnnouncementMessages
+                    .Where(message => !string.IsNullOrWhiteSpace(message))
+                    .Select(message => message.Trim())
+                    .ToList()
             };
         }
+
+        private static string NormalizeQueueName(string? queueName, string fallback) =>
+            string.IsNullOrWhiteSpace(queueName) ? (string.IsNullOrWhiteSpace(fallback) ? "Default" : fallback.Trim()) : queueName.Trim();
 
         private static string NormalizeCommandName(string? commandName) => NormalizeText(commandName).TrimStart('!');
         private static string NormalizeText(string? value) => value?.Trim() ?? string.Empty;
@@ -235,7 +263,51 @@ namespace PenguinTwitchBot.Bot.Actions
                 });
             }
 
-            return CreateAction($"Raffle: {request.RaffleName} Start", request, subActions, command);
+            if (request.DurationSeconds > 0)
+            {
+                var elapsedSeconds = 0;
+                var messageIndex = 0;
+                while (elapsedSeconds + request.AnnouncementIntervalSeconds < request.DurationSeconds)
+                {
+                    subActions.Add(new DelayType
+                    {
+                        Index = subActions.Count,
+                        Duration = (request.AnnouncementIntervalSeconds * 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                    elapsedSeconds += request.AnnouncementIntervalSeconds;
+                    var message = request.AnnouncementMessages[messageIndex++ % request.AnnouncementMessages.Count];
+                    subActions.Add(new SendMessageType
+                    {
+                        Index = subActions.Count,
+                        Text = message,
+                        UseBot = true,
+                        FallBack = true,
+                        StreamOnly = true
+                    });
+                }
+
+                var remainingSeconds = request.DurationSeconds - elapsedSeconds;
+                if (remainingSeconds > 0)
+                {
+                    subActions.Add(new DelayType
+                    {
+                        Index = subActions.Count,
+                        Duration = (remainingSeconds * 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                }
+
+                subActions.Add(new RaffleEndType { Index = subActions.Count, RaffleKey = request.RaffleKey });
+                subActions.Add(new SendMessageType
+                {
+                    Index = subActions.Count,
+                    Text = $"{request.RaffleName} is closed.",
+                    UseBot = true,
+                    FallBack = true,
+                    StreamOnly = true
+                });
+            }
+
+            return CreateAction($"Raffle: {request.RaffleName} Start", request, subActions, command, request.StartQueueName);
         }
 
         private static ActionType CreateJoinAction(RaffleSetupRequest request, ActionCommand command)
@@ -303,7 +375,7 @@ namespace PenguinTwitchBot.Bot.Actions
                 });
             }
 
-            return CreateAction($"Raffle: {request.RaffleName} Join", request, subActions, command);
+            return CreateAction($"Raffle: {request.RaffleName} Join", request, subActions, command, request.JoinQueueName);
         }
 
         private static ActionType CreateEndAction(RaffleSetupRequest request, ActionCommand command)
@@ -350,17 +422,17 @@ namespace PenguinTwitchBot.Bot.Actions
                 });
             }
 
-            return CreateAction($"Raffle: {request.RaffleName} End", request, subActions, command);
+            return CreateAction($"Raffle: {request.RaffleName} End", request, subActions, command, request.EndQueueName);
         }
 
-        private static ActionType CreateAction(string name, RaffleSetupRequest request, List<SubActionType> subActions, ActionCommand command)
+        private static ActionType CreateAction(string name, RaffleSetupRequest request, List<SubActionType> subActions, ActionCommand command, string? queueName = null)
         {
             return new ActionType
             {
                 Name = name,
                 Group = request.Group,
                 Enabled = true,
-                QueueName = request.QueueName,
+                QueueName = string.IsNullOrWhiteSpace(queueName) ? request.QueueName : queueName,
                 RandomAction = false,
                 ConcurrentAction = false,
                 OnlineOnly = false,
@@ -436,6 +508,9 @@ namespace PenguinTwitchBot.Bot.Actions
         public string RaffleKey { get; set; } = string.Empty;
         public string Group { get; set; } = "Raffles";
         public string QueueName { get; set; } = "Default";
+        public string? StartQueueName { get; set; }
+        public string? JoinQueueName { get; set; }
+        public string? EndQueueName { get; set; }
         public string JoinCommandName { get; set; } = string.Empty;
         public string StartCommandName { get; set; } = string.Empty;
         public string EndCommandName { get; set; } = string.Empty;
@@ -443,6 +518,10 @@ namespace PenguinTwitchBot.Bot.Actions
         public int WinnerCount { get; set; } = 1;
         public long TotalAward { get; set; }
         public bool IncludeStarterMessages { get; set; } = true;
+        public bool CreateEndCommand { get; set; } = true;
+        public int DurationSeconds { get; set; }
+        public int AnnouncementIntervalSeconds { get; set; }
+        public List<string> AnnouncementMessages { get; set; } = [];
     }
 
     public sealed class RaffleSetupResult

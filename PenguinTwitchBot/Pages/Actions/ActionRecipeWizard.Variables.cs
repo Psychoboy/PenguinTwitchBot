@@ -77,7 +77,7 @@ public partial class ActionRecipeWizard
     {
         if (string.IsNullOrWhiteSpace(_variableTargetKey)) return Task.CompletedTask;
 
-        if (SelectedRecipe is AlertRecipe && _variableTargetKey.Equals("AlertText", StringComparison.OrdinalIgnoreCase))
+        if (SelectedRecipe is AlertRecipe or TwitchResponseRecipeBase && _variableTargetKey.Equals("AlertText", StringComparison.OrdinalIgnoreCase))
         {
             _alertRecipeSettings.Text = (_alertRecipeSettings.Text ?? string.Empty) + token;
             SyncAlertRecipeParameters();

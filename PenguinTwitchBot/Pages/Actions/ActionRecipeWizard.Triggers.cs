@@ -32,6 +32,10 @@ public partial class ActionRecipeWizard
         {
             { dialog => dialog.DisableResourceCreation, true }
         };
+        if (SelectedRecipe?.AllowedTriggerTypes is { } allowedTriggerTypes)
+            parameters.Add(dialog => dialog.AllowedTriggerTypes, allowedTriggerTypes.ToList());
+        if (SelectedRecipe?.AllowedTwitchEventNames is { } allowedTwitchEventNames)
+            parameters.Add(dialog => dialog.AllowedTwitchEventNames, allowedTwitchEventNames.ToList());
         var dialog = await DialogService.ShowAsync<AddTriggerDialog>("Add Trigger", parameters, new DialogOptions
         {
             CloseOnEscapeKey = true,
@@ -77,4 +81,46 @@ public partial class ActionRecipeWizard
             SetParameter("File", selectedFile.RelativeUrl);
         }
     }
+
+    private async Task OpenTwitchSoundLibraryAsync()
+    {
+        var parameters = new DialogParameters<MediaBrowserDialog>
+        {
+            { dialog => dialog.SelectionMode, true },
+            { dialog => dialog.AudioOnly, true }
+        };
+        var dialog = await DialogService.ShowAsync<MediaBrowserDialog>("Select Sound", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: MediaFileInfo selectedFile })
+            SetParameter("SoundFile", selectedFile.RelativeUrl);
+    }
+
+    private void ClearTwitchSound() => SetParameter("SoundFile", string.Empty);
+
+    private async Task OpenKeywordSoundLibraryAsync()
+    {
+        var parameters = new DialogParameters<MediaBrowserDialog>
+        {
+            { dialog => dialog.SelectionMode, true },
+            { dialog => dialog.AudioOnly, true }
+        };
+        var dialog = await DialogService.ShowAsync<MediaBrowserDialog>("Select Sound", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: MediaFileInfo selectedFile })
+            SetParameter("SoundFile", selectedFile.RelativeUrl);
+    }
+
+    private void ClearKeywordSound() => SetParameter("SoundFile", string.Empty);
 }

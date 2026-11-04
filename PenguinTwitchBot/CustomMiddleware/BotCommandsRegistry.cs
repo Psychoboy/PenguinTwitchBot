@@ -159,6 +159,18 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.SoundCommandRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.FireworksShowRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.AlertRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.ObsSourceVisibilityRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.TwitchEventReactionRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.ChannelPointActionRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.TtsReaderRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.PointsRewardRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.KeywordReactionRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.MessageSequenceRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.CommandAliasRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.CommandGroupToggleRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.CounterCommandRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.TimedAnnouncementRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.TimedRaffleRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipeRegistry, Bot.Actions.Recipes.ActionRecipeRegistry>();
             services.AddScoped<Bot.Actions.Recipes.IActionRecipeTagStore, Bot.Actions.Recipes.ActionRecipeTagStore>();
             services.AddScoped<Bot.Actions.IRaffleSetupService, Bot.Actions.RaffleSetupService>();
