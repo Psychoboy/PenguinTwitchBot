@@ -133,6 +133,10 @@
                     <GamePointSettings />
                 </MudTabPanel>
 
+                <MudTabPanel Text="Tax" Icon="@Icons.Material.Filled.ReceiptLong">
+                    <TaxPointTypeSettings />
+                </MudTabPanel>
+
                 @* -- Tab 3: Passive Points -- *@
                 <MudTabPanel Text="Passive Points" Icon="@Icons.Material.Filled.Schedule">
                     <PassivePointSettings PointTypes="@PointTypes" OnPointTypesUpdated="RefreshPointType" />

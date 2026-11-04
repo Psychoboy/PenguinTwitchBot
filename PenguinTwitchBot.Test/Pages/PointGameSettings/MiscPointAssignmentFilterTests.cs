@@ -26,6 +26,7 @@ public class MiscPointAssignmentFilterTests
             Mapping("Bonus"),
             Mapping("TwitchEventBonus"),
             Mapping("GiveawayFeature"),
+            Mapping("Tax"),
             Mapping("Lurkbait"),
             Mapping("Top")
         });

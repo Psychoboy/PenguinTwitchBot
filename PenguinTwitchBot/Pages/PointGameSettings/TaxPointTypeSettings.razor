@@ -1,0 +1,101 @@
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.PastyGames
+@using PenguinTwitchBot.Bot.Core.Points
+@inject IPointsSystem PointSystem
+@inject IGameSettingsService GameSettingsService
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="3" Class="pa-4">
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        When a stream ends, enabled currencies are taxed once after 30 minutes if the bot is still offline. Other point types are unaffected unless enabled here.
+    </MudText>
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        <MudTable Items="_entries" Dense="true" Hover="true" Breakpoint="Breakpoint.Md">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Tax by Point Type</MudText>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Point Type</MudTh>
+                <MudTh>Enabled</MudTh>
+                <MudTh>Inactive Days</MudTh>
+                <MudTh>Minimum Balance</MudTh>
+                <MudTh>Tax %</MudTh>
+                <MudTh>Maximum Deduction</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Point Type"><b>@context.PointType.Name</b></MudTd>
+                <MudTd DataLabel="Enabled">
+                    <MudSwitch T="bool" @bind-Value="context.Policy.Enabled" Color="Color.Primary" />
+                </MudTd>
+                <MudTd DataLabel="Inactive Days">
+                    <MudNumericField T="int" @bind-Value="context.Policy.InactiveDays" Min="1" Max="3650" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd DataLabel="Minimum Balance">
+                    <MudNumericField T="long" @bind-Value="context.Policy.MinimumBalance" Min="0" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd DataLabel="Tax %">
+                    <MudNumericField T="decimal" @bind-Value="context.Policy.Percentage" Min="0" Max="100" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd DataLabel="Maximum Deduction">
+                    <MudNumericField T="long" @bind-Value="context.Policy.MaximumDeduction" Min="0" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Save"
+                               Disabled="@_saving.Contains(context.PointType.Id)" OnClick="@(() => SaveAsync(context))">
+                        Save
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudStack>
+
+@code {
+    private List<TaxPointTypePolicyEntry> _entries = [];
+    private readonly HashSet<Guid> _saving = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _entries = await TaxPointTypePolicySettings.LoadAsync(PointSystem, GameSettingsService);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Could not load tax settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync(TaxPointTypePolicyEntry entry)
+    {
+        if (!_saving.Add(entry.PointType.Id))
+        {
+            return;
+        }
+
+        try
+        {
+            await TaxPointTypePolicySettings.SaveAsync(GameSettingsService, entry.Policy);
+            Snackbar.Add($"Tax settings for {entry.PointType.Name} saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Could not save tax settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving.Remove(entry.PointType.Id);
+        }
+    }
+}

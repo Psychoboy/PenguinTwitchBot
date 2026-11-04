@@ -24,7 +24,6 @@ public static class MiscPointAssignmentFilter
         "loyalty",
         "Roll",
         "Steal",
-        "Tax",
         "Top"
     };
 
