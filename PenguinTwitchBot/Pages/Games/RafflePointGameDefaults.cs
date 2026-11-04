@@ -1,5 +1,6 @@
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Pages.PointGameSettings;
 
 namespace PenguinTwitchBot.Pages.Games;
 
@@ -7,7 +8,8 @@ public sealed record RafflePointGameDefault(
     string PointGameName,
     IReadOnlyList<string> RaffleNames,
     bool HasExplicitPointTypeOverride,
-    bool IsDynamic);
+    bool IsDynamic,
+    bool IsOwnedByOtherSettingsSurface);
 
 public static class RafflePointGameDefaults
 {
@@ -26,7 +28,8 @@ public static class RafflePointGameDefaults
                 item.PointGameName,
                 item.RaffleNames.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray(),
                 item.HasExplicitPointTypeOverride,
-                item.IsDynamic))
+                item.IsDynamic,
+                item.IsOwnedByOtherSettingsSurface))
             .ToArray();
     }
 
@@ -72,6 +75,7 @@ public static class RafflePointGameDefaults
 
         item.HasExplicitPointTypeOverride |= start.PointTypeId.HasValue;
         item.IsDynamic |= pointGameName.Contains('%') || pointGameName.Contains('$');
+        item.IsOwnedByOtherSettingsSurface |= MiscPointAssignmentFilter.IsOwnedByOtherSettingsSurface(pointGameName);
     }
 
     private sealed class MutableRafflePointGameDefault(string pointGameName)
@@ -80,5 +84,6 @@ public static class RafflePointGameDefaults
         public List<string> RaffleNames { get; } = [];
         public bool HasExplicitPointTypeOverride { get; set; }
         public bool IsDynamic { get; set; }
+        public bool IsOwnedByOtherSettingsSurface { get; set; }
     }
 }

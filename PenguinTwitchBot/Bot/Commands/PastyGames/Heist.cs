@@ -109,22 +109,24 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
             else if (amountStr.Contains('%'))
             {
+                Percentage percentage;
                 try
                 {
-                    var result = new Percentage(amountStr);
-                    foreach (var participant in Survivors)
-                    {
-                        var winMultiplier = MaxBetSettings.ClampPayoutMultiplier(
-                            await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5), 1d);
-                        var pay = Convert.ToInt64(participant.Bet * winMultiplier);
-                    }
-                    amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, maxBetLimit) * result.Value);
+                    percentage = new Percentage(amountStr);
                 }
                 catch
                 {
                     await SendInvalidArgsMessage(e, e.Command);
                     throw new SkipCooldownException();
                 }
+
+                if (!double.IsFinite(percentage.Value) || percentage.Value <= 0 || percentage.Value > 1)
+                {
+                    await SendInvalidArgsMessage(e, e.Command);
+                    throw new SkipCooldownException();
+                }
+
+                amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, maxBetLimit) * percentage.Value);
             }
             else if (!Int64.TryParse(amountStr, out amount))
             {
@@ -281,7 +283,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 var payouts = new List<string>();
                 foreach (var participant in Survivors)
                 {
-                    var winMultiplier = await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5);
+                    var winMultiplier = MaxBetSettings.ClampPayoutMultiplier(
+                        await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5), 1d);
                     var pay = Convert.ToInt64(participant.Bet * winMultiplier);
                     await pointsSystem.AddPointsByUsernameAndGame(participant.Name, ModuleName, participant.Bet + pay);
                     var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
@@ -384,7 +387,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             // Trigger events for each survivor
             foreach (var survivor in Survivors)
             {
-                var winMultiplier = await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5);
+                var winMultiplier = MaxBetSettings.ClampPayoutMultiplier(
+                    await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5), 1d);
                 var winnings = Convert.ToInt64(survivor.Bet * winMultiplier);
 
                 await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(

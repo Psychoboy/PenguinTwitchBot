@@ -35,6 +35,9 @@ public static class MiscPointAssignmentFilter
             .ToArray();
     }
 
+    public static bool IsOwnedByOtherSettingsSurface(string gameName) =>
+        MiscellaneousPointGameNames.Contains(gameName) || GetDedicatedPointGameNames().Contains(gameName);
+
     private static HashSet<string> GetDedicatedPointGameNames()
     {
         var gamePointNames = GameDescriptorRegistry.All
@@ -49,7 +52,9 @@ public static class MiscPointAssignmentFilter
             ModSpam.GAMENAME,
             BonusTickets.GAMENAME,
             TwitchEventsBonus.GAMENAME,
-            "GiveawayFeature"
+            "GiveawayFeature",
+            "Tax",
+            "Top"
         ]), StringComparer.OrdinalIgnoreCase);
     }
 

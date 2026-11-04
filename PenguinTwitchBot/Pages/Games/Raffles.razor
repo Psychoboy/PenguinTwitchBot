@@ -61,6 +61,10 @@
                         {
                             <MudText Typo="Typo.body2" Color="Color.Secondary">Variable-based; set the mapping in the action</MudText>
                         }
+                        else if (context.Definition.IsOwnedByOtherSettingsSurface)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Shared mapping; change it in its owning settings</MudText>
+                        }
                         else
                         {
                             <MudSelect T="Guid?" Value="@context.PointTypeId"
@@ -75,7 +79,7 @@
                     </MudTd>
                     <MudTd>
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Save"
-                                   Disabled="@(context.Definition.IsDynamic || !context.PointTypeId.HasValue || context.Saving)"
+                                   Disabled="@(context.Definition.IsDynamic || context.Definition.IsOwnedByOtherSettingsSurface || !context.PointTypeId.HasValue || context.Saving)"
                                    OnClick="@(() => SaveAsync(context))">
                             @(context.Saving ? "Saving..." : "Save")
                         </MudButton>

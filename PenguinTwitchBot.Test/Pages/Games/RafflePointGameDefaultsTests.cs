@@ -30,8 +30,27 @@ public class RafflePointGameDefaultsTests
         Assert.Equal(new[] { "Spring Draw", "Summer Draw" }, tickets.RaffleNames);
         Assert.True(tickets.HasExplicitPointTypeOverride);
         Assert.False(tickets.IsDynamic);
+        Assert.False(tickets.IsOwnedByOtherSettingsSurface);
         Assert.Contains(results, item => item.PointGameName == "raffle" && item.RaffleNames.SequenceEqual(["Default Draw"]));
         Assert.Contains(results, item => item.PointGameName == "%currency%" && item.IsDynamic);
+    }
+
+    [Fact]
+    public void Discover_MarksSharedPointGameMappingsAsOwnedElsewhere()
+    {
+        var action = new ActionType
+        {
+            SubActions =
+            [
+                new RaffleStartType { RaffleKey = "loyalty-raffle", PointGameName = "loyalty" },
+                new RaffleStartType { RaffleKey = "custom-raffle", PointGameName = "Seasonal Raffle" }
+            ]
+        };
+
+        var results = RafflePointGameDefaults.Discover([action]);
+
+        Assert.True(Assert.Single(results, item => item.PointGameName == "loyalty").IsOwnedByOtherSettingsSurface);
+        Assert.False(Assert.Single(results, item => item.PointGameName == "Seasonal Raffle").IsOwnedByOtherSettingsSurface);
     }
 
     [Fact]
