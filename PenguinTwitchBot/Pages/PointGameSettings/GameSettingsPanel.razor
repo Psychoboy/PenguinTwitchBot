@@ -1,6 +1,7 @@
 @using PenguinTwitchBot.Pages.PointGameSettings
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Database.Bot.Models.Points
+@using PenguinTwitchBot.Bot.Commands.PastyGames
 @inject IServiceProvider ServiceProvider
 @inject ISnackbar Snackbar
 @inject IPointsSystem PointsSystem
@@ -254,6 +255,16 @@ else
                 builder.AddAttribute(seq++, "Color", Color.Primary);
                 builder.CloseComponent();
                 break;
+        }
+
+        if (field.Key == MaxBetSettings.GameOverrideSettingName)
+        {
+            builder.OpenComponent<MudLink>(seq++);
+            builder.AddAttribute(seq++, "Href", "/settings/points");
+            builder.AddAttribute(seq++, "Typo", Typo.caption);
+            builder.AddAttribute(seq++, "ChildContent", (RenderFragment)(contentBuilder =>
+                contentBuilder.AddContent(0, "Global Max Bet defaults")));
+            builder.CloseComponent();
         }
     };
 }
