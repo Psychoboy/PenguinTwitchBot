@@ -79,7 +79,15 @@ public static class GameDescriptorRegistry
         Create("roulette", "Roulette", GameKind.Chat, "/games/chat-settings?game=roulette", "roulette", FeatureKeys.Roulette,
             Icons.Material.Filled.Autorenew, Color.Error, "Risk points in a high-stakes roulette game.", helpTopic: "game-settings", settingsProviderType: typeof(RouletteSettingsProvider)),
         Create("ffa", "FFA", GameKind.Chat, "/games/chat-settings?game=ffa", "ffa", FeatureKeys.FFA,
-            Icons.Material.Filled.EmojiEvents, Color.Success, "Join a free-for-all and try to be the last viewer standing.", helpTopic: "game-settings", settingsProviderType: typeof(FFASettingsProvider))
+            Icons.Material.Filled.EmojiEvents, Color.Success, "Join a free-for-all and try to be the last viewer standing.", helpTopic: "game-settings", settingsProviderType: typeof(FFASettingsProvider)),
+        Create("duelgame", "Duel", GameKind.Chat, "/games/chat-settings?game=duelgame", "duel", FeatureKeys.DuelGame,
+            Icons.Material.Filled.SportsEsports, Color.Warning, "Challenge another viewer to a point wager.", additionalCommands: ["accept", "deny"], helpTopic: "game-settings", settingsProviderType: typeof(DuelGameSettingsProvider)),
+        Create("roll", "Dice Roll", GameKind.Chat, "/games/chat-settings?game=roll", "roll", FeatureKeys.Roll,
+            Icons.Material.Filled.Casino, Color.Warning, "Roll two dice for a chance to win points.", additionalCommands: ["dice"], helpTopic: "game-settings", settingsProviderType: typeof(RollSettingsProvider)),
+        Create("steal", "Steal", GameKind.Chat, "/games/chat-settings?game=steal", "steal", FeatureKeys.Steal,
+            Icons.Material.Filled.Paid, Color.Warning, "Attempt to steal points from another viewer.", helpTopic: "game-settings", settingsProviderType: typeof(StealSettingsProvider)),
+        Create("first", "First", GameKind.Chat, "/games/chat-settings?game=first", "first", FeatureKeys.First,
+            Icons.Material.Filled.LooksOne, Color.Success, "Be among the first viewers to claim a stream reward.", additionalCommands: ["resetfirst"], helpTopic: "game-settings", settingsProviderType: typeof(FirstSettingsProvider))
     ];
 
     public static IReadOnlyList<GameDescriptor> All => Games;
