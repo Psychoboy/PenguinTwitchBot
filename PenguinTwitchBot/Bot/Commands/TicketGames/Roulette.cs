@@ -1,3 +1,4 @@
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
@@ -13,6 +14,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         private readonly ILogger<Roulette> _logger;
         private readonly IGameSettingsService _gameSettings;
         private readonly IPointsSystem _pointsSystem;
+        private readonly IDefaultCommandTriggerService _defaultCommandTriggerService;
 
         public static readonly string GAMENAME = "Roulette";
         public static readonly string NO_ARGS = "NoArgs";
@@ -33,13 +35,15 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             IGameSettingsService gameSettingsService,
             ICommandHandler commandHandler,
             Application.Notifications.IPenguinDispatcher dispatcher,
-            ILogger<Roulette> logger
+            ILogger<Roulette> logger,
+            IDefaultCommandTriggerService defaultCommandTriggerService
         ) : base(serviceBackbone, commandHandler, GAMENAME, dispatcher)
         {
             _pointsSystem = pointsSystem;
             ServiceBackbone.StreamStarted += OnStreamStarted;
             _logger = logger;
             _gameSettings = gameSettingsService;
+            _defaultCommandTriggerService = defaultCommandTriggerService;
         }
 
         private Task OnStreamStarted(object? sender, EventArgs _)
@@ -179,6 +183,17 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                                 .Replace("{TotalBet}", TotalGambled[e.Name].ToString("N0"), StringComparison.OrdinalIgnoreCase)
                                 .Replace("{MaxBet}", MaxAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                             await SendChatMessage(winMessage);
+                            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                                "roulette",
+                                DefaultCommandEventTypes.RouletteWin,
+                                e,
+                                new Dictionary<string, string>
+                                {
+                                    ["BetAmount"] = amountToBet.ToString("N0"),
+                                    ["RolledValue"] = value.ToString(),
+                                    ["TotalBet"] = TotalGambled[e.Name].ToString("N0"),
+                                    ["TotalPoints"] = totalPoints.ToString("N0")
+                                });
                         }
                         else
                         {
@@ -198,6 +213,17 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                                 .Replace("{TotalBet}", TotalGambled[e.Name].ToString("N0"), StringComparison.OrdinalIgnoreCase)
                                 .Replace("{MaxBet}", MaxAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                             await SendChatMessage(loseMessage);
+                            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                                "roulette",
+                                DefaultCommandEventTypes.RouletteLose,
+                                e,
+                                new Dictionary<string, string>
+                                {
+                                    ["BetAmount"] = amountToBet.ToString("N0"),
+                                    ["RolledValue"] = value.ToString(),
+                                    ["TotalBet"] = TotalGambled[e.Name].ToString("N0"),
+                                    ["TotalPoints"] = totalPoints.Points.ToString("N0")
+                                });
                         }
                     }
                     break;

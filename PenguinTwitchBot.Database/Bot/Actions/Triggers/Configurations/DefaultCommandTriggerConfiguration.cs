@@ -164,6 +164,13 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string GambleWin = "Gamble.Win";
         public const string GambleLose = "Gamble.Lose";
 
+        // Roulette events
+        public const string RouletteWin = "Roulette.Win";
+        public const string RouletteLose = "Roulette.Lose";
+
+        // Free-for-all events
+        public const string FfaWin = "FFA.Win";
+
         // Defuse events
         public const string DefuseSuccess = "Defuse.Success";
         public const string DefuseFailure = "Defuse.Failure";

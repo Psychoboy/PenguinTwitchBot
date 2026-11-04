@@ -1,3 +1,4 @@
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
@@ -8,13 +9,14 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 {
     public class FFA : BaseCommandService, IHostedService
     {
-        private readonly List<string> Entered = [];
+        private readonly List<CommandEventArgs> Entered = [];
         private readonly Timer _joinTimer;
         private readonly IPointsSystem _pointsSystem;
 
         private readonly IViewerFeature _viewFeature;
         private readonly ILogger<FFA> _logger;
         private readonly IGameSettingsService _gameSettingsService;
+        private readonly IDefaultCommandTriggerService _defaultCommandTriggerService;
         readonly string CommandName = "ffa";
 
         public static readonly string GAMENAME = "FFA";
@@ -48,7 +50,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             IViewerFeature viewerFeature,
             ICommandHandler commandHandler,
             Application.Notifications.IPenguinDispatcher dispatcher,
-            IGameSettingsService gameSettingsService
+            IGameSettingsService gameSettingsService,
+            IDefaultCommandTriggerService defaultCommandTriggerService
             ) : base(serviceBackbone, commandHandler, GAMENAME, dispatcher)
         {
             _joinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
@@ -56,6 +59,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             _viewFeature = viewerFeature;
             _logger = logger;
             _gameSettingsService = gameSettingsService;
+            _defaultCommandTriggerService = defaultCommandTriggerService;
         }
 
         private static void JoinTimerCallback(object? state)
@@ -72,7 +76,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             GameState = State.Finishing;
             if (Entered.Count == 1)
             {
-                await _pointsSystem.AddPointsByUsernameAndGame(Entered[0], ModuleName, cost);
+                await _pointsSystem.AddPointsByUsernameAndGame(Entered[0].Name, ModuleName, cost);
                 var notEnoughMessage = await _gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH_PLAYERS, "Not enough viewers joined the FFA, returning the fees.");
                 await ServiceBackbone.SendChatMessage(notEnoughMessage);
                 await CleanUp();
@@ -85,11 +89,21 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             var winnerMessage = await _gameSettingsService.GetStringSetting(ModuleName, WINNER_MESSAGE, "The dust finally settled and the last one standing is {Name} and gets {Points} {PointType}!");
             var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
             winnerMessage = winnerMessage
-                .Replace(GameSettingsService.NAME, winner, StringComparison.OrdinalIgnoreCase)
+                .Replace(GameSettingsService.NAME, winner.DisplayName, StringComparison.OrdinalIgnoreCase)
                 .Replace(GameSettingsService.POINTS, winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                 .Replace(GameSettingsService.POINT_TYPE, pointType.Name, StringComparison.OrdinalIgnoreCase);
             await ServiceBackbone.SendChatMessage(winnerMessage);
-            await _pointsSystem.AddPointsByUsernameAndGame(winner, ModuleName, winnings);
+            await _pointsSystem.AddPointsByUsernameAndGame(winner.Name, ModuleName, winnings);
+            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                CommandName,
+                DefaultCommandEventTypes.FfaWin,
+                winner,
+                new Dictionary<string, string>
+                {
+                    ["Winner"] = winner.DisplayName,
+                    ["Winnings"] = winnings.ToString("N0"),
+                    ["ParticipantCount"] = Entered.Count.ToString()
+                });
             await CleanUp();
         }
 
@@ -124,7 +138,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (Entered.Contains(e.Name))
+            if (Entered.Any(entrant => string.Equals(entrant.Name, e.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 var alreadyJoined = await _gameSettingsService.GetStringSetting(ModuleName, ALREADY_JOINED, "You have already joined the FFA!");
                 await ServiceBackbone.ResponseWithMessage(e, alreadyJoined);
@@ -161,7 +175,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(joined);
             }
-            Entered.Add(e.Name);
+            Entered.Add(e);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

@@ -6,18 +6,19 @@ PenguinTwitchBot includes a suite of interactive chat minigames that engage view
 
 | Game | Default Command | Description |
 | :--- | :--- | :--- |
-| **FFA (Free For All)** | `!ffa <amount>` | Arena deathmatch where multiple chatters wager points and enter combat. Last survivor takes the aggregated prize pool. |
-| **Gamble** | `!gamble <amount>` | Classic wagering against random odds. Chatters can bet a specific amount or `all` / `half`. |
-| **Heist** | `!heist <amount>` | Collaborative bank robbery. Chatters team up during an entry countdown window. Higher numbers of participants improve success rates. |
-| **Slots** | `!slots <amount>` | Slot machine simulator spinning emoji/symbol reels. Payouts scale based on matching pairs or triples. |
-| **Roulette** | `!roulette <amount>` | Russian roulette game where participants spin a revolver cylinder. Surviving yields high multiplier rewards. |
-| **Defuse** | `!defuse <color>` | Bomb defusal game. Viewers attempt to pick and cut the safe wire among several color options. |
-| **ModSpam** | `!modspam` | Fast-paced spam-reaction game challenging chatters to react or follow moderator instructions. |
-| **AddActive** | `!addactive` / passive | Periodically awards points to viewers who have chatted or remained active in the stream. |
-| **Bonus Tickets** | `!claim` | Once-per-stream attendance bonus claim. |
-| **Twitch Event Bonus** | Automated | Automatically awards points upon Twitch subs, cheers, and raids. |
+| **Defuse** | `!defuse <color>` | Choose a wire and try to defuse the bomb. |
+| **Heist** | `!heist <amount>` | Join a team heist and try to escape with the loot. |
+| **Gamble** | `!gamble <amount>` | Wager points on a roll and build toward the jackpot. |
+| **Slots** | `!slot <amount>` | Spin the slots for a point payout. |
+| **Roulette** | `!roulette <amount>` | Risk points in a high-stakes roulette game. |
+| **FFA** | `!ffa` | Join a free-for-all and try to be the last viewer standing. |
 
 ## Accessing Game Settings
 
-Navigate to [Game Settings](/settings/games). Click on any game card to open its full configuration panel where you can tailor odds, multipliers, costs, cooldowns, and response messaging.
+Open the [Games hub](/games), choose a chat game, and use its **Settings** tab to configure gameplay and messages. The **Automation** tab links outcome events to regular actions and triggers. Command aliases and cooldowns link to their entries in Default Commands.
+
+## Related Point Settings
+
+- **Add Active** and **Mod Spam** are under **Point Settings > Point Activities**.
+- **Bonus Tickets** and **Twitch Event Bonus** are under **Loyalty Bonuses**.
 

@@ -1,6 +1,7 @@
 @page "/settings/points"
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Database.Bot.Models.Points
+@using PenguinTwitchBot.Pages.PointGameSettings.Providers
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Point Settings</PageTitle>
@@ -182,6 +183,51 @@
                     <PassivePointSettings PointTypes="@PointTypes" OnPointTypesUpdated="RefreshPointType" />
                 </MudTabPanel>
 
+                <MudTabPanel Text="Point Activities" Icon="@Icons.Material.Filled.GroupAdd">
+                    <MudStack Spacing="3" Class="pa-4">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Configure activity rewards and moderator-run point distribution. These settings are shared across point types.
+                        </MudText>
+                        @if (_selectedActivityProvider == null)
+                        {
+                            <MudGrid Spacing="2">
+                                @foreach (var provider in _activityProviders)
+                                {
+                                    var selected = provider;
+                                    <MudItem xs="12" sm="6" md="4">
+                                        <MudPaper Class="pa-3" Outlined="true" Style="height:100%;">
+                                            <MudStack Spacing="2" Style="height:100%;">
+                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                    <MudIcon Icon="@provider.Icon" Color="Color.Primary" />
+                                                    <MudText Typo="Typo.subtitle1"><b>@provider.DisplayName</b></MudText>
+                                                </MudStack>
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@provider.Description</MudText>
+                                                <MudSpacer />
+                                                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Settings"
+                                                           OnClick="@(() => _selectedActivityProvider = selected)">
+                                                    Configure
+                                                </MudButton>
+                                            </MudStack>
+                                        </MudPaper>
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        }
+                        else
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudButton StartIcon="@Icons.Material.Filled.ArrowBack"
+                                           OnClick="@(() => _selectedActivityProvider = null)">
+                                    All Point Activities
+                                </MudButton>
+                                <MudIcon Icon="@_selectedActivityProvider.Icon" Color="Color.Primary" />
+                                <MudText Typo="Typo.h6">@_selectedActivityProvider.DisplayName</MudText>
+                            </MudStack>
+                            <GameSettingsPanel @key="_selectedActivityProvider" Provider="_selectedActivityProvider" />
+                        }
+                    </MudStack>
+                </MudTabPanel>
+
             </MudTabs>
         </MudItem>
 
@@ -191,6 +237,12 @@
 @code {
     private List<PointType> PointTypes { get; set; } = [];
     private PointType newPointType = CreateNewPointType();
+    private IGameSettingsFormProvider? _selectedActivityProvider;
+    private readonly List<IGameSettingsFormProvider> _activityProviders =
+    [
+        new AddActiveSettingsProvider(),
+        new ModSpamSettingsProvider(),
+    ];
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     [Inject] ISnackbar Snackbar { get; set; } = default!;
 

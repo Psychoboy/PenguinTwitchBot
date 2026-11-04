@@ -1,7 +1,12 @@
 @page "/games/chat-settings"
-@using PenguinTwitchBot.Pages.PointGameSettings.Providers
 @using PenguinTwitchBot.Pages.Games
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Bot.Commands
+@using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@inject ICommandHandler CommandHandler
+@inject ISnackbar Snackbar
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Game Settings</PageTitle>
 <CascadingAuthenticationState>
     <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
@@ -10,38 +15,40 @@
                 <MudPaper Class="pa-4" Elevation="2">
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                         <MudStack Spacing="1">
-                            <MudText Typo="Typo.h5">Game Settings</MudText>
+                            <MudText Typo="Typo.h5">@(_selectedGame?.Title ?? "Game Settings")</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                Configure each game's costs, point type, and messages. Dynamic variables like <code>{Cost}</code> and <code>{PointType}</code> are replaced at runtime.
-                                Use the Point Type selector within each game's settings to choose which point type it uses.
+                                @(_selectedGame?.Description ?? "Choose a chat game to configure its settings, commands, and outcome automations.")
                             </MudText>
                         </MudStack>
-                        <HelpButton Topic="game-settings" />
+                        @if (_selectedGame == null)
+                        {
+                            <HelpButton Topic="game-settings" />
+                        }
                     </MudStack>
                 </MudPaper>
             </MudItem>
 
-            @if (_selectedProvider == null)
+            @if (_selectedGame == null)
             {
-                @foreach (var provider in _providers)
+                @foreach (var game in ChatGames)
                 {
-                    var p = provider;
                     <MudItem xs="12" sm="6" md="4">
-                        <MudPaper Class="pa-3" Elevation="2" Style="cursor:pointer;"
-                              tabindex="0"
-                              @onclick="() => _selectedProvider = p"
-                              @onkeydown="@((e) => { if (e.Key == "Enter" || e.Key == " ") _selectedProvider = p; })">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@p.Icon" Color="Color.Primary" Size="Size.Large" />
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.subtitle1"><b>@p.DisplayName</b></MudText>
-                                    @if (!string.IsNullOrEmpty(p.Description))
-                                    {
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@p.Description</MudText>
-                                    }
+                        <MudPaper Class="pa-3" Elevation="2" Style="height:100%;">
+                            <MudStack Spacing="2" Style="height:100%;">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@game.Icon" Color="@game.Color" Size="Size.Large" />
+                                    <MudText Typo="Typo.subtitle1"><b>@game.Title</b></MudText>
+                                    <MudSpacer />
+                                    <MudChip T="string" Size="Size.Small" Color="@(FeatureRuntimeCoordinator.IsEnabled(game.FeatureKey) ? Color.Success : Color.Default)" Variant="Variant.Outlined">
+                                        @(FeatureRuntimeCoordinator.IsEnabled(game.FeatureKey) ? "Enabled" : "Disabled")
+                                    </MudChip>
                                 </MudStack>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@game.Description</MudText>
+                                <MudText Typo="Typo.caption">Command: <code>@game.CommandLabel</code></MudText>
                                 <MudSpacer />
-                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" />
+                                <MudButton Href="@game.Route" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Settings">
+                                    Configure game
+                                </MudButton>
                             </MudStack>
                         </MudPaper>
                     </MudItem>
@@ -50,16 +57,83 @@
             else
             {
                 <MudItem xs="12">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                           <MudButton Href="/games/chat-settings" StartIcon="@Icons.Material.Filled.ArrowBack">
-                            All Games
-                        </MudButton>
-                        <MudIcon Icon="@_selectedProvider.Icon" Color="Color.Primary" />
-                        <MudText Typo="Typo.h6">@_selectedProvider.DisplayName</MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                        <MudButton Href="/games" StartIcon="@Icons.Material.Filled.ArrowBack">All Games</MudButton>
+                        <MudIcon Icon="@_selectedGame.Icon" Color="@_selectedGame.Color" />
+                        <MudText Typo="Typo.h5">@_selectedGame.Title</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@(FeatureRuntimeCoordinator.IsEnabled(_selectedGame.FeatureKey) ? Color.Success : Color.Default)" Variant="Variant.Outlined">
+                            @(FeatureRuntimeCoordinator.IsEnabled(_selectedGame.FeatureKey) ? "Enabled" : "Disabled")
+                        </MudChip>
+                        <MudSwitch T="bool"
+                                   Value="@FeatureRuntimeCoordinator.IsEnabled(_selectedGame.FeatureKey)"
+                                   ValueChanged="SetGameEnabledAsync"
+                                   Color="Color.Primary"
+                                   Disabled="@(!FeatureRuntimeCoordinator.HasFeature(_selectedGame.FeatureKey))"
+                                   Label="Game enabled" />
+                        <MudSpacer />
+                        <HelpButton Topic="@(_selectedGame.HelpTopic ?? "game-settings")" />
                     </MudStack>
                 </MudItem>
                 <MudItem xs="12">
-                    <GameSettingsPanel @key="_selectedProvider" Provider="@(_selectedProvider!)" />
+                    @if (_gameCommands.Count > 0)
+                    {
+                        <MudPaper Class="pa-4 mb-4" Outlined="true">
+                            <MudStack Spacing="2">
+                                <MudText Typo="Typo.h6">Commands</MudText>
+                                <MudTable Items="_gameCommands" Dense="true" Hover="true">
+                                    <HeaderContent>
+                                        <MudTh>Configured command</MudTh>
+                                        <MudTh>System command</MudTh>
+                                        <MudTh>Cooldowns</MudTh>
+                                        <MudTh>Status</MudTh>
+                                        <MudTh></MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd DataLabel="Configured command"><code>!@context.CustomCommandName</code></MudTd>
+                                        <MudTd DataLabel="System command"><code>!@context.CommandName</code></MudTd>
+                                        <MudTd DataLabel="Cooldowns">@DescribeCooldowns(context)</MudTd>
+                                        <MudTd DataLabel="Status">
+                                            <MudChip T="string" Size="Size.Small" Color="@(context.Disabled || context.DisabledByFeature ? Color.Warning : Color.Success)">
+                                                @(context.DisabledByFeature ? "Feature disabled" : context.Disabled ? "Disabled" : "Enabled")
+                                            </MudChip>
+                                        </MudTd>
+                                        <MudTd>
+                                            <MudTooltip Text="Edit command name, permissions, and cooldowns">
+                                                <MudIconButton Href="@($"/commands/default/{context.Id}")" Icon="@Icons.Material.Filled.Edit" aria-label="Edit command" />
+                                            </MudTooltip>
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                            No registered commands were found for this game. Open Default Commands to review its command registration.
+                        </MudAlert>
+                    }
+                    @if (_selectedProvider == null)
+                    {
+                        <MudAlert Severity="Severity.Error">No settings provider is registered for this game.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudTabs @bind-ActivePanelIndex="_activeTabIndex" Elevation="1" Rounded="true" ApplyEffectsToContainer="true">
+                            <MudTabPanel Text="Settings" Icon="@Icons.Material.Filled.Settings">
+                                <MudPaper Class="pa-4">
+                                    <GameSettingsPanel @key="_selectedGame.Id" Provider="_selectedProvider" />
+                                </MudPaper>
+                            </MudTabPanel>
+                            <MudTabPanel Text="Automation" Icon="@Icons.Material.Filled.Bolt">
+                                <MudPaper Class="pa-4">
+                                    <GameOutcomeAutomationPanel DefaultCommandName="@_selectedGame.DefaultCommandName"
+                                                                GameTitle="@_selectedGame.Title"
+                                                                IsActive="@(_activeTabIndex == 1)" />
+                                </MudPaper>
+                            </MudTabPanel>
+                        </MudTabs>
+                    }
                 </MudItem>
             }
         </MudGrid>
@@ -68,28 +142,57 @@
 @code {
     [SupplyParameterFromQuery(Name = "game")] public string? SelectedGameId { get; set; }
 
+    private static IReadOnlyList<GameDescriptor> ChatGames => GameDescriptorRegistry.All
+        .Where(game => game.Kind == GameKind.Chat)
+        .ToArray();
+
+    private GameDescriptor? _selectedGame;
     private IGameSettingsFormProvider? _selectedProvider;
+    private List<DefaultCommand> _gameCommands = [];
+    private int _activeTabIndex;
 
-    private readonly List<IGameSettingsFormProvider> _providers =
-    [
-        new AddActiveSettingsProvider(),
-        new BonusTicketsSettingsProvider(),
-        new DefuseSettingsProvider(),
-        new FFASettingsProvider(),
-        new GambleSettingsProvider(),
-        new HeistSettingsProvider(),
-        new ModSpamSettingsProvider(),
-        new RouletteSettingsProvider(),
-        new SlotsSettingsProvider(),
-        new TwitchEventBonusSettingsProvider(),
-    ];
-
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        var game = GameDescriptorRegistry.FindById(SelectedGameId);
-        _selectedProvider = game?.Kind == GameKind.Chat
-            ? _providers.FirstOrDefault(provider =>
-                string.Equals(provider.DisplayName, game.Title, StringComparison.OrdinalIgnoreCase))
+        _selectedGame = GameDescriptorRegistry.FindById(SelectedGameId);
+        _selectedProvider = CreateSettingsProvider(_selectedGame);
+        _activeTabIndex = 0;
+        _gameCommands = _selectedGame == null
+            ? []
+            : (await CommandHandler.GetDefaultCommandsFromDb())
+                .Where(command => _selectedGame.CommandNames.Contains(command.CommandName, StringComparer.OrdinalIgnoreCase))
+                .OrderBy(command => command.CustomCommandName)
+                .ToList();
+    }
+
+    private static IGameSettingsFormProvider? CreateSettingsProvider(GameDescriptor? game) =>
+        game?.Kind == GameKind.Chat && game.SettingsProviderType != null &&
+        typeof(IGameSettingsFormProvider).IsAssignableFrom(game.SettingsProviderType)
+            ? Activator.CreateInstance(game.SettingsProviderType) as IGameSettingsFormProvider
             : null;
+
+    private static string DescribeCooldowns(DefaultCommand command)
+    {
+        var cooldowns = new List<string>();
+        if (command.UserCooldown > 0)
+            cooldowns.Add($"User {command.UserCooldown}{(command.UserCooldownMax > command.UserCooldown ? $"-{command.UserCooldownMax}" : string.Empty)}s");
+        if (command.GlobalCooldown > 0)
+            cooldowns.Add($"Global {command.GlobalCooldown}{(command.GlobalCooldownMax > command.GlobalCooldown ? $"-{command.GlobalCooldownMax}" : string.Empty)}s");
+        return cooldowns.Count == 0 ? "None" : string.Join(" / ", cooldowns);
+    }
+
+    private async Task SetGameEnabledAsync(bool enabled)
+    {
+        if (_selectedGame == null || !FeatureRuntimeCoordinator.HasFeature(_selectedGame.FeatureKey))
+            return;
+
+        try
+        {
+            await FeatureRuntimeCoordinator.SetEnabledAsync(_selectedGame.FeatureKey, enabled);
+            Snackbar.Add($"{_selectedGame.Title} {(enabled ? "enabled" : "disabled")}.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Could not update {_selectedGame.Title}: {ex.Message}", Severity.Error);
+        }
     }
 }
