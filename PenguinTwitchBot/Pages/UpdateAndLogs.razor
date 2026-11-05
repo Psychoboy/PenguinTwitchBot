@@ -25,7 +25,7 @@
             <div>
                 <MudText Typo="Typo.h6">Application Updates</MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                    Current version: <strong>v@VersionCheckService.CurrentVersion</strong> (@(VersionCheckService.CurrentRid ?? "unknown platform")).
+                    Current version: <strong>v@(VersionCheckService.CurrentVersion)</strong> (@(VersionCheckService.CurrentRid ?? "unknown platform")).
                 </MudText>
             </div>
             @if (VersionCheckService.IsUpToDate)
