@@ -42,7 +42,11 @@
                     <MudTh>Title</MudTh>
                     <MudTh>Length</MudTh>
                     <MudTh>Requested By</MudTh>
-                    <MudTh>Actions</MudTh>
+                    <AuthorizeView Roles="Streamer,Editor">
+                        <Authorized>
+                            <MudTh>Actions</MudTh>
+                        </Authorized>
+                    </AuthorizeView>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Title">
@@ -53,12 +57,16 @@
                     </MudTd>
                     <MudTd DataLabel="Duration">@context.Duration</MudTd>
                     <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
-                    <MudTd DataLabel="Actions">
-                        <MudTooltip Text="Add to Cooldown">
-                            <MudIconButton Icon="@Icons.Material.Filled.Timer" Color="Color.Warning" Size="Size.Small"
-                                           OnClick="() => AddToCooldown(context)" />
-                        </MudTooltip>
-                    </MudTd>
+                    <AuthorizeView Roles="Streamer,Editor">
+                        <Authorized Context="authorizationState">
+                            <MudTd DataLabel="Actions">
+                                <MudTooltip Text="Add to Cooldown">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Timer" Color="Color.Warning" Size="Size.Small"
+                                                   OnClick="() => AddToCooldown(context)" />
+                                </MudTooltip>
+                            </MudTd>
+                        </Authorized>
+                    </AuthorizeView>
                 </RowTemplate>
             </MudTable>
         }
