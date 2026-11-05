@@ -20,10 +20,6 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway</PageTitle>
 
 <style> 
-    .mud-contrast-text {
-        color: var(--mud-palette-white);
-    }
-
     .stat-card {
         transition: transform 0.2s ease-in-out;
     }
@@ -45,7 +41,7 @@
                             <MudStack AlignItems="AlignItems.Center" Spacing="1">
                                 <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Medium" />
                                 <MudText Typo="Typo.h4" Color="Color.Info">@entrants</MudText>
-                                <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Participants</MudText>
+                                <MudText Typo="Typo.caption" Align="Align.Center">Participants</MudText>
                             </MudStack>
                         </MudPaper>
                     </MudItem>
@@ -54,11 +50,34 @@
                             <MudStack AlignItems="AlignItems.Center" Spacing="1">
                                 <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Success" Size="Size.Medium" />
                                 <MudText Typo="Typo.h4" Color="Color.Success">@entries</MudText>
-                                <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Total @pointTypeName Entered</MudText>
+                                <MudText Typo="Typo.caption" Align="Align.Center">Total @pointTypeName Entered</MudText>
                             </MudStack>
                         </MudPaper>
                     </MudItem>
                 </MudGrid>
+                @if (lastLiveUpdate is DateTimeOffset lastUpdated || snapshotRefreshFailed)
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="1">
+                        @if (snapshotRefreshFailed)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" Size="Size.Small" />
+                            <MudText Typo="Typo.caption" Color="Color.Warning">Live data refresh failed</MudText>
+                        }
+                        @if (lastLiveUpdate is DateTimeOffset updatedAt)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Updated <ToLocal DateTime="@updatedAt.UtcDateTime" Format="shortTime" />
+                            </MudText>
+                        }
+                    </MudStack>
+                }
+                @if (liveConnectionAttempted && (!isLiveConnected || isReconnecting))
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="1">
+                        <MudIcon Icon="@LiveStatusIcon" Color="@LiveStatusColor" Size="Size.Small" />
+                        <MudText Typo="Typo.caption" Color="@LiveStatusColor">@LiveStatusText</MudText>
+                    </MudStack>
+                }
             <AuthorizeView>
                 <Authorized Context="Auth">
                     <GiveawayEntryPanel PointTypeName="@pointTypeName" BroadcasterName="@ServiceBackbone.BroadcasterName" />
@@ -103,7 +122,7 @@
                 <MudStack AlignItems="AlignItems.Center" Spacing="3">
                     <MudStack AlignItems="AlignItems.Center" Spacing="1">
                         <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Large" Color="Color.Primary" />
-                        <MudText Typo="Typo.h4" class="mud-contrast-text" Align="Align.Center">Current Giveaway</MudText>
+                        <MudText Typo="Typo.h4" Align="Align.Center">Current Giveaway</MudText>
                     </MudStack>
                     <MudDivider />
                     @if (!giveawayDataLoaded)
@@ -155,7 +174,7 @@
                     <MudStack Spacing="3">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" Size="Size.Large" />
-                            <MudText Typo="Typo.h5" class="mud-contrast-text">How to Earn @pointTypeName</MudText>
+                            <MudText Typo="Typo.h5">How to Earn @pointTypeName</MudText>
                         </MudStack>
                         @if(FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.TwitchEventsBonus))
                         {
@@ -191,7 +210,7 @@
                 <MudStack Spacing="3">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.Gavel" Color="Color.Warning" Size="Size.Large" />
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway Rules</MudText>
+                        <MudText Typo="Typo.h5">Giveaway Rules</MudText>
                     </MudStack>
                     <MudDivider />
                     @if (!string.IsNullOrWhiteSpace(rules))
@@ -212,7 +231,7 @@
                 <MudStack Spacing="3">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Info" Size="Size.Large" />
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Terms &amp; Conditions</MudText>
+                        <MudText Typo="Typo.h5">Terms &amp; Conditions</MudText>
                     </MudStack>
                     <MudDivider />
                     <GitHubMarkdownViewer Value="@terms" />
@@ -241,6 +260,11 @@
     private string? imageUrl;
     private string prizeAdditionalDetails = "";
     private bool giveawayDataLoaded;
+    private bool isLiveConnected;
+    private bool isReconnecting;
+    private bool liveConnectionAttempted;
+    private bool snapshotRefreshFailed;
+    private DateTimeOffset? lastLiveUpdate;
     private int entries;
     private int entrants;
     private int TicketsPerSub;
@@ -275,7 +299,28 @@
         terms = await GiveawayFeature.GetTerms();
         if (BitsPerPoint > 0) BitsPerPoint = 100 * BitsPerPoint;
         giveawayDataLoaded = true;
+        lastLiveUpdate = DateTimeOffset.UtcNow;
     }
+
+    private string LiveStatusText => !liveConnectionAttempted
+        ? "Connecting to live updates"
+        : isReconnecting
+            ? "Reconnecting live updates"
+            : isLiveConnected
+                ? "Live updates connected"
+                : "Live updates unavailable";
+
+    private string LiveStatusIcon => isReconnecting
+        ? Icons.Material.Filled.Sync
+        : isLiveConnected
+            ? Icons.Material.Filled.Wifi
+            : Icons.Material.Filled.WifiOff;
+
+    private Color LiveStatusColor => isReconnecting
+        ? Color.Warning
+        : isLiveConnected
+            ? Color.Success
+            : Color.Secondary;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -304,26 +349,101 @@
         hubConnection.On<List<GiveawayWinner>>("Winners", (Winners) =>
         {
             winners = Winners;
-            InvokeAsync(StateHasChanged);
         });
-        hubConnection.On<string>("Prize", (Prize) =>
+        hubConnection.On<string>("Prize", async (updatedPrize) =>
         {
-            prize = Prize;
-            InvokeAsync(StateHasChanged);
+            var updatedImageUrl = await GiveawayFeature.GetImageUrl();
+            await InvokeAsync(() =>
+            {
+                if (_disposed) return;
+                prize = updatedPrize;
+                imageUrl = updatedImageUrl;
+                MarkLiveDataUpdated();
+            });
         });
         hubConnection.On<string>("PrizeAdditionalDetails", (PrizeAdditionalDetails) =>
         {
-            prizeAdditionalDetails = PrizeAdditionalDetails.Trim();
-            InvokeAsync(StateHasChanged);
+            InvokeAsync(() =>
+            {
+                if (_disposed) return;
+                prizeAdditionalDetails = PrizeAdditionalDetails.Trim();
+                MarkLiveDataUpdated();
+            });
         });
         hubConnection.On<int, int>("UpdateTickets", (curEntries, curEntrants) =>
         {
-            entries = curEntries;
-            entrants = curEntrants;
-            InvokeAsync(StateHasChanged);
+            InvokeAsync(() =>
+            {
+                if (_disposed) return;
+                entries = curEntries;
+                entrants = curEntrants;
+                MarkLiveDataUpdated();
+            });
         });
 
-        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
+        hubConnection.Reconnecting += error => InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            isLiveConnected = false;
+            isReconnecting = true;
+            StateHasChanged();
+        });
+        hubConnection.Reconnected += connectionId => InvokeAsync(async () =>
+        {
+            if (_disposed) return;
+            isReconnecting = false;
+            isLiveConnected = true;
+            await RefreshLiveDataAsync();
+            if (!_disposed) StateHasChanged();
+        });
+        hubConnection.Closed += error => InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            isLiveConnected = false;
+            isReconnecting = false;
+            StateHasChanged();
+        });
+
+        isLiveConnected = await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
+        liveConnectionAttempted = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void MarkLiveDataUpdated()
+    {
+        if (_disposed) return;
+
+        lastLiveUpdate = DateTimeOffset.UtcNow;
+        snapshotRefreshFailed = false;
+        StateHasChanged();
+    }
+
+    private async Task RefreshLiveDataAsync()
+    {
+        try
+        {
+            var refreshedPrize = await GiveawayFeature.GetPrize();
+            var refreshedImageUrl = await GiveawayFeature.GetImageUrl();
+            var refreshedDetails = (await GiveawayFeature.GetPrizeAdditionalDetails()).Trim();
+            var refreshedEntries = await GiveawayFeature.GetEntriesCount();
+            var refreshedEntrants = await GiveawayFeature.GetEntrantsCount();
+
+            if (_disposed) return;
+
+            prize = refreshedPrize;
+            imageUrl = refreshedImageUrl;
+            prizeAdditionalDetails = refreshedDetails;
+            entries = refreshedEntries;
+            entrants = refreshedEntrants;
+            lastLiveUpdate = DateTimeOffset.UtcNow;
+            snapshotRefreshFailed = false;
+        }
+        catch (Exception ex)
+        {
+            if (_disposed) return;
+            logger.LogWarning(ex, "Failed to refresh giveaway data after SignalR reconnect");
+            snapshotRefreshFailed = true;
+        }
     }
 
     private static MarkupString RenderMultiline(string textWithLineBreaks)

@@ -53,6 +53,14 @@ public class ThemePaletteModel
     public string? Warning { get; set; }
     public string? Error { get; set; }
     public string? Dark { get; set; }
+    public string? PrimaryContrastText { get; set; }
+    public string? SecondaryContrastText { get; set; }
+    public string? TertiaryContrastText { get; set; }
+    public string? InfoContrastText { get; set; }
+    public string? SuccessContrastText { get; set; }
+    public string? WarningContrastText { get; set; }
+    public string? ErrorContrastText { get; set; }
+    public string? DarkContrastText { get; set; }
 
     public string? Background { get; set; }
     public string? BackgroundGray { get; set; }
@@ -118,6 +126,75 @@ public class ThemePaletteModel
         ApplyColor(TableHover, c => palette.TableHover = c);
         ApplyColor(Divider, c => palette.Divider = c);
         ApplyColor(DividerLight, c => palette.DividerLight = c);
+
+        palette.PrimaryContrastText = GetContrastText(palette.Primary, PrimaryContrastText);
+        palette.SecondaryContrastText = GetContrastText(palette.Secondary, SecondaryContrastText);
+        palette.TertiaryContrastText = GetContrastText(palette.Tertiary, TertiaryContrastText);
+        palette.InfoContrastText = GetContrastText(palette.Info, InfoContrastText);
+        palette.SuccessContrastText = GetContrastText(palette.Success, SuccessContrastText);
+        palette.WarningContrastText = GetContrastText(palette.Warning, WarningContrastText);
+        palette.ErrorContrastText = GetContrastText(palette.Error, ErrorContrastText);
+        palette.DarkContrastText = GetContrastText(palette.Dark, DarkContrastText);
+    }
+
+    public static string GetContrastTextColor(string? colorString, string? overrideColor = null)
+    {
+        try
+        {
+            var background = new MudColor(string.IsNullOrWhiteSpace(colorString) ? "#000000" : colorString);
+            return ColorToString(GetContrastText(background, overrideColor));
+        }
+        catch
+        {
+            return "#FFFFFF";
+        }
+    }
+
+    public static double GetContrastRatio(string? foregroundColor, string? backgroundColor)
+    {
+        try
+        {
+            var foregroundLuminance = GetRelativeLuminance(new MudColor(foregroundColor ?? string.Empty));
+            var backgroundLuminance = GetRelativeLuminance(new MudColor(backgroundColor ?? string.Empty));
+            var lighter = Math.Max(foregroundLuminance, backgroundLuminance);
+            var darker = Math.Min(foregroundLuminance, backgroundLuminance);
+            return (lighter + 0.05) / (darker + 0.05);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static MudColor GetContrastText(MudColor background, string? overrideColor)
+    {
+        if (!string.IsNullOrWhiteSpace(overrideColor))
+        {
+            try
+            {
+                return new MudColor(overrideColor);
+            }
+            catch
+            {
+                // Use the calculated contrast color for malformed overrides.
+            }
+        }
+
+        var luminance = GetRelativeLuminance(background);
+        return luminance > 0.179 ? new MudColor("#000000") : new MudColor("#FFFFFF");
+    }
+
+    private static double GetRelativeLuminance(MudColor color)
+    {
+        static double Linearize(byte channel)
+        {
+            var value = channel / 255.0;
+            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+        }
+
+        return 0.2126 * Linearize(color.R)
+            + 0.7152 * Linearize(color.G)
+            + 0.0722 * Linearize(color.B);
     }
 
     private static void ApplyColor(string? colorStr, Action<MudColor> setter)
@@ -216,6 +293,14 @@ public class ThemePaletteModel
             Warning = Warning,
             Error = Error,
             Dark = Dark,
+            PrimaryContrastText = PrimaryContrastText,
+            SecondaryContrastText = SecondaryContrastText,
+            TertiaryContrastText = TertiaryContrastText,
+            InfoContrastText = InfoContrastText,
+            SuccessContrastText = SuccessContrastText,
+            WarningContrastText = WarningContrastText,
+            ErrorContrastText = ErrorContrastText,
+            DarkContrastText = DarkContrastText,
             Background = Background,
             BackgroundGray = BackgroundGray,
             Surface = Surface,
@@ -250,6 +335,14 @@ public class ThemePaletteModel
         Warning = NormalizeColor(Warning);
         Error = NormalizeColor(Error);
         Dark = NormalizeColor(Dark);
+        PrimaryContrastText = NormalizeColor(PrimaryContrastText);
+        SecondaryContrastText = NormalizeColor(SecondaryContrastText);
+        TertiaryContrastText = NormalizeColor(TertiaryContrastText);
+        InfoContrastText = NormalizeColor(InfoContrastText);
+        SuccessContrastText = NormalizeColor(SuccessContrastText);
+        WarningContrastText = NormalizeColor(WarningContrastText);
+        ErrorContrastText = NormalizeColor(ErrorContrastText);
+        DarkContrastText = NormalizeColor(DarkContrastText);
         Background = NormalizeColor(Background);
         BackgroundGray = NormalizeColor(BackgroundGray);
         Surface = NormalizeColor(Surface);

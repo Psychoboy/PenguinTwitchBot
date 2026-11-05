@@ -21,21 +21,21 @@
                 <MudStack AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.LocalActivity" Color="Color.Warning" Size="Size.Medium" />
                     <MudText Typo="Typo.h5" Color="Color.Warning">@userTickets</MudText>
-                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">@PointTypeName Available</MudText>
+                    <MudText Typo="Typo.caption" Align="Align.Center">@PointTypeName Available</MudText>
                 </MudStack>
             </MudItem>
             <MudItem xs="4">
                 <MudStack AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Info" Size="Size.Medium" />
                     <MudText Typo="Typo.h5" Color="Color.Info">@maxAffordableEntries</MudText>
-                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Max Entries (@pointsPerEntry pts each)</MudText>
+                    <MudText Typo="Typo.caption" Align="Align.Center">Max Entries (@pointsPerEntry @PointTypeName each)</MudText>
                 </MudStack>
             </MudItem>
             <MudItem xs="4">
                 <MudStack AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Medium" />
                     <MudText Typo="Typo.h5" Color="Color.Success">@userEntries</MudText>
-                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Entries Entered</MudText>
+                    <MudText Typo="Typo.caption" Align="Align.Center">Entries Entered</MudText>
                 </MudStack>
             </MudItem>
         </MudGrid>
@@ -47,14 +47,14 @@
                 <MudStack AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.LocalActivity" Color="Color.Warning" Size="Size.Medium" />
                     <MudText Typo="Typo.h5" Color="Color.Warning">@userTickets</MudText>
-                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">@PointTypeName Available</MudText>
+                    <MudText Typo="Typo.caption" Align="Align.Center">@PointTypeName Available</MudText>
                 </MudStack>
             </MudItem>
             <MudItem xs="6">
                 <MudStack AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Medium" />
                     <MudText Typo="Typo.h5" Color="Color.Success">@userEntries</MudText>
-                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Already Entered</MudText>
+                    <MudText Typo="Typo.caption" Align="Align.Center">Already Entered</MudText>
                 </MudStack>
             </MudItem>
         </MudGrid>
@@ -64,10 +64,17 @@
     <MudStack Spacing="3">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.Input" Color="Color.Primary" />
-            <MudText Typo="Typo.h6" class="mud-contrast-text">Enter Giveaway</MudText>
+            <MudText Typo="Typo.h6">Enter Giveaway</MudText>
         </MudStack>
-        <MudText Typo="Typo.body2" class="mud-contrast-text">
-            Spend @PointTypeName from your available balance to increase your entries below. More @PointTypeName entered means better odds of winning.
+        <MudText Typo="Typo.body2">
+            @if (pointsPerEntry > 1)
+            {
+                <span>Each entry costs @pointsPerEntry @PointTypeName. Choose how many entries to add.</span>
+            }
+            else
+            {
+                <span>Use your @PointTypeName to add entries. More entries mean better odds of winning.</span>
+            }
         </MudText>
         <MudDivider />
         @if (isClosed)
@@ -85,25 +92,33 @@
                                      For="@(() => model.EnterAmount)"
                                      Label="@(pointsPerEntry > 1 ? $"Entries ({pointsPerEntry} {PointTypeName} each)" : $"Number of {PointTypeName} to Enter")"
                                      Variant="Variant.Outlined"
-                                     Disabled="@isSubmitting"
+                                     Disabled="@(isSubmitting || maxAffordableEntries <= 0)"
                                      Immediate="true"
                                      Min="1"
-                                     Max="1000000"
+                                     Max="@(maxAffordableEntries > 0 ? (int)Math.Min(maxAffordableEntries, 1000000) : 1000000)"
                                      HideSpinButtons="true"
                                      FullWidth="true" />
                     @if (maxAffordableEntries > 0)
                     {
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-n1 mb-1">
                             <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-1">Quick Select:</MudText>
-                            @if (maxAffordableEntries > 1)
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="() => SetEntryAmount(1)" Disabled="@isSubmitting">1</MudChip>
+                            @if (maxAffordableEntries > 2)
                             {
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="() => SetPercentageEntries(0.25)" Disabled="@isSubmitting">25%</MudChip>
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="() => SetPercentageEntries(0.50)" Disabled="@isSubmitting">50%</MudChip>
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="() => SetPercentageEntries(0.75)" Disabled="@isSubmitting">75%</MudChip>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="() => SetEntryAmount((int)((maxAffordableEntries + 1) / 2))" Disabled="@isSubmitting">Half</MudChip>
                             }
                             <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary" OnClick="SetMaxEntries" Disabled="@isSubmitting">Max</MudChip>
                         </MudStack>
                     }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.Info">
+                            You need @pointsPerEntry @PointTypeName for your first entry. Use the earning options below to get more.
+                        </MudAlert>
+                    }
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-1">
+                        @model.EnterAmount @(pointsPerEntry == 1 ? PointTypeName : "entries") selected; total cost: @((long)model.EnterAmount * pointsPerEntry) @PointTypeName.
+                    </MudText>
                     @if (!string.IsNullOrWhiteSpace(userEntriesText))
                     {
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-1">
@@ -116,7 +131,7 @@
                                FullWidth="true"
                                Size="Size.Large"
                                StartIcon="@Icons.Material.Filled.Send"
-                               Disabled="@isSubmitting">
+                               Disabled="@(isSubmitting || maxAffordableEntries <= 0)">
                         @(isSubmitting ? "Entering..." : "Enter Giveaway")
                     </MudButton>
                 </MudStack>
@@ -252,6 +267,14 @@
             });
         });
 
+        hubConnection.Reconnected += _ => InvokeAsync(async () =>
+        {
+            if (_disposed) return;
+            isClosed = GiveawayFeature.IsClosed();
+            await RefreshUserTicketsAsync();
+            if (!_disposed) StateHasChanged();
+        });
+
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
 
     }
@@ -317,12 +340,11 @@
         }
     }
 
-    private void SetPercentageEntries(double percentage)
+    private void SetEntryAmount(int amount)
     {
-        if (maxAffordableEntries > 0)
+        if (maxAffordableEntries > 0 && amount > 0)
         {
-            var calculated = (int)Math.Floor(maxAffordableEntries * percentage);
-            model.EnterAmount = Math.Clamp(calculated, 1, 1000000);
+            model.EnterAmount = (int)Math.Min(amount, Math.Min(maxAffordableEntries, 1000000));
             StateHasChanged();
         }
     }

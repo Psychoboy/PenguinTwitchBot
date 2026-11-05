@@ -169,6 +169,42 @@
                                         @RenderColorPicker("Text Secondary", _editingTheme.DarkPalette.TextSecondary, c => _editingTheme.DarkPalette.TextSecondary = c)
                                     </MudItem>
                                 </MudGrid>
+
+                                <MudExpansionPanels Class="mt-4">
+                                    <MudExpansionPanel Text="Advanced contrast overrides">
+                                        <MudText Typo="Typo.caption" Class="mb-3">Optional text colors for filled controls. Automatic contrast is used unless you choose an override.</MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Primary", _editingTheme.DarkPalette.PrimaryContrastText, _editingTheme.DarkPalette.Primary, c => _editingTheme.DarkPalette.PrimaryContrastText = c, () => _editingTheme.DarkPalette.PrimaryContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Secondary", _editingTheme.DarkPalette.SecondaryContrastText, _editingTheme.DarkPalette.Secondary, c => _editingTheme.DarkPalette.SecondaryContrastText = c, () => _editingTheme.DarkPalette.SecondaryContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Tertiary", _editingTheme.DarkPalette.TertiaryContrastText, _editingTheme.DarkPalette.Tertiary, c => _editingTheme.DarkPalette.TertiaryContrastText = c, () => _editingTheme.DarkPalette.TertiaryContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Info", _editingTheme.DarkPalette.InfoContrastText, _editingTheme.DarkPalette.Info, c => _editingTheme.DarkPalette.InfoContrastText = c, () => _editingTheme.DarkPalette.InfoContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Success", _editingTheme.DarkPalette.SuccessContrastText, _editingTheme.DarkPalette.Success, c => _editingTheme.DarkPalette.SuccessContrastText = c, () => _editingTheme.DarkPalette.SuccessContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Warning", _editingTheme.DarkPalette.WarningContrastText, _editingTheme.DarkPalette.Warning, c => _editingTheme.DarkPalette.WarningContrastText = c, () => _editingTheme.DarkPalette.WarningContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Error", _editingTheme.DarkPalette.ErrorContrastText, _editingTheme.DarkPalette.Error, c => _editingTheme.DarkPalette.ErrorContrastText = c, () => _editingTheme.DarkPalette.ErrorContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Dark", _editingTheme.DarkPalette.DarkContrastText, _editingTheme.DarkPalette.Dark, c => _editingTheme.DarkPalette.DarkContrastText = c, () => _editingTheme.DarkPalette.DarkContrastText = null)
+                                            </MudItem>
+                                        </MudGrid>
+                                        @if (HasLowContrastOverrides(_editingTheme.DarkPalette))
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-3">One or more overrides are below 4.5:1 contrast.</MudAlert>
+                                        }
+                                    </MudExpansionPanel>
+                                </MudExpansionPanels>
                             </MudItem>
                             <MudItem xs="12" lg="5">
                                 <MudText Typo="Typo.subtitle1" Class="mb-3">Live Preview (Dark)</MudText>
@@ -234,6 +270,42 @@
                                         @RenderColorPicker("Text Secondary", _editingTheme.LightPalette.TextSecondary, c => _editingTheme.LightPalette.TextSecondary = c)
                                     </MudItem>
                                 </MudGrid>
+
+                                <MudExpansionPanels Class="mt-4">
+                                    <MudExpansionPanel Text="Advanced contrast overrides">
+                                        <MudText Typo="Typo.caption" Class="mb-3">Optional text colors for filled controls. Automatic contrast is used unless you choose an override.</MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Primary", _editingTheme.LightPalette.PrimaryContrastText, _editingTheme.LightPalette.Primary, c => _editingTheme.LightPalette.PrimaryContrastText = c, () => _editingTheme.LightPalette.PrimaryContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Secondary", _editingTheme.LightPalette.SecondaryContrastText, _editingTheme.LightPalette.Secondary, c => _editingTheme.LightPalette.SecondaryContrastText = c, () => _editingTheme.LightPalette.SecondaryContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Tertiary", _editingTheme.LightPalette.TertiaryContrastText, _editingTheme.LightPalette.Tertiary, c => _editingTheme.LightPalette.TertiaryContrastText = c, () => _editingTheme.LightPalette.TertiaryContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Info", _editingTheme.LightPalette.InfoContrastText, _editingTheme.LightPalette.Info, c => _editingTheme.LightPalette.InfoContrastText = c, () => _editingTheme.LightPalette.InfoContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Success", _editingTheme.LightPalette.SuccessContrastText, _editingTheme.LightPalette.Success, c => _editingTheme.LightPalette.SuccessContrastText = c, () => _editingTheme.LightPalette.SuccessContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Warning", _editingTheme.LightPalette.WarningContrastText, _editingTheme.LightPalette.Warning, c => _editingTheme.LightPalette.WarningContrastText = c, () => _editingTheme.LightPalette.WarningContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Error", _editingTheme.LightPalette.ErrorContrastText, _editingTheme.LightPalette.Error, c => _editingTheme.LightPalette.ErrorContrastText = c, () => _editingTheme.LightPalette.ErrorContrastText = null)
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6" md="4">
+                                                @RenderContrastColorPicker("Text on Dark", _editingTheme.LightPalette.DarkContrastText, _editingTheme.LightPalette.Dark, c => _editingTheme.LightPalette.DarkContrastText = c, () => _editingTheme.LightPalette.DarkContrastText = null)
+                                            </MudItem>
+                                        </MudGrid>
+                                        @if (HasLowContrastOverrides(_editingTheme.LightPalette))
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-3">One or more overrides are below 4.5:1 contrast.</MudAlert>
+                                        }
+                                    </MudExpansionPanel>
+                                </MudExpansionPanels>
                             </MudItem>
                             <MudItem xs="12" lg="5">
                                 <MudText Typo="Typo.subtitle1" Class="mb-3">Live Preview (Light)</MudText>
@@ -590,11 +662,16 @@
         var drawerBg = p.DrawerBackground ?? "#1e1e2d";
         var drawerText = p.DrawerText ?? "#ffffff";
         var primary = p.Primary ?? "#594AE2";
+        var primaryText = ThemePaletteModel.GetContrastTextColor(primary, p.PrimaryContrastText);
         var secondary = p.Secondary ?? "#00C853";
+        var secondaryText = ThemePaletteModel.GetContrastTextColor(secondary, p.SecondaryContrastText);
         var info = p.Info ?? "#2196F3";
         var success = p.Success ?? "#4CAF50";
+        var successText = ThemePaletteModel.GetContrastTextColor(success, p.SuccessContrastText);
         var warning = p.Warning ?? "#FF9800";
+        var warningText = ThemePaletteModel.GetContrastTextColor(warning, p.WarningContrastText);
         var error = p.Error ?? "#F44336";
+        var errorText = ThemePaletteModel.GetContrastTextColor(error, p.ErrorContrastText);
         var textPrimary = p.TextPrimary ?? "#ffffff";
         var textSecondary = p.TextSecondary ?? "#aaaaaa";
 
@@ -624,11 +701,11 @@
                         <div style="font-weight: 600; font-size: 13px; color: @textPrimary;">Card Surface Preview</div>
                         <div style="font-size: 11px; color: @textSecondary; margin-top: 4px;">Secondary text on card surface</div>
                         <div style="display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
-                            <span style="background-color: @primary; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;">Primary</span>
-                            <span style="background-color: @secondary; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;">Secondary</span>
-                            <span style="background-color: @success; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Success</span>
-                            <span style="background-color: @warning; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Warning</span>
-                            <span style="background-color: @error; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Error</span>
+                            <span style="background-color: @primary; color: @primaryText; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;">Primary</span>
+                            <span style="background-color: @secondary; color: @secondaryText; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;">Secondary</span>
+                            <span style="background-color: @success; color: @successText; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Success</span>
+                            <span style="background-color: @warning; color: @warningText; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Warning</span>
+                            <span style="background-color: @error; color: @errorText; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Error</span>
                         </div>
                     </div>
                 </div>
@@ -650,6 +727,46 @@
                         Variant="Variant.Outlined"
                         Margin="Margin.Dense" />
     };
+
+    private RenderFragment RenderContrastColorPicker(string label, string? overrideColor, string? backgroundColor, Action<string> onColorChanged, Action onReset) => __builder =>
+    {
+        var isOverridden = !string.IsNullOrWhiteSpace(overrideColor);
+        var effectiveColor = ThemePaletteModel.GetContrastTextColor(backgroundColor, overrideColor);
+        <MudStack Spacing="1">
+            <MudColorPicker Label="@label"
+                            Value="@GetMudColor(effectiveColor)"
+                            ValueChanged="@((MudColor c) => onColorChanged(ThemePaletteModel.ColorToString(c)))"
+                            Text="@effectiveColor"
+                            TextChanged="@((string s) => onColorChanged(s))"
+                            ShowAlpha="true"
+                            ShowModeSwitch="true"
+                            ColorPickerMode="ColorPickerMode.HEX"
+                            Variant="Variant.Outlined"
+                            Margin="Margin.Dense" />
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@(isOverridden ? "Custom" : "Automatic")</MudText>
+                <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.Restore" Disabled="@(!isOverridden)" OnClick="@onReset">Auto</MudButton>
+            </MudStack>
+        </MudStack>
+    };
+
+    private static bool HasLowContrastOverrides(ThemePaletteModel palette)
+    {
+        return IsLowContrast(palette.PrimaryContrastText, palette.Primary ?? "#594AE2")
+            || IsLowContrast(palette.SecondaryContrastText, palette.Secondary ?? "#00C853")
+            || IsLowContrast(palette.TertiaryContrastText, palette.Tertiary ?? "#C77DFF")
+            || IsLowContrast(palette.InfoContrastText, palette.Info ?? "#2196F3")
+            || IsLowContrast(palette.SuccessContrastText, palette.Success ?? "#4CAF50")
+            || IsLowContrast(palette.WarningContrastText, palette.Warning ?? "#FF9800")
+            || IsLowContrast(palette.ErrorContrastText, palette.Error ?? "#F44336")
+            || IsLowContrast(palette.DarkContrastText, palette.Dark ?? "#424242");
+    }
+
+    private static bool IsLowContrast(string? overrideColor, string backgroundColor)
+    {
+        return !string.IsNullOrWhiteSpace(overrideColor)
+            && ThemePaletteModel.GetContrastRatio(overrideColor, backgroundColor) < 4.5;
+    }
 
     private static MudColor GetMudColor(string? colorStr)
     {
