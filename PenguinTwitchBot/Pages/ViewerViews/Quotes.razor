@@ -33,7 +33,7 @@
                             <MudIcon Icon="@Icons.Material.Filled.FormatQuote" Color="Color.Primary" Class="mr-2" />
                             <MudText Typo="Typo.h6">All Quotes</MudText>
                             <MudSpacer />
-                            <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
+                            <MudTextField DebounceInterval="300" Immediate="true" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
                         </ToolBarContent>
                         <HeaderContent>
                             <MudTh>#</MudTh>

@@ -106,21 +106,39 @@
                         <MudText Typo="Typo.h4" class="mud-contrast-text" Align="Align.Center">Current Giveaway</MudText>
                     </MudStack>
                     <MudDivider />
-                    @if (string.IsNullOrEmpty(prize))
+                    @if (!giveawayDataLoaded)
                     {
                         <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" Height="40px" />
+                    }
+                    else if (string.IsNullOrWhiteSpace(prize))
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.CardGiftcard">
+                            No giveaway prize is currently listed.
+                        </MudAlert>
                     }
                     else
                     {
                         <MudText Typo="Typo.h5" Align="Align.Center"><strong>@prize</strong></MudText>
                     }
-                    @if (string.IsNullOrEmpty(imageUrl))
+                    @if (!giveawayDataLoaded)
                     {
                         <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="300px" Class="rounded" />
                     }
-                    else
+                    else if (!string.IsNullOrWhiteSpace(prize))
                     {
-                        <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" Elevation="2" />
+                        @if (!string.IsNullOrWhiteSpace(imageUrl))
+                        {
+                            <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" Elevation="2" />
+                        }
+                        else
+                        {
+                            <MudPaper Class="pa-4" Outlined="true" Style="width: 100%; min-height: 120px;">
+                                <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.ImageNotSupported" Color="Color.Default" />
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">No image for this prize</MudText>
+                                </MudStack>
+                            </MudPaper>
+                        }
                     }
                     @if(!string.IsNullOrEmpty(prizeAdditionalDetails))
                     {
@@ -222,6 +240,7 @@
     private string prize = "";
     private string? imageUrl;
     private string prizeAdditionalDetails = "";
+    private bool giveawayDataLoaded;
     private int entries;
     private int entrants;
     private int TicketsPerSub;
@@ -236,12 +255,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if(FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature) == false)
-        {
-            Navigation.NavigateTo("/");
-            return;
-        }
-
         FeatureRuntimeCoordinator.StateChangedAsync += HandleFeatureStateChangedAsync;
 
         var pointType = await PointSystem.GetPointTypeForGame("GiveawayFeature");
@@ -261,6 +274,7 @@
         cooldowns = await GiveawayFeature.GetCooldowns();
         terms = await GiveawayFeature.GetTerms();
         if (BitsPerPoint > 0) BitsPerPoint = 100 * BitsPerPoint;
+        giveawayDataLoaded = true;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

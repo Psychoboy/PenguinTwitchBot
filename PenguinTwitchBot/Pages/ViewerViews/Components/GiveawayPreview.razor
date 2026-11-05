@@ -21,21 +21,33 @@
         </MudStack>
         <MudDivider />
         <MudStack AlignItems="AlignItems.Center" Spacing="2">
-            @if (string.IsNullOrEmpty(prize))
+            @if (isLoading)
             {
                 <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" Height="32px" />
+            }
+            else if (string.IsNullOrWhiteSpace(prize))
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.CardGiftcard">
+                    No giveaway prize is currently listed.
+                </MudAlert>
             }
             else
             {
                 <MudText Typo="Typo.h6" Align="Align.Center"><strong>@prize</strong></MudText>
             }
-            @if (string.IsNullOrEmpty(imageUrl))
+            @if (isLoading)
             {
                 <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="250px" Class="rounded" />
             }
-            else
+            else if (!string.IsNullOrWhiteSpace(prize) && !string.IsNullOrWhiteSpace(imageUrl))
             {
                 <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" Elevation="2" />
+            }
+            else if (!string.IsNullOrWhiteSpace(prize))
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.ImageNotSupported" Class="w-100">
+                    No image for this prize.
+                </MudAlert>
             }
         </MudStack>
     </MudStack>
@@ -47,6 +59,7 @@
 @code {
     private string prize = "";
     private string? imageUrl;
+    private bool isLoading = true;
     private bool _disposed;
 
     protected override async Task OnInitializedAsync()
@@ -68,20 +81,28 @@
             return;
         }
 
-        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
+        isLoading = true;
+        try
         {
-            prize = await GiveawayFeature.GetPrize();
-            imageUrl = await GiveawayFeature.GetImageUrl();
+            if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
+            {
+                prize = await GiveawayFeature.GetPrize();
+                imageUrl = await GiveawayFeature.GetImageUrl();
+            }
+            else
+            {
+                prize = string.Empty;
+                imageUrl = null;
+            }
         }
-        else
+        finally
         {
-            prize = string.Empty;
-            imageUrl = null;
-        }
+            isLoading = false;
 
-        if (!_disposed)
-        {
-            StateHasChanged();
+            if (!_disposed)
+            {
+                StateHasChanged();
+            }
         }
     }
 
