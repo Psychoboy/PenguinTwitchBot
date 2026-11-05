@@ -76,6 +76,18 @@ public class MiscPointAssignmentFilterTests
         Assert.Equal("loyalty", result[0].Assignment.Setting.GameName);
     }
 
+    [Fact]
+    public void Filter_IncludesOwnedMiscMappingsWhenNoSavedRowExists()
+    {
+        var defaultPointType = new PointType { Id = Guid.NewGuid(), Name = "Pasties" };
+
+        var result = MiscPointAssignmentFilter.Filter([], defaultPointType);
+
+        var assignment = Assert.Single(result);
+        Assert.Equal("loyalty", assignment.Assignment.Setting.GameName);
+        Assert.Equal(defaultPointType.Id, assignment.Assignment.PointType.Id);
+    }
+
     private static PointGamePair Mapping(string gameName) => new()
     {
         Setting = new GameSetting { GameName = gameName },

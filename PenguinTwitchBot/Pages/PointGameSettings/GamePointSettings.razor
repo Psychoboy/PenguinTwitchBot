@@ -48,8 +48,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        PointSettings = MiscPointAssignmentFilter.Filter(await pointSystem.GetPointTypesForGames());
-        PointTypes = await pointSystem.GetPointTypes();
+        var assignmentsTask = pointSystem.GetPointTypesForGames();
+        var pointTypesTask = pointSystem.GetPointTypes();
+        await Task.WhenAll(assignmentsTask, pointTypesTask);
+        var pointTypes = pointTypesTask.Result.ToList();
+        PointTypes = pointTypes;
+        PointSettings = MiscPointAssignmentFilter.Filter(assignmentsTask.Result, pointTypes.FirstOrDefault());
     }
 
     private async void ItemHasBeenCommitted(object element)

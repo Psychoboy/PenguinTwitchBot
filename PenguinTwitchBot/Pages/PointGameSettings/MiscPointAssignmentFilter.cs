@@ -2,11 +2,9 @@ using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using PenguinTwitchBot.Bot.Commands.TicketGames;
 using PenguinTwitchBot.Bot.Core.Points;
-using PenguinTwitchBot.Database.Bot.Actions;
-using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Models.Games;
 using PenguinTwitchBot.Database.Bot.Models.Points;
 using PenguinTwitchBot.Pages.Games;
-using PenguinTwitchBot.Pages.PointGameSettings.Providers;
 
 namespace PenguinTwitchBot.Pages.PointGameSettings;
 
@@ -23,14 +21,41 @@ public static class MiscPointAssignmentFilter
         "Steal"
     };
 
-    public static IReadOnlyList<MiscPointAssignment> Filter(IEnumerable<PointGamePair> assignments)
+    public static IReadOnlyList<MiscPointAssignment> Filter(
+        IEnumerable<PointGamePair> assignments,
+        PointType? defaultPointType = null)
     {
         var ownedPointGameNames = GetDedicatedPointGameNames();
+        var fallbackPointType = defaultPointType ?? PointsSystem.GetDefaultPointType();
+        var filtered = new Dictionary<string, MiscPointAssignment>(StringComparer.OrdinalIgnoreCase);
 
-        return assignments
-            .Where(assignment => !ownedPointGameNames.Contains(assignment.Setting.GameName))
-            .Where(assignment => MiscellaneousPointGameNames.Contains(assignment.Setting.GameName))
-            .Select(assignment => new MiscPointAssignment(assignment))
+        foreach (var assignment in assignments)
+        {
+            var gameName = assignment.Setting.GameName;
+            if (!ownedPointGameNames.Contains(gameName) && MiscellaneousPointGameNames.Contains(gameName))
+            {
+                filtered[gameName] = new MiscPointAssignment(assignment);
+            }
+        }
+
+        foreach (var gameName in MiscellaneousPointGameNames)
+        {
+            if (!ownedPointGameNames.Contains(gameName) && !filtered.ContainsKey(gameName))
+            {
+                filtered[gameName] = new MiscPointAssignment(new PointGamePair
+                {
+                    Setting = new GameSetting
+                    {
+                        GameName = gameName,
+                        SettingName = "PointTypeId",
+                        SettingStringValue = fallbackPointType.Id.ToString()
+                    },
+                    PointType = fallbackPointType
+                });
+            }
+        }
+
+        return filtered.Values
             .OrderBy(assignment => assignment.Assignment.Setting.GameName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -56,13 +81,5 @@ public static class MiscPointAssignmentFilter
             "Tax",
             "Top"
         ]), StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static void AddIfNotEmpty(HashSet<string> names, string? name)
-    {
-        if (!string.IsNullOrWhiteSpace(name))
-        {
-            names.Add(name.Trim());
-        }
     }
 }
