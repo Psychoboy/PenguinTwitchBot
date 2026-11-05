@@ -54,7 +54,7 @@
                         {
                             <MudCheckBox @bind-Value="includeAliases" Label="Include Aliases" Color="Color.Primary"></MudCheckBox>
                         }
-                        <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
+                        <MudTextField DebounceInterval="300" Immediate="true" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
                     </MudStack>
                 </ToolBarContent>
                 <HeaderContent>

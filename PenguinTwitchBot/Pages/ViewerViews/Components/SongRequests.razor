@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
 @inject YtPlayer YtPlayer
+@inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject ISongCooldownService SongCooldownService
 @inject ISnackbar Snackbar
 @inject ILogger<SongRequests> logger
@@ -32,7 +33,14 @@
         else if (!songRequests.Any())
         {
             <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.MusicNote">
-                No songs in the queue. Be the first to request a song!
+                <MudStack Spacing="1">
+                    <MudText>No songs in the queue.</MudText>
+                    @if (!string.IsNullOrWhiteSpace(songRequestCommandName))
+                    {
+                        <MudText Typo="Typo.body2">Request one in chat with <code>!@songRequestCommandName &lt;song title or YouTube link&gt;</code>.</MudText>
+                    }
+                    <MudLink Href="/commands">View all chat commands</MudLink>
+                </MudStack>
             </MudAlert>
         }
         else
@@ -76,6 +84,7 @@
     private List<Song> songRequests = new();
     private HubConnection? hubConnection;
     private CancellationTokenSource? _hubConnectionCts;
+    private string? songRequestCommandName;
 
     [Parameter]
     public int LimitNumberOfSongs { get; set; }
@@ -90,6 +99,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var songRequestCommand = await CommandHandler.GetDefaultCommandFromDb("sr");
+        songRequestCommandName = songRequestCommand?.Disabled == true
+            ? null
+            : songRequestCommand?.CustomCommandName ?? "sr";
+
         // Load initial data immediately - don't wait for hub connection
         UpdateSongList(await YtPlayer.GetRequestedSongs());
         dataLoaded = true;
