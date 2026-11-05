@@ -11,7 +11,7 @@ namespace PenguinTwitchBot.Pages.PointGameSettings.Providers;
 public abstract class PointOnlyGameSettingsProvider : IGameSettingsFormProvider
 {
     public abstract string DisplayName { get; }
-    public string? Description => "Choose the point type this game uses.";
+    public virtual string? Description => "Choose the point type this game uses.";
     public abstract string Icon { get; }
     public abstract string? PointsGameName { get; }
 
@@ -203,6 +203,77 @@ public sealed class StealSettingsProvider : PointOnlyGameSettingsProvider
 public sealed class FirstSettingsProvider : PointOnlyGameSettingsProvider
 {
     public override string DisplayName => "First";
+    public override string? Description => "Configure the claim limit, reward curve, and chat messages.";
     public override string Icon => Icons.Material.Filled.LooksOne;
-    public override string? PointsGameName => "First";
+    public override string? PointsGameName => FirstGameOptions.GameName;
+
+    public override async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
+    {
+        var settings = serviceProvider.GetRequiredService<IGameSettingsService>();
+        var options = await FirstGameOptions.LoadAsync(settings);
+        return new Dictionary<string, object?>
+        {
+            [FirstGameOptions.MaximumClaimsSetting] = options.MaximumClaims,
+            [FirstGameOptions.StartingAwardSetting] = options.StartingAward,
+            [FirstGameOptions.AwardDecreasePerClaimSetting] = options.AwardDecreasePerClaim,
+            [FirstGameOptions.OfflineMessageSetting] = options.OfflineMessage,
+            [FirstGameOptions.TooSlowMessageSetting] = options.TooSlowMessage,
+            [FirstGameOptions.AwardMessageSetting] = options.AwardMessage
+        };
+    }
+
+    public override Task SaveAsync(IServiceProvider serviceProvider, Dictionary<string, object?> values)
+    {
+        var settings = serviceProvider.GetRequiredService<IGameSettingsService>();
+        return Task.WhenAll(
+            settings.SetIntSetting(FirstGameOptions.GameName, FirstGameOptions.MaximumClaimsSetting, Get<int>(values, FirstGameOptions.MaximumClaimsSetting)),
+            settings.SetIntSetting(FirstGameOptions.GameName, FirstGameOptions.StartingAwardSetting, Get<int>(values, FirstGameOptions.StartingAwardSetting)),
+            settings.SetDoubleSetting(FirstGameOptions.GameName, FirstGameOptions.AwardDecreasePerClaimSetting, Get<double>(values, FirstGameOptions.AwardDecreasePerClaimSetting)),
+            settings.SetStringSetting(FirstGameOptions.GameName, FirstGameOptions.OfflineMessageSetting, Get<string>(values, FirstGameOptions.OfflineMessageSetting)),
+            settings.SetStringSetting(FirstGameOptions.GameName, FirstGameOptions.TooSlowMessageSetting, Get<string>(values, FirstGameOptions.TooSlowMessageSetting)),
+            settings.SetStringSetting(FirstGameOptions.GameName, FirstGameOptions.AwardMessageSetting, Get<string>(values, FirstGameOptions.AwardMessageSetting)));
+    }
+
+    public override string? Validate(Dictionary<string, object?> values)
+    {
+        var maximumClaims = Get<int>(values, FirstGameOptions.MaximumClaimsSetting);
+        var startingAward = Get<int>(values, FirstGameOptions.StartingAwardSetting);
+        var awardDecrease = Get<double>(values, FirstGameOptions.AwardDecreasePerClaimSetting);
+        if (maximumClaims < 1)
+            return "Maximum claims must be at least 1.";
+        if (startingAward is < 1 or > MaxBetSettings.MaximumAllowedBet)
+            return $"Starting award must be between 1 and {MaxBetSettings.MaximumAllowedBet:N0}.";
+        if (!double.IsFinite(awardDecrease) || awardDecrease is < 0d or > MaxBetSettings.MaximumSafePayoutMultiplier)
+            return $"Award decrease must be between 0 and {MaxBetSettings.MaximumSafePayoutMultiplier:N0} points per claim.";
+        return null;
+    }
+
+    public override List<GameSettingSection> GetSections() =>
+    [
+        new()
+        {
+            Title = "Gameplay",
+            Description = "Award = starting award minus prior claims multiplied by the per-claim decrease. Fractional results round down.",
+            Icon = Icons.Material.Filled.Settings,
+            Columns = 2,
+            Fields =
+            [
+                new() { Key = FirstGameOptions.MaximumClaimsSetting, Label = "Maximum Claims", FieldType = GameSettingFieldType.Int, Min = 1, Max = int.MaxValue },
+                new() { Key = FirstGameOptions.StartingAwardSetting, Label = "Starting Award", FieldType = GameSettingFieldType.Int, Min = 1, Max = MaxBetSettings.MaximumAllowedBet },
+                new() { Key = FirstGameOptions.AwardDecreasePerClaimSetting, Label = "Award Decrease per Claim", FieldType = GameSettingFieldType.Double, Min = 0d, Max = MaxBetSettings.MaximumSafePayoutMultiplier, HelperText = "Default 0.5 points per prior claim." }
+            ]
+        },
+        new()
+        {
+            Title = "Messages",
+            Description = "Award variables: {Position}, {Amount}, {PointType}",
+            Icon = Icons.Material.Filled.Chat,
+            Fields =
+            [
+                new() { Key = FirstGameOptions.OfflineMessageSetting, Label = "Offline", FieldType = GameSettingFieldType.String },
+                new() { Key = FirstGameOptions.TooSlowMessageSetting, Label = "No Award", FieldType = GameSettingFieldType.String },
+                new() { Key = FirstGameOptions.AwardMessageSetting, Label = "Award", FieldType = GameSettingFieldType.String }
+            ]
+        }
+    ];
 }

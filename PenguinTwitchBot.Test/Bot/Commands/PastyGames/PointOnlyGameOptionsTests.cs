@@ -84,6 +84,64 @@ public class PointOnlyGameOptionsTests
     }
 
     [Fact]
+    public async Task FirstOptions_DefaultToExistingClaimLimitAndRewardCurve()
+    {
+        var options = await FirstGameOptions.LoadAsync(CreateDefaultSettings());
+
+        Assert.Equal(200, options.MaximumClaims);
+        Assert.Equal(100, options.StartingAward);
+        Assert.Equal(0.5d, options.AwardDecreasePerClaim);
+        Assert.Equal(100, options.GetAwardForPriorClaims(0));
+        Assert.Equal(99, options.GetAwardForPriorClaims(1));
+        Assert.Equal(1, options.GetAwardForPriorClaims(198));
+        Assert.Equal(0, options.GetAwardForPriorClaims(199));
+    }
+
+    [Fact]
+    public async Task FirstOptions_UseConfiguredRewardCurveAndMessages()
+    {
+        var settings = CreateDefaultSettings();
+        settings.GetIntSetting(FirstGameOptions.GameName, FirstGameOptions.MaximumClaimsSetting, 200).Returns(25);
+        settings.GetIntSetting(FirstGameOptions.GameName, FirstGameOptions.StartingAwardSetting, 100).Returns(40);
+        settings.GetDoubleSetting(FirstGameOptions.GameName, FirstGameOptions.AwardDecreasePerClaimSetting, 0.5).Returns(2d);
+        settings.GetStringSetting(FirstGameOptions.GameName, FirstGameOptions.AwardMessageSetting, Arg.Any<string>()).Returns("Place {Position}: {Amount} {PointType}");
+
+        var options = await FirstGameOptions.LoadAsync(settings);
+
+        Assert.Equal(25, options.MaximumClaims);
+        Assert.Equal(40, options.StartingAward);
+        Assert.Equal(38, options.GetAwardForPriorClaims(1));
+        Assert.Equal("Place {Position}: {Amount} {PointType}", options.AwardMessage);
+    }
+
+    [Fact]
+    public void FirstSettingsProvider_ExposesAndValidatesClaimAndRewardSettings()
+    {
+        var provider = new FirstSettingsProvider();
+        var fieldKeys = provider.GetSections().SelectMany(section => section.Fields).Select(field => field.Key).ToArray();
+        var validValues = new Dictionary<string, object?>
+        {
+            [FirstGameOptions.MaximumClaimsSetting] = 200,
+            [FirstGameOptions.StartingAwardSetting] = 100,
+            [FirstGameOptions.AwardDecreasePerClaimSetting] = 0.5d,
+            [FirstGameOptions.OfflineMessageSetting] = "offline",
+            [FirstGameOptions.TooSlowMessageSetting] = "slow",
+            [FirstGameOptions.AwardMessageSetting] = "{Position} {Amount} {PointType}"
+        };
+
+        Assert.Contains(FirstGameOptions.MaximumClaimsSetting, fieldKeys);
+        Assert.Contains(FirstGameOptions.StartingAwardSetting, fieldKeys);
+        Assert.Contains(FirstGameOptions.AwardDecreasePerClaimSetting, fieldKeys);
+        Assert.Contains(FirstGameOptions.OfflineMessageSetting, fieldKeys);
+        Assert.Contains(FirstGameOptions.TooSlowMessageSetting, fieldKeys);
+        Assert.Contains(FirstGameOptions.AwardMessageSetting, fieldKeys);
+        Assert.Null(provider.Validate(validValues));
+
+        validValues[FirstGameOptions.MaximumClaimsSetting] = 0;
+        Assert.NotNull(provider.Validate(validValues));
+    }
+
+    [Fact]
     public void SettingsProviders_RejectInvalidGameplayRanges()
     {
         var duelValues = new Dictionary<string, object?>
