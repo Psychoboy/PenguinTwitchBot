@@ -91,11 +91,12 @@
                         <MudNavLink Icon="@game.Icon" Href="@game.Route" Match="NavLinkMatch.Prefix">@game.Title</MudNavLink>
                     }
                 </MudNavGroup>
-                <MudNavGroup Icon="@Icons.Material.Filled.Chat" Title="Chat Games" Expanded="@GetGroupExpanded("chatGames", GetGameRoutes(GameKind.Chat))">
+                <MudNavGroup Icon="@Icons.Material.Filled.Chat" Title="Chat Games" Expanded="@GetGroupExpanded("chatGames", GetChatGameNavRoutes())">
                     @foreach (var game in GetVisibleGames(GameKind.Chat))
                     {
                         <MudNavLink Icon="@game.Icon" Href="@game.SettingsHref" Match="NavLinkMatch.Prefix">@game.Title</MudNavLink>
                     }
+                    <MudNavLink Icon="@Icons.Material.Filled.ConfirmationNumber" Href="/games/raffles" Match="NavLinkMatch.Prefix">Raffle Defaults</MudNavLink>
                 </MudNavGroup>
                 @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
                 {
@@ -367,6 +368,8 @@
         .Select(game => game.Route.TrimStart('/'))
         .ToArray();
 
+    private string[] GetChatGameNavRoutes() => [.. GetGameRoutes(GameKind.Chat), "games/raffles"];
+
     private string[] GetGamesNavRoutes() => ["games", "settings/games", "gamesettings", "wheelspin"];
 
     private IEnumerable<NavQuickLink> GetQuickLinks()
@@ -410,6 +413,7 @@
             CreateQuickLink("Loyalty Bonuses", "/settings/loyalty-bonuses", Icons.Material.Filled.Loyalty, "Configuration", "points rewards"),
             CreateQuickLink("Point Settings", "/settings/points", Icons.Material.Filled.Money, "Configuration", "games points rewards"),
             CreateQuickLink("All Games", "/games", Icons.Material.Filled.SportsEsports, "Games", "minigames overlay chat"),
+            CreateQuickLink("Raffle Defaults", "/games/raffles", Icons.Material.Filled.ConfirmationNumber, "Games", "chat games raffle points"),
             CreateQuickLink("OBS Connections", "/obs/connections", Icons.Material.Filled.Videocam, "Configuration", "obs"),
             CreateQuickLink("Home", "/", Icons.Material.Filled.Home, "Viewer Pages", "dashboard"),
             CreateQuickLink("Commands (Viewer Page)", "/commands", Icons.Material.Filled.ChatBubble, "Viewer Pages", "chat commands list"),

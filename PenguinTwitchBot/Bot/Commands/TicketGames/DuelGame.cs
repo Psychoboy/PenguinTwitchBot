@@ -12,7 +12,8 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         IViewerFeature viewerFeature,
         ICommandHandler commandHandler,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        ILogger<DuelGame> logger
+        ILogger<DuelGame> logger,
+        PenguinTwitchBot.Bot.Commands.Games.IGameSettingsService gameSettingsService
             ) : BaseCommandService(serviceBackbone, commandHandler, "DuelGame", dispatcher), IHostedService
     {
         List<PendingDuel> PendingDuels { get; set; } = [];
@@ -107,44 +108,45 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
 
         private async Task FightDuel(PendingDuel existingDuel)
         {
+            var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
 
             if ((await pointsSystem.GetUserPointsByUsernameAndGame(existingDuel.Attacker, ModuleName)).Points < existingDuel.Amount)
             {
-                await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough tickets anymore.");
+                await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough {pointType.Name} anymore.");
                 return;
             }
 
             if ((await pointsSystem.GetUserPointsByUsernameAndGame(existingDuel.Defender, ModuleName)).Points < existingDuel.Amount)
             {
-                await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough tickets anymore.");
+                await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough {pointType.Name} anymore.");
                 return;
             }
 
             var removedTicketsFromAttacker = await pointsSystem.RemovePointsFromUserByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount);
             if (removedTicketsFromAttacker == false)
             {
-                await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough tickets anymore.");
+                await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough {pointType.Name} anymore.");
                 return;
             }
 
             var removedTicketsFromDefender = await pointsSystem.RemovePointsFromUserByUsernameAndGame(existingDuel.Defender, ModuleName, existingDuel.Amount);
             if (removedTicketsFromDefender == false)
             {
-                await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough tickets anymore.");
+                await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough {pointType.Name} anymore.");
                 await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount); //refund for attack since we removed them already
                 return;
             }
 
             var winner = StaticTools.Next(0, 100);
-            if (winner < 50)
+            if (winner < existingDuel.WinChancePercent)
             {
                 await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount * 2);
-                await ServiceBackbone.SendChatMessage($"/me {existingDuel.Attacker} won the Duel vs {existingDuel.Defender} PogChamp {existingDuel.Attacker} won {existingDuel.Amount} tickets FeelsGoodMan");
+                await ServiceBackbone.SendChatMessage($"/me {existingDuel.Attacker} won the Duel vs {existingDuel.Defender} PogChamp {existingDuel.Attacker} won {existingDuel.Amount} {pointType.Name} FeelsGoodMan");
             }
             else
             {
                 await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Defender, ModuleName, existingDuel.Amount * 2);
-                await ServiceBackbone.SendChatMessage($"/me {existingDuel.Defender} won the Duel vs {existingDuel.Attacker} PogChamp {existingDuel.Defender} won {existingDuel.Amount} tickets FeelsGoodMan");
+                await ServiceBackbone.SendChatMessage($"/me {existingDuel.Defender} won the Duel vs {existingDuel.Attacker} PogChamp {existingDuel.Defender} won {existingDuel.Amount} {pointType.Name} FeelsGoodMan");
             }
         }
 
@@ -167,9 +169,11 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 throw new SkipCooldownException();
             }
 
-            if (amount < 1 || amount > 100)
+            var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
+            var options = await DuelGameOptions.LoadAsync(pointType.Id, gameSettingsService);
+            if (amount < options.MinimumWager || amount > options.MaximumWager)
             {
-                await ServiceBackbone.ResponseWithMessage(e, "To duel you must choose an amount between 1 and 100");
+                await ServiceBackbone.ResponseWithMessage(e, $"To duel you must choose an amount between {options.MinimumWager:N0} and {options.MaximumWager:N0}");
                 throw new SkipCooldownException();
             }
             var attackerTickets = await pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
@@ -207,7 +211,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             var defenderTickets = await pointsSystem.GetUserPointsByUsernameAndGame(defender.Username, ModuleName);
             if (defenderTickets.Points < amount)
             {
-                await ServiceBackbone.ResponseWithMessage(e, "They don't have that many tickets.");
+                await ServiceBackbone.ResponseWithMessage(e, $"They don't have that many {pointType.Name}.");
                 throw new SkipCooldownException();
             }
 
@@ -215,7 +219,9 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             {
                 Attacker = e.Name,
                 Defender = defender.Username,
-                Amount = amount
+                Amount = amount,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(options.ChallengeTimeoutMinutes),
+                WinChancePercent = options.WinChancePercent
             };
 
             try
@@ -227,7 +233,8 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             {
                 _semaphoreSlim.Release();
             }
-            await ServiceBackbone.SendChatMessage(defender.DisplayName, $"{e.DisplayName} has challenged you to a duel for {amount} tickets. You have 2 minutes to !accept or !deny the duel.");
+            var minuteLabel = options.ChallengeTimeoutMinutes == 1 ? "minute" : "minutes";
+            await ServiceBackbone.SendChatMessage(defender.DisplayName, $"{e.DisplayName} has challenged you to a duel for {amount} {pointType.Name}. You have {options.ChallengeTimeoutMinutes} {minuteLabel} to !accept or !deny the duel.");
         }
 
         private async Task<bool> CheckIfAlreadyInDuel(string name)

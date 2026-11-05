@@ -21,6 +21,10 @@ PenguinTwitchBot includes a suite of interactive chat minigames that engage view
 
 Open the [Games hub](/games), choose a chat game, and use its **Settings** tab to select its point type and configure any available gameplay settings. The **Automation** tab links supported outcome events to regular actions and triggers. Command aliases and cooldowns link to their entries in Default Commands.
 
+**Duel** settings control wager bounds, win chance, and how long a challenge remains open. **Dice Roll** settings control the payout for each doubles result. **Steal** settings control the transfer range and success chance. Existing defaults preserve current gameplay; command cooldowns remain configurable in Default Commands.
+
+Use **Raffle Defaults** under the **Chat Games** navigation group to choose the default point type for each point game referenced by a saved Raffle Start action. A point-type override on the action takes precedence and is not changed by the page.
+
 ## Related Point Settings
 
 - **Add Active** and **Mod Spam** are under **Point Settings > Point Activities**.

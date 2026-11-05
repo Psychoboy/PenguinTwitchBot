@@ -1,5 +1,4 @@
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
-using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
@@ -105,7 +104,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                         var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
                         var errorMessage = await gameSettingsService.GetStringSetting(ModuleName, INCORRECT_BET, "The max bet is {MaxBet} {PointType} and must be greater then {MinBet} {PointType}");
                         errorMessage = errorMessage
-                            .Replace("{MaxBet}", LoyaltyFeature.MaxBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                            .Replace("{MaxBet}", maxBet.MaximumAllowedBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                             .Replace("{MinBet}", minBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                             .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
                         await ServiceBackbone.ResponseWithMessage(e, errorMessage);
@@ -122,7 +121,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 
             var jackpot = await GetJackpot();
 
-            var winningMultiplier = await gameSettingsService.GetIntSetting(ModuleName, WINNING_MULTIPLIER, 2);
+            var winningMultiplier = Math.Max(1, await gameSettingsService.GetIntSetting(ModuleName, WINNING_MULTIPLIER, 2));
             var jackpotNumber = await gameSettingsService.GetIntSetting(ModuleName, JACKPOT_NUMBER, 69);
             var winRange = await gameSettingsService.GetIntSetting(ModuleName, MINIMUM_FOR_WIN, 48);
             var value = tools.Next(1, 100 + 1);
@@ -130,8 +129,9 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             //Checks to see if they hit the jackpot
             if (value == jackpotNumber && ServiceBackbone.IsOnline) 
             {
-                var jackpotWinnings = jackpot * (amount / LoyaltyFeature.MaxBet);
+                var jackpotWinnings = CalculateJackpotShare(jackpot, amount, maxBet.MaximumAllowedBet);
                 var winnings = amount * winningMultiplier;
+                var totalWinnings = SaturatingAdd(winnings, jackpotWinnings);
                 jackpot -= jackpotWinnings;
                 var jackpotDefault = await gameSettingsService.GetIntSetting(ModuleName, STARTING_JACKPOT, 1000);
                 if (jackpot < jackpotDefault)
@@ -143,10 +143,10 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 jackpotWin = jackpotWin
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
                     .Replace("{Rolled}", value.ToString(), StringComparison.OrdinalIgnoreCase)
-                    .Replace("{Points}", (winnings + jackpotWinnings).ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Points}", totalWinnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
                 await twitchServices.Announcement(jackpotWin);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings + jackpotWinnings);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, totalWinnings);
 
                 // Trigger default command event for jackpot win
                 await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
@@ -157,7 +157,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     {
                         { "JackpotAmount", jackpotWinnings.ToString("N0") },
                         { "WinAmount", winnings.ToString("N0") },
-                        { "TotalWinnings", (winnings + jackpotWinnings).ToString("N0") },
+                        { "TotalWinnings", totalWinnings.ToString("N0") },
                         { "RolledValue", value.ToString() }
                     });
             }
@@ -192,7 +192,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             //Otherwise they lose
             else
             {
-                var jackpotContribution = await gameSettingsService.GetDoubleSetting(ModuleName, JACKPOT_CONTRIBUTION, 0.10);
+                var jackpotContribution = ClampJackpotContribution(
+                    await gameSettingsService.GetDoubleSetting(ModuleName, JACKPOT_CONTRIBUTION, 0.10));
                 await UpdateJackpot(Convert.ToInt64(amount * jackpotContribution), false);
                 var loseMessage = await gameSettingsService.GetStringSetting(ModuleName, LOSE_MESSAGE, "{Name} rolled {Rolled} and lost {Points} {PointType}");
                 loseMessage = loseMessage
@@ -215,6 +216,28 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
         }
 
+        private static long SaturatingAdd(long left, long right) =>
+            left > long.MaxValue - right ? long.MaxValue : left + right;
+
+        /// <summary>
+        /// Awards a share of the jackpot proportional to the bet relative to the max bet,
+        /// so a max bet wins the full jackpot and smaller bets win a matching fraction.
+        /// </summary>
+        public static long CalculateJackpotShare(long jackpot, long amount, long maximumAllowedBet)
+        {
+            if (jackpot <= 0 || amount <= 0 || maximumAllowedBet <= 0)
+            {
+                return 0;
+            }
+
+            var boundedAmount = Math.Min(amount, maximumAllowedBet);
+            var share = (decimal)boundedAmount / maximumAllowedBet;
+            return (long)Math.Floor(jackpot * share);
+        }
+
+        public static double ClampJackpotContribution(double value) =>
+            double.IsFinite(value) ? Math.Clamp(value, 0d, 1d) : 0d;
+
         private async Task UpdateJackpot(long amount, bool reset)
         {
             var jackpot = await GetJackpot();
@@ -224,7 +247,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
             else
             {
-                jackpot += amount;
+                jackpot = SaturatingAdd(jackpot, amount);
             }
             await gameSettingsService.SetLongSetting(ModuleName, CURRENT_JACKPOT, jackpot);
         }

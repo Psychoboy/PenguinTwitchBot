@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
@@ -8,20 +9,22 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
     public class First : BaseCommandService, IHostedService
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
-        private readonly int MaxClaims = 200;
         private readonly IPointsSystem _pointsSystem;
         private readonly ILogger<First> _logger;
+        private readonly IGameSettingsService _gameSettingsService;
 
         public First(
             IServiceBackbone eventService,
             ILogger<First> logger,
             IPointsSystem pointsSystem,
             Application.Notifications.IPenguinDispatcher dispatcher,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            IGameSettingsService gameSettingsService
         ) : base(eventService, commandHandler, "First", dispatcher)
         {
             _pointsSystem = pointsSystem;
             _logger = logger;
+            _gameSettingsService = gameSettingsService;
         }
 
         public static int CurrentClaims { get; set; } = 0;
@@ -62,32 +65,38 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
 
         private async Task GiveFirst(string sender)
         {
+            var options = await FirstGameOptions.LoadAsync(_gameSettingsService);
             if (!ServiceBackbone.IsOnline)
             {
-                await SendChatMessage(sender, "Nice try, the stream is currently offline.");
+                await SendChatMessage(sender, options.OfflineMessage);
                 throw new SkipCooldownException();
             }
 
-            if (ClaimedFirst.Count >= MaxClaims)
+            if (ClaimedFirst.Count >= options.MaximumClaims)
             {
-                await SendChatMessage(sender, "Sorry, You were to slow today. FeelsBadMan");
+                await SendChatMessage(sender, options.TooSlowMessage);
                 throw new SkipCooldownException();
             }
 
-            if (ClaimedFirst.Contains(sender.ToLower())) throw new SkipCooldownException();
+            if (ClaimedFirst.Contains(sender, StringComparer.OrdinalIgnoreCase)) throw new SkipCooldownException();
 
-            ClaimedFirst.Add(sender.ToLower());
-            var awardPoints = (int)Math.Floor(((double)MaxClaims - CurrentClaims) / 2);
+            var awardPoints = options.GetAwardForPriorClaims(ClaimedFirst.Count);
             if (awardPoints == 0)
             {
-                await SendChatMessage(sender, "Sorry, You were to slow today. FeelsBadMan");
+                await SendChatMessage(sender, options.TooSlowMessage);
                 throw new SkipCooldownException();
             }
-            CurrentClaims++;
+
+            ClaimedFirst.Add(sender);
+            CurrentClaims = ClaimedFirst.Count;
             _logger.LogInformation("Current Claims: {CurrentClaims}", CurrentClaims);
-            //await _ticketsFeature.GiveTicketsToViewerByUsername(sender, awardPoints);
             await _pointsSystem.AddPointsByUsernameAndGame(sender, ModuleName, awardPoints);
-            await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints));
+            var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
+            var message = options.AwardMessage
+                .Replace("{Position}", ClaimedFirst.Count.ToString(), StringComparison.OrdinalIgnoreCase)
+                .Replace("{Amount}", awardPoints.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
+            await SendChatMessage(sender, message);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

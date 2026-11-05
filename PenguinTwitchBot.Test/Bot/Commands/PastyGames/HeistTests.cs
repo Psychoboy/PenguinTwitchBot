@@ -36,6 +36,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
         {
             _pointsSystem = Substitute.For<IPointsSystem>();
             _gameSettingsService = Substitute.For<IGameSettingsService>();
+            _gameSettingsService.GetLongSetting(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>())
+                .Returns(call => call.ArgAt<long>(2));
+            _gameSettingsService.GetLongSetting(MaxBetSettings.LegacyGameName, MaxBetSettings.LegacySettingName, MaxBetSettings.DefaultMaxBet)
+                .Returns(MaxBetSettings.DefaultMaxBet);
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _logger = Substitute.For<ILogger<Heist>>();
             _commandHandler = Substitute.For<ICommandHandler>();
@@ -108,17 +112,50 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
                 _heist.OnCommand(this, eventArgs));
         }
 
+        [Theory]
+        [InlineData("0%")]
+        [InlineData("101%")]
+        public async Task OnCommand_WithOutOfRangePercent_ShouldRejectBeforeBalanceLookup(string amount)
+        {
+            _commandHandler.GetCommand("heist").Returns(new Command(new BaseCommandProperties { CommandName = "heist" }, _heist));
+            _pointsSystem.GetPointTypeForGame(Heist.GAMENAME)
+                .Returns(new PointType { Id = Guid.NewGuid(), Name = "Points" });
+            _gameSettingsService.GetStringSetting(Heist.GAMENAME, Heist.INVALIDARGS, Arg.Any<string>())
+                .Returns("To Enter/Start a heist do !{Command} AMOUNT/ALL/MAX/%");
+
+            var eventArgs = new CommandEventArgs
+            {
+                Command = "heist",
+                DisplayName = "TestUser",
+                UserId = "user123",
+                Name = "testuser",
+                Args = [amount]
+            };
+
+            await Assert.ThrowsAsync<SkipCooldownException>(() => _heist.OnCommand(this, eventArgs));
+
+            await _serviceBackbone.Received(1).ResponseWithMessage(
+                eventArgs,
+                "To Enter/Start a heist do !heist AMOUNT/ALL/MAX/%");
+            await _pointsSystem.DidNotReceive()
+                .GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
+            await _pointsSystem.DidNotReceive()
+                .RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
+        }
+
         [Fact]
         public async Task OnCommand_WithValidAllBet_ShouldJoinHeist()
         {
             // Arrange
             _commandHandler.GetCommand("heist").Returns(new Command(new BaseCommandProperties { CommandName = "heist" }, _heist));
-            _pointsSystem.GetMaxPointsByUserIdAndGame("user123", Heist.GAMENAME, PointsSystem.MaxBet)
+            _pointsSystem.GetMaxPointsByUserIdAndGame("user123", Heist.GAMENAME, MaxBetSettings.DefaultMaxBet)
                 .Returns(1000L);
             _pointsSystem.GetPointTypeForGame(Heist.GAMENAME)
                 .Returns(new PointType { Name = "Points" });
             _gameSettingsService.GetIntSetting(Heist.GAMENAME, Heist.MINBET, 10)
                 .Returns(10);
+            _gameSettingsService.GetDoubleSetting(Heist.GAMENAME, Heist.WIN_MULTIPLIER, 1.5)
+                .Returns(1.5);
             _pointsSystem.RemovePointsFromUserByUserIdAndGame("user123", Heist.GAMENAME, 1000L)
                 .Returns(true);
 
@@ -155,7 +192,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
         {
             // Arrange
             _commandHandler.GetCommand("heist").Returns(new Command(new BaseCommandProperties { CommandName = "heist" }, _heist));
-            _pointsSystem.GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, PointsSystem.MaxBet)
+            _pointsSystem.GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, MaxBetSettings.DefaultMaxBet)
                 .Returns(1000L);
             _pointsSystem.GetPointTypeForGame(Heist.GAMENAME)
                 .Returns(new PointType { Name = "Points" });
@@ -225,7 +262,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
                 .Returns(new PointType { Name = "Points" });
             _gameSettingsService.GetIntSetting(Heist.GAMENAME, Heist.MINBET, 10)
                 .Returns(10);
-            _pointsSystem.GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, PointsSystem.MaxBet)
+            _gameSettingsService.GetDoubleSetting(Heist.GAMENAME, Heist.WIN_MULTIPLIER, 1.5)
+                .Returns(1.5);
+            _pointsSystem.GetMaxPointsByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, MaxBetSettings.DefaultMaxBet)
                 .Returns(1000L);
             _pointsSystem.RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, Arg.Any<long>())
                 .Returns(true);
@@ -253,7 +292,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames
             await _serviceBackbone.Received(1).SendChatMessage("Stage One");
             await _serviceBackbone.Received(1).SendChatMessage("Stage Two");
             await _serviceBackbone.Received(1).SendChatMessage("TestUser managed to sneak past Charlie sptvCharlie and grab some of those precious pasties!");
-            await _serviceBackbone.Received(1).SendChatMessage("The heist ended! Survivors are: TestUser (100).");
+            await _serviceBackbone.Received(1).SendChatMessage("The heist ended! Survivors are: TestUser (250).");
         }
     }
 }

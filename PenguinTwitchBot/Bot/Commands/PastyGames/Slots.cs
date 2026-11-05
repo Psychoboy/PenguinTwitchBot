@@ -66,7 +66,9 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 var prizeWinnings = Prizes[e1];
                 if (amount > 0)
                 {
-                    prizeWinnings = Convert.ToInt64(amount * await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_3_OF_A_KIND, 3.5));
+                    var multiplier = MaxBetSettings.ClampPayoutMultiplier(
+                        await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_3_OF_A_KIND, 3.5));
+                    prizeWinnings = Convert.ToInt64(amount * multiplier);
                 }
 
                 message += string.Format("{0} {1}. ", prizeWinnings.ToString("N0"), pointType.Name);
@@ -93,13 +95,16 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
             else if (e1 == e2 || e2 == e3 || e3 == e1) // 2 of a kind
             {
-                var twoOfAKindMultiplier = await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_2_OF_A_KIND, 0.3);
+                var twoOfAKindMultiplier = MaxBetSettings.ClampPayoutMultiplier(
+                    await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_2_OF_A_KIND, 0.3));
                 var prizeWinnings = e1 == e2 ? Convert.ToInt64(Prizes[e1] * twoOfAKindMultiplier) : Convert.ToInt64(Prizes[e3] * twoOfAKindMultiplier);
                 if (amount > 0)
                 {
-                    prizeWinnings = e1 == e2 ? 
-                        Convert.ToInt64(amount * await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_FIRST_2_MULTIPLIER, 2.5)) : 
-                        Convert.ToInt64(amount * await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_LAST_2_MULTIPLIER, 1.5));
+                    var multiplierSetting = e1 == e2 ? GAMESETTING_FIRST_2_MULTIPLIER : GAMESETTING_LAST_2_MULTIPLIER;
+                    var defaultMultiplier = e1 == e2 ? 2.5 : 1.5;
+                    var multiplier = MaxBetSettings.ClampPayoutMultiplier(
+                        await gameSettingsService.GetDoubleSetting(ModuleName, multiplierSetting, defaultMultiplier));
+                    prizeWinnings = Convert.ToInt64(amount * multiplier);
                 }
                 
                 message += string.Format("{0} {1}. ", prizeWinnings.ToString("N0"), pointType.Name);
@@ -161,7 +166,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 case MaxBet.ParseResult.ToMuch:
                 case MaxBet.ParseResult.ToLow:
                     await ServiceBackbone.ResponseWithMessage(e,
-                        string.Format("The max bet is {0} and must be greater then 25", LoyaltyFeature.MaxBet.ToString("N0")));
+                        string.Format("The max bet is {0} and must be greater then 25", maxBet.MaximumAllowedBet.ToString("N0")));
                     throw new SkipCooldownException();
                 case MaxBet.ParseResult.NotEnough:
                     await ServiceBackbone.ResponseWithMessage(e,
@@ -296,7 +301,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 "Hey! Don\'t worry about it! You know... being bad and all!",
                 "The tragedy of all losers is that they think they were on the verge of victory.",
                 "Hm! You should go back to playing puzzle games!",
-                "The past is the past man. If you are a loser now, then you’re a loser period.",
+                "The past is the past man. If you are a loser now, then you're a loser period.",
                 "The reason you lost is quite simple: you\'re bad!",
                 "Remember that one time during the game when it looked like you might actually win? No? Me neither.",
                 "Is that all you can do? You wouldn\'t have gone very far with that anyway.",

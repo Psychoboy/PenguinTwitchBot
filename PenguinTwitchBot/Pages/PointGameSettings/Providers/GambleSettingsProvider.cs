@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
@@ -23,7 +23,8 @@ public class GambleSettingsProvider : IGameSettingsFormProvider
             [Gamble.MINIMUM_FOR_WIN]      = await svc.GetIntSetting(Gamble.GAMENAME, Gamble.MINIMUM_FOR_WIN, 48),
             [Gamble.MINIMUM_BET]          = await svc.GetIntSetting(Gamble.GAMENAME, Gamble.MINIMUM_BET, 5),
             [Gamble.WINNING_MULTIPLIER]   = await svc.GetIntSetting(Gamble.GAMENAME, Gamble.WINNING_MULTIPLIER, 2),
-            [Gamble.JACKPOT_CONTRIBUTION] = await svc.GetDoubleSetting(Gamble.GAMENAME, Gamble.JACKPOT_CONTRIBUTION, 0.10),
+            [Gamble.JACKPOT_CONTRIBUTION] = Gamble.ClampJackpotContribution(
+                await svc.GetDoubleSetting(Gamble.GAMENAME, Gamble.JACKPOT_CONTRIBUTION, 0.10)),
             [Gamble.CURRENT_JACKPOT_MESSAGE] = await svc.GetStringSetting(Gamble.GAMENAME, Gamble.CURRENT_JACKPOT_MESSAGE, "The current jackpot is {Jackpot}"),
             [Gamble.INCORRECT_ARGS]       = await svc.GetStringSetting(Gamble.GAMENAME, Gamble.INCORRECT_ARGS, "To gamble, do !{Command} amount or !{Command} max/all"),
             [Gamble.INCORRECT_BET]        = await svc.GetStringSetting(Gamble.GAMENAME, Gamble.INCORRECT_BET, "The max bet is {MaxBet} {PointType} and must be greater than {MinBet} {PointType}"),
@@ -31,6 +32,7 @@ public class GambleSettingsProvider : IGameSettingsFormProvider
             [Gamble.WIN_MESSAGE]          = await svc.GetStringSetting(Gamble.GAMENAME, Gamble.WIN_MESSAGE, "{Name} rolled {Rolled} and won {Points} {PointType}!"),
             [Gamble.LOSE_MESSAGE]         = await svc.GetStringSetting(Gamble.GAMENAME, Gamble.LOSE_MESSAGE, "{Name} rolled {Rolled} and lost {Points} {PointType}"),
             [Gamble.JACKPOT_MESSAGE]      = await svc.GetStringSetting(Gamble.GAMENAME, Gamble.JACKPOT_MESSAGE, "{Name} rolled {Rolled} and won the jackpot of {Points} {PointType}!"),
+            [MaxBetSettings.GameOverrideSettingName] = await GameSettingsProviderHelpers.LoadMaxBetOverrideAsync(serviceProvider, Gamble.GAMENAME),
         };
     }
 
@@ -50,8 +52,21 @@ public class GambleSettingsProvider : IGameSettingsFormProvider
             svc.SetStringSetting(Gamble.GAMENAME, Gamble.NOT_ENOUGH, Get<string>(values, Gamble.NOT_ENOUGH)),
             svc.SetStringSetting(Gamble.GAMENAME, Gamble.WIN_MESSAGE, Get<string>(values, Gamble.WIN_MESSAGE)),
             svc.SetStringSetting(Gamble.GAMENAME, Gamble.LOSE_MESSAGE, Get<string>(values, Gamble.LOSE_MESSAGE)),
-            svc.SetStringSetting(Gamble.GAMENAME, Gamble.JACKPOT_MESSAGE, Get<string>(values, Gamble.JACKPOT_MESSAGE))
+            svc.SetStringSetting(Gamble.GAMENAME, Gamble.JACKPOT_MESSAGE, Get<string>(values, Gamble.JACKPOT_MESSAGE)),
+            GameSettingsProviderHelpers.SaveMaxBetOverrideAsync(serviceProvider, values, Gamble.GAMENAME)
         );
+    }
+
+    public string? Validate(Dictionary<string, object?> values)
+    {
+        if (values.ContainsKey(Gamble.MINIMUM_BET) && Get<int>(values, Gamble.MINIMUM_BET) < 1)
+            return "Minimum bet must be at least 1.";
+        if (values.ContainsKey(Gamble.WINNING_MULTIPLIER) && Get<int>(values, Gamble.WINNING_MULTIPLIER) < 1)
+            return "Win multiplier must be at least 1.";
+        var contribution = Get<double>(values, Gamble.JACKPOT_CONTRIBUTION);
+        if (!double.IsFinite(contribution) || contribution is < 0d or > 1d)
+            return "Jackpot contribution must be between 0 and 1 (0% to 100%).";
+        return ValidateMaxBetOverride(values);
     }
 
     public List<GameSettingSection> GetSections() =>
@@ -69,6 +84,7 @@ public class GambleSettingsProvider : IGameSettingsFormProvider
                 new() { Key = Gamble.MINIMUM_BET, Label = "Minimum Bet", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Minimum bet allowed" },
                 new() { Key = Gamble.WINNING_MULTIPLIER, Label = "Win Multiplier", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Prize = bet × multiplier" },
                 new() { Key = Gamble.JACKPOT_CONTRIBUTION, Label = "Jackpot Contribution", FieldType = GameSettingFieldType.Double, Min = 0.0, Max = 1.0, HelperText = "Fraction of each bet added to jackpot (0.10 = 10%)" },
+                GameSettingsProviderHelpers.MaxBetOverrideField(),
             ]
         },
         new()

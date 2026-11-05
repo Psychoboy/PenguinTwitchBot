@@ -1,0 +1,159 @@
+@page "/games/raffles"
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Core.Points
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@using PenguinTwitchBot.Pages.Games
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IActionManagementService ActionManagementService
+@inject IPointsSystem PointSystem
+@inject ISnackbar Snackbar
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Raffles</PageTitle>
+
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+            <MudButton Href="/games" StartIcon="@Icons.Material.Filled.ArrowBack">All Games</MudButton>
+            <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Primary" Size="Size.Large" />
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h5">Raffle Defaults</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Choose the default point type used by each saved raffle start action.</MudText>
+            </MudStack>
+        </MudStack>
+
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+            A point-type override saved on a Raffle Start action takes precedence. Changing a default here does not edit actions or affect raffles that are already running.
+        </MudAlert>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else if (_entries.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No saved Raffle Start actions were found.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="_entries" Dense="true" Hover="true" Breakpoint="Breakpoint.Md">
+                <HeaderContent>
+                    <MudTh>Raffle</MudTh>
+                    <MudTh>Point Game</MudTh>
+                    <MudTh>Action Override</MudTh>
+                    <MudTh>Default Point Type</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Raffle">@string.Join(", ", context.Definition.RaffleNames)</MudTd>
+                    <MudTd DataLabel="Point Game"><code>@context.Definition.PointGameName</code></MudTd>
+                    <MudTd DataLabel="Action Override">
+                        @if (context.Definition.HasExplicitPointTypeOverride)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">One or more starts override</MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">None</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Default Point Type">
+                        @if (context.Definition.IsDynamic)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Variable-based; set the mapping in the action</MudText>
+                        }
+                        else if (context.Definition.IsOwnedByOtherSettingsSurface)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Shared mapping; change it in its owning settings</MudText>
+                        }
+                        else
+                        {
+                            <MudSelect T="Guid?" Value="@context.PointTypeId"
+                                       ValueChanged="@((Guid? pointTypeId) => context.PointTypeId = pointTypeId)"
+                                       Disabled="@(_pointTypes.Count == 0 || context.Saving)" Dense="true" Variant="Variant.Outlined">
+                                @foreach (var pointType in _pointTypes)
+                                {
+                                    <MudSelectItem T="Guid?" Value="@((Guid?)pointType.Id)">@pointType.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@(context.Definition.IsDynamic || context.Definition.IsOwnedByOtherSettingsSurface || !context.PointTypeId.HasValue || context.Saving)"
+                                   OnClick="@(() => SaveAsync(context))">
+                            @(context.Saving ? "Saving..." : "Save")
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudContainer>
+
+@code {
+    private List<RafflePointGameDefaultEntry> _entries = [];
+    private List<PointType> _pointTypes = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var actionsTask = ActionManagementService.GetAllActionsAsync();
+            var mappingsTask = PointSystem.GetPointTypesForGames();
+            var pointTypesTask = PointSystem.GetPointTypes();
+            await Task.WhenAll(actionsTask, mappingsTask, pointTypesTask);
+
+            var mappings = mappingsTask.Result;
+            _pointTypes = pointTypesTask.Result.ToList();
+            var defaultPointTypeId = _pointTypes.FirstOrDefault()?.Id;
+            _entries = RafflePointGameDefaults.Discover(actionsTask.Result)
+                .Select(definition => new RafflePointGameDefaultEntry(
+                    definition,
+                    mappings.FirstOrDefault(mapping => string.Equals(
+                        mapping.Setting.GameName,
+                        definition.PointGameName,
+                        StringComparison.OrdinalIgnoreCase))?.PointType.Id ?? defaultPointTypeId))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Could not load raffle defaults: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync(RafflePointGameDefaultEntry entry)
+    {
+        if (entry.Definition.IsDynamic || entry.Definition.IsOwnedByOtherSettingsSurface ||
+            entry.PointTypeId is not { } pointTypeId || entry.Saving)
+        {
+            return;
+        }
+
+        entry.Saving = true;
+        try
+        {
+            await PointSystem.SetPointTypeForGame(entry.Definition.PointGameName, pointTypeId);
+            Snackbar.Add($"Default point type for {entry.Definition.PointGameName} saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Could not save raffle default: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            entry.Saving = false;
+        }
+    }
+
+    private sealed class RafflePointGameDefaultEntry(RafflePointGameDefault definition, Guid? pointTypeId)
+    {
+        public RafflePointGameDefault Definition { get; } = definition;
+        public Guid? PointTypeId { get; set; } = pointTypeId;
+        public bool Saving { get; set; }
+    }
+}

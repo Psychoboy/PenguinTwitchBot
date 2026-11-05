@@ -1,0 +1,95 @@
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.PastyGames
+@using PenguinTwitchBot.Bot.Core.Points
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@inject IGameSettingsService GameSettingsService
+@inject IPointsSystem PointSystem
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="3" Class="pa-4">
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        Set the default wager cap for each point type when a game uses 0 for its max limit. Individual games can override this default with a higher or lower value. Dice Roll awards payouts without a wager. Existing setups inherit the previous global default until a point-type value is saved.
+    </MudText>
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        <MudTable Items="_entries" Dense="true" Hover="true" Breakpoint="Breakpoint.Md">
+            <HeaderContent>
+                <MudTh>Point Type</MudTh>
+                <MudTh>Default Max Bet</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Point Type"><b>@context.PointType.Name</b></MudTd>
+                <MudTd DataLabel="Default Max Bet">
+                    <MudNumericField T="long" @bind-Value="context.MaximumBet" Min="1" Max="@MaxBetSettings.MaximumAllowedBet" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Save"
+                               Disabled="@context.Saving" OnClick="@(() => SaveAsync(context))">
+                        @(context.Saving ? "Saving..." : "Save")
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudStack>
+
+@code {
+    private List<PointTypeMaxBetEntry> _entries = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var pointTypes = await PointSystem.GetPointTypes();
+            foreach (var pointType in pointTypes)
+            {
+                var maximumBet = await MaxBetSettings.GetForPointTypeAsync(GameSettingsService, pointType.Id);
+                _entries.Add(new PointTypeMaxBetEntry(pointType, maximumBet));
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Could not load max bet settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync(PointTypeMaxBetEntry entry)
+    {
+        if (entry.Saving)
+        {
+            return;
+        }
+
+        entry.Saving = true;
+        try
+        {
+            await MaxBetSettings.SetForPointTypeAsync(GameSettingsService, entry.PointType.Id, entry.MaximumBet);
+            Snackbar.Add($"Max Bet for {entry.PointType.Name} saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Could not save Max Bet: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            entry.Saving = false;
+        }
+    }
+
+    private sealed class PointTypeMaxBetEntry(PointType pointType, long maximumBet)
+    {
+        public PointType PointType { get; } = pointType;
+        public long MaximumBet { get; set; } = maximumBet;
+        public bool Saving { get; set; }
+    }
+}

@@ -26,7 +26,6 @@ namespace PenguinTwitchBot.Bot.Core.Points
 
         ) : BaseCommandService(serviceBackbone, commandHandler, "PointsSystem", dispatcher), IPointsSystem, IHostedService
     {
-        public static Int64 MaxBet { get; } = 200000069;
         public static bool IncludeSubsInActive = true;
         private static readonly KeyedSemaphore UserLocks = new();
         private static readonly Prometheus.Gauge NumberOfPoints = Prometheus.Metrics.CreateGauge("points", "Number of points", ["username", "pointTypeId"]);

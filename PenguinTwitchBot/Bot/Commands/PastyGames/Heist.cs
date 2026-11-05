@@ -100,29 +100,22 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
 
             var amountStr = e.Args.First();
+            var maxBetLimit = await MaxBetSettings.GetForGameAsync(pointsSystem, gameSettingsService, ModuleName);
             var amount = 0L;
             if (amountStr.Equals("all", StringComparison.OrdinalIgnoreCase) ||
                amountStr.Equals("max", StringComparison.OrdinalIgnoreCase))
             {
-                amount = await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet);
+                amount = await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, maxBetLimit);
             }
             else if (amountStr.Contains('%'))
             {
-                try
-                {
-                    var result = new Percentage(amountStr);
-                    if (result.Value <= 0 || result.Value > 100)
-                    {
-                        await SendInvalidArgsMessage(e, e.Command);
-                        throw new SkipCooldownException();
-                    }
-                    amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet) * result.Value);
-                }
-                catch
+                if (!MaxBetCalculator.TryParseBetPercentage(amountStr, out var fraction))
                 {
                     await SendInvalidArgsMessage(e, e.Command);
                     throw new SkipCooldownException();
                 }
+
+                amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, maxBetLimit) * fraction);
             }
             else if (!Int64.TryParse(amountStr, out amount))
             {
@@ -131,11 +124,11 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
             var pointType = await pointsSystem.GetPointTypeForGame(GAMENAME);
             var minBet = await gameSettingsService.GetIntSetting(GAMENAME, MINBET, 10);
-            if (amount > LoyaltyFeature.MaxBet || amount < minBet)
+            if (amount > maxBetLimit || amount < minBet)
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, INVALIDBET, "The max amount to join the heist is {MaxBet} {PointType} and must be greater then {MinBet} {PointType}");
                 message = message
-                    .Replace("{MaxBet}", LoyaltyFeature.MaxBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{MaxBet}", maxBetLimit.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{MinBet}", minBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.ResponseWithMessage(e, message); //INVALIDBET
@@ -279,7 +272,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 var payouts = new List<string>();
                 foreach (var participant in Survivors)
                 {
-                    var winMultiplier = await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5);
+                    var winMultiplier = MaxBetSettings.ClampPayoutMultiplier(
+                        await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5), 1d);
                     var pay = Convert.ToInt64(participant.Bet * winMultiplier);
                     await pointsSystem.AddPointsByUsernameAndGame(participant.Name, ModuleName, participant.Bet + pay);
                     var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
@@ -382,7 +376,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             // Trigger events for each survivor
             foreach (var survivor in Survivors)
             {
-                var winMultiplier = await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5);
+                var winMultiplier = MaxBetSettings.ClampPayoutMultiplier(
+                    await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5), 1d);
                 var winnings = Convert.ToInt64(survivor.Bet * winMultiplier);
 
                 await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(

@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
@@ -21,7 +21,7 @@ public class HeistSettingsProvider : IGameSettingsFormProvider
             [Heist.COOLDOWN]        = await svc.GetIntSetting(Heist.GAMENAME, Heist.COOLDOWN, 300),
             [Heist.JOINTIME]        = await svc.GetIntSetting(Heist.GAMENAME, Heist.JOINTIME, 300),
             [Heist.MINBET]          = await svc.GetIntSetting(Heist.GAMENAME, Heist.MINBET, 100),
-            [Heist.WIN_MULTIPLIER]  = await svc.GetDoubleSetting(Heist.GAMENAME, Heist.WIN_MULTIPLIER, 1.5),
+            [Heist.WIN_MULTIPLIER]  = MaxBetSettings.ClampPayoutMultiplier(await svc.GetDoubleSetting(Heist.GAMENAME, Heist.WIN_MULTIPLIER, 1.5), 1d),
             [Heist.STAGEONE]        = await svc.GetStringSetting(Heist.GAMENAME, Heist.STAGEONE, "The crew gets ready to steal some points!"),
             [Heist.STAGETWO]        = await svc.GetStringSetting(Heist.GAMENAME, Heist.STAGETWO, "Everyone sharpens their beaks and sneaks in!"),
             [Heist.STAGETHREE]      = await svc.GetStringSetting(Heist.GAMENAME, Heist.STAGETHREE, "Look out! {Caught} got caught!"),
@@ -35,7 +35,16 @@ public class HeistSettingsProvider : IGameSettingsFormProvider
             [Heist.INVALIDARGS]     = await svc.GetStringSetting(Heist.GAMENAME, Heist.INVALIDARGS, "To enter/start a heist do !{Command} AMOUNT/ALL/MAX/%"),
             [Heist.INVALIDBET]      = await svc.GetStringSetting(Heist.GAMENAME, Heist.INVALIDBET, "The max is {MaxBet} {PointType} and must be greater than {MinBet} {PointType}"),
             [Heist.NOTENOUGHPOINTS] = await svc.GetStringSetting(Heist.GAMENAME, Heist.NOTENOUGHPOINTS, "Sorry you don't have enough {PointType} to enter the heist."),
+            [MaxBetSettings.GameOverrideSettingName] = await GameSettingsProviderHelpers.LoadMaxBetOverrideAsync(serviceProvider, Heist.GAMENAME),
         };
+    }
+
+    public string? Validate(Dictionary<string, object?> values)
+    {
+        var multiplier = Get<double>(values, Heist.WIN_MULTIPLIER);
+        if (!double.IsFinite(multiplier) || multiplier is < 1d or > MaxBetSettings.MaximumSafePayoutMultiplier)
+            return $"Win multiplier must be between 1 and {MaxBetSettings.MaximumSafePayoutMultiplier:N0}.";
+        return ValidateMaxBetOverride(values);
     }
 
     public async Task SaveAsync(IServiceProvider serviceProvider, Dictionary<string, object?> values)
@@ -58,7 +67,8 @@ public class HeistSettingsProvider : IGameSettingsFormProvider
             svc.SaveSetting(Heist.GAMENAME, Heist.ALREADYJOINED, Get<string>(values, Heist.ALREADYJOINED)),
             svc.SaveSetting(Heist.GAMENAME, Heist.INVALIDARGS, Get<string>(values, Heist.INVALIDARGS)),
             svc.SaveSetting(Heist.GAMENAME, Heist.INVALIDBET, Get<string>(values, Heist.INVALIDBET)),
-            svc.SaveSetting(Heist.GAMENAME, Heist.NOTENOUGHPOINTS, Get<string>(values, Heist.NOTENOUGHPOINTS))
+            svc.SaveSetting(Heist.GAMENAME, Heist.NOTENOUGHPOINTS, Get<string>(values, Heist.NOTENOUGHPOINTS)),
+            GameSettingsProviderHelpers.SaveMaxBetOverrideAsync(serviceProvider, values, Heist.GAMENAME)
         );
     }
 
@@ -74,7 +84,8 @@ public class HeistSettingsProvider : IGameSettingsFormProvider
                 new() { Key = Heist.COOLDOWN, Label = "Cooldown (seconds)", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Seconds between games" },
                 new() { Key = Heist.JOINTIME, Label = "Join Window (seconds)", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Seconds viewers can join" },
                 new() { Key = Heist.MINBET, Label = "Minimum Bet", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Minimum amount to join" },
-                new() { Key = Heist.WIN_MULTIPLIER, Label = "Win Multiplier", FieldType = GameSettingFieldType.Double, Min = 1.0, HelperText = "Survivor payout multiplier" },
+                new() { Key = Heist.WIN_MULTIPLIER, Label = "Win Multiplier", FieldType = GameSettingFieldType.Double, Min = 1.0, Max = MaxBetSettings.MaximumSafePayoutMultiplier, HelperText = "Survivor payout multiplier" },
+                GameSettingsProviderHelpers.MaxBetOverrideField(),
             ]
         },
         new()
