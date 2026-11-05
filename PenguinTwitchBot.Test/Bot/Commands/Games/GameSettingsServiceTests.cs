@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Database.Bot.Models.Games;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Games
@@ -51,6 +52,34 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 x.SettingName == "giveawaymontecarlofairnessenabled" &&
                 x.SettingBoolValue));
             await unitOfWork.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task GetDefaultPointType_UsesDeterministicNameThenIdOrdering()
+        {
+            var logger = Substitute.For<ILogger<GameSettingsService>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var unitOfWork = Substitute.For<IUnitOfWork>();
+            var pointTypesRepository = Substitute.For<IPointTypesRepository>();
+            var cache = new MemoryCache(new MemoryCacheOptions());
+            var zulu = new PointType { Id = Guid.Parse("00000000-0000-0000-0000-000000000003"), Name = "Zulu" };
+            var alphaHighId = new PointType { Id = Guid.Parse("00000000-0000-0000-0000-000000000002"), Name = "alpha" };
+            var alphaLowId = new PointType { Id = Guid.Parse("00000000-0000-0000-0000-000000000001"), Name = "Alpha" };
+
+            scopeFactory.CreateScope().Returns(scope);
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(unitOfWork);
+            unitOfWork.PointTypes.Returns(pointTypesRepository);
+            pointTypesRepository.GetAllAsync()
+                .Returns(Task.FromResult<IEnumerable<PointType>>([zulu, alphaHighId, alphaLowId]));
+
+            var service = new GameSettingsService(logger, scopeFactory, cache);
+
+            var result = await service.GetDefaultPointType();
+
+            Assert.Same(alphaLowId, result);
         }
     }
 }

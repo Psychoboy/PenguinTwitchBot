@@ -44,16 +44,18 @@
 @code {
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    [Inject] IGameSettingsService gameSettingsService { get; set; } = default!;
     private IReadOnlyList<MiscPointAssignment> PointSettings { get; set; } = [];
 
     protected override async Task OnInitializedAsync()
     {
         var assignmentsTask = pointSystem.GetPointTypesForGames();
         var pointTypesTask = pointSystem.GetPointTypes();
-        await Task.WhenAll(assignmentsTask, pointTypesTask);
+        var defaultPointTypeTask = gameSettingsService.GetDefaultPointType();
+        await Task.WhenAll(assignmentsTask, pointTypesTask, defaultPointTypeTask);
         var pointTypes = pointTypesTask.Result.ToList();
         PointTypes = pointTypes;
-        PointSettings = MiscPointAssignmentFilter.Filter(assignmentsTask.Result, pointTypes.FirstOrDefault());
+        PointSettings = MiscPointAssignmentFilter.Filter(assignmentsTask.Result, defaultPointTypeTask.Result);
     }
 
     private async void ItemHasBeenCommitted(object element)

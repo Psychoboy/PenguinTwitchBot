@@ -12,6 +12,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         Task<int> GetIntSetting(string gameName, string settingName, int defaultValue);
         Task<List<string>> GetStringListSetting(string gameName, string settingName, List<string> defaultValue);
         Task<string> GetStringSetting(string gameName, string settingName, string defaultValue);
+        Task<PointType> GetDefaultPointType();
         Task SetBoolSetting(string gameName, string settingName, bool value);
         Task SetDoubleSetting(string gameName, string settingName, double value);
         Task SetIntSetting(string gameName, string settingName, int value);
