@@ -140,6 +140,25 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         }
 
         [Fact]
+        public async Task ResolveVariablesAsync_ManagePointsIncludesRoundedAmountVariable()
+        {
+            var result = await _resolver.ResolveVariablesAsync(
+                currentActionId: null,
+                triggers: null,
+                previousSubActions: new List<SubActionType>
+                {
+                    new ManagePointsType { Amount = "24.6" }
+                },
+                isCatchSubAction: false);
+
+            var amountVariable = result.FirstOrDefault(v => v.Name.Equals("ManagePointsAmount", System.StringComparison.OrdinalIgnoreCase));
+
+            Assert.NotNull(amountVariable);
+            Assert.Equal("25", amountVariable.ExampleValue);
+            Assert.Equal("Step 1", amountVariable.Source);
+        }
+
+        [Fact]
         public async Task ResolveVariablesAsync_InspectsLogicIfElseBranches()
         {
             var ifElseSubAction = new LogicIfElseType
