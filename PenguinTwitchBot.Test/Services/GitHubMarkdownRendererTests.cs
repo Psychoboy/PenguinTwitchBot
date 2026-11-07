@@ -1,4 +1,7 @@
 using PenguinTwitchBot.Helpers;
+using Markdig;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Services;
@@ -11,6 +14,64 @@ public class GitHubMarkdownRendererTests
         Assert.Equal(string.Empty, GitHubMarkdownRenderer.RenderToHtml(null));
         Assert.Equal(string.Empty, GitHubMarkdownRenderer.RenderToHtml(""));
         Assert.Equal(string.Empty, GitHubMarkdownRenderer.RenderToHtml("   "));
+    }
+
+    [Fact]
+    public void SafeRenderingSupportsEditorMarkdownAndBlocksUnsafeContent()
+    {
+        var markdown = "| Name | Value |\n| --- | --- |\n| **Hi** | :star: |\n\n" +
+            "- [x] Done\n\n[icon:star #ffa800 1.5em]\n\n" +
+            "![image](/media/picture.png) [page](/help) [bad](javascript:alert)\n\n<script>alert(1)</script>";
+        var html = GitHubMarkdownRenderer.RenderToHtml(markdown, safe: true);
+        Assert.Contains("<table>", html);
+        Assert.Contains("<strong>Hi</strong>", html);
+        Assert.Contains("⭐", html);
+        Assert.Contains("type=\"checkbox\"", html);
+        Assert.Contains("<svg", html);
+        Assert.Contains("src=\"/media/picture.png\"", html);
+        Assert.Contains("href=\"/help\"", html);
+        Assert.DoesNotContain("href=\"javascript:", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<script>", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("[link](https://example.com){onclick=alert(1)}", "onclick")]
+    [InlineData("![image](/media/picture.png){onerror=alert(1)}", "onerror")]
+    public void SafeRenderingDoesNotApplyGenericAttributes(string markdown, string attribute)
+    {
+        var html = GitHubMarkdownRenderer.RenderToHtml(markdown, safe: true);
+        Assert.Contains($" {attribute}=", GitHubMarkdownRenderer.RenderToHtml(markdown), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(" onclick=", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(" onerror=", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("<javascript:alert(1)>")]
+    [InlineData("<data:text/html,hello>")]
+    [InlineData("<mailto:someone@example.com>")]
+    [InlineData("<someone@example.com>")]
+    public void SafeRenderingDoesNotLinkUnsafeAutolinks(string markdown)
+    {
+        var html = GitHubMarkdownRenderer.RenderToHtml(markdown, safe: true);
+        Assert.DoesNotContain("<a ", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SafePipelineParsesAndSanitizesAutolinkNodes()
+    {
+        var pipeline = (MarkdownPipeline)typeof(GitHubMarkdownRenderer)
+            .GetField("SafePipeline", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .GetValue(null)!;
+        var document = Markdown.Parse("<javascript:alert(1)>", pipeline);
+        Assert.Contains(document.Descendants<AutolinkInline>(), link => link.Url == "javascript:alert(1)");
+        Assert.DoesNotContain("<a ", GitHubMarkdownRenderer.RenderToHtml("<javascript:alert(1)>", safe: true), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SafeRenderingKeepsHttpsAutolinks()
+    {
+        var html = GitHubMarkdownRenderer.RenderToHtml("<https://example.com>", safe: true);
+        Assert.Contains("href=\"https://example.com\"", html);
     }
 
     [Fact]

@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Markdig;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
 
 namespace PenguinTwitchBot.Helpers;
 
@@ -9,6 +11,14 @@ public static class GitHubMarkdownRenderer
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
         .UseEmojiAndSmiley()
+        .Build();
+    private static readonly MarkdownPipeline SafePipeline = new MarkdownPipelineBuilder()
+        .UseAutoLinks()
+        .UsePipeTables()
+        .UseTaskLists()
+        .UseEmphasisExtras()
+        .UseEmojiAndSmiley()
+        .DisableHtml()
         .Build();
 
     private static readonly Regex AnchorRegex = new(
@@ -35,20 +45,43 @@ public static class GitHubMarkdownRenderer
         @"(?<codeBlock><(?<tag>pre|code)\b[^>]*>[\s\S]*?</\k<tag>>)|(?<bracket>\[icon:(?<name>[a-zA-Z0-9_.:/-]+)(?<args>[^\]]*)\])|(?<colon>:icon:(?<cname>[a-zA-Z0-9_./-]+)(?::(?<color>[^:\s]+))?(?::(?<size>[^:\s]+))?(?::(?<style>[^:\s]+))?:)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public static string RenderToHtml(string? markdown)
+    /// <summary>Renders GitHub-style Markdown, optionally disabling raw HTML and unsafe links.</summary>
+    public static string RenderToHtml(string? markdown, bool safe = false)
     {
         if (string.IsNullOrWhiteSpace(markdown))
         {
             return string.Empty;
         }
 
-        var html = Markdown.ToHtml(markdown, Pipeline);
+        string html;
+        if (safe)
+        {
+            var document = Markdown.Parse(markdown, SafePipeline);
+            foreach (var link in document.Descendants<LinkInline>())
+            {
+                if (!IsSafeLink(link.Url)) link.Url = "";
+            }
+            foreach (var autolink in document.Descendants<AutolinkInline>().ToList())
+            {
+                if (autolink.IsEmail || !IsSafeLink(autolink.Url))
+                    autolink.ReplaceBy(new LiteralInline(autolink.Url));
+            }
+            using var writer = new StringWriter();
+            var renderer = new Markdig.Renderers.HtmlRenderer(writer);
+            SafePipeline.Setup(renderer);
+            renderer.Render(document);
+            html = writer.ToString();
+        }
+        else
+        {
+            html = Markdown.ToHtml(markdown, Pipeline);
+        }
 
         // Transform GitHub Alerts: > [!NOTE], > [!TIP], > [!IMPORTANT], > [!WARNING], > [!CAUTION]
         html = TransformAlerts(html);
 
         // Transform Custom Icons: [icon:person #3299ff 1.5em] or :icon:person:#3299ff:1.5em:
-        html = TransformIcons(html);
+        html = TransformIcons(html, safe);
 
         // Ensure all external anchor tags have target="_blank" and rel="noopener noreferrer"
         html = EnsureExternalLinks(html);
@@ -56,7 +89,18 @@ public static class GitHubMarkdownRenderer
         return html;
     }
 
-    private static string TransformIcons(string html)
+    /// <summary>Allows relative paths and HTTP(S) URLs without protocol-relative or control-character escapes.</summary>
+    private static bool IsSafeLink(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || url != url.Trim() || url.Any(char.IsControl) || url.Contains('\\')) return false;
+        if (url.StartsWith('/')) return !url.StartsWith("//");
+        if (!Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out var uri)) return false;
+        if (uri.IsAbsoluteUri) return uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps;
+        return true;
+    }
+
+    /// <summary>Expands supported icon tokens outside code blocks, validating options in safe mode.</summary>
+    private static string TransformIcons(string html, bool safe)
     {
         return CodeOrIconRegex.Replace(html, match =>
         {
@@ -103,6 +147,7 @@ public static class GitHubMarkdownRenderer
                     }
                 }
 
+                if (safe && !SafeIconOptions(color, size)) return match.Value;
                 var svg = MarkdownIconResolver.RenderSvg(name, color, size, style);
                 return !string.IsNullOrEmpty(svg) ? svg : match.Value;
             }
@@ -114,6 +159,7 @@ public static class GitHubMarkdownRenderer
                 var size = match.Groups["size"].Success ? match.Groups["size"].Value : null;
                 var style = match.Groups["style"].Success ? match.Groups["style"].Value : null;
 
+                if (safe && !SafeIconOptions(color, size)) return match.Value;
                 var svg = MarkdownIconResolver.RenderSvg(name, color, size, style);
                 return !string.IsNullOrEmpty(svg) ? svg : match.Value;
             }
@@ -121,6 +167,11 @@ public static class GitHubMarkdownRenderer
             return match.Value;
         });
     }
+
+    /// <summary>Restricts icon attributes to simple colors and sizes in safe mode.</summary>
+    private static bool SafeIconOptions(string? color, string? size) =>
+        (string.IsNullOrEmpty(color) || Regex.IsMatch(color, @"^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$")) &&
+        (string.IsNullOrEmpty(size) || Regex.IsMatch(size, @"^\d+(\.\d+)?(px|em|rem|%)?$"));
 
     private static bool IsColorToken(string token)
     {

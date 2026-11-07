@@ -1,6 +1,10 @@
 @page "/acommands"
 @inject AuthenticationStateProvider AuthenticationStateProvider;
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias Aliases;
+@inject PenguinTwitchBot.Services.MediaUploadService MediaUploadService
+@inject IJSRuntime JSRuntime
+@inject ILogger<AudioCommands> Logger
+@implements IAsyncDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Audio Commands</PageTitle>
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
@@ -11,6 +15,7 @@
         </MudText>
 
         <MudPaper Elevation="3">
+            <div @ref="_previewContainer">
             @if (!dataLoaded)
             {
                 <MudStack Class="pa-4" Spacing="2">
@@ -35,6 +40,7 @@
                     <MudTh>Command</MudTh>
                     <MudTh>Category</MudTh>
                     <MudTh>Description</MudTh>
+                    <MudTh>Preview</MudTh>
                     <MudTh>Rank</MudTh>
                     <MudTh>Cost</MudTh>
                 </HeaderContent>
@@ -49,6 +55,18 @@
                         <MudText>@context.Category</MudText>
                     </MudTd>
                     <MudTd DataLabel="Description">@context.Description</MudTd>
+                    <MudTd DataLabel="Preview">
+                        @if (!string.IsNullOrEmpty(context.AudioUrl))
+                        {
+                            <div class="audio-preview-control" data-command="@context.Command">
+                                <button type="button" class="audio-preview-button" aria-label="@($"Play preview of {context.Command}")" aria-pressed="false" title="Play preview">
+                                    <span class="audio-preview-play"><MudIcon Icon="@Icons.Material.Filled.PlayArrow" /></span>
+                                    <span class="audio-preview-pause"><MudIcon Icon="@Icons.Material.Filled.Pause" /></span>
+                                </button>
+                                <audio hidden preload="none" src="@context.AudioUrl"></audio>
+                            </div>
+                        }
+                    </MudTd>
                     <MudTd DataLabel="Rank">
                         @if (context.Rank == Rank.Viewer)
                         {
@@ -114,13 +132,34 @@
                 </PagerContent>
             </MudTable>
             }
+            </div>
         </MudPaper>
     </MudStack>
 </MudContainer>
+<style>
+    .audio-preview-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--mud-palette-primary);
+        cursor: pointer;
+    }
+    .audio-preview-button:hover, .audio-preview-button:focus-visible { background: var(--mud-palette-action-default-hover); }
+    .audio-preview-button span { display: inline-flex; }
+    .audio-preview-button .audio-preview-pause, .audio-preview-button[aria-pressed="true"] .audio-preview-play { display: none; }
+    .audio-preview-button[aria-pressed="true"] .audio-preview-pause { display: inline-flex; }
+</style>
 @code {
     private List<CommandModel> commands = new();
     private string searchString1 = "";
     private bool dataLoaded = false;
+    private ElementReference _previewContainer;
+    private IJSObjectReference? _previewModule;
 
     [Inject]
     private PenguinTwitchBot.Bot.Commands.AudioCommand.AudioCommands AudioCommandService { get; set; } = default!;
@@ -133,12 +172,42 @@
         public Rank Rank { get; set; } = Rank.Viewer;
         public int Cost { get; set; }
         public string Description { get; set; } = "";
+        public string? AudioUrl { get; set; }
         public string Category { get; set; } = "";
         public string? SpecificUser { get; set; } = "";
         public List<string> SpecificUsers { get; set; } = new List<string>();
 
     }
 
+    /// <summary>Initializes browser-local previews without disrupting the page if JavaScript is unavailable.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _previewModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/viewer-audio-preview.js");
+            await _previewModule.InvokeVoidAsync("initialize", _previewContainer);
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException exception) { Logger.LogWarning(exception, "Unable to initialize audio previews"); }
+    }
+
+    /// <summary>Stops browser previews and releases their JavaScript module.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (_previewModule == null) return;
+        try
+        {
+            await _previewModule.InvokeVoidAsync("dispose", _previewContainer);
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException exception) { Logger.LogWarning(exception, "Unable to clean up audio previews"); }
+        try { await _previewModule.DisposeAsync(); }
+        catch (JSDisconnectedException) { }
+        catch (JSException exception) { Logger.LogWarning(exception, "Unable to release audio preview module"); }
+    }
+
+    /// <summary>Loads visible audio commands and aliases, filtered for the current viewer.</summary>
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider
@@ -156,6 +225,7 @@
                     Rank = command.Value.MinimumRank,
                     Cost = command.Value.Cost,
                     Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.AudioFile : command.Value.Description,
+                    AudioUrl = MediaUploadService.ResolveAudioUrl(command.Value.AudioFile),
                     Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Sounds" : command.Value.Category
                 });
         }
@@ -173,6 +243,7 @@
                 Rank = tempCommand.Rank,
                 Cost = tempCommand.Cost,
                 Description = tempCommand.Description,
+                AudioUrl = tempCommand.AudioUrl,
                 Category = tempCommand.Category,
                 SpecificUser = tempCommand.SpecificUser,
                 SpecificUsers = tempCommand.SpecificUsers
