@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Bunit;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -10,6 +11,7 @@ using Microsoft.JSInterop;
 using MudBlazor.Services;
 using NSubstitute;
 using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Circuit;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Services;
 using PenguinTwitchBot.Shared;
@@ -87,6 +89,7 @@ public sealed class AnnouncementServiceTests : IDisposable
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         context.Services.AddSingleton(_service);
+        context.Services.AddSingleton<CircuitHandler>(CreateCircuitHandler());
         context.AddAuthorization().SetNotAuthorized();
         var banner = context.Render<AnnouncementBanners>();
         await banner.WaitForAssertionAsync(() => Assert.Contains("<strong>Important</strong>", banner.Markup));
@@ -109,6 +112,7 @@ public sealed class AnnouncementServiceTests : IDisposable
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         context.Services.AddSingleton(_service);
+        context.Services.AddSingleton<CircuitHandler>(CreateCircuitHandler());
         context.AddAuthorization().SetNotAuthorized();
         var banner = context.Render<AnnouncementBanners>();
         await banner.WaitForAssertionAsync(() => Assert.Contains(context.JSInterop.Invocations, invocation => invocation.Identifier == "localStorage.getItem"));
@@ -125,11 +129,12 @@ public sealed class AnnouncementServiceTests : IDisposable
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         context.Services.AddSingleton(_service);
+        context.Services.AddSingleton<CircuitHandler>(CreateCircuitHandler());
         var logger = Substitute.For<ILogger<AnnouncementBanners>>();
         context.Services.AddSingleton(logger);
         context.AddAuthorization().SetNotAuthorized();
         var banner = context.Render<AnnouncementBanners>();
-        await banner.WaitForAssertionAsync(() => Assert.True(HasWarning(logger, "browser storage did not respond")));
+        await banner.WaitForAssertionAsync(() => Assert.True(HasWarning(logger, "browser storage call was canceled or timed out")));
     }
 
     [Fact]
@@ -140,6 +145,7 @@ public sealed class AnnouncementServiceTests : IDisposable
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         context.Services.AddSingleton(_service);
+        context.Services.AddSingleton<CircuitHandler>(CreateCircuitHandler());
         var logger = Substitute.For<ILogger<AnnouncementBanners>>();
         context.Services.AddSingleton(logger);
         var runtime = Substitute.For<IJSRuntime>();
@@ -158,7 +164,49 @@ public sealed class AnnouncementServiceTests : IDisposable
         await context.DisposeAsync();
         Assert.True(pending.Task.IsCanceled);
         Assert.False(HasWarning(logger, "Unable to load announcements"));
-        Assert.False(HasWarning(logger, "browser storage did not respond"));
+        Assert.False(HasWarning(logger, "browser storage call was canceled or timed out"));
+    }
+
+    [Fact]
+    public async Task DisconnectedCircuitCancelsRefreshAndReloadsDismissalsOnReconnect()
+    {
+        var first = new Announcement { Message = "Previously dismissed" };
+        await _service.SaveAsync(Streamer, first);
+        await using var context = new BunitContext();
+        context.Services.AddMudServices();
+        context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        context.Services.AddSingleton(_service);
+        var handler = CreateCircuitHandler();
+        context.Services.AddSingleton<CircuitHandler>(handler);
+        var logger = Substitute.For<ILogger<AnnouncementBanners>>();
+        context.Services.AddSingleton(logger);
+        var runtime = Substitute.For<IJSRuntime>();
+        var pending = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        runtime.InvokeAsync<string?>("localStorage.getItem", Arg.Any<CancellationToken>(), Arg.Any<object?[]>())
+            .Returns(call =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    var token = call.Arg<CancellationToken>();
+                    token.Register(() => pending.TrySetCanceled(token));
+                    return new ValueTask<string?>(pending.Task);
+                }
+                var key = call.Arg<object?[]>()![0]!.ToString()!;
+                return ValueTask.FromResult<string?>(key.Contains(first.Revision.ToString()) ? "dismissed" : null);
+            });
+        context.Services.AddSingleton(runtime);
+        context.AddAuthorization().SetNotAuthorized();
+        var banner = context.Render<AnnouncementBanners>();
+        await banner.WaitForAssertionAsync(() => Assert.Equal(1, Volatile.Read(ref calls)));
+        SetConnectionState(handler, "SetConnectionDown");
+        Assert.True(pending.Task.IsCanceled);
+        await _service.SaveAsync(Streamer, new Announcement { Message = "Added while disconnected" });
+        Assert.Equal(1, Volatile.Read(ref calls));
+        SetConnectionState(handler, "SetConnectionUp");
+        await banner.WaitForAssertionAsync(() => Assert.Contains("Added while disconnected", banner.Markup));
+        Assert.DoesNotContain("Previously dismissed", banner.Markup);
+        Assert.False(HasWarning(logger, "browser storage call was canceled or timed out"));
     }
 
     [Fact]
@@ -172,6 +220,7 @@ public sealed class AnnouncementServiceTests : IDisposable
         context.Services.AddMudServices();
         context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         context.Services.AddSingleton(_service);
+        context.Services.AddSingleton<CircuitHandler>(CreateCircuitHandler());
         var logger = Substitute.For<ILogger<AnnouncementBanners>>();
         context.Services.AddSingleton(logger);
         var auth = context.AddAuthorization();
@@ -181,7 +230,7 @@ public sealed class AnnouncementServiceTests : IDisposable
         await banner.WaitForAssertionAsync(() => Assert.NotEmpty(banner.FindAll(".announcement-message")));
         await banner.Find("button[aria-label='Dismiss announcement']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
         Assert.Contains(announcement.Revision, await _service.GetDismissalsAsync(Viewer));
-        Assert.True(HasWarning(logger, "dismissal could not be saved in browser storage"));
+        Assert.True(HasWarning(logger, "dismissal browser storage call was canceled or timed out"));
     }
 
     [Fact]
@@ -210,6 +259,12 @@ public sealed class AnnouncementServiceTests : IDisposable
 
     private static ClaimsPrincipal User(string id, string role) => new(new ClaimsIdentity(
         [new Claim("UserId", id), new Claim(ClaimTypes.Role, role)], "test"));
+
+    private static CircuitHandlerService CreateCircuitHandler() =>
+        new(Substitute.For<ICircuitUserService>(), NullLogger<CircuitHandlerService>.Instance);
+
+    private static void SetConnectionState(CircuitHandlerService handler, string method) =>
+        typeof(CircuitHandlerService).GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(handler, null);
 
     private static bool HasWarning(ILogger<AnnouncementBanners> logger, string message) =>
         logger.ReceivedCalls().Any(call => call.GetMethodInfo().Name == "Log" &&

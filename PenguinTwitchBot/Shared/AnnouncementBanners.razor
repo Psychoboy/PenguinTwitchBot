@@ -1,12 +1,15 @@
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Server
+@using Microsoft.AspNetCore.Components.Server.Circuits
 @using Microsoft.Extensions.Options
+@using PenguinTwitchBot.Circuit
 @using PenguinTwitchBot.Services
 @inject AnnouncementService Announcements
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JSRuntime
 @inject ILogger<AnnouncementBanners> Logger
 @inject IOptions<CircuitOptions> CircuitOptions
+@inject CircuitHandler CircuitHandler
 @implements IAsyncDisposable
 
 @foreach (var announcement in _visible)
@@ -28,8 +31,14 @@
     private string _browserScope = "anonymous";
     private Task? _refreshTask;
     private bool _browserReady;
+    private CircuitHandlerService? _circuit;
 
-    protected override void OnInitialized() => Announcements.Changed += OnChanged;
+    protected override void OnInitialized()
+    {
+        _circuit = CircuitHandler as CircuitHandlerService;
+        if (_circuit != null) _circuit.ConnectionChanged += OnConnectionChanged;
+        Announcements.Changed += OnChanged;
+    }
 
     /// <summary>Loads account context and starts periodic visibility updates after browser initialization.</summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -48,6 +57,8 @@
     /// <summary>Filters active announcements against account and browser dismissals.</summary>
     private async Task RefreshAsync()
     {
+        if (_circuit?.IsConnected == false) return;
+        var connectionToken = _circuit?.ConnectionToken ?? CancellationToken.None;
         try
         {
             var announcements = await Announcements.GetAnnouncementsAsync();
@@ -57,7 +68,7 @@
             {
                 if (_cancellation.IsCancellationRequested) return;
                 string? local = null;
-                using var browserCall = CreateBrowserCallCancellation();
+                using var browserCall = CreateBrowserCallCancellation(connectionToken);
                 try { local = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", browserCall.Token, StorageKey(announcement.Revision)); }
                 catch (JSDisconnectedException) { return; }
                 catch (JSException) { }
@@ -67,10 +78,10 @@
             _visible = visible;
             StateHasChanged();
         }
-        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested || connectionToken.IsCancellationRequested) { }
         catch (OperationCanceledException exception)
         {
-            Logger.LogWarning(exception, "Announcement browser storage did not respond before the JavaScript timeout");
+            Logger.LogWarning(exception, "Announcement browser storage call was canceled or timed out for circuit {CircuitId}", _circuit?.CircuitId ?? "unknown");
         }
         catch (Exception exception)
         {
@@ -83,12 +94,16 @@
     {
         _visible.RemoveAll(item => item.Revision == announcement.Revision);
         StateHasChanged();
-        using var browserCall = CreateBrowserCallCancellation();
-        try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", browserCall.Token, StorageKey(announcement.Revision), "dismissed"); }
-        catch (JSDisconnectedException) { }
-        catch (JSException) { }
-        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested) { }
-        catch (OperationCanceledException exception) { Logger.LogWarning(exception, "Announcement dismissal could not be saved in browser storage before the JavaScript timeout"); }
+        var connectionToken = _circuit?.ConnectionToken ?? CancellationToken.None;
+        if (_circuit?.IsConnected != false)
+        {
+            using var browserCall = CreateBrowserCallCancellation(connectionToken);
+            try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", browserCall.Token, StorageKey(announcement.Revision), "dismissed"); }
+            catch (JSDisconnectedException) { }
+            catch (JSException) { }
+            catch (OperationCanceledException) when (_cancellation.IsCancellationRequested || connectionToken.IsCancellationRequested) { }
+            catch (OperationCanceledException exception) { Logger.LogWarning(exception, "Announcement dismissal browser storage call was canceled or timed out for circuit {CircuitId}", _circuit?.CircuitId ?? "unknown"); }
+        }
         try { await Announcements.DismissAsync(_user, announcement.Revision); }
         catch (Exception exception) { Logger.LogWarning(exception, "Unable to persist announcement dismissal"); }
     }
@@ -96,12 +111,17 @@
     private string StorageKey(Guid revision) => $"penguin.announcement.{_browserScope}.{revision}";
     private void OnChanged()
     {
-        if (_browserReady && !_cancellation.IsCancellationRequested) _ = InvokeAsync(RefreshAsync);
+        if (_browserReady && !_cancellation.IsCancellationRequested && _circuit?.IsConnected != false) _ = InvokeAsync(RefreshAsync);
     }
 
-    private CancellationTokenSource CreateBrowserCallCancellation()
+    private void OnConnectionChanged(bool connected)
     {
-        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token);
+        if (connected) OnChanged();
+    }
+
+    private CancellationTokenSource CreateBrowserCallCancellation(CancellationToken connectionToken)
+    {
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token, connectionToken);
         cancellation.CancelAfter(CircuitOptions.Value.JSInteropDefaultCallTimeout);
         return cancellation;
     }
@@ -130,6 +150,7 @@
     public async ValueTask DisposeAsync()
     {
         Announcements.Changed -= OnChanged;
+        if (_circuit != null) _circuit.ConnectionChanged -= OnConnectionChanged;
         await _cancellation.CancelAsync();
         if (_refreshTask != null) await _refreshTask;
         _cancellation.Dispose();
