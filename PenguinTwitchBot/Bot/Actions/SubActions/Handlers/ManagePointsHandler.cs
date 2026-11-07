@@ -26,18 +26,21 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionUserFacingException(subAction, "Unknown points operation: {0}", managePoints.Operation);
 
             var amountText = VariableReplacer.ReplaceVariables(managePoints.Amount, variables).Trim();
-            if (!decimal.TryParse(amountText, NumberStyles.Number, CultureInfo.InvariantCulture, out var amountValue) ||
-                amountValue != decimal.Truncate(amountValue) ||
-                amountValue > long.MaxValue || amountValue < long.MinValue)
-                throw new SubActionUserFacingException(subAction, "Amount must evaluate to a whole number: {0}", amountText);
+            if (!decimal.TryParse(amountText, NumberStyles.Number, CultureInfo.InvariantCulture, out var amountValue))
+                throw new SubActionUserFacingException(subAction, "Amount must evaluate to a number: {0}", amountText);
 
-            var amount = (long)amountValue;
+            var roundedAmount = decimal.Round(amountValue, MidpointRounding.AwayFromZero);
+            if (roundedAmount > long.MaxValue || roundedAmount < long.MinValue)
+                throw new SubActionUserFacingException(subAction, "Amount is outside the supported range: {0}", amountText);
+
+            var amount = (long)roundedAmount;
             if (operation == ManagePointsOperation.Set ? amount < 0 : amount <= 0)
                 throw new SubActionUserFacingException(subAction, "Amount must be {0} for {1}.", operation == ManagePointsOperation.Set ? "zero or greater" : "greater than zero", operation);
 
             if (operation == ManagePointsOperation.AddActive)
             {
                 await pointsSystem.AddPointsToActiveUsers(pointTypeId, amount);
+                variables["ManagePointsAmount"] = amount.ToString(CultureInfo.InvariantCulture);
                 return;
             }
 
@@ -66,6 +69,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 default:
                     throw new SubActionUserFacingException(subAction, "Unsupported points operation: {0}", operation);
             }
+
+            variables["ManagePointsAmount"] = amount.ToString(CultureInfo.InvariantCulture);
         }
     }
 }
