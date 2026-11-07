@@ -230,7 +230,7 @@
                 }
                 else
                 {
-                    <GitHubMarkdownViewer Value="@(PreviewTransform != null ? PreviewTransform(Value) : Value)" />
+                    <GitHubMarkdownViewer Value="@(PreviewTransform != null ? PreviewTransform(Value) : Value)" Safe="@SafePreview" />
                 }
             }
         </div>
@@ -337,6 +337,7 @@
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Style { get; set; }
     [Parameter] public Func<string?, string?>? PreviewTransform { get; set; }
+    [Parameter] public bool SafePreview { get; set; }
 
     private EditorTab _activeTab = EditorTab.Write;
     private readonly string _elementId = $"md-editor-{Guid.NewGuid():N}";

@@ -317,6 +317,7 @@ internal class Program
         builder.Services.AddSingleton<IThemeMetricsService, ThemeMetricsService>();
         builder.Services.AddScoped<IUserThemeService, UserThemeService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Services.AnnouncementService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Pages.Components.SubActionReferenceNames>();
         builder.Services.AddScoped<IBackupSettingsService, BackupSettingsService>();

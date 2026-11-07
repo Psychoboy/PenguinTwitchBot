@@ -1,0 +1,101 @@
+@using System.Security.Claims
+@using PenguinTwitchBot.Services
+@inject AnnouncementService Announcements
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+@inject ILogger<AnnouncementBanners> Logger
+@implements IAsyncDisposable
+
+@foreach (var announcement in _visible)
+{
+    <MudAlert Severity="@ToSeverity(announcement.Severity)" Class="mx-4 mt-2">
+        <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
+            <GitHubMarkdownViewer Value="@announcement.Message" Class="announcement-message" Style="min-width: 0; overflow-wrap: anywhere;" Safe="true" />
+            <MudTooltip Text="Dismiss announcement">
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" aria-label="Dismiss announcement" OnClick="@(() => DismissAsync(announcement))" />
+            </MudTooltip>
+        </MudStack>
+    </MudAlert>
+}
+
+@code {
+    private readonly CancellationTokenSource _cancellation = new();
+    private List<Announcement> _visible = [];
+    private ClaimsPrincipal _user = new();
+    private string _browserScope = "anonymous";
+    private Task? _refreshTask;
+
+    protected override void OnInitialized() => Announcements.Changed += OnChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        var userId = _user.Identity?.IsAuthenticated == true
+            ? _user.FindFirst("UserId")?.Value ?? _user.FindFirst(ClaimTypes.NameIdentifier)?.Value : null;
+        if (!string.IsNullOrWhiteSpace(userId)) _browserScope = userId;
+        await RefreshAsync();
+        _refreshTask = RefreshPeriodicallyAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            var announcements = await Announcements.GetAnnouncementsAsync();
+            var dismissed = await Announcements.GetDismissalsAsync(_user);
+            var visible = new List<Announcement>();
+            foreach (var announcement in announcements.Where(item => item.IsVisible(DateTime.Now) && !dismissed.Contains(item.Revision)))
+            {
+                string? local = null;
+                try { local = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", StorageKey(announcement.Revision)); }
+                catch (JSException) { }
+                if (local != "dismissed") visible.Add(announcement);
+            }
+            _visible = visible;
+            StateHasChanged();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Unable to load announcements");
+        }
+    }
+
+    private async Task DismissAsync(Announcement announcement)
+    {
+        _visible.RemoveAll(item => item.Revision == announcement.Revision);
+        try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", StorageKey(announcement.Revision), "dismissed"); }
+        catch (JSException) { }
+        try { await Announcements.DismissAsync(_user, announcement.Revision); }
+        catch (Exception exception) { Logger.LogWarning(exception, "Unable to persist announcement dismissal"); }
+    }
+
+    private string StorageKey(Guid revision) => $"penguin.announcement.{_browserScope}.{revision}";
+    private void OnChanged() => _ = InvokeAsync(RefreshAsync);
+
+    private async Task RefreshPeriodicallyAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_cancellation.Token)) await InvokeAsync(RefreshAsync);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private static Severity ToSeverity(AnnouncementSeverity severity) => severity switch
+    {
+        AnnouncementSeverity.Success => Severity.Success,
+        AnnouncementSeverity.Warning => Severity.Warning,
+        AnnouncementSeverity.Error => Severity.Error,
+        _ => Severity.Info
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        Announcements.Changed -= OnChanged;
+        await _cancellation.CancelAsync();
+        if (_refreshTask != null) await _refreshTask;
+        _cancellation.Dispose();
+    }
+}

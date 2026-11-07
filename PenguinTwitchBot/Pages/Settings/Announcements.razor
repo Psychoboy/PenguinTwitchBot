@@ -1,0 +1,92 @@
+@page "/settings/announcements"
+@attribute [Authorize(Roles = "Streamer")]
+@using PenguinTwitchBot.Services
+@inject AnnouncementService AnnouncementService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Announcements</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.h5">Announcements</MudText>
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled" OnClick="NewAnnouncement">Add announcement</MudButton>
+        </MudStack>
+        @if (_editing != null)
+        {
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">@(_isNew ? "New announcement" : "Edit announcement")</MudText>
+                    <GitHubMarkdownEditor Label="Message" @bind-Value="_editing.Message" Lines="4" SafePreview="true" />
+                    <MudSelect T="AnnouncementSeverity" Label="Severity" @bind-Value="_editing.Severity">
+                        @foreach (var severity in Enum.GetValues<AnnouncementSeverity>())
+                        {
+                            <MudSelectItem Value="@severity">@severity</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudStack Row="true" Wrap="Wrap.Wrap">
+                        <MudDatePicker Label="Start date (optional, bot local time)" @bind-Date="_editing.StartDate" Clearable="true" />
+                        <MudDatePicker Label="End date (optional, bot local time)" @bind-Date="_editing.EndDate" Clearable="true" />
+                    </MudStack>
+                    <MudStack Row="true">
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsync">Save</MudButton>
+                        <MudButton OnClick="Cancel">Cancel</MudButton>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        }
+        <MudTable Items="_items" Dense="true" Hover="true">
+            <HeaderContent><MudTh>Message</MudTh><MudTh>Severity</MudTh><MudTh>Start</MudTh><MudTh>End</MudTh><MudTh></MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Message">@context.Message</MudTd>
+                <MudTd DataLabel="Severity">@context.Severity</MudTd>
+                <MudTd DataLabel="Start">@(context.StartDate?.ToString("yyyy-MM-dd") ?? "Always")</MudTd>
+                <MudTd DataLabel="End">@(context.EndDate?.ToString("yyyy-MM-dd") ?? "No end")</MudTd>
+                <MudTd>
+                    <MudTooltip Text="Edit"><MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="Edit announcement" OnClick="@(() => Edit(context))" /></MudTooltip>
+                    <MudTooltip Text="Delete"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete announcement" OnClick="@(() => DeleteAsync(context))" /></MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText Class="pa-4">No announcements yet.</MudText></NoRecordsContent>
+        </MudTable>
+    </MudStack>
+</MudContainer>
+
+@code {
+    private List<Announcement> _items = [];
+    private Announcement? _editing;
+    private bool _isNew;
+    protected override async Task OnInitializedAsync() => _items = await AnnouncementService.GetAnnouncementsAsync();
+    private void NewAnnouncement() { _editing = new(); _isNew = true; }
+    private void Edit(Announcement item)
+    {
+        _editing = new Announcement { Id = item.Id, Revision = item.Revision, Message = item.Message, Severity = item.Severity, StartDate = item.StartDate, EndDate = item.EndDate };
+        _isNew = false;
+    }
+    private void Cancel() => _editing = null;
+    private async Task SaveAsync()
+    {
+        if (_editing == null) return;
+        try
+        {
+            var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            await AnnouncementService.SaveAsync(user, _editing);
+            _items = await AnnouncementService.GetAnnouncementsAsync();
+            _editing = null;
+        }
+        catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Error); }
+    }
+    private async Task DeleteAsync(Announcement item)
+    {
+        if (await DialogService.ShowMessageBoxAsync("Delete announcement", "This cannot be undone.", yesText: "Delete", cancelText: "Cancel") != true) return;
+        try
+        {
+            var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            await AnnouncementService.DeleteAsync(user, item.Id);
+            _items = await AnnouncementService.GetAnnouncementsAsync();
+            if (_editing?.Id == item.Id) _editing = null;
+        }
+        catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Error); }
+    }
+}

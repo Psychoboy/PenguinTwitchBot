@@ -239,11 +239,12 @@
     [Parameter] public string? Value { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Style { get; set; }
+    [Parameter] public bool Safe { get; set; }
 
     private string _renderedHtml = string.Empty;
 
     protected override void OnParametersSet()
     {
-        _renderedHtml = GitHubMarkdownRenderer.RenderToHtml(Value);
+        _renderedHtml = GitHubMarkdownRenderer.RenderToHtml(Value, Safe);
     }
 }

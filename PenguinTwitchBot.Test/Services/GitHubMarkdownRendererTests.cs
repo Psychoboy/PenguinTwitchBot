@@ -14,6 +14,24 @@ public class GitHubMarkdownRendererTests
     }
 
     [Fact]
+    public void SafeRenderingSupportsEditorMarkdownAndBlocksUnsafeContent()
+    {
+        var markdown = "| Name | Value |\n| --- | --- |\n| **Hi** | :star: |\n\n" +
+            "- [x] Done\n\n[icon:star #ffa800 1.5em]\n\n" +
+            "![image](/media/picture.png) [page](/help) [bad](javascript:alert)\n\n<script>alert(1)</script>";
+        var html = GitHubMarkdownRenderer.RenderToHtml(markdown, safe: true);
+        Assert.Contains("<table>", html);
+        Assert.Contains("<strong>Hi</strong>", html);
+        Assert.Contains("⭐", html);
+        Assert.Contains("type=\"checkbox\"", html);
+        Assert.Contains("<svg", html);
+        Assert.Contains("src=\"/media/picture.png\"", html);
+        Assert.Contains("href=\"/help\"", html);
+        Assert.DoesNotContain("href=\"javascript:", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<script>", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void RenderToHtml_BasicHeadingsAndLists_RendersProperHtml()
     {
         var md = @"## What's Changed

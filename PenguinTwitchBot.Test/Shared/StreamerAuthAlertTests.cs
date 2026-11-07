@@ -31,6 +31,7 @@ public class StreamerAuthAlertTests
     private (BunitContext ctx, Bunit.TestDoubles.BunitAuthorizationContext auth) SetupServices()
     {
         var ctx = new BunitContext();
+        ctx.ComponentFactories.AddStub<AnnouncementBanners>();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         ctx.Services.AddMudServices();
         var auth = ctx.AddAuthorization();
