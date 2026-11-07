@@ -65,6 +65,7 @@
         _isNew = false;
     }
     private void Cancel() => _editing = null;
+    /// <summary>Validates and saves the current announcement for the signed-in streamer.</summary>
     private async Task SaveAsync()
     {
         if (_editing == null) return;
@@ -77,6 +78,7 @@
         }
         catch (Exception exception) { Snackbar.Add(exception.Message, Severity.Error); }
     }
+    /// <summary>Confirms deletion and removes the selected announcement.</summary>
     private async Task DeleteAsync(Announcement item)
     {
         if (await DialogService.ShowMessageBoxAsync("Delete announcement", "This cannot be undone.", yesText: "Delete", cancelText: "Cancel") != true) return;

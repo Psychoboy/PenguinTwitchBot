@@ -5,6 +5,7 @@ using Jint;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.JSInterop;
 using MudBlazor.Services;
 using NSubstitute;
 using PenguinTwitchBot.Application.Notifications;
@@ -21,6 +22,7 @@ namespace PenguinTwitchBot.Test.Pages;
 
 public class ViewerAudioCommandsTests
 {
+    /// <summary>Exercises playback, switching, row removal, and cleanup in the preview script.</summary>
     [Fact]
     public void PreviewScriptHandlesPlaybackAndCleanup()
     {
@@ -85,8 +87,14 @@ public class ViewerAudioCommandsTests
         Assert.True(engine.Evaluate("second.audio.paused && observer.disconnected && Object.keys(container.listeners).length === 0").AsBoolean());
     }
 
-    [Fact]
-    public async Task ViewerCanPreviewAvailableCommandsAndAliases()
+    /// <summary>Checks visible previews and page rendering across JavaScript initialization outcomes.</summary>
+    [Theory]
+    [InlineData("none")]
+    [InlineData("import-error")]
+    [InlineData("import-disconnected")]
+    [InlineData("initialize-error")]
+    [InlineData("initialize-disconnected")]
+    public async Task ViewerCanPreviewAvailableCommandsAndAliases(string failure)
     {
         var root = Path.Combine(Path.GetTempPath(), "viewer-audio-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "audio"));
@@ -106,7 +114,25 @@ public class ViewerAudioCommandsTests
             aliases.GetAliasesAsync().Returns(Task.FromResult(new List<AliasModel> { new() { CommandName = "sound", AliasName = "alias" } }));
             await using var context = new BunitContext();
             context.JSInterop.Mode = JSRuntimeMode.Loose;
-            context.JSInterop.SetupModule("./js/viewer-audio-preview.js");
+            if (failure.StartsWith("import", StringComparison.Ordinal))
+            {
+                var runtime = Substitute.For<IJSRuntime>();
+                Exception exception = failure == "import-disconnected"
+                    ? new JSDisconnectedException("Disconnected") : new JSException("Import failed");
+                runtime.InvokeAsync<IJSObjectReference>("import", Arg.Any<object?[]>())
+                    .Returns(_ => ValueTask.FromException<IJSObjectReference>(exception));
+                context.Services.AddSingleton(runtime);
+            }
+            else
+            {
+                var module = context.JSInterop.SetupModule("./js/viewer-audio-preview.js");
+                if (failure.StartsWith("initialize", StringComparison.Ordinal))
+                {
+                    var initialize = module.SetupVoid("initialize", _ => true);
+                    if (failure == "initialize-disconnected") initialize.SetException(new JSDisconnectedException("Disconnected"));
+                    else initialize.SetException(new JSException("Initialization failed"));
+                }
+            }
             context.Services.AddMudServices();
             context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
             context.Services.AddSingleton(service);

@@ -1,5 +1,6 @@
 const handlers = new WeakMap();
 
+/** Attach local play/pause behavior to preview controls in the container. */
 export function initialize(container) {
     if (handlers.has(container)) return;
 
@@ -45,6 +46,7 @@ export function initialize(container) {
     handlers.set(container, { click, update, observer });
 }
 
+/** Stop previews and remove their event listeners and observer. */
 export function dispose(container) {
     const handler = handlers.get(container);
     if (!handler) return;

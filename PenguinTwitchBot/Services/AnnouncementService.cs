@@ -16,6 +16,7 @@ public sealed class Announcement
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
 
+    /// <summary>Checks whether the bot-local calendar date falls within the inclusive optional date range.</summary>
     public bool IsVisible(DateTime localNow) =>
         (!StartDate.HasValue || localNow.Date >= StartDate.Value.Date) &&
         (!EndDate.HasValue || localNow.Date <= EndDate.Value.Date);
@@ -28,10 +29,12 @@ public sealed class AnnouncementService(IServiceScopeFactory scopeFactory)
     private readonly SemaphoreSlim _gate = new(1, 1);
     public event Action? Changed;
 
+    /// <summary>Returns the authenticated account identifier used for dismissal storage.</summary>
     private static string? UserId(ClaimsPrincipal user) => user.Identity?.IsAuthenticated == true
         ? user.FindFirst("UserId")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value
         : null;
 
+    /// <summary>Loads all announcements, including scheduled and expired entries.</summary>
     public async Task<List<Announcement>> GetAnnouncementsAsync()
     {
         await using var scope = scopeFactory.CreateAsyncScope();
@@ -41,6 +44,7 @@ public sealed class AnnouncementService(IServiceScopeFactory scopeFactory)
             ? [] : JsonSerializer.Deserialize<List<Announcement>>(setting.StringSetting, JsonOptions) ?? [];
     }
 
+    /// <summary>Loads dismissed announcement revisions for an authenticated account.</summary>
     public async Task<HashSet<Guid>> GetDismissalsAsync(ClaimsPrincipal user)
     {
         var userId = UserId(user);
@@ -53,6 +57,7 @@ public sealed class AnnouncementService(IServiceScopeFactory scopeFactory)
             ? [] : JsonSerializer.Deserialize<HashSet<Guid>>(setting.StringSetting, JsonOptions) ?? [];
     }
 
+    /// <summary>Records a current revision as dismissed for an authenticated account.</summary>
     public async Task DismissAsync(ClaimsPrincipal user, Guid revision)
     {
         var userId = UserId(user);
@@ -69,6 +74,7 @@ public sealed class AnnouncementService(IServiceScopeFactory scopeFactory)
         finally { _gate.Release(); }
     }
 
+    /// <summary>Creates or updates an announcement as the streamer, assigning a new revision.</summary>
     public async Task SaveAsync(ClaimsPrincipal user, Announcement announcement)
     {
         RequireStreamer(user);
@@ -90,6 +96,7 @@ public sealed class AnnouncementService(IServiceScopeFactory scopeFactory)
         Changed?.Invoke();
     }
 
+    /// <summary>Deletes an announcement when requested by the streamer.</summary>
     public async Task DeleteAsync(ClaimsPrincipal user, Guid id)
     {
         RequireStreamer(user);
@@ -104,6 +111,7 @@ public sealed class AnnouncementService(IServiceScopeFactory scopeFactory)
         Changed?.Invoke();
     }
 
+    /// <summary>Rejects announcement changes from unauthenticated users and non-streamers.</summary>
     private static void RequireStreamer(ClaimsPrincipal user)
     {
         if (user.Identity?.IsAuthenticated != true || !user.IsInRole("Streamer"))
@@ -113,6 +121,7 @@ public sealed class AnnouncementService(IServiceScopeFactory scopeFactory)
     private static string DismissalKey(string userId) => "announcements.dismissed." +
         Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(userId)));
 
+    /// <summary>Persists a JSON value under the specified settings key.</summary>
     private async Task WriteAsync<T>(string key, T value)
     {
         await using var scope = scopeFactory.CreateAsyncScope();

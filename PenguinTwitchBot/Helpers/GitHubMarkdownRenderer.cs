@@ -13,7 +13,10 @@ public static class GitHubMarkdownRenderer
         .UseEmojiAndSmiley()
         .Build();
     private static readonly MarkdownPipeline SafePipeline = new MarkdownPipelineBuilder()
-        .UseAdvancedExtensions()
+        .UseAutoLinks()
+        .UsePipeTables()
+        .UseTaskLists()
+        .UseEmphasisExtras()
         .UseEmojiAndSmiley()
         .DisableHtml()
         .Build();
@@ -42,6 +45,7 @@ public static class GitHubMarkdownRenderer
         @"(?<codeBlock><(?<tag>pre|code)\b[^>]*>[\s\S]*?</\k<tag>>)|(?<bracket>\[icon:(?<name>[a-zA-Z0-9_.:/-]+)(?<args>[^\]]*)\])|(?<colon>:icon:(?<cname>[a-zA-Z0-9_./-]+)(?::(?<color>[^:\s]+))?(?::(?<size>[^:\s]+))?(?::(?<style>[^:\s]+))?:)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    /// <summary>Renders GitHub-style Markdown, optionally disabling raw HTML and unsafe links.</summary>
     public static string RenderToHtml(string? markdown, bool safe = false)
     {
         if (string.IsNullOrWhiteSpace(markdown))
@@ -56,6 +60,11 @@ public static class GitHubMarkdownRenderer
             foreach (var link in document.Descendants<LinkInline>())
             {
                 if (!IsSafeLink(link.Url)) link.Url = "";
+            }
+            foreach (var autolink in document.Descendants<AutolinkInline>().ToList())
+            {
+                if (autolink.IsEmail || !IsSafeLink(autolink.Url))
+                    autolink.ReplaceBy(new LiteralInline(autolink.Url));
             }
             using var writer = new StringWriter();
             var renderer = new Markdig.Renderers.HtmlRenderer(writer);
@@ -80,6 +89,7 @@ public static class GitHubMarkdownRenderer
         return html;
     }
 
+    /// <summary>Allows relative paths and HTTP(S) URLs without protocol-relative or control-character escapes.</summary>
     private static bool IsSafeLink(string? url)
     {
         if (string.IsNullOrWhiteSpace(url) || url != url.Trim() || url.Any(char.IsControl) || url.Contains('\\')) return false;
@@ -89,6 +99,7 @@ public static class GitHubMarkdownRenderer
         return true;
     }
 
+    /// <summary>Expands supported icon tokens outside code blocks, validating options in safe mode.</summary>
     private static string TransformIcons(string html, bool safe)
     {
         return CodeOrIconRegex.Replace(html, match =>
@@ -157,6 +168,7 @@ public static class GitHubMarkdownRenderer
         });
     }
 
+    /// <summary>Restricts icon attributes to simple colors and sizes in safe mode.</summary>
     private static bool SafeIconOptions(string? color, string? size) =>
         (string.IsNullOrEmpty(color) || Regex.IsMatch(color, @"^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$")) &&
         (string.IsNullOrEmpty(size) || Regex.IsMatch(size, @"^\d+(\.\d+)?(px|em|rem|%)?$"));

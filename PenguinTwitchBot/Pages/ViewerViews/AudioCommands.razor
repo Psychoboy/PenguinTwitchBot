@@ -3,6 +3,7 @@
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias Aliases;
 @inject PenguinTwitchBot.Services.MediaUploadService MediaUploadService
 @inject IJSRuntime JSRuntime
+@inject ILogger<AudioCommands> Logger
 @implements IAsyncDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Audio Commands</PageTitle>
@@ -178,24 +179,35 @@
 
     }
 
+    /// <summary>Initializes browser-local previews without disrupting the page if JavaScript is unavailable.</summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        _previewModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/viewer-audio-preview.js");
-        await _previewModule.InvokeVoidAsync("initialize", _previewContainer);
+        try
+        {
+            _previewModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/viewer-audio-preview.js");
+            await _previewModule.InvokeVoidAsync("initialize", _previewContainer);
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException exception) { Logger.LogWarning(exception, "Unable to initialize audio previews"); }
     }
 
+    /// <summary>Stops browser previews and releases their JavaScript module.</summary>
     public async ValueTask DisposeAsync()
     {
         if (_previewModule == null) return;
         try
         {
             await _previewModule.InvokeVoidAsync("dispose", _previewContainer);
-            await _previewModule.DisposeAsync();
         }
         catch (JSDisconnectedException) { }
+        catch (JSException exception) { Logger.LogWarning(exception, "Unable to clean up audio previews"); }
+        try { await _previewModule.DisposeAsync(); }
+        catch (JSDisconnectedException) { }
+        catch (JSException exception) { Logger.LogWarning(exception, "Unable to release audio preview module"); }
     }
 
+    /// <summary>Loads visible audio commands and aliases, filtered for the current viewer.</summary>
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider

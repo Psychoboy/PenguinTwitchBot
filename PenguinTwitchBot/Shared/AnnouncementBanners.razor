@@ -27,6 +27,7 @@
 
     protected override void OnInitialized() => Announcements.Changed += OnChanged;
 
+    /// <summary>Loads account context and starts periodic visibility updates after browser initialization.</summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -38,6 +39,7 @@
         _refreshTask = RefreshPeriodicallyAsync();
     }
 
+    /// <summary>Filters active announcements against account and browser dismissals.</summary>
     private async Task RefreshAsync()
     {
         try
@@ -61,6 +63,7 @@
         }
     }
 
+    /// <summary>Dismisses a revision locally and, when authenticated, across the account.</summary>
     private async Task DismissAsync(Announcement announcement)
     {
         _visible.RemoveAll(item => item.Revision == announcement.Revision);
@@ -73,6 +76,7 @@
     private string StorageKey(Guid revision) => $"penguin.announcement.{_browserScope}.{revision}";
     private void OnChanged() => _ = InvokeAsync(RefreshAsync);
 
+    /// <summary>Refreshes scheduled announcements until the component is disposed.</summary>
     private async Task RefreshPeriodicallyAsync()
     {
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
@@ -83,6 +87,7 @@
         catch (OperationCanceledException) { }
     }
 
+    /// <summary>Maps stored announcement severity to the corresponding alert appearance.</summary>
     private static Severity ToSeverity(AnnouncementSeverity severity) => severity switch
     {
         AnnouncementSeverity.Success => Severity.Success,
@@ -91,6 +96,7 @@
         _ => Severity.Info
     };
 
+    /// <summary>Stops periodic refreshes and unsubscribes from announcement changes.</summary>
     public async ValueTask DisposeAsync()
     {
         Announcements.Changed -= OnChanged;
