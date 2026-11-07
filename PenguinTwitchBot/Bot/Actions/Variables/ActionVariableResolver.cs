@@ -345,6 +345,10 @@ public class ActionVariableResolver(
                 variables.SetVariable("TargetPointsFormatted", "Formatted point balance with commas", source, category, "1,500");
                 break;
 
+            case ManagePointsType:
+                variables.SetVariable("ManagePointsAmount", "Rounded amount applied by Manage Points", source, category, "25");
+                break;
+
             case GiveawayPrizeType:
                 variables.SetVariable("Prize", "Name of the active giveaway prize", source, category, "Steam Gift Card");
                 break;

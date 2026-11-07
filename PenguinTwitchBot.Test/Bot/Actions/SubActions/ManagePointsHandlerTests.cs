@@ -46,6 +46,31 @@ public class ManagePointsHandlerTests
         await _pointsSystem.Received(1).AddPointsByUserId("user-1", _pointTypeId, 24);
     }
 
+    [Theory]
+    [InlineData("24.4", 24)]
+    [InlineData("24.5", 25)]
+    [InlineData("24.6", 25)]
+    public async Task Add_RoundsFractionalAmounts(string amount, long expectedAmount)
+    {
+        var subAction = new ManagePointsType
+        {
+            PointTypeName = "Coins",
+            Operation = "Add",
+            TargetUser = "%UserId%",
+            Amount = amount
+        };
+        var variables = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["UserId"] = "user-1"
+        };
+        _pointsSystem.AddPointsByUserId("user-1", _pointTypeId, expectedAmount).Returns(expectedAmount);
+
+        await _handler.ExecuteAsync(subAction, variables);
+
+        await _pointsSystem.Received(1).AddPointsByUserId("user-1", _pointTypeId, expectedAmount);
+        Assert.Equal(expectedAmount.ToString(), variables["ManagePointsAmount"]);
+    }
+
     [Fact]
     public async Task Add_ReportsFailureWhenPointsSystemReturnsNonPositiveBalance()
     {
@@ -115,10 +140,12 @@ public class ManagePointsHandlerTests
             Operation = "AddActive",
             Amount = "5"
         };
+        var variables = new ConcurrentDictionary<string, string>();
 
-        await _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>());
+        await _handler.ExecuteAsync(subAction, variables);
 
         await _pointsSystem.Received(1).AddPointsToActiveUsers(_pointTypeId, 5);
+        Assert.Equal("5", variables["ManagePointsAmount"]);
     }
 
     [Fact]
