@@ -1,9 +1,12 @@
 @using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Server
+@using Microsoft.Extensions.Options
 @using PenguinTwitchBot.Services
 @inject AnnouncementService Announcements
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JSRuntime
 @inject ILogger<AnnouncementBanners> Logger
+@inject IOptions<CircuitOptions> CircuitOptions
 @implements IAsyncDisposable
 
 @foreach (var announcement in _visible)
@@ -24,6 +27,7 @@
     private ClaimsPrincipal _user = new();
     private string _browserScope = "anonymous";
     private Task? _refreshTask;
+    private bool _browserReady;
 
     protected override void OnInitialized() => Announcements.Changed += OnChanged;
 
@@ -32,11 +36,13 @@
     {
         if (!firstRender) return;
         _user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        if (_cancellation.IsCancellationRequested) return;
         var userId = _user.Identity?.IsAuthenticated == true
             ? _user.FindFirst("UserId")?.Value ?? _user.FindFirst(ClaimTypes.NameIdentifier)?.Value : null;
         if (!string.IsNullOrWhiteSpace(userId)) _browserScope = userId;
+        _browserReady = true;
         await RefreshAsync();
-        _refreshTask = RefreshPeriodicallyAsync();
+        if (!_cancellation.IsCancellationRequested) _refreshTask = RefreshPeriodicallyAsync();
     }
 
     /// <summary>Filters active announcements against account and browser dismissals.</summary>
@@ -49,13 +55,22 @@
             var visible = new List<Announcement>();
             foreach (var announcement in announcements.Where(item => item.IsVisible(DateTime.Now) && !dismissed.Contains(item.Revision)))
             {
+                if (_cancellation.IsCancellationRequested) return;
                 string? local = null;
-                try { local = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", StorageKey(announcement.Revision)); }
+                using var browserCall = CreateBrowserCallCancellation();
+                try { local = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", browserCall.Token, StorageKey(announcement.Revision)); }
+                catch (JSDisconnectedException) { return; }
                 catch (JSException) { }
                 if (local != "dismissed") visible.Add(announcement);
             }
+            if (_cancellation.IsCancellationRequested) return;
             _visible = visible;
             StateHasChanged();
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested) { }
+        catch (OperationCanceledException exception)
+        {
+            Logger.LogWarning(exception, "Announcement browser storage did not respond before the JavaScript timeout");
         }
         catch (Exception exception)
         {
@@ -67,14 +82,29 @@
     private async Task DismissAsync(Announcement announcement)
     {
         _visible.RemoveAll(item => item.Revision == announcement.Revision);
-        try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", StorageKey(announcement.Revision), "dismissed"); }
+        StateHasChanged();
+        using var browserCall = CreateBrowserCallCancellation();
+        try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", browserCall.Token, StorageKey(announcement.Revision), "dismissed"); }
+        catch (JSDisconnectedException) { }
         catch (JSException) { }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested) { }
+        catch (OperationCanceledException exception) { Logger.LogWarning(exception, "Announcement dismissal could not be saved in browser storage before the JavaScript timeout"); }
         try { await Announcements.DismissAsync(_user, announcement.Revision); }
         catch (Exception exception) { Logger.LogWarning(exception, "Unable to persist announcement dismissal"); }
     }
 
     private string StorageKey(Guid revision) => $"penguin.announcement.{_browserScope}.{revision}";
-    private void OnChanged() => _ = InvokeAsync(RefreshAsync);
+    private void OnChanged()
+    {
+        if (_browserReady && !_cancellation.IsCancellationRequested) _ = InvokeAsync(RefreshAsync);
+    }
+
+    private CancellationTokenSource CreateBrowserCallCancellation()
+    {
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token);
+        cancellation.CancelAfter(CircuitOptions.Value.JSInteropDefaultCallTimeout);
+        return cancellation;
+    }
 
     /// <summary>Refreshes scheduled announcements until the component is disposed.</summary>
     private async Task RefreshPeriodicallyAsync()
