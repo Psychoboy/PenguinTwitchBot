@@ -4,8 +4,11 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.JSInterop;
 using MudBlazor.Services;
+using NSubstitute;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Services;
@@ -113,6 +116,75 @@ public sealed class AnnouncementServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task BrowserStorageTimeoutIsLoggedAsTimeout()
+    {
+        await _service.SaveAsync(Streamer, new Announcement { Message = "Hello" });
+        await using var context = new BunitContext();
+        context.JSInterop.Mode = JSRuntimeMode.Loose;
+        context.JSInterop.Setup<string?>("localStorage.getItem", _ => true).SetException(new TaskCanceledException());
+        context.Services.AddMudServices();
+        context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        context.Services.AddSingleton(_service);
+        var logger = Substitute.For<ILogger<AnnouncementBanners>>();
+        context.Services.AddSingleton(logger);
+        context.AddAuthorization().SetNotAuthorized();
+        var banner = context.Render<AnnouncementBanners>();
+        await banner.WaitForAssertionAsync(() => Assert.True(HasWarning(logger, "browser storage did not respond")));
+    }
+
+    [Fact]
+    public async Task DisposingBannerCancelsPendingBrowserStorageWithoutWarning()
+    {
+        await _service.SaveAsync(Streamer, new Announcement { Message = "Hello" });
+        var context = new BunitContext();
+        context.Services.AddMudServices();
+        context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        context.Services.AddSingleton(_service);
+        var logger = Substitute.For<ILogger<AnnouncementBanners>>();
+        context.Services.AddSingleton(logger);
+        var runtime = Substitute.For<IJSRuntime>();
+        var pending = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        runtime.InvokeAsync<string?>("localStorage.getItem", Arg.Any<CancellationToken>(), Arg.Any<object?[]>())
+            .Returns(call =>
+            {
+                var token = call.Arg<CancellationToken>();
+                token.Register(() => pending.TrySetCanceled(token));
+                return new ValueTask<string?>(pending.Task);
+            });
+        context.Services.AddSingleton(runtime);
+        context.AddAuthorization().SetNotAuthorized();
+        var banner = context.Render<AnnouncementBanners>();
+        await banner.WaitForAssertionAsync(() => Assert.Contains(runtime.ReceivedCalls(), call => call.GetMethodInfo().Name == "InvokeAsync"));
+        await context.DisposeAsync();
+        Assert.True(pending.Task.IsCanceled);
+        Assert.False(HasWarning(logger, "Unable to load announcements"));
+        Assert.False(HasWarning(logger, "browser storage did not respond"));
+    }
+
+    [Fact]
+    public async Task BrowserWriteTimeoutStillSavesAccountDismissal()
+    {
+        var announcement = new Announcement { Message = "Hello" };
+        await _service.SaveAsync(Streamer, announcement);
+        await using var context = new BunitContext();
+        context.JSInterop.Mode = JSRuntimeMode.Loose;
+        context.JSInterop.SetupVoid("localStorage.setItem", _ => true).SetException(new TaskCanceledException());
+        context.Services.AddMudServices();
+        context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        context.Services.AddSingleton(_service);
+        var logger = Substitute.For<ILogger<AnnouncementBanners>>();
+        context.Services.AddSingleton(logger);
+        var auth = context.AddAuthorization();
+        auth.SetAuthorized("viewer");
+        auth.SetClaims(new Claim("UserId", "viewer"));
+        var banner = context.Render<AnnouncementBanners>();
+        await banner.WaitForAssertionAsync(() => Assert.NotEmpty(banner.FindAll(".announcement-message")));
+        await banner.Find("button[aria-label='Dismiss announcement']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        Assert.Contains(announcement.Revision, await _service.GetDismissalsAsync(Viewer));
+        Assert.True(HasWarning(logger, "dismissal could not be saved in browser storage"));
+    }
+
+    [Fact]
     public async Task AnnouncementEditorPreviewsAndSavesMarkdown()
     {
         await using var context = new BunitContext();
@@ -138,6 +210,11 @@ public sealed class AnnouncementServiceTests : IDisposable
 
     private static ClaimsPrincipal User(string id, string role) => new(new ClaimsIdentity(
         [new Claim("UserId", id), new Claim(ClaimTypes.Role, role)], "test"));
+
+    private static bool HasWarning(ILogger<AnnouncementBanners> logger, string message) =>
+        logger.ReceivedCalls().Any(call => call.GetMethodInfo().Name == "Log" &&
+            call.GetArguments()[0] is LogLevel.Warning &&
+            call.GetArguments()[2]?.ToString()?.Contains(message, StringComparison.OrdinalIgnoreCase) == true);
 
     public void Dispose()
     {
