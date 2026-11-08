@@ -14,12 +14,14 @@
 
     let width = window.innerWidth || 1920;
     let height = window.innerHeight || 1080;
+    let renderLoop = null;
 
     function resizeCanvas() {
         width = window.innerWidth || 1920;
         height = window.innerHeight || 1080;
         canvas.width = width;
         canvas.height = height;
+        if (renderLoop) renderLoop.wake();
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -306,6 +308,8 @@
                 y: yPx,
                 season: season,
                 count: count,
+                type: currentTheme && currentTheme.landingParticleType,
+                isLanding: true,
                 isBullseye: isBullseye
             });
         }
@@ -367,6 +371,7 @@
     }
 
     completionChannel.attach(function (msg) {
+        if (renderLoop) renderLoop.wake();
 
         if (msg.type === 'other_game_status') {
             isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'parachute', msg);
@@ -2264,8 +2269,6 @@
             drawSessionBanner(now);
         } catch (err) {
             console.error('[Parachute] Render error:', err);
-        } finally {
-            requestAnimationFrame(animate);
         }
     }
 
@@ -2453,6 +2456,14 @@
         window.__activeRockets = activeRockets;
         window.__activeDroplets = activeDroplets;
     }
-    requestAnimationFrame(animate);
+    renderLoop = DropGamesCommon.createRenderLoop(animate, function () {
+        const now = performance.now();
+        return activeDrops.length > 0 || activeDroplets.length > 0 || activeRockets.length > 0 ||
+            rocketExplosions.length > 0 || canopyFragments.length > 0 || splashBursts.length > 0 ||
+            landingPopups.length > 0 || sessionState.isActive ||
+            (sessionState.endedAtMs > 0 && now - sessionState.endedAtMs < 6000) ||
+            now < targetState.visibleUntil;
+            }, 24);
+    renderLoop.wake();
 })();
 

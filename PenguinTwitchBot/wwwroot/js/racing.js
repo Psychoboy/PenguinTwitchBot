@@ -21,6 +21,7 @@
     let dpr = window.devicePixelRatio || 1;
     let width = window.innerWidth;
     let height = window.innerHeight;
+    let renderLoop = null;
 
     function resize() {
         dpr = window.devicePixelRatio || 1;
@@ -29,6 +30,7 @@
         canvas.width = Math.floor(width * dpr);
         canvas.height = Math.floor(height * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (renderLoop) renderLoop.wake();
     }
     window.addEventListener('resize', resize);
     resize();
@@ -2719,13 +2721,21 @@
             drawPodiumUI();
         }
 
-        requestAnimationFrame(gameLoop);
     }
-    requestAnimationFrame(gameLoop);
+
+    renderLoop = commonModule && typeof commonModule.createRenderLoop === 'function'
+        ? commonModule.createRenderLoop(gameLoop, function () {
+            return gameState !== 'idle' || activeRacers.length > 0 || trackHazards.length > 0 ||
+                particles.length > 0 || detachedParts.length > 0 || eliminationBanner !== null ||
+                Math.abs(overlayAlpha - targetOverlayAlpha) > 0.01;
+            }, 24);
+        : { wake: function () { requestAnimationFrame(gameLoop); } };
+    renderLoop.wake();
 
     // ================= WEBSOCKET MESSAGE HANDLER =================
     function handleWsMessage(msg) {
         if (!msg || !msg.type) return;
+        if (renderLoop) renderLoop.wake();
 
         if (msg.type === 'race_lobby_start') {
             gameState = 'lobby';

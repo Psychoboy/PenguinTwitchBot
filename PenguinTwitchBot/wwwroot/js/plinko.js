@@ -11,12 +11,14 @@
 
     let width = window.innerWidth || 800;
     let height = window.innerHeight || 900;
+    let renderLoop = null;
 
     function resizeCanvas() {
         width = window.innerWidth || 800;
         height = window.innerHeight || 900;
         canvas.width = width;
         canvas.height = height;
+        if (renderLoop) renderLoop.wake();
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -208,6 +210,7 @@
     }
 
     completionChannel.attach(function (msg) {
+        if (renderLoop) renderLoop.wake();
 
         if (msg.type === 'other_game_status') {
             isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'plinko', msg);
@@ -1091,6 +1094,8 @@
                 y: yPx,
                 season: season,
                 count: count,
+                type: currentTheme && currentTheme.landingParticleType,
+                isLanding: true,
                 isBullseye: true
             });
         }
@@ -1106,6 +1111,8 @@
             ctx.clearRect(0, 0, width, height);
 
             const isVisible = activeTokens.length > 0
+                || confettiParticles.length > 0
+                || bucketHighlights.length > 0
                 || sessionState.isActive
                 || (sessionState.endedAtMs && (now - sessionState.endedAtMs) < 6000)
                 || now < boardConfig.visibleUntil;
@@ -1633,8 +1640,6 @@
             drawSessionBanner(now);
         } catch (err) {
             console.error('[Plinko] Render error:', err);
-        } finally {
-            requestAnimationFrame(animate);
         }
     }
 
@@ -1818,6 +1823,13 @@
     }
 
     if (typeof window !== 'undefined') window.__plinkoTokens = activeTokens;
-    requestAnimationFrame(animate);
+    renderLoop = DropGamesCommon.createRenderLoop(animate, function () {
+        const now = performance.now();
+        return activeTokens.length > 0 || confettiParticles.length > 0 || bucketHighlights.length > 0 ||
+            sessionState.isActive ||
+            (sessionState.endedAtMs > 0 && now - sessionState.endedAtMs < 6000) ||
+            now < boardConfig.visibleUntil;
+            }, 24);
+    renderLoop.wake();
 })();
 

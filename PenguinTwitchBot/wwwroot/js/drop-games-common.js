@@ -1480,44 +1480,53 @@
         const count = typeof opts.count === 'number' ? opts.count : (isBullseye ? 35 : 18);
 
         let colors = opts.colors;
-        let type = opts.type || 'spark';
+        const requestedType = opts.type;
+        const typeAliases = { leaves: 'leaf', petals: 'petal', splash: 'water' };
+        let type = requestedType ? (typeAliases[requestedType] || requestedType) : 'spark';
         if (!colors) {
             if (season === 'spring') {
                 colors = ['#FF8FA3', '#FFB7C5', '#FFE066', '#FFFFFF', '#FFCCD5'];
-                type = 'petal';
+                if (!requestedType) type = 'petal';
             } else if (season === 'summer') {
                 colors = ['#FFD166', '#00B4D8', '#FF9F1C', '#FFFFFF', '#06D6A0'];
-                type = isBullseye ? 'confetti' : 'spark';
+                if (!requestedType) type = isBullseye ? 'confetti' : 'spark';
             } else if (season === 'fall') {
                 colors = ['#E76F51', '#E9C46A', '#D90429', '#F4A261', '#9B2226'];
-                type = 'leaf';
+                if (!requestedType) type = 'leaf';
             } else if (season === 'winter') {
                 colors = ['#CAF0F8', '#90E0EF', '#00B4D8', '#FFFFFF', '#E0F2FE'];
-                type = 'snow';
+                if (!requestedType) type = 'snow';
             } else if (season === 'halloween') {
                 colors = ['#39FF14', '#7B2CBF', '#FF7900', '#9D4EDD', '#240046'];
-                type = isBullseye ? 'spark' : 'confetti';
+                if (!requestedType) type = isBullseye ? 'spark' : 'confetti';
             } else if (season === 'christmas') {
                 colors = ['#D90429', '#2B9348', '#FFD700', '#FFFFFF', '#55A630'];
-                type = isBullseye ? 'confetti' : 'spark';
+                if (!requestedType) type = isBullseye ? 'confetti' : 'spark';
             } else {
                 colors = ['#FFD700', '#3498DB', '#2ECC71', '#E74C3C'];
             }
         }
 
         const scale = isNormalized ? 0.001 : 1.0;
+        const isLanding = opts.isLanding === true;
         for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const spd = (30 + Math.random() * (isBullseye ? 110 : 65)) * scale;
+            const angle = isLanding
+                ? -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.9
+                : Math.random() * Math.PI * 2;
+            const spd = (isLanding
+                ? 130 + Math.random() * 220
+                : 30 + Math.random() * (isBullseye ? 110 : 65)) * scale;
             particlesArray.push({
                 x: x,
                 y: y,
                 vx: Math.cos(angle) * spd,
-                vy: Math.sin(angle) * spd - (isBullseye ? 25 : 10) * scale,
-                size: (3.5 + Math.random() * (isBullseye ? 5.5 : 3.5)),
+                vy: Math.sin(angle) * spd - (isLanding ? 0 : (isBullseye ? 25 : 10) * scale),
+                size: isLanding ? 7 + Math.random() * 8 : (3.5 + Math.random() * (isBullseye ? 5.5 : 3.5)),
                 color: colors[Math.floor(Math.random() * colors.length)],
                 alpha: 1.0,
                 decay: 0.018 + Math.random() * 0.022,
+                maxLife: isLanding ? 1.0 + Math.random() * 0.8 : undefined,
+                gravity: isLanding ? (isNormalized ? 0.34 : 320) : undefined,
                 type: type,
                 rotation: Math.random() * Math.PI * 2,
                 rotSpeed: (Math.random() - 0.5) * 8.0,
@@ -1621,6 +1630,42 @@
             }
             ctx.restore();
         }
+    }
+
+    function createRenderLoop(render, shouldContinue, wakeFrames = 0) {
+        let frameScheduled = false;
+        let remainingWakeFrames = 0;
+        let cleanupFramePending = false;
+
+        function schedule() {
+            if (frameScheduled) return;
+            frameScheduled = true;
+            requestAnimationFrame(function (now) {
+                frameScheduled = false;
+                let keepRunning = false;
+                try {
+                    render(now);
+                } finally {
+                    keepRunning = typeof shouldContinue === 'function' && shouldContinue(now);
+                    if (remainingWakeFrames > 0) remainingWakeFrames--;
+                    if (keepRunning || remainingWakeFrames > 0) {
+                        cleanupFramePending = false;
+                    } else if (cleanupFramePending) {
+                        cleanupFramePending = false;
+                    } else {
+                        cleanupFramePending = true;
+                    }
+                    if (keepRunning || remainingWakeFrames > 0 || cleanupFramePending) schedule();
+                }
+            });
+        }
+
+        function wake() {
+            remainingWakeFrames = Math.max(remainingWakeFrames, wakeFrames);
+            schedule();
+        }
+
+        return { wake: wake };
     }
 
     function drawGolfGreen(ctx, options) {
@@ -2137,6 +2182,7 @@
         updateAndDrawAmbientParticles: updateAndDrawAmbientParticles,
         spawnSeasonalBurst: spawnSeasonalBurst,
         updateAndDrawParticles: updateAndDrawParticles,
+        createRenderLoop: createRenderLoop,
         drawGolfGreen: drawGolfGreen,
         drawGolfBall: drawGolfBall,
         createCompletionChannel: createCompletionChannel,

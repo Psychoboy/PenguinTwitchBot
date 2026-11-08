@@ -24,6 +24,7 @@
     let width = 0;
     let height = 0;
     let dpr = 1;
+    let renderLoop = null;
 
     function resize() {
         dpr = window.devicePixelRatio || 1;
@@ -33,6 +34,7 @@
         canvas.height = Math.round(height * dpr);
         ctx.resetTransform();
         ctx.scale(dpr, dpr);
+        if (renderLoop) renderLoop.wake();
     }
     window.addEventListener('resize', resize);
     resize();
@@ -209,6 +211,7 @@
 
     function handleWsMessage(msg) {
         if (!msg || typeof msg !== 'object') return;
+        if (renderLoop) renderLoop.wake();
 
         if (msg.type === 'other_game_status') {
             isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'curling', msg);
@@ -907,7 +910,6 @@
         // Top Session Banner & Timer
         drawSessionBanner(now);
 
-        requestAnimationFrame(render);
     }
 
     // Draw Seasonal Corner Flourish
@@ -1611,7 +1613,14 @@
     }
 
     // Start rendering loop
-    requestAnimationFrame(render);
+    renderLoop = DropGamesCommon.createRenderLoop(render, function () {
+        const now = performance.now();
+        return activeStones.length > 0 || particles.length > 0 || scorePopups.length > 0 ||
+            sessionState.isActive ||
+            (sessionState.endedAtMs > 0 && now - sessionState.endedAtMs < 6000) ||
+            now < boardConfig.visibleUntil;
+            }, 24);
+    renderLoop.wake();
 
     // Export CurlingEngine for unit testing
     const CurlingEngine = {
