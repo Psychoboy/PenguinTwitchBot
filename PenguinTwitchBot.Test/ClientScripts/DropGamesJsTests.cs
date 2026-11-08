@@ -84,6 +84,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                                 return {
                                     save: function() {},
                                     restore: function() {},
+                                    setTransform: function() {},
                                     beginPath: function() {},
                                     closePath: function() {},
                                     moveTo: function() {},
@@ -2071,6 +2072,29 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var errorCount = engine.Evaluate("console._errors.length").AsNumber();
             Assert.Equal(0, errorCount);
+        }
+
+        [Fact]
+        public void RacingJs_FallbackRenderLoop_ContinuesSchedulingFrames()
+        {
+            var jsDir = FindWwwRootPath();
+            var racingJsPath = Path.Combine(jsDir, "racing.js");
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute("DropGamesCommon.createRenderLoop = undefined;");
+
+            var ex = Record.Exception(() => engine.Execute(File.ReadAllText(racingJsPath)));
+            Assert.Null(ex);
+            Assert.True(engine.Evaluate("window.__nextRaf !== null").AsBoolean());
+
+            engine.Execute(@"
+                var renderFrame = window.__nextRaf;
+                window.__nextRaf = null;
+                performance._now += 16.666;
+                renderFrame(performance._now);
+            ");
+
+            Assert.True(engine.Evaluate("window.__nextRaf !== null").AsBoolean());
+            Assert.Equal(0, engine.Evaluate("console._errors.length").AsNumber());
         }
 
         [Fact]

@@ -2723,13 +2723,29 @@
 
     }
 
+    let fallbackLoopStarted = false;
+    const fallbackRenderLoop = {
+        wake: function () {
+            if (fallbackLoopStarted) return;
+            fallbackLoopStarted = true;
+            function renderFallbackFrame(now) {
+                try {
+                    gameLoop(now);
+                } finally {
+                    requestAnimationFrame(renderFallbackFrame);
+                }
+            }
+            requestAnimationFrame(renderFallbackFrame);
+        }
+    };
+
     renderLoop = commonModule && typeof commonModule.createRenderLoop === 'function'
         ? commonModule.createRenderLoop(gameLoop, function () {
             return gameState !== 'idle' || activeRacers.length > 0 || trackHazards.length > 0 ||
                 particles.length > 0 || detachedParts.length > 0 || eliminationBanner !== null ||
                 Math.abs(overlayAlpha - targetOverlayAlpha) > 0.01;
-            }, 24);
-        : { wake: function () { requestAnimationFrame(gameLoop); } };
+        }, 24)
+        : fallbackRenderLoop;
     renderLoop.wake();
 
     // ================= WEBSOCKET MESSAGE HANDLER =================
