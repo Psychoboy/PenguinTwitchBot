@@ -84,6 +84,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                                 return {
                                     save: function() {},
                                     restore: function() {},
+                                    setTransform: function() {},
                                     beginPath: function() {},
                                     closePath: function() {},
                                     moveTo: function() {},
@@ -2071,6 +2072,29 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var errorCount = engine.Evaluate("console._errors.length").AsNumber();
             Assert.Equal(0, errorCount);
+        }
+
+        [Fact]
+        public void RacingJs_FallbackRenderLoop_ContinuesSchedulingFrames()
+        {
+            var jsDir = FindWwwRootPath();
+            var racingJsPath = Path.Combine(jsDir, "racing.js");
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute("DropGamesCommon.createRenderLoop = undefined;");
+
+            var ex = Record.Exception(() => engine.Execute(File.ReadAllText(racingJsPath)));
+            Assert.Null(ex);
+            Assert.True(engine.Evaluate("window.__nextRaf !== null").AsBoolean());
+
+            engine.Execute(@"
+                var renderFrame = window.__nextRaf;
+                window.__nextRaf = null;
+                performance._now += 16.666;
+                renderFrame(performance._now);
+            ");
+
+            Assert.True(engine.Evaluate("window.__nextRaf !== null").AsBoolean());
+            Assert.Equal(0, engine.Evaluate("console._errors.length").AsNumber());
         }
 
         [Fact]
@@ -5635,6 +5659,13 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 var burstNormInitial = burstNorm.length;
                 DropGamesCommon.updateAndDrawParticles(ctx, burstNorm, { dt: 0.016, width: 1920, height: 1080, gravity: 0.45 });
 
+                var configuredBurst = [];
+                DropGamesCommon.spawnSeasonalBurst(configuredBurst, { x: 500, y: 400, season: 'fall', type: 'leaves', count: 1, isLanding: true });
+                var configuredType = configuredBurst[0].type;
+                var fillsBeforeConfiguredBurst = window.__canvasFillCount || 0;
+                DropGamesCommon.updateAndDrawParticles(ctx, configuredBurst, { dt: 0.016, width: 1920, height: 1080 });
+                var configuredBurstDrawCount = (window.__canvasFillCount || 0) - fillsBeforeConfiguredBurst;
+
                 // Step until particles decay and expire
                 for (var step = 0; step < 120; step++) {
                     DropGamesCommon.updateAndDrawParticles(ctx, burstPx, { dt: 0.05, width: 1920, height: 1080 });
@@ -5649,6 +5680,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     countAfterHide: countAfterHide,
                     burstPxInitial: burstPxInitial,
                     burstNormInitial: burstNormInitial,
+                    configuredType: configuredType,
+                    configuredBurstDrawCount: configuredBurstDrawCount,
+                    configuredBurstVy: configuredBurst[0].vy,
+                    configuredBurstMaxLife: configuredBurst[0].maxLife,
                     burstPxRemaining: burstPx.length,
                     burstNormRemaining: burstNorm.length
                 });
@@ -5662,8 +5697,54 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal(0, result.Get("countAfterHide").AsNumber());
             Assert.Equal(20, result.Get("burstPxInitial").AsNumber());
             Assert.Equal(15, result.Get("burstNormInitial").AsNumber());
+            Assert.Equal("leaf", result.Get("configuredType").AsString());
+            Assert.Equal(1, result.Get("configuredBurstDrawCount").AsNumber());
+            Assert.True(result.Get("configuredBurstVy").AsNumber() < 0);
+            Assert.True(result.Get("configuredBurstMaxLife").AsNumber() >= 1.0);
             Assert.Equal(0, result.Get("burstPxRemaining").AsNumber());
             Assert.Equal(0, result.Get("burstNormRemaining").AsNumber());
+        }
+
+        [Fact]
+        public void DropGamesCommon_RenderLoop_SleepsWhenIdleAndWakesOnDemand()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            var result = engine.Evaluate(@"
+                var frameCount = 0;
+                var keepRendering = false;
+                var loop = DropGamesCommon.createRenderLoop(function() { frameCount++; }, function() { return keepRendering; });
+
+                loop.wake();
+                var firstFrame = window.__nextRaf;
+                window.__nextRaf = null;
+                firstFrame(1000);
+                var cleanupFrame = window.__nextRaf;
+                window.__nextRaf = null;
+                cleanupFrame(1016);
+                var stoppedWhenIdle = window.__nextRaf === null;
+
+                keepRendering = true;
+                loop.wake();
+                var activeFrame = window.__nextRaf;
+                window.__nextRaf = null;
+                activeFrame(1032);
+                var continuedWhileActive = window.__nextRaf !== null;
+
+                keepRendering = false;
+                var finalFrame = window.__nextRaf;
+                window.__nextRaf = null;
+                finalFrame(1048);
+                var finalCleanupFrame = window.__nextRaf;
+                window.__nextRaf = null;
+                finalCleanupFrame(1064);
+
+                ({ frameCount: frameCount, stoppedWhenIdle: stoppedWhenIdle, continuedWhileActive: continuedWhileActive, stoppedAfterActivity: window.__nextRaf === null });
+            ");
+
+            Assert.Equal(5, result.Get("frameCount").AsNumber());
+            Assert.True(result.Get("stoppedWhenIdle").AsBoolean());
+            Assert.True(result.Get("continuedWhileActive").AsBoolean());
+            Assert.True(result.Get("stoppedAfterActivity").AsBoolean());
         }
 
         [Fact]

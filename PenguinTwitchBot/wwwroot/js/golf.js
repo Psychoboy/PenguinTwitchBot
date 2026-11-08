@@ -23,6 +23,7 @@
     let width = 1920;
     let height = 1080;
     let dpr = 1;
+    let renderLoop = null;
 
     function resize() {
         if (!canvas || !ctx || typeof window === 'undefined') return;
@@ -33,6 +34,7 @@
         canvas.height = Math.round(height * dpr);
         ctx.resetTransform();
         ctx.scale(dpr, dpr);
+        if (renderLoop) renderLoop.wake();
     }
     if (typeof window !== 'undefined') {
         window.addEventListener('resize', resize);
@@ -286,6 +288,7 @@
 
     function handleWsMessage(msg) {
         if (!msg || typeof msg !== 'object') return;
+        if (renderLoop) renderLoop.wake();
 
         if (msg.type === 'other_game_status') {
             isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'golf', msg);
@@ -1112,14 +1115,16 @@
             }
         }
 
-        if (typeof requestAnimationFrame === 'function') {
-            requestAnimationFrame(render);
-        }
     }
 
-    if (typeof requestAnimationFrame === 'function' && canvas) {
-        requestAnimationFrame(render);
-    }
+    renderLoop = DropGamesCommon.createRenderLoop(render, function () {
+        const now = nowMs();
+        return activeBalls.length > 0 || particles.length > 0 || scorePopups.length > 0 ||
+            sessionState.isActive ||
+            (sessionState.endedAtMs > 0 && now - sessionState.endedAtMs < 6000) ||
+            now < boardConfig.visibleUntil;
+            }, 24);
+    renderLoop.wake();
 
     // Export GolfEngine for unit testing
     const GolfEngine = {
