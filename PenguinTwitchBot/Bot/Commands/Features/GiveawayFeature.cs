@@ -43,6 +43,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         private readonly string GiveawayPassiveEarningsSettingName = "GiveawayPassiveEarnings";
         private readonly string GiveawayMonteCarloFairnessEnabledSettingName = "GiveawayMonteCarloFairnessEnabled";
         private readonly string GiveawayPointsPerEntrySettingName = "GiveawayPointsPerEntry";
+        private const string GiveawayIsClosedSettingName = "GiveawayIsClosed";
         private const int DefaultMonteCarloIterations = 100000;
         private const int MaxMonteCarloReports = 20;
 
@@ -517,6 +518,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         public async Task Close()
         {
             isClosed = true;
+            await gameSettingsService.SetBoolSetting(ModuleName, GiveawayIsClosedSettingName, isClosed);
             LastDrawSnapshot = null;
             await RebuildWeightedPool();
 
@@ -537,6 +539,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         public async Task Open()
         {
             isClosed = false;
+            await gameSettingsService.SetBoolSetting(ModuleName, GiveawayIsClosedSettingName, isClosed);
             Tickets.Clear();
             WeightedEntries.Clear();
             TotalWeightedTickets = 0;
@@ -555,6 +558,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             TotalWeightedTickets = 0;
             LastDrawSnapshot = null;
             isClosed = false;
+            await gameSettingsService.SetBoolSetting(ModuleName, GiveawayIsClosedSettingName, isClosed);
             await hubContext.Clients.All.SendAsync("GiveawayIsClosed", isClosed);
         }
 
@@ -971,12 +975,13 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             return giveawayEntries.Tickets;
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Starting {moduledname}", ModuleName);
             _timer.Elapsed += SendCurrentEntriesToAll;
             ServiceBackbone.StreamStarted += StreamStarted;
-            return Register();
+            isClosed = await gameSettingsService.GetBoolSetting(ModuleName, GiveawayIsClosedSettingName, false);
+            await Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

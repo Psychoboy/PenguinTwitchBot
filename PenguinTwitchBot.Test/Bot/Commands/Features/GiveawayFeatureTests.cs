@@ -171,7 +171,18 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             Assert.Equal(2, giveawayFeature.ClosedTickets.Count);
             Assert.Contains("UserA", giveawayFeature.ClosedTickets);
             Assert.Contains("UserB", giveawayFeature.ClosedTickets);
+            await gameSettingsService.Received(1).SetBoolSetting("GiveawayFeature", "GiveawayIsClosed", true);
 
+        }
+
+        [Fact]
+        public async Task StartAsync_ShouldRestoreClosedState()
+        {
+            gameSettingsService.GetBoolSetting("GiveawayFeature", "GiveawayIsClosed", false).Returns(true);
+
+            await giveawayFeature.StartAsync(CancellationToken.None);
+
+            Assert.True(giveawayFeature.IsClosed());
         }
 
         [Fact]
@@ -209,6 +220,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             Assert.Empty(giveawayFeature.ClosedTickets);
             await dbContext.GiveawayEntries.Received(1).ExecuteDeleteAllAsync();
             await dbContext.Received(1).SaveChangesAsync();
+            await gameSettingsService.Received(1).SetBoolSetting("GiveawayFeature", "GiveawayIsClosed", false);
         }
 
         [Fact]
@@ -226,6 +238,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             Assert.False(giveawayFeature.IsClosed());
             Assert.Empty(giveawayFeature.ClosedTickets);
             await dbContext.GiveawayEntries.DidNotReceive().ExecuteDeleteAllAsync();
+            await gameSettingsService.Received(1).SetBoolSetting("GiveawayFeature", "GiveawayIsClosed", false);
         }
 
         [Fact]
