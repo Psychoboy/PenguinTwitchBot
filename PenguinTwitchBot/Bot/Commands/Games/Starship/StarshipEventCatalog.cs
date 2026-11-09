@@ -229,6 +229,7 @@ public static partial class StarshipEventCatalog
     public static void Validate(IReadOnlyList<StarshipEventDefinition> catalog, StarshipExpeditionSettings settings)
     {
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var transitionRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var defaults = CreateDefaults();
         foreach (var definition in catalog)
         {
@@ -288,9 +289,14 @@ public static partial class StarshipEventCatalog
                 ValidateText(choice.Hint, 160, false, false);
                 choice.ShipEffect?.Validate();
                 choice.GrantedUpgrade?.Validate();
-                if (!string.IsNullOrWhiteSpace(choice.TargetRoute) && !IsStructural(definition.EventType) &&
-                    !settings.GetAllConfiguredRoutes().Contains(choice.TargetRoute.Trim(), StringComparer.OrdinalIgnoreCase))
-                    throw new ArgumentException($"{definition.Title}: choice '{choice.ChoiceId}' targets an unknown route '{choice.TargetRoute}'.");
+                if (!string.IsNullOrWhiteSpace(choice.TargetRoute) && !IsStructural(definition.EventType))
+                {
+                    var targetRoute = choice.TargetRoute.Trim();
+                    if (!settings.GetAllConfiguredRoutes().Contains(targetRoute, StringComparer.OrdinalIgnoreCase))
+                        throw new ArgumentException($"{definition.Title}: choice '{choice.ChoiceId}' targets an unknown route '{choice.TargetRoute}'.");
+                    if (definition.Enabled)
+                        transitionRoutes.Add(targetRoute);
+                }
                 if (!isGraphEvent && !labels.Add(choice.Label.Trim())) throw new ArgumentException($"{definition.Title}: choice labels must be unique.");
                 if (choice.IsRisky || choice.SuccessChanceModifierPercent is < -50 or > 50 ||
                     choice.RewardMultiplierPercent is < 10 or > 300 || choice.RiskMultiplierPercent is < 0 or > 300)
@@ -315,9 +321,17 @@ public static partial class StarshipEventCatalog
                 !string.Equals(route, LegacyDirectRoute, StringComparison.Ordinal) &&
                 !string.Equals(route, LegacySurveyRoute, StringComparison.Ordinal)))
                 throw new ArgumentException($"{definition.Title}: unknown route filter.");
-            if (isGraphEvent && definition.Steps.Any(step => !string.IsNullOrWhiteSpace(step.TargetRoute) &&
-                !settings.GetAllConfiguredRoutes().Contains(step.TargetRoute.Trim(), StringComparer.OrdinalIgnoreCase)))
-                throw new ArgumentException($"{definition.Title}: an end step targets an unknown route.");
+            if (isGraphEvent)
+            {
+                foreach (var step in definition.Steps.Where(step => !string.IsNullOrWhiteSpace(step.TargetRoute)))
+                {
+                    var targetRoute = step.TargetRoute!.Trim();
+                    if (!settings.GetAllConfiguredRoutes().Contains(targetRoute, StringComparer.OrdinalIgnoreCase))
+                        throw new ArgumentException($"{definition.Title}: an end step targets an unknown route.");
+                    if (definition.Enabled && !IsStructural(definition.EventType))
+                        transitionRoutes.Add(targetRoute);
+                }
+            }
             if (definition.AllowedSectors == null || definition.AllowedSectors.Any(sector => !StarshipExpeditionSettings.BuiltInSectors.Concat(settings.CustomSectors).Contains(sector, StringComparer.OrdinalIgnoreCase)))
                 throw new ArgumentException($"{definition.Title}: unknown sector filter.");
             if (!SubjectStyles.Contains(definition.SubjectStyle, StringComparer.Ordinal))
@@ -340,7 +354,7 @@ public static partial class StarshipEventCatalog
         }
         foreach (var structural in defaults.Where(definition => IsStructural(definition.EventType)))
             if (!ids.Contains(structural.EventType)) throw new ArgumentException($"The catalog requires {structural.EventType}.");
-        foreach (var route in settings.GetEffectiveRoutes().Prepend(StartRoute).Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var route in settings.GetEffectiveRoutes().Prepend(StartRoute).Concat(transitionRoutes).Distinct(StringComparer.OrdinalIgnoreCase))
             foreach (var sector in settings.GetEffectiveSectors())
                 if (!catalog.Any(definition => !IsStructural(definition.EventType) && IsAvailable(definition, route, sector)))
                     throw new ArgumentException($"No event is eligible for {route} in {sector}.");

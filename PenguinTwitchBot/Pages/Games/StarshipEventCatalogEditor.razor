@@ -736,6 +736,16 @@
         step.NextStepId = type == StarshipEventStepType.Automatic
             ? _draft?.Steps.FirstOrDefault(other => other.StepId != step.StepId && other.Type == StarshipEventStepType.End)?.StepId
             : null;
+        if (type != StarshipEventStepType.End)
+        {
+            step.FixedOutcome = null;
+            step.RewardMultiplierOverridePercent = null;
+            step.RiskMultiplierOverridePercent = null;
+            step.ShipEffectOverride = null;
+            step.GrantedUpgrade = null;
+            step.TargetRoute = null;
+            step.CompletesVoyageEarly = false;
+        }
         if (type == StarshipEventStepType.Vote && _draft?.Steps.FirstOrDefault(other => other.Type == StarshipEventStepType.End) is { } endStep)
         {
             step.Choices =
@@ -983,6 +993,20 @@
         try
         {
             var imported = StarshipEventEditing.ImportMany(_json, Settings);
+            var unmapped = imported.FirstOrDefault(definition =>
+                !string.IsNullOrEmpty(definition.RewardProfileId) &&
+                Settings.RewardProfiles.All(profile => profile.Id != definition.RewardProfileId));
+            if (unmapped != null)
+            {
+                Begin(unmapped, null);
+                _operationError = $"'{unmapped.Title}' references missing reward profile '{unmapped.RewardProfileId}'. Select or create a reward profile and save the draft.";
+                _notice = "";
+                return;
+            }
+            foreach (var definition in imported)
+            {
+                StarshipEventEditing.ValidateDraft(Settings, definition, null);
+            }
             foreach (var definition in imported)
             {
                 if (EventApplied.HasDelegate)

@@ -731,6 +731,26 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
             DisabledBuiltInRoutes = [.. StarshipExpeditionSettings.BuiltInRoutes],
             CustomRoutes = []
         }));
+
+        foreach (var reserved in new[] { "direct", "DIRECT ROUTE", "core", "detour", "Survey Detour", "frontier", "Start", "uncharted" })
+        {
+            Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(new StarshipExpeditionSettings
+            {
+                CustomRoutes = [reserved]
+            }));
+        }
+
+        var missingTransitionEligibility = new StarshipExpeditionSettings
+        {
+            DisabledBuiltInRoutes = ["Frontier Route"]
+        };
+        missingTransitionEligibility.EventCatalog = missingTransitionEligibility.EventCatalog
+            .Select(definition => StarshipEventCatalog.IsStructural(definition.EventType)
+                ? definition
+                : definition with { AllowedRoutes = ["Core Route", "Uncharted"] })
+            .ToList();
+        missingTransitionEligibility.EventCatalog[0].Steps.First(step => step.Type == StarshipEventStepType.End).TargetRoute = "Frontier Route";
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(missingTransitionEligibility));
     }
 
     private StarshipExpeditionSettingsStore CreateStore()

@@ -895,13 +895,14 @@ public sealed class StarshipExpeditionService(
             resolvedVariables["ChatMessage"] = chatMessage;
             await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventResolved, current, resolvedVariables);
 
-            if (resolvedEvent.OutcomeResult is StarshipExpeditionNarrative.OutcomeSuccess or StarshipExpeditionNarrative.OutcomeFailure)
+            if (StarshipExpeditionNarrative.IsPositiveOutcome(resolvedEvent.OutcomeResult) ||
+                StarshipExpeditionNarrative.IsNegativeOutcome(resolvedEvent.OutcomeResult))
             {
                 var outcomeVariables = new Dictionary<string, string>(resolvedVariables, StringComparer.OrdinalIgnoreCase);
                 outcomeVariables["AffectedCount"] = resolvedEvent.RewardOutcomes.Where(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0)
                     .Select(outcome => outcome.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture);
                 await FireTriggerAsync(
-                    resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess
+                    StarshipExpeditionNarrative.IsPositiveOutcome(resolvedEvent.OutcomeResult)
                         ? DefaultCommandEventTypes.StarshipEventSucceeded
                         : DefaultCommandEventTypes.StarshipEventFailed,
                     current,
@@ -909,12 +910,16 @@ public sealed class StarshipExpeditionService(
             }
 
             foreach (var userOutcomes in resolvedEvent.RewardOutcomes.Where(outcome =>
-                         outcome.WasRiskyAction && outcome.Outcome is "Success" or "Failure")
+                         outcome.WasRiskyAction &&
+                         (StarshipExpeditionNarrative.IsPositiveOutcome(outcome.Outcome) ||
+                          StarshipExpeditionNarrative.IsNegativeOutcome(outcome.Outcome)))
                          .GroupBy(outcome => outcome.UserId, StringComparer.OrdinalIgnoreCase))
             {
                 var outcome = userOutcomes.First();
                 await FireTriggerAsync(
-                    outcome.Outcome == "Success" ? DefaultCommandEventTypes.StarshipRiskSucceeded : DefaultCommandEventTypes.StarshipRiskFailed,
+                    StarshipExpeditionNarrative.IsPositiveOutcome(outcome.Outcome)
+                        ? DefaultCommandEventTypes.StarshipRiskSucceeded
+                        : DefaultCommandEventTypes.StarshipRiskFailed,
                     current,
                     new Dictionary<string, string>
                     {

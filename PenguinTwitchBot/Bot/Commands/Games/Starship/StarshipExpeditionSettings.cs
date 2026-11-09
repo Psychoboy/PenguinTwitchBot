@@ -145,7 +145,9 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
             .Select(name => (name ?? string.Empty).Trim())
             .ToList();
         if (settings.CustomRoutes.Any(name => string.IsNullOrWhiteSpace(name) || name.Length > MaximumRouteNameLength ||
-            string.Equals(name, StarshipEventCatalog.StartRoute, StringComparison.OrdinalIgnoreCase)))
+            string.Equals(name, StarshipEventCatalog.StartRoute, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(StarshipEventCatalog.CanonicalizeRoute(name), StarshipEventCatalog.StartRoute, StringComparison.OrdinalIgnoreCase) ||
+            BuiltInRoutes.Contains(StarshipEventCatalog.CanonicalizeRoute(name), StringComparer.OrdinalIgnoreCase)))
             throw new ArgumentException($"Custom route names must contain 1-{MaximumRouteNameLength} characters and cannot use reserved route names.", nameof(settings.CustomRoutes));
         var allRouteNames = BuiltInRoutes.Concat(settings.CustomRoutes).ToList();
         if (allRouteNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != allRouteNames.Count)
