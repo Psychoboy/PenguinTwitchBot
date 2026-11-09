@@ -158,8 +158,16 @@ public static class StarshipExpeditionStory
         var parts = new List<string> { Render(finalChoice?.Story ?? string.Empty, resolvedEvent, snapshot.Seed, voters, rarity) };
         var outcomeTemplate = resolvedEvent.OutcomeResult switch
         {
+            StarshipExpeditionNarrative.OutcomeCriticalSuccess =>
+                !string.IsNullOrWhiteSpace(resolvedEvent.CriticalSuccessStory) ? resolvedEvent.CriticalSuccessStory : resolvedEvent.SuccessStory,
             StarshipExpeditionNarrative.OutcomeSuccess => resolvedEvent.SuccessStory,
+            StarshipExpeditionNarrative.OutcomePartialSuccess =>
+                !string.IsNullOrWhiteSpace(resolvedEvent.PartialSuccessStory) ? resolvedEvent.PartialSuccessStory :
+                !string.IsNullOrWhiteSpace(resolvedEvent.SuccessStory) ? resolvedEvent.SuccessStory : resolvedEvent.FailureStory,
+            StarshipExpeditionNarrative.OutcomeNeutral => resolvedEvent.NeutralStory,
             StarshipExpeditionNarrative.OutcomeFailure => resolvedEvent.FailureStory,
+            StarshipExpeditionNarrative.OutcomeCriticalFailure =>
+                !string.IsNullOrWhiteSpace(resolvedEvent.CriticalFailureStory) ? resolvedEvent.CriticalFailureStory : resolvedEvent.FailureStory,
             _ => string.Empty
         };
         parts.Add(Render(outcomeTemplate, resolvedEvent, snapshot.Seed, voters, rarity));

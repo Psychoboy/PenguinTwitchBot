@@ -144,7 +144,7 @@ public class StarshipEventCatalogEditorTests
         Assert.Contains("Frontier Route", routeLabels);
         Assert.Contains("Uncharted", StarshipEventCatalog.Routes);
         Assert.True(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Start").Instance.Disabled);
-        Assert.True(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Uncharted").Instance.Disabled);
+        Assert.False(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Uncharted").Instance.Disabled);
         var defaults = StarshipEventCatalog.CreateDefaults();
         Assert.Equal(["Uncharted", "Frontier Route"], defaults.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
         Assert.Equal(["Uncharted", "Core Route"], defaults.Single(definition => definition.EventType == "Hazard").AllowedRoutes);
@@ -358,6 +358,32 @@ public class StarshipEventCatalogEditorTests
             Assert.Equal(5, settings.EventCatalog.Count);
             Assert.Contains("mud-alert", editor.Markup);
         });
+    }
+
+    [Fact]
+    public async Task ImportMultipleEvents_PreflightsMissingRewardProfileBeforeApplying()
+    {
+        await using var context = CreateContext();
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var appliedCount = 0;
+        var editor = context.Render<StarshipEventCatalogEditor>(parameters => parameters
+            .Add(component => component.Settings, settings)
+            .Add(component => component.EventApplied, EventCallback.Factory.Create<StarshipEventDefinition>(this, _ => appliedCount++)));
+
+        var validEvent = settings.EventCatalog[0] with { EventType = "valid-import", Title = "Valid Import", RewardProfileId = "SignalDetected" };
+        var missingProfileEvent = settings.EventCatalog[0] with { EventType = "unmapped-import", Title = "Unmapped Import", RewardProfileId = "missing-profile" };
+        var batchJson = System.Text.Json.JsonSerializer.Serialize(
+            new StarshipCatalogExportDocument(2, [validEvent, missingProfileEvent]),
+            new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+
+        await editor.FindComponents<MudTextField<string>>().Single(component => component.Instance.Label == "Event JSON").Find("textarea")
+            .ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = batchJson });
+        await ClickAsync(editor, "Import Multiple Events");
+
+        Assert.Equal(0, appliedCount);
+        Assert.Equal(5, settings.EventCatalog.Count);
+        Assert.Contains("New Event Draft", editor.Markup);
+        Assert.Contains("missing-profile", editor.Markup);
     }
 
     private static async Task ClickAsync(IRenderedComponent<StarshipEventCatalogEditor> editor, string label) =>

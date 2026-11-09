@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 2,
+  "event": {
+    "eventType": "ghost-convoy",
+    "title": "Ghost Convoy",
+    "description": "A formation of autopilot freighters, {subject}, is running dark through {sector} on locked transponders.",
+    "choices": [],
+    "defaultChoiceId": "",
+    "successStory": "The crew matches velocity with {subject} and transfers {loot}.",
+    "failureStory": "Escort drones wake up and drive the ship away from {subject}.",
+    "criticalSuccessStory": "The lead freighter recognizes the crew's override! They secure {loot} and sync the convoy's trade manifest.",
+    "partialSuccessStory": "A cargo tether snaps mid-transfer; the crew secures half of {loot} while grazing a freighter hull.",
+    "neutralStory": "The convoy jumps to warp in unison before the crew can complete a boarding lock.",
+    "criticalFailureStory": "Convoy point-defense turrets open fire at point-blank range, shredding hull plating!",
+    "enabled": true,
+    "weight": 1,
+    "allowedRoutes": ["Core Route", "Uncharted"],
+    "subjectStyle": "ship",
+    "objectKind": "wreck",
+    "rewardProfileId": "Hazard",
+    "shipFailureEffect": { "hullDelta": -20, "suppliesDelta": -10 },
+    "shipPartialSuccessEffect": { "hullDelta": -10, "suppliesDelta": -5 },
+    "shipCriticalFailureEffect": { "hullDelta": -35, "suppliesDelta": -15 },
+    "criticalSuccessUpgrade": {
+      "id": "convoy-manifest",
+      "name": "Convoy Trade Manifest",
+      "pointLossReductionPercent": 15,
+      "rewardBonusPercent": 15
+    },
+    "lootByTier": {
+      "Common": "sealed ration containers",
+      "Uncommon": "bonded meridian bullion",
+      "Rare": "a guild vault container"
+    },
+    "startStepId": "intercept",
+    "defaultStepSuppliesCost": 0,
+    "steps": [
+      {
+        "stepId": "intercept",
+        "type": "Vote",
+        "prompt": "An autopilot freighter formation, {subject}, is running dark through {sector}. How should the crew intercept?",
+        "defaultChoiceId": "hail-convoy",
+        "choices": [
+          { "choiceId": "hail-convoy", "label": "Spoof convoy transponder", "story": "{crew} matches the encrypted transponder cadence of {subject}.", "revealsRarity": true, "nextStepId": "formation" },
+          { "choiceId": "tether-rear", "label": "Latch onto the trailing freighter", "story": "{crewlist} fire magnetic grapples onto the trailing hull.", "rewardMultiplierPercent": 125, "riskMultiplierPercent": 120, "nextStepId": "transfer-ending" },
+          { "choiceId": "stand-down", "label": "Let the convoy pass", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      {
+        "stepId": "formation",
+        "type": "Vote",
+        "prompt": "The transponder spoof holds. The ship is inside the convoy formation.",
+        "defaultChoiceId": "board-lead",
+        "choices": [
+          { "choiceId": "board-lead", "label": "Dock with the lead freighter", "story": "{crew} guides the ship into the lead freighter's docking collar.", "successChanceModifierPercent": 10, "rewardMultiplierPercent": 140, "nextStepId": "transfer-ending" },
+          { "choiceId": "divert-frontier", "label": "Follow the convoy's hidden vector", "story": "{crew} tracks the convoy's nav-computer onto the Frontier Route.", "nextStepId": "frontier-ending" },
+          { "choiceId": "shadow-only", "label": "Collect telemetry and break off", "story": "{crew} logs the convoy's telemetry without risking a boarding.", "nextStepId": "neutral-ending" }
+        ]
+      },
+      {
+        "stepId": "transfer-ending",
+        "type": "End",
+        "prompt": "The crew completes the cargo transfer of {loot}."
+      },
+      {
+        "stepId": "frontier-ending",
+        "type": "End",
+        "prompt": "The convoy leads the ship onto the Frontier Route with {loot}.",
+        "targetRoute": "Frontier Route"
+      },
+      {
+        "stepId": "neutral-ending",
+        "type": "End",
+        "prompt": "The crew breaks off cleanly as {subject} continues into the dark.",
+        "fixedOutcome": "Neutral"
+      },
+      {
+        "stepId": "pass-ending",
+        "type": "End",
+        "prompt": "The crew lets {subject} glide past into the dark."
+      }
+    ]
+  }
+}

@@ -8,19 +8,77 @@ internal static class StarshipRewardResolver
         StarshipRewardProfile? profile)
     {
         var finalChoice = FindResolvedChoice(resolvedEvent);
+        var endStep = FindTerminalEndStep(resolvedEvent);
         var committed = finalChoice?.IsRisky == true;
         var offersCommit = AllChoices(resolvedEvent).Any(choice => choice.IsRisky);
-        if (finalChoice?.EndsWithoutReward == true || (!committed && offersCommit))
+        if (!string.IsNullOrEmpty(endStep?.FixedOutcome))
+        {
+            resolvedEvent.OutcomeResult = endStep.FixedOutcome;
+        }
+        else if (finalChoice?.EndsWithoutReward == true || (!committed && offersCommit))
         {
             resolvedEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomePassed;
             return;
         }
+        else
+        {
+            var chance = GetEffectiveSuccessChance(profile, resolvedEvent, finalChoice);
+            var roll = StarshipExpeditionStory.StableIndex(snapshot.Seed, resolvedEvent.Sequence,
+                $"reward-success:{resolvedEvent.EventId:N}", 100);
+            var rules = snapshot.ShipSystems?.Rules;
+            var useGraduated = rules?.EnableGraduatedOutcomes == true ||
+                resolvedEvent.CriticalSuccessSharePercent != null ||
+                resolvedEvent.PartialSuccessBandPercent != null ||
+                resolvedEvent.CriticalFailureSharePercent != null;
+            if (!useGraduated)
+            {
+                resolvedEvent.OutcomeResult = roll < chance
+                    ? StarshipExpeditionNarrative.OutcomeSuccess
+                    : StarshipExpeditionNarrative.OutcomeFailure;
+            }
+            else
+            {
+                var critSuccessShare = resolvedEvent.CriticalSuccessSharePercent ?? rules?.CriticalSuccessSharePercent ?? 15;
+                var partialBand = resolvedEvent.PartialSuccessBandPercent ?? rules?.PartialSuccessBandPercent ?? 15;
+                var critFailureShare = resolvedEvent.CriticalFailureSharePercent ?? rules?.CriticalFailureSharePercent ?? 20;
+                var critSuccessCeiling = chance > 0 && critSuccessShare > 0 ? Math.Max(1, chance * critSuccessShare / 100) : 0;
+                var partialWidth = chance is > 0 and < 100 ? partialBand : 0;
+                var partialStart = Math.Max(critSuccessCeiling, chance - partialWidth / 2);
+                var partialEnd = Math.Min(100, chance + (partialWidth - partialWidth / 2));
+                var failureRange = 100 - partialEnd;
+                var critFailureFloor = failureRange > 0 && critFailureShare > 0
+                    ? 100 - Math.Max(1, failureRange * critFailureShare / 100)
+                    : 100;
 
-        var chance = GetEffectiveSuccessChance(profile, resolvedEvent, finalChoice);
-        var succeeded = StarshipExpeditionStory.StableIndex(snapshot.Seed, resolvedEvent.Sequence,
-            $"reward-success:{resolvedEvent.EventId:N}", 100) < chance;
+                if (critSuccessShare > 0 && roll < critSuccessCeiling)
+                    resolvedEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomeCriticalSuccess;
+                else if (roll < partialStart)
+                    resolvedEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomeSuccess;
+                else if (partialWidth > 0 && roll < partialEnd)
+                    resolvedEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomePartialSuccess;
+                else if (critFailureShare > 0 && roll >= critFailureFloor)
+                    resolvedEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomeCriticalFailure;
+                else
+                    resolvedEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomeFailure;
+            }
+        }
+
+        if (resolvedEvent.OutcomeResult is StarshipExpeditionNarrative.OutcomePassed or StarshipExpeditionNarrative.OutcomeNeutral)
+        {
+            resolvedEvent.OutcomeRarity = string.Empty;
+            resolvedEvent.OutcomeRarityColor = string.Empty;
+            return;
+        }
+
         var tier = profile == null ? null : ChooseEventTier(snapshot, resolvedEvent, profile);
-        resolvedEvent.OutcomeResult = succeeded ? StarshipExpeditionNarrative.OutcomeSuccess : StarshipExpeditionNarrative.OutcomeFailure;
+        if (resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeCriticalSuccess &&
+            (snapshot.ShipSystems?.Rules.CriticalSuccessBoostsRarity ?? true) && profile != null && tier != null)
+        {
+            var enabledTiers = profile.GetTiers().Where(item => item.Enabled).ToList();
+            var tierIndex = enabledTiers.FindIndex(item => string.Equals(item.Name, tier.Name, StringComparison.OrdinalIgnoreCase));
+            if (tierIndex >= 0 && tierIndex + 1 < enabledTiers.Count)
+                tier = enabledTiers[tierIndex + 1];
+        }
         resolvedEvent.OutcomeRarity = tier?.Name ?? string.Empty;
         resolvedEvent.OutcomeRarityColor = tier?.Color ?? string.Empty;
     }
@@ -32,14 +90,41 @@ internal static class StarshipRewardResolver
         IReadOnlySet<string> eligibleUserIds)
     {
         if (string.IsNullOrEmpty(resolvedEvent.OutcomeResult)) ResolveOutcome(snapshot, resolvedEvent, profile);
-        if (resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomePassed) return;
+        if (resolvedEvent.OutcomeResult is StarshipExpeditionNarrative.OutcomePassed or StarshipExpeditionNarrative.OutcomeNeutral) return;
         var finalChoice = FindResolvedChoice(resolvedEvent);
+        var endStep = FindTerminalEndStep(resolvedEvent);
         var committed = finalChoice?.IsRisky == true;
         var chance = GetEffectiveSuccessChance(profile, resolvedEvent, finalChoice);
-        var succeeded = resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess;
         var tier = profile.GetTiers().FirstOrDefault(item => item.Name == resolvedEvent.OutcomeRarity);
-        var rewardPercent = CombinePercent(resolvedEvent.RewardMultiplierPercent, finalChoice?.RewardMultiplierPercent ?? 100);
-        var riskPercent = CombinePercent(resolvedEvent.RiskMultiplierPercent, finalChoice?.RiskMultiplierPercent ?? 100);
+        var rewardPercent = endStep?.RewardMultiplierOverridePercent ??
+            CombinePercent(resolvedEvent.RewardMultiplierPercent, finalChoice?.RewardMultiplierPercent ?? 100);
+        var riskPercent = endStep?.RiskMultiplierOverridePercent ??
+            CombinePercent(resolvedEvent.RiskMultiplierPercent, finalChoice?.RiskMultiplierPercent ?? 100);
+
+        if (snapshot.ShipSystems is { IntegrationEnabled: true } ship)
+        {
+            var upgradeRewardBonus = ship.ActiveUpgrades.Sum(upgrade => upgrade.RewardBonusPercent);
+            var upgradeLossReduction = Math.Clamp(ship.ActiveUpgrades.Sum(upgrade => upgrade.PointLossReductionPercent), 0, 100);
+            if (upgradeRewardBonus > 0)
+                rewardPercent = CombinePercent(rewardPercent, 100 + upgradeRewardBonus);
+            if (upgradeLossReduction > 0)
+                riskPercent = CombinePercent(riskPercent, 100 - upgradeLossReduction);
+        }
+
+        var rules = snapshot.ShipSystems?.Rules ?? new StarshipShipSystemsSettings();
+        switch (resolvedEvent.OutcomeResult)
+        {
+            case StarshipExpeditionNarrative.OutcomeCriticalSuccess:
+                rewardPercent = CombinePercent(rewardPercent, rules.CriticalSuccessRewardMultiplierPercent);
+                break;
+            case StarshipExpeditionNarrative.OutcomePartialSuccess:
+                rewardPercent = CombinePercent(rewardPercent, rules.PartialSuccessRewardPercent);
+                riskPercent = CombinePercent(riskPercent, rules.PartialSuccessPenaltyPercent);
+                break;
+            case StarshipExpeditionNarrative.OutcomeCriticalFailure:
+                riskPercent = CombinePercent(riskPercent, rules.CriticalFailurePenaltyMultiplierPercent);
+                break;
+        }
 
         if (committed)
         {
@@ -51,14 +136,14 @@ internal static class StarshipRewardResolver
                 var member = snapshot.Crew.FirstOrDefault(candidate => string.Equals(candidate.UserId, voterId, StringComparison.OrdinalIgnoreCase));
                 if (member != null)
                     ApplyRewardToParticipant(snapshot, resolvedEvent, profile, member, true, eligibleUserIds.Contains(member.UserId),
-                        succeeded, tier, chance, rewardPercent, riskPercent);
+                        resolvedEvent.OutcomeResult, tier, chance, rewardPercent, riskPercent);
             }
             return;
         }
 
         foreach (var member in snapshot.Crew.Where(member => eligibleUserIds.Contains(member.UserId)))
             ApplyRewardToParticipant(snapshot, resolvedEvent, profile, member, false, true,
-                succeeded, tier, chance, rewardPercent, riskPercent);
+                resolvedEvent.OutcomeResult, tier, chance, rewardPercent, riskPercent);
     }
 
     internal static int GetEffectiveSuccessChance(
@@ -85,6 +170,19 @@ internal static class StarshipRewardResolver
             string.Equals(choice.ChoiceId, expeditionEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
     }
 
+    internal static StarshipEventStepDefinition? FindTerminalEndStep(StarshipExpeditionEventSnapshot resolvedEvent)
+    {
+        if (resolvedEvent.StepDefinitions.Count == 0) return null;
+        var current = resolvedEvent.StepDefinitions.FirstOrDefault(step =>
+            step.StepId == resolvedEvent.CurrentStepId && step.Type == StarshipEventStepType.End);
+        if (current != null) return current;
+        var choice = FindResolvedChoice(resolvedEvent);
+        if (!string.IsNullOrEmpty(choice?.NextStepId))
+            return resolvedEvent.StepDefinitions.FirstOrDefault(step =>
+                step.StepId == choice.NextStepId && step.Type == StarshipEventStepType.End);
+        return null;
+    }
+
     private static void ApplyRewardToParticipant(
         StarshipExpeditionSnapshot snapshot,
         StarshipExpeditionEventSnapshot resolvedEvent,
@@ -92,7 +190,7 @@ internal static class StarshipRewardResolver
         StarshipCrewMemberSnapshot member,
         bool isRisky,
         bool isEligible,
-        bool succeeded,
+        string outcomeResult,
         StarshipRewardTier? tier,
         int successChancePercent,
         int rewardPercent,
@@ -116,20 +214,23 @@ internal static class StarshipRewardResolver
             return;
         }
 
+        var hasReward = outcomeResult is StarshipExpeditionNarrative.OutcomeCriticalSuccess
+            or StarshipExpeditionNarrative.OutcomeSuccess
+            or StarshipExpeditionNarrative.OutcomePartialSuccess;
+        var hasLoss = outcomeResult is StarshipExpeditionNarrative.OutcomePartialSuccess
+            or StarshipExpeditionNarrative.OutcomeFailure
+            or StarshipExpeditionNarrative.OutcomeCriticalFailure;
+
         var typeIds = new List<Guid>();
-        if (succeeded)
-        {
-            if (tier != null) typeIds.AddRange(tier.Rewards.Select(reward => reward.PointTypeId));
-        }
-        else
-        {
+        if (hasReward && tier != null)
+            typeIds.AddRange(tier.Rewards.Select(reward => reward.PointTypeId));
+        if (hasLoss)
             typeIds.AddRange(profile.GetLossRules().Select(rule => rule.PointTypeId));
-        }
         typeIds = typeIds.Where(id => id != Guid.Empty).Distinct().ToList();
         if (typeIds.Count == 0 && primaryTypeId != Guid.Empty) typeIds.Add(primaryTypeId);
 
         var rolledByType = new Dictionary<Guid, long>();
-        if (succeeded && isEligible && tier != null)
+        if (hasReward && isEligible && tier != null)
         {
             for (var index = 0; index < tier.Rewards.Count; index++)
             {
@@ -151,17 +252,17 @@ internal static class StarshipRewardResolver
         {
             long earnedAmount = 0;
             long lostAmount = 0;
-            var outcome = succeeded ? "Success" : "Failure";
+            var outcome = outcomeResult;
             var typeName = profile.GetPointTypeName(typeId);
             var currentBalance = member.UnbankedBalances.FirstOrDefault(balance => balance.PointTypeId == typeId);
             var lossRule = profile.GetLossRules().FirstOrDefault(rule => rule.PointTypeId == typeId);
-            if (!succeeded && currentBalance != null && lossRule != null)
+            if (hasLoss && currentBalance != null && lossRule != null)
             {
                 var (proportionalLoss, maximumLoss) = ScaleRiskLoss(lossRule, currentBalance.Amount, riskPercent);
                 lostAmount = Math.Min(currentBalance.Amount, Math.Min(proportionalLoss, maximumLoss));
                 currentBalance.Amount -= lostAmount;
             }
-            if (succeeded && isEligible)
+            if (hasReward && isEligible)
             {
                 var cap = profile.GetCap(typeId);
                 var earnedThisVoyage = snapshot.CompletedEvents
@@ -177,7 +278,7 @@ internal static class StarshipRewardResolver
                     currentBalance.Amount = AddSaturating(currentBalance.Amount, earnedAmount);
                 }
             }
-            else if (succeeded)
+            else if (hasReward)
             {
                 outcome = "Ineligible";
             }

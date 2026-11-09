@@ -8,6 +8,10 @@
     "defaultChoiceId": "",
     "successStory": "The crew retrieves {loot} from {subject}.",
     "failureStory": "The frame breaks apart and the crew abandons the recovery.",
+    "criticalSuccessStory": "The vault unseals without a scratch! The crew retrieves {loot} and an intact survey calibration module.",
+    "partialSuccessStory": "The cache frame shifts mid-recovery; the crew escapes with part of {loot} and minor hull scrapes.",
+    "neutralStory": "The survey cache is intact, but its canisters were emptied long ago.",
+    "criticalFailureStory": "The cache's containment field ruptures violently, battering the ship with debris!",
     "enabled": true,
     "weight": 2,
     "allowedRoutes": ["Frontier Route"],
@@ -16,6 +20,12 @@
     "subjectNames": ["the Lantern Cache", "the Hollow Archive"],
     "objectKind": "wreck",
     "shipFailureEffect": { "hullDelta": -20, "suppliesDelta": -10 },
+    "criticalSuccessUpgrade": {
+      "id": "survey-calibrator",
+      "name": "Survey Calibration Module",
+      "successChanceBonusPercent": 5,
+      "rewardBonusPercent": 10
+    },
     "lootByTier": {
       "Common": "a crate of survey instruments",
       "Uncommon": "an intact stellar recorder",

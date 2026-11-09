@@ -42,6 +42,9 @@ public class StarshipEventEditingTests
     [InlineData("courier-relay.json")]
     [InlineData("survey-cache.json")]
     [InlineData("debris-crossing.json")]
+    [InlineData("uncharted-wormhole.json")]
+    [InlineData("ancient-shipyard.json")]
+    [InlineData("ghost-convoy.json")]
     public async Task BundledStarterEvent_ImportsValidatesAndRendersWithoutChangingSettings(string fileName)
     {
         var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot", "help", "starship", "examples", fileName));
@@ -71,7 +74,9 @@ public class StarshipEventEditingTests
         };
         var templates = draft.Steps.SelectMany(step => step.Choices.Select(choice => choice.Story)
             .Append(step.Prompt).Append(step.Narrative ?? string.Empty))
-            .Concat([draft.Description, draft.SuccessStory, draft.FailureStory]);
+            .Concat([draft.Description, draft.SuccessStory, draft.FailureStory,
+                draft.CriticalSuccessStory ?? string.Empty, draft.PartialSuccessStory ?? string.Empty,
+                draft.NeutralStory ?? string.Empty, draft.CriticalFailureStory ?? string.Empty]);
         foreach (var template in templates)
         {
             var rendered = StarshipExpeditionStory.Render(template, expeditionEvent, 12345, ["Viewer"], "Rare");
@@ -80,6 +85,25 @@ public class StarshipEventEditingTests
         }
         var reimported = StarshipEventEditing.Import(StarshipEventEditing.Export(draft), settings);
         StarshipEventEditing.ValidateDraft(settings, reimported, null);
+    }
+
+    [Fact]
+    public void ExportCatalogAndImportMany_RoundTripsMultipleEventsWithPromptGuidance()
+    {
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var catalogJson = StarshipEventEditing.ExportCatalog(settings);
+        using var doc = JsonDocument.Parse(catalogJson);
+        Assert.Equal(2, doc.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.False(string.IsNullOrWhiteSpace(doc.RootElement.GetProperty("aiPromptGuide").GetString()));
+        Assert.Equal(3, doc.RootElement.GetProperty("events").GetArrayLength());
+
+        var imported = StarshipEventEditing.ImportMany(catalogJson, settings);
+        Assert.Equal(3, imported.Count);
+        Assert.All(imported, draft =>
+        {
+            Assert.DoesNotContain(settings.EventCatalog, existing => existing.EventType == draft.EventType);
+            StarshipEventEditing.ValidateDraft(settings, draft, null);
+        });
     }
 
     [Fact]

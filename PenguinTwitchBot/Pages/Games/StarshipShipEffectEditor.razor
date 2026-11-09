@@ -5,11 +5,11 @@
     @if (Value is { } effect)
     {
         <MudGrid Spacing="2">
-            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="@($"{Label} Hull Delta")" Variant="Variant.Outlined" Min="-100" Max="100" Value="effect.HullDelta" ValueChanged="@(value => ValueChanged.InvokeAsync(effect with { HullDelta = value }))" /></MudItem>
-            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="@($"{Label} Supplies Delta")" Variant="Variant.Outlined" Min="-100" Max="100" Value="effect.SuppliesDelta" ValueChanged="@(value => ValueChanged.InvokeAsync(effect with { SuppliesDelta = value }))" /></MudItem>
+            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="@($"{Label} Hull Delta")" HelperText="One-time hull repair (+) or damage (-)" Variant="Variant.Outlined" Min="-100" Max="100" Value="effect.HullDelta" ValueChanged="@(value => ValueChanged.InvokeAsync(effect with { HullDelta = value }))" /></MudItem>
+            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="@($"{Label} Supplies Delta")" HelperText="One-time supplies gain (+) or loss (-)" Variant="Variant.Outlined" Min="-100" Max="100" Value="effect.SuppliesDelta" ValueChanged="@(value => ValueChanged.InvokeAsync(effect with { SuppliesDelta = value }))" /></MudItem>
             @if (AllowCost)
             {
-                <MudItem xs="12" sm="4"><MudNumericField T="int" Label="@($"{Label} Supplies Cost")" Variant="Variant.Outlined" Min="0" Max="100" Value="effect.SuppliesCost" ValueChanged="@(value => ValueChanged.InvokeAsync(effect with { SuppliesCost = value }))" /></MudItem>
+                <MudItem xs="12" sm="4"><MudNumericField T="int" Label="@($"{Label} Supplies Cost")" HelperText="Supplies required & spent immediately" Variant="Variant.Outlined" Min="0" Max="100" Value="effect.SuppliesCost" ValueChanged="@(value => ValueChanged.InvokeAsync(effect with { SuppliesCost = value }))" /></MudItem>
             }
         </MudGrid>
     }

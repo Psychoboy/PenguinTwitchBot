@@ -1,0 +1,56 @@
+@using PenguinTwitchBot.Bot.Commands.Games.Starship
+
+<MudStack Spacing="2">
+    <MudCheckBox T="bool" Label="@($"Grant Persistent Voyage Upgrade {Label}")" Color="Color.Secondary" Value="@(Value != null)" ValueChanged="ToggleAsync" />
+    @if (Value is { } upgrade)
+    {
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Remains active on the ship for the rest of the voyage (unlike Hull/Supplies Delta, which is a one-time heal or damage).
+        </MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="4">
+                <MudTextField T="string" Label="Upgrade ID (slug)" Variant="Variant.Outlined" MaxLength="40"
+                              Value="upgrade.Id" ValueChanged="@(val => ValueChanged.InvokeAsync(upgrade with { Id = val ?? string.Empty }))" />
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudTextField T="string" Label="Upgrade Name" Variant="Variant.Outlined" MaxLength="80"
+                              Value="upgrade.Name" ValueChanged="@(val => ValueChanged.InvokeAsync(upgrade with { Name = val ?? string.Empty }))" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="int" Label="Success Chance Bonus (+%)" Variant="Variant.Outlined" Min="0" Max="50"
+                                 HelperText="Added to future event rolls"
+                                 Value="upgrade.SuccessChanceBonusPercent" ValueChanged="@(val => ValueChanged.InvokeAsync(upgrade with { SuccessChanceBonusPercent = val }))" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="int" Label="Travel Supplies Discount (-/leg)" Variant="Variant.Outlined" Min="0" Max="25"
+                                 HelperText="Reduces supplies spent per leg"
+                                 Value="upgrade.TravelSuppliesDiscount" ValueChanged="@(val => ValueChanged.InvokeAsync(upgrade with { TravelSuppliesDiscount = val }))" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="int" Label="Hull Damage Reduction (-%)" Variant="Variant.Outlined" Min="0" Max="75"
+                                 HelperText="Reduces future hull damage taken"
+                                 Value="upgrade.HullDamageReductionPercent" ValueChanged="@(val => ValueChanged.InvokeAsync(upgrade with { HullDamageReductionPercent = val }))" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField T="int" Label="Unbanked Point Loss Reduction (-%)" Variant="Variant.Outlined" Min="0" Max="75"
+                                 HelperText="Reduces point losses on failed events"
+                                 Value="upgrade.PointLossReductionPercent" ValueChanged="@(val => ValueChanged.InvokeAsync(upgrade with { PointLossReductionPercent = val }))" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField T="int" Label="Point Reward Bonus (+%)" Variant="Variant.Outlined" Min="0" Max="100"
+                                 HelperText="Boosts points earned on successful events"
+                                 Value="upgrade.RewardBonusPercent" ValueChanged="@(val => ValueChanged.InvokeAsync(upgrade with { RewardBonusPercent = val }))" />
+            </MudItem>
+        </MudGrid>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public string Label { get; set; } = "on Outcome";
+    [Parameter] public StarshipShipUpgrade? Value { get; set; }
+    [Parameter] public EventCallback<StarshipShipUpgrade?> ValueChanged { get; set; }
+
+    private Task ToggleAsync(bool enabled) => ValueChanged.InvokeAsync(enabled
+        ? Value ?? new StarshipShipUpgrade { Id = "ship-upgrade", Name = "Salvaged Upgrade", HullDamageReductionPercent = 15 }
+        : null);
+}

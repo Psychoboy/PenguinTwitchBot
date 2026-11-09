@@ -9,6 +9,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public const int MaximumEventIntervalLimitMinutes = 120;
     public const int MaximumCustomSectors = 20;
     public const int MaximumSectorNameLength = 40;
+    public const int MaximumCustomRoutes = 10;
+    public const int MaximumRouteNameLength = 40;
     public const long MaximumConfiguredReward = long.MaxValue;
     public const long MaximumUnbankedReward = long.MaxValue;
 
@@ -21,10 +23,18 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         "Pioneer Verge"
     ];
 
+    public static IReadOnlyList<string> BuiltInRoutes { get; } =
+    [
+        StarshipEventCatalog.CoreRoute,
+        StarshipEventCatalog.FrontierRoute,
+        StarshipEventCatalog.UnchartedRoute
+    ];
+
     public static IReadOnlyList<string> RewardEventTypes { get; } =
     ["RouteChoice", "SignalDetected", "SalvageSite", "Hazard"];
 
     public bool StarterEventsInstalled { get; set; }
+    public List<string> InstalledStarterEvents { get; set; } = [];
     public int LegCount { get; set; } = StarshipExpeditionService.DefaultLegCount;
     public int MinimumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMinimumEventIntervalMinutes;
     public int MaximumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMaximumEventIntervalMinutes;
@@ -36,6 +46,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public bool ActiveCrewRewardsOnly { get; set; } = true;
     public List<string> DisabledBuiltInSectors { get; set; } = [];
     public List<string> CustomSectors { get; set; } = [];
+    public List<string> DisabledBuiltInRoutes { get; set; } = [];
+    public List<string> CustomRoutes { get; set; } = [];
     public List<StarshipRewardProfile> RewardProfiles { get; set; } = CreateDefaultRewardProfiles();
     public Dictionary<string, string> EventRewardProfileIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<StarshipEventDefinition> EventCatalog { get; set; } = StarshipEventCatalog.CreateDefaults();
@@ -119,6 +131,30 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         if (settings.GetEffectiveSectors().Count < 2)
             throw new ArgumentException("Enable or add at least two expedition sectors.", nameof(settings.DisabledBuiltInSectors));
 
+        settings.InstalledStarterEvents ??= [];
+        settings.CustomRoutes ??= [];
+        settings.DisabledBuiltInRoutes ??= [];
+        if (settings.DisabledBuiltInRoutes.Any(name => name == null || !BuiltInRoutes.Contains(name.Trim(), StringComparer.OrdinalIgnoreCase)))
+            throw new ArgumentException("Only known built-in routes can be disabled.", nameof(settings.DisabledBuiltInRoutes));
+        settings.DisabledBuiltInRoutes = BuiltInRoutes
+            .Where(name => settings.DisabledBuiltInRoutes.Any(disabled => string.Equals(disabled.Trim(), name, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        if (settings.CustomRoutes.Count > MaximumCustomRoutes)
+            throw new ArgumentOutOfRangeException(nameof(settings.CustomRoutes), $"Add no more than {MaximumCustomRoutes} custom routes.");
+        settings.CustomRoutes = settings.CustomRoutes
+            .Select(name => (name ?? string.Empty).Trim())
+            .ToList();
+        if (settings.CustomRoutes.Any(name => string.IsNullOrWhiteSpace(name) || name.Length > MaximumRouteNameLength ||
+            string.Equals(name, StarshipEventCatalog.StartRoute, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(StarshipEventCatalog.CanonicalizeRoute(name), StarshipEventCatalog.StartRoute, StringComparison.OrdinalIgnoreCase) ||
+            BuiltInRoutes.Contains(StarshipEventCatalog.CanonicalizeRoute(name), StringComparer.OrdinalIgnoreCase)))
+            throw new ArgumentException($"Custom route names must contain 1-{MaximumRouteNameLength} characters and cannot use reserved route names.", nameof(settings.CustomRoutes));
+        var allRouteNames = BuiltInRoutes.Concat(settings.CustomRoutes).ToList();
+        if (allRouteNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != allRouteNames.Count)
+            throw new ArgumentException("Route names must be unique, including built-in routes.", nameof(settings.CustomRoutes));
+        if (settings.GetEffectiveRoutes().Count < 1)
+            throw new ArgumentException("Enable or add at least one expedition route.", nameof(settings.DisabledBuiltInRoutes));
+
         NormalizeAndValidateRewardProfiles(settings);
         StarshipEventCatalog.Validate(settings.EventCatalog, settings);
         return settings;
@@ -198,6 +234,12 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
 
     public List<string> GetEffectiveSectors() =>
         [.. BuiltInSectors.Where(name => !DisabledBuiltInSectors.Contains(name, StringComparer.OrdinalIgnoreCase)), .. CustomSectors];
+
+    public List<string> GetEffectiveRoutes() =>
+        [.. BuiltInRoutes.Where(name => !DisabledBuiltInRoutes.Contains(name, StringComparer.OrdinalIgnoreCase)), .. CustomRoutes];
+
+    public List<string> GetAllConfiguredRoutes() =>
+        [.. BuiltInRoutes, .. CustomRoutes];
 
     public StarshipRewardProfile? GetRewardProfile(string eventType) =>
         StarshipRewardProfile.FindForEvent(RewardProfiles, GetEffectiveRewardBindings(), eventType);

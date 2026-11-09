@@ -1,7 +1,7 @@
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 public sealed record StarshipOverlayShipState(int Hull, int MaximumHull, int Supplies, int PendingSuccessBonusPercent,
-    int ActiveSuccessBonusPercent, string ReturnReason);
+    int ActiveSuccessBonusPercent, string ReturnReason, string VoyageOutcome = "", IReadOnlyList<StarshipShipUpgrade>? ActiveUpgrades = null);
 
 public sealed record StarshipShipChoiceDisclosure(string ChoiceId, string Label, int? Number, bool Available,
     int SuppliesCost, int HullDelta, int SuppliesDelta, int? SuccessChancePercent,

@@ -59,6 +59,7 @@ public sealed class StarshipExpeditionSnapshot
     public string CurrentRoute { get; set; } = StarshipEventCatalog.StartRoute;
     public int RouteNameMigrationVersion { get; set; }
     public List<string> SectorPool { get; init; } = [];
+    public List<string> RoutePool { get; init; } = [];
     public List<StarshipCrewMemberSnapshot> Crew { get; init; } = [];
     public List<StarshipExpeditionEventSnapshot> CompletedEvents { get; init; } = [];
     public List<StarshipBankedPayoutSnapshot> BankedPayouts { get; init; } = [];
@@ -77,6 +78,7 @@ public sealed class StarshipExpeditionSnapshot
     public DropGameSoundConfig? EmergencyReturnSound { get; init; }
     public Dictionary<string, DropGameSoundConfig> EventTypeOpenSounds { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     public string ReturnReason { get; set; } = string.Empty;
+    public string VoyageOutcome { get; set; } = string.Empty;
 }
 
 /// <summary>Look of the voyage's ship, generated once from the voyage seed.</summary>
@@ -166,6 +168,17 @@ public sealed class StarshipExpeditionEventSnapshot
     public string OutcomeResult { get; set; } = string.Empty;
     public string OutcomeRarity { get; set; } = string.Empty;
     public string OutcomeRarityColor { get; set; } = string.Empty;
+    public string CriticalSuccessStory { get; init; } = string.Empty;
+    public string PartialSuccessStory { get; init; } = string.Empty;
+    public string NeutralStory { get; init; } = string.Empty;
+    public string CriticalFailureStory { get; init; } = string.Empty;
+    public int? CriticalSuccessSharePercent { get; init; }
+    public int? PartialSuccessBandPercent { get; init; }
+    public int? CriticalFailureSharePercent { get; init; }
+    public StarshipShipUpgrade? CriticalSuccessUpgrade { get; init; }
+    public StarshipShipUpgrade? GrantedUpgrade { get; set; }
+    public string? TransitionedToRoute { get; set; }
+    public bool CompletedVoyageEarly { get; set; }
     public StarshipShipEventContext? ShipContext { get; set; }
     public List<StarshipEventVoteSnapshot> Votes { get; init; } = [];
     public List<string> EligibleRewardUserIds { get; init; } = [];
@@ -195,6 +208,7 @@ public sealed class StarshipEventChoiceSnapshot
     public int RiskMultiplierPercent { get; init; } = 100;
     public string Hint { get; init; } = string.Empty;
     public StarshipShipEffect? ShipEffect { get; init; }
+    public StarshipShipUpgrade? GrantedUpgrade { get; init; }
     public string? TargetRoute { get; init; }
 }
 
@@ -333,7 +347,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
             ExpeditionId = snapshot.ExpeditionId,
             EventForcedUntilUtc = snapshot.EventForcedUntilUtc,
             ShipSystems = snapshot.ShipSystems is { IntegrationEnabled: true } ship
-                ? new(ship.Hull, ship.Rules.MaximumHull, ship.Supplies, ship.PendingSuccessBonusPercent, ship.ActiveSuccessBonusPercent, snapshot.ReturnReason) : null,
+                ? new(ship.Hull, ship.Rules.MaximumHull, ship.Supplies, ship.PendingSuccessBonusPercent, ship.ActiveSuccessBonusPercent, snapshot.ReturnReason, snapshot.VoyageOutcome, ship.ActiveUpgrades) : null,
             BoardingOpenSound = DropGameMediaResolver.ResolveSound(snapshot.BoardingOpenSound ?? new StarshipExpeditionSettings().BoardingOpenSound,
                 null, mediaUploadService),
             EmergencyReturnSound = snapshot.ShipSystems is { IntegrationEnabled: true }

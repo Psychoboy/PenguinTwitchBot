@@ -373,6 +373,7 @@ public sealed class StarshipExpeditionService(
             EventCatalog = previewSettings.EventCatalog,
             ShipSystems = StarshipShipSystems.Create(previewSettings.ShipSystems),
             SectorPool = sectors,
+            RoutePool = previewSettings.GetEffectiveRoutes(),
             CurrentSector = sectors[GetDeterministicIndex(seed, 0, "initial-sector", sectors.Count)],
             CurrentRoute = StarshipEventCatalog.StartRoute
         };
@@ -406,6 +407,9 @@ public sealed class StarshipExpeditionService(
             previewEvent.OutcomeResult = resolvedEvent.OutcomeResult;
             previewEvent.OutcomeStory = resolvedEvent.OutcomeStory;
             previewEvent.OutcomeRarity = resolvedEvent.OutcomeRarity;
+            previewEvent.GrantedUpgrade = resolvedEvent.GrantedUpgrade;
+            previewEvent.TransitionedToRoute = resolvedEvent.TransitionedToRoute;
+            previewEvent.CompletedVoyageEarly = resolvedEvent.CompletedVoyageEarly;
             previewEvent.Path.Clear();
             previewEvent.Path.AddRange(resolvedEvent.Path);
             events.Add(previewEvent);
@@ -575,6 +579,7 @@ public sealed class StarshipExpeditionService(
                 SessionEndChatMessageTemplate = settings.SessionEndChatMessageTemplate,
                 Messages = StarshipMessageSettings.Normalize(settings.Messages),
                 SectorPool = settings.GetEffectiveSectors(),
+                RoutePool = settings.GetEffectiveRoutes(),
                 CurrentSector = settings.GetEffectiveSectors()[GetDeterministicIndex(expeditionSeed, 0, "initial-sector", settings.GetEffectiveSectors().Count)],
                 CurrentRoute = StarshipEventCatalog.StartRoute
             };
@@ -610,6 +615,7 @@ public sealed class StarshipExpeditionService(
 
             var previousSnapshot = Clone(_snapshot);
             _snapshot.Status = StarshipExpeditionStatus.Aborted;
+            _snapshot.VoyageOutcome = DetermineVoyageOutcome(_snapshot);
             _snapshot.CurrentEvent = null;
             _snapshot.NextEventAtUtc = null;
             _snapshot.BoardingClosesAtUtc = null;
@@ -889,13 +895,14 @@ public sealed class StarshipExpeditionService(
             resolvedVariables["ChatMessage"] = chatMessage;
             await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventResolved, current, resolvedVariables);
 
-            if (resolvedEvent.OutcomeResult is StarshipExpeditionNarrative.OutcomeSuccess or StarshipExpeditionNarrative.OutcomeFailure)
+            if (StarshipExpeditionNarrative.IsPositiveOutcome(resolvedEvent.OutcomeResult) ||
+                StarshipExpeditionNarrative.IsNegativeOutcome(resolvedEvent.OutcomeResult))
             {
                 var outcomeVariables = new Dictionary<string, string>(resolvedVariables, StringComparer.OrdinalIgnoreCase);
                 outcomeVariables["AffectedCount"] = resolvedEvent.RewardOutcomes.Where(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0)
                     .Select(outcome => outcome.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture);
                 await FireTriggerAsync(
-                    resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess
+                    StarshipExpeditionNarrative.IsPositiveOutcome(resolvedEvent.OutcomeResult)
                         ? DefaultCommandEventTypes.StarshipEventSucceeded
                         : DefaultCommandEventTypes.StarshipEventFailed,
                     current,
@@ -903,12 +910,16 @@ public sealed class StarshipExpeditionService(
             }
 
             foreach (var userOutcomes in resolvedEvent.RewardOutcomes.Where(outcome =>
-                         outcome.WasRiskyAction && outcome.Outcome is "Success" or "Failure")
+                         outcome.WasRiskyAction &&
+                         (StarshipExpeditionNarrative.IsPositiveOutcome(outcome.Outcome) ||
+                          StarshipExpeditionNarrative.IsNegativeOutcome(outcome.Outcome)))
                          .GroupBy(outcome => outcome.UserId, StringComparer.OrdinalIgnoreCase))
             {
                 var outcome = userOutcomes.First();
                 await FireTriggerAsync(
-                    outcome.Outcome == "Success" ? DefaultCommandEventTypes.StarshipRiskSucceeded : DefaultCommandEventTypes.StarshipRiskFailed,
+                    StarshipExpeditionNarrative.IsPositiveOutcome(outcome.Outcome)
+                        ? DefaultCommandEventTypes.StarshipRiskSucceeded
+                        : DefaultCommandEventTypes.StarshipRiskFailed,
                     current,
                     new Dictionary<string, string>
                     {
@@ -1102,13 +1113,18 @@ public sealed class StarshipExpeditionService(
         FireTriggerAsync(DefaultCommandEventTypes.StarshipVoyageEnded, snapshot, new Dictionary<string, string>
         {
             ["Result"] = snapshot.Status.ToString(),
+            ["VoyageOutcome"] = snapshot.VoyageOutcome,
             ["Duration"] = Math.Max(0, (long)(_timeProvider.GetUtcNow() - snapshot.StartedAtUtc).TotalSeconds).ToString(CultureInfo.InvariantCulture),
             ["TriggeredBy"] = triggeredBy ?? snapshot.StartedBy,
             ["Summary"] = string.Join(" ", StarshipExpeditionNarrative.BuildVoyageLines(snapshot)),
             ["ChatMessage"] = string.Join(" ", StarshipExpeditionNarrative.BuildVoyageLines(snapshot)),
             ["TtsMessage"] = StarshipExpeditionNarrative.BuildTtsVoyageMessage(snapshot),
-            ["EventsSucceeded"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess).ToString(CultureInfo.InvariantCulture),
-            ["EventsFailed"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeFailure).ToString(CultureInfo.InvariantCulture)
+            ["EventsSucceeded"] = snapshot.CompletedEvents.Count(item => StarshipExpeditionNarrative.IsPositiveOutcome(item.OutcomeResult)).ToString(CultureInfo.InvariantCulture),
+            ["EventsFailed"] = snapshot.CompletedEvents.Count(item => StarshipExpeditionNarrative.IsNegativeOutcome(item.OutcomeResult)).ToString(CultureInfo.InvariantCulture),
+            ["EventsCriticalSuccess"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeCriticalSuccess).ToString(CultureInfo.InvariantCulture),
+            ["EventsPartialSuccess"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomePartialSuccess).ToString(CultureInfo.InvariantCulture),
+            ["EventsNeutral"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeNeutral).ToString(CultureInfo.InvariantCulture),
+            ["EventsCriticalFailure"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeCriticalFailure).ToString(CultureInfo.InvariantCulture)
         });
 
     private async Task FireTriggerAsync(
@@ -1304,6 +1320,7 @@ public sealed class StarshipExpeditionService(
                 if (snapshot.Crew.Count == 0)
                 {
                     snapshot.Status = StarshipExpeditionStatus.Aborted;
+                    snapshot.VoyageOutcome = DetermineVoyageOutcome(snapshot);
                     snapshot.NextEventAtUtc = null;
                     AppendVoyageEndedActivity(snapshot, now);
                 }
@@ -1342,6 +1359,7 @@ public sealed class StarshipExpeditionService(
         if (snapshot.CurrentLeg >= snapshot.LegCount)
         {
             snapshot.Status = StarshipExpeditionStatus.Returned;
+            snapshot.VoyageOutcome = DetermineVoyageOutcome(snapshot);
             snapshot.NextEventAtUtc = null;
             snapshot.CurrentEvent = null;
             AppendVoyageEndedActivity(snapshot, now);
@@ -1351,6 +1369,12 @@ public sealed class StarshipExpeditionService(
         var sequence = snapshot.NextEventSequence;
         var definition = GetEventDefinition(snapshot, sequence);
         var graphEvent = definition.Steps.Count > 0;
+        var choicePool = definition.EventType == "RouteChoice"
+            ? BuildRouteChoicePool(snapshot, definition)
+            : definition.Choices;
+        var defaultChoiceId = choicePool.Any(choice => string.Equals(choice.ChoiceId, definition.DefaultChoiceId, StringComparison.OrdinalIgnoreCase))
+            ? definition.DefaultChoiceId
+            : choicePool.FirstOrDefault()?.ChoiceId ?? definition.DefaultChoiceId;
         snapshot.CurrentEvent = new StarshipExpeditionEventSnapshot
         {
             EventId = CreateDeterministicEventId(snapshot.ExpeditionId, sequence),
@@ -1369,16 +1393,24 @@ public sealed class StarshipExpeditionService(
             ObjectRoll = StarshipExpeditionStory.StableIndex(snapshot.Seed, sequence, "object-roll", int.MaxValue),
             SuccessStory = definition.SuccessStory,
             FailureStory = definition.FailureStory,
+            CriticalSuccessStory = definition.CriticalSuccessStory,
+            PartialSuccessStory = definition.PartialSuccessStory,
+            NeutralStory = definition.NeutralStory,
+            CriticalFailureStory = definition.CriticalFailureStory,
+            CriticalSuccessSharePercent = definition.CriticalSuccessSharePercent,
+            PartialSuccessBandPercent = definition.PartialSuccessBandPercent,
+            CriticalFailureSharePercent = definition.CriticalFailureSharePercent,
+            CriticalSuccessUpgrade = definition.CriticalSuccessUpgrade,
             Sector = snapshot.CurrentSector,
             OpenedAtUtc = now,
             ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds),
-            Choices = graphEvent ? [] : ShuffleChoices(FilterChoices(definition.Choices, []), snapshot.Seed, sequence, "event"),
-            ChoicePool = graphEvent ? [] : [.. definition.Choices],
+            Choices = graphEvent ? [] : ShuffleChoices(FilterChoices(choicePool, []), snapshot.Seed, sequence, "event"),
+            ChoicePool = graphEvent ? [] : [.. choicePool],
             StepDefinitions = graphEvent ? [.. definition.Steps] : [],
             DefaultStepSuppliesCost = definition.DefaultStepSuppliesCost,
             CurrentStepId = graphEvent ? definition.StartStepId : string.Empty,
             StepNumber = graphEvent ? 0 : 1,
-            DefaultChoiceId = definition.DefaultChoiceId,
+            DefaultChoiceId = defaultChoiceId,
             Votes = []
         };
         if (snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems)
@@ -1387,7 +1419,7 @@ public sealed class StarshipExpeditionService(
                 StarshipShipSystems.ApplyTravel(shipSystems, $"ship-travel:{snapshot.CurrentEvent.EventId:N}");
             StarshipShipSystems.BeginEvent(shipSystems, snapshot.CurrentEvent.EventId, definition.EventType == "StationStop");
             if (!graphEvent)
-                snapshot.CurrentEvent.Choices = ShuffleChoices(FilterChoices(definition.Choices, [], shipSystems, definition.EventType), snapshot.Seed, sequence, "event");
+                snapshot.CurrentEvent.Choices = ShuffleChoices(FilterChoices(choicePool, [], shipSystems, definition.EventType), snapshot.Seed, sequence, "event");
             var configuredProfile = StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, definition.EventType, requireEnabled: false);
             snapshot.CurrentEvent.ShipContext = StarshipShipSystems.CreateEventContext(shipSystems, snapshot.CurrentEvent, definition, configuredProfile);
         }
@@ -1530,14 +1562,80 @@ public sealed class StarshipExpeditionService(
     private static string ResolveChosenRoute(StarshipEventChoiceSnapshot? choice, string? resolvedChoiceId)
     {
         if (!string.IsNullOrWhiteSpace(choice?.TargetRoute))
-            return StarshipEventCatalog.CanonicalizeRoute(choice.TargetRoute);
+        {
+            var trimmed = choice.TargetRoute.Trim();
+            return string.Equals(trimmed, StarshipEventCatalog.UnchartedRoute, StringComparison.OrdinalIgnoreCase)
+                ? StarshipEventCatalog.UnchartedRoute
+                : StarshipEventCatalog.CanonicalizeRoute(trimmed);
+        }
 
         return resolvedChoiceId?.Trim().ToLowerInvariant() switch
         {
             "frontier" or "detour" or "survey route" => StarshipEventCatalog.FrontierRoute,
+            "uncharted" => StarshipEventCatalog.UnchartedRoute,
             "core" or "direct" or "direct route" => StarshipEventCatalog.CoreRoute,
             _ => StarshipEventCatalog.CoreRoute
         };
+    }
+
+    private static List<StarshipEventChoiceSnapshot> BuildRouteChoicePool(
+        StarshipExpeditionSnapshot snapshot,
+        StarshipEventDefinition definition)
+    {
+        if (snapshot.RoutePool.Count == 0) return definition.Choices;
+        var choices = definition.Choices
+            .Where(choice => string.IsNullOrWhiteSpace(choice.TargetRoute) ||
+                snapshot.RoutePool.Contains(choice.TargetRoute, StringComparer.OrdinalIgnoreCase) ||
+                !StarshipExpeditionSettings.BuiltInRoutes.Contains(choice.TargetRoute, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var customRoute in snapshot.RoutePool.Where(route =>
+                     !StarshipExpeditionSettings.BuiltInRoutes.Contains(route, StringComparer.OrdinalIgnoreCase)))
+        {
+            if (choices.Count >= StarshipEventCatalog.MaximumChoices) break;
+            if (choices.Any(choice => string.Equals(choice.TargetRoute, customRoute, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            choices.Add(new StarshipEventChoiceSnapshot
+            {
+                ChoiceId = ToRouteChoiceId(customRoute, choices),
+                Label = $"Take the {customRoute}",
+                TargetRoute = customRoute
+            });
+        }
+
+        if (choices.Count < 2)
+        {
+            foreach (var fallbackRoute in snapshot.RoutePool)
+            {
+                if (choices.Count >= StarshipEventCatalog.MaximumChoices) break;
+                if (choices.Any(choice => string.Equals(choice.TargetRoute, fallbackRoute, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                choices.Add(new StarshipEventChoiceSnapshot
+                {
+                    ChoiceId = ToRouteChoiceId(fallbackRoute, choices),
+                    Label = $"Take the {fallbackRoute}",
+                    TargetRoute = fallbackRoute
+                });
+                if (choices.Count >= 2) break;
+            }
+        }
+
+        return choices.Count > 0 ? choices : definition.Choices;
+    }
+
+    private static string ToRouteChoiceId(string routeName, IReadOnlyCollection<StarshipEventChoiceSnapshot> existingChoices)
+    {
+        var chars = routeName.Trim().ToLowerInvariant()
+            .Select(ch => char.IsAsciiLetterOrDigit(ch) ? ch : '-')
+            .ToArray();
+        var slug = string.Join("-", new string(chars).Split('-', StringSplitOptions.RemoveEmptyEntries));
+        if (string.IsNullOrEmpty(slug) || !char.IsAsciiLetter(slug[0])) slug = "route-" + slug;
+        if (slug.Length > 32) slug = slug[..32].TrimEnd('-');
+        var candidate = slug;
+        var suffix = 2;
+        while (existingChoices.Any(choice => string.Equals(choice.ChoiceId, candidate, StringComparison.OrdinalIgnoreCase)))
+            candidate = $"{slug}-{suffix++}";
+        return candidate;
     }
 
     private static bool CanAffordShipChoice(StarshipShipSystemsSnapshot state, string eventType, StarshipEventChoiceSnapshot choice) =>
@@ -1732,15 +1830,30 @@ public sealed class StarshipExpeditionService(
         if (!ResolveCurrentEventLocked(snapshot, now)) return;
         var resolvedEvent = snapshot.CompletedEvents[^1];
         resolvedEvent.EligibleRewardUserIds.AddRange(eligibleUserIds.Order(StringComparer.OrdinalIgnoreCase));
+        var endStep = StarshipRewardResolver.FindTerminalEndStep(resolvedEvent);
+        var finalChoice = StarshipRewardResolver.FindResolvedChoice(resolvedEvent);
 
         if (string.IsNullOrEmpty(resolvedEvent.OutcomeResult) &&
-            (profile != null || resolvedEvent.ShipContext != null && !StarshipEventCatalog.IsStructural(resolvedEvent.EventType)))
+            (!string.IsNullOrEmpty(endStep?.FixedOutcome) || profile != null ||
+             resolvedEvent.ShipContext != null && !StarshipEventCatalog.IsStructural(resolvedEvent.EventType)))
             StarshipRewardResolver.ResolveOutcome(snapshot, resolvedEvent, profile);
         if (profile != null)
             StarshipRewardResolver.ApplyRewardProfile(snapshot, resolvedEvent, profile, eligibleUserIds);
+
+        var grantedUpgrade = endStep?.GrantedUpgrade ?? finalChoice?.GrantedUpgrade ??
+            (resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeCriticalSuccess ? resolvedEvent.CriticalSuccessUpgrade : null);
+        if (grantedUpgrade != null)
+        {
+            resolvedEvent.GrantedUpgrade = grantedUpgrade;
+            if (resolvedEvent.ShipContext != null)
+                resolvedEvent.ShipContext.GrantedUpgrade = grantedUpgrade;
+        }
+
         if (snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems)
         {
             ApplyShipOutcome(resolvedEvent, shipSystems);
+            if (grantedUpgrade != null)
+                StarshipShipSystems.GrantUpgrade(shipSystems, $"ship-upgrade:{resolvedEvent.EventId:N}", grantedUpgrade);
             StarshipShipSystems.CompleteEvent(shipSystems, resolvedEvent.EventId);
             if (StarshipShipSystems.RequiresEmergencyReturn(shipSystems))
             {
@@ -1751,15 +1864,62 @@ public sealed class StarshipExpeditionService(
                 snapshot.CurrentEvent = null;
             }
         }
+
+        if (resolvedEvent.EventType != "RouteChoice")
+        {
+            var targetRoute = !string.IsNullOrWhiteSpace(endStep?.TargetRoute) ? endStep!.TargetRoute : finalChoice?.TargetRoute;
+            if (!string.IsNullOrWhiteSpace(targetRoute))
+            {
+                var trimmedRoute = targetRoute.Trim();
+                var resolvedRoute = string.Equals(trimmedRoute, StarshipEventCatalog.UnchartedRoute, StringComparison.OrdinalIgnoreCase)
+                    ? StarshipEventCatalog.UnchartedRoute
+                    : StarshipEventCatalog.CanonicalizeRoute(trimmedRoute);
+                snapshot.CurrentRoute = resolvedRoute;
+                resolvedEvent.TransitionedToRoute = resolvedRoute;
+            }
+        }
+
+        if (endStep?.CompletesVoyageEarly == true && snapshot.Status != StarshipExpeditionStatus.Returned)
+        {
+            resolvedEvent.CompletedVoyageEarly = true;
+            snapshot.Status = StarshipExpeditionStatus.Returned;
+            snapshot.ReturnReason = "ShortcutHome";
+            snapshot.NextEventAtUtc = null;
+            snapshot.CurrentEvent = null;
+        }
+
         resolvedEvent.OutcomeStory = StarshipExpeditionStory.BuildOutcomeStory(snapshot, resolvedEvent);
         if (profile != null)
             EnqueueRewardActions(snapshot, resolvedEvent, profile);
         AppendActivityLocked(snapshot, StarshipActivityKinds.EventResolved, StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent), string.Empty, now);
         if (snapshot.Status == StarshipExpeditionStatus.Returned)
+        {
+            snapshot.VoyageOutcome = DetermineVoyageOutcome(snapshot);
             AppendVoyageEndedActivity(snapshot, now);
+        }
 
         if (resolvedEvent.EventType == "StationStop" || snapshot.Status == StarshipExpeditionStatus.Returned)
             QueuePayouts(snapshot, resolvedEvent.EventId);
+    }
+
+    internal static string DetermineVoyageOutcome(StarshipExpeditionSnapshot snapshot)
+    {
+        if (snapshot.Status == StarshipExpeditionStatus.Aborted)
+            return "Aborted";
+        if (snapshot.ReturnReason == "HullDepleted")
+            return "HullDepleted";
+        if (snapshot.ReturnReason == "ShortcutHome")
+            return "ShortcutHome";
+        if (snapshot.ShipSystems is { IntegrationEnabled: true } ship)
+        {
+            if (ship.Hull <= Math.Max(1, ship.Rules.MaximumHull * 25 / 100))
+                return "LimpingHome";
+            if (ship.Hull >= ship.Rules.MaximumHull * 75 / 100 &&
+                snapshot.CompletedEvents.Any(item => StarshipExpeditionNarrative.IsPositiveOutcome(item.OutcomeResult)) &&
+                !snapshot.CompletedEvents.Any(item => item.OutcomeResult is StarshipExpeditionNarrative.OutcomeFailure or StarshipExpeditionNarrative.OutcomeCriticalFailure))
+                return "Triumphant";
+        }
+        return "Completed";
     }
 
     private static void UpdateShipEventResources(StarshipExpeditionEventSnapshot expeditionEvent, StarshipShipSystemsSnapshot state)
@@ -1772,26 +1932,21 @@ public sealed class StarshipExpeditionService(
     private static void UpdateShipResourceSuccessModifier(StarshipExpeditionEventSnapshot expeditionEvent, StarshipShipSystemsSnapshot state)
     {
         if (expeditionEvent.ShipContext is not { } context) return;
-        var bonus = state.ActiveBonusEventId == expeditionEvent.EventId ? state.ActiveSuccessBonusPercent : 0;
+        var bonus = (state.ActiveBonusEventId == expeditionEvent.EventId ? state.ActiveSuccessBonusPercent : 0) +
+            state.ActiveUpgrades.Sum(upgrade => upgrade.SuccessChanceBonusPercent);
         var shortagePenalty = state.Supplies == 0 ? state.Rules.EmptySuppliesSuccessPenaltyPercent : 0;
-        context.ResourceSuccessModifierPercent = bonus - shortagePenalty;
+        context.ResourceSuccessModifierPercent = Math.Clamp(bonus - shortagePenalty, -100, 100);
     }
 
     private static void ApplyShipOutcome(StarshipExpeditionEventSnapshot resolvedEvent, StarshipShipSystemsSnapshot state)
     {
-        var effect = resolvedEvent.OutcomeResult switch
-        {
-            StarshipExpeditionNarrative.OutcomeSuccess => resolvedEvent.ShipContext?.SuccessEffect,
-            StarshipExpeditionNarrative.OutcomeFailure => resolvedEvent.ShipContext?.FailureEffect,
-            _ => null
-        };
-        if (effect != null)
-        {
-            var choice = StarshipRewardResolver.FindResolvedChoice(resolvedEvent);
-            var riskPercent = StarshipRewardResolver.CombinePercent(resolvedEvent.RiskMultiplierPercent, choice?.RiskMultiplierPercent ?? 100);
-            var scaled = StarshipShipSystems.ScaleOutcomeEffect(effect, riskPercent);
+        var choice = StarshipRewardResolver.FindResolvedChoice(resolvedEvent);
+        var endStep = StarshipRewardResolver.FindTerminalEndStep(resolvedEvent);
+        var riskPercent = endStep?.RiskMultiplierOverridePercent ??
+            StarshipRewardResolver.CombinePercent(resolvedEvent.RiskMultiplierPercent, choice?.RiskMultiplierPercent ?? 100);
+        var scaled = StarshipShipSystems.ResolveOutcomeEffect(state, resolvedEvent, endStep, riskPercent);
+        if (scaled != null)
             StarshipShipSystems.ApplyEffect(state, $"ship-outcome:{resolvedEvent.EventId:N}", scaled);
-        }
         UpdateShipEventResources(resolvedEvent, state);
     }
 
@@ -1830,13 +1985,13 @@ public sealed class StarshipExpeditionService(
     {
         List<StarshipRewardAction> actions;
         string source;
-        if (resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess)
+        if (StarshipExpeditionNarrative.IsPositiveOutcome(resolvedEvent.OutcomeResult))
         {
             var tier = profile.GetTiers().FirstOrDefault(item => string.Equals(item.Name, resolvedEvent.OutcomeRarity, StringComparison.Ordinal));
             actions = tier?.Actions ?? [];
             source = tier?.Id ?? "tier";
         }
-        else if (resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeFailure)
+        else if (StarshipExpeditionNarrative.IsNegativeOutcome(resolvedEvent.OutcomeResult))
         {
             actions = profile.FailureActions;
             source = "failure";
@@ -2308,8 +2463,8 @@ public sealed class StarshipExpeditionService(
 
             var endedAtUtc = (snapshot.ActivityFeed.LastOrDefault(item => item.Kind == StarshipActivityKinds.VoyageEnded)?.AtUtc ?? snapshot.UpdatedAtUtc).UtcDateTime;
             var json = JsonSerializer.Serialize(snapshot, JsonOptions);
-            var eventsSucceeded = snapshot.CompletedEvents.Count(e => e.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess);
-            var eventsFailed = snapshot.CompletedEvents.Count(e => e.OutcomeResult == StarshipExpeditionNarrative.OutcomeFailure);
+            var eventsSucceeded = snapshot.CompletedEvents.Count(e => StarshipExpeditionNarrative.IsPositiveOutcome(e.OutcomeResult));
+            var eventsFailed = snapshot.CompletedEvents.Count(e => StarshipExpeditionNarrative.IsNegativeOutcome(e.OutcomeResult));
             var totalRewardsPaid = snapshot.BankedPayouts.Where(p => p.IsPaid).Sum(p => p.Amount);
 
             if (existing != null)

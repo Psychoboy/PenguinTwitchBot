@@ -784,8 +784,12 @@ h1 {
     text-transform: uppercase;
 }
 
+.result-banner[data-outcome='CriticalSuccess'] { border-color: #8be28b; color: #8be28b; text-shadow: 0 0 8px rgba(139, 226, 139, 0.35); }
+.result-banner[data-outcome='PartialSuccess'] { border-color: var(--amber); color: var(--amber); }
 .result-banner[data-outcome='Failure'],
+.result-banner[data-outcome='CriticalFailure'],
 .result-banner[data-outcome='Aborted'] { border-color: var(--coral); color: var(--coral); }
+.result-banner[data-outcome='Neutral'],
 .result-banner[data-outcome='Passed'] { border-color: var(--muted); color: var(--muted); }
 
 .result-story {
@@ -820,8 +824,11 @@ h1 {
     white-space: nowrap;
 }
 
+.timeline-entry[data-outcome='CriticalSuccess'],
 .timeline-entry[data-outcome='Success'] { border-color: rgba(139, 226, 139, 0.6); color: #8be28b; }
-.timeline-entry[data-outcome='Failure'] { border-color: rgba(239, 134, 111, 0.6); color: var(--coral); }
+.timeline-entry[data-outcome='PartialSuccess'] { border-color: rgba(244, 189, 104, 0.6); color: var(--amber); }
+.timeline-entry[data-outcome='Failure'],
+.timeline-entry[data-outcome='CriticalFailure'] { border-color: rgba(239, 134, 111, 0.6); color: var(--coral); }
 
 [data-reveal='0'] { animation: text-reveal-a 0.6s ease-out; }
 [data-reveal='1'] { animation: text-reveal-b 0.6s ease-out; }

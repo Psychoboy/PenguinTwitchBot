@@ -134,6 +134,14 @@
                                     <MudText Typo="Typo.body2">Supplies @liveShip.Supplies / 100</MudText>
                                     <MudProgressLinear Value="@liveShip.Supplies" Color="@(liveShip.Supplies == 0 ? Color.Warning : Color.Info)" Class="mb-2" />
                                     <MudText Typo="Typo.caption">Pending bonus +@liveShip.PendingSuccessBonusPercent pp | Active bonus +@liveShip.ActiveSuccessBonusPercent pp</MudText>
+                                    @if (liveShip.ActiveUpgrades.Count > 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Success" Class="d-block">Upgrades: @string.Join(", ", liveShip.ActiveUpgrades.Select(u => u.Describe()))</MudText>
+                                    }
+                                    @if (!string.IsNullOrEmpty(_liveSnapshot.VoyageOutcome))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="mt-1">Voyage: @_liveSnapshot.VoyageOutcome</MudChip>
+                                    }
                                     @if (!string.IsNullOrEmpty(_liveSnapshot.ReturnReason))
                                     {
                                         <MudAlert Severity="Severity.Warning" Dense="true">Return reason: @_liveSnapshot.ReturnReason</MudAlert>
@@ -181,6 +189,38 @@
                                                         EventApplied="SaveEventDefinitionAsync" EventDeleted="DeleteEventDefinitionAsync" />
                         </MudItem>
                         <MudItem xs="12" lg="3">
+                            <MudText Typo="Typo.h6">Routes</MudText>
+                            <MudText Typo="Typo.caption" Color="@(_settings.GetEffectiveRoutes().Count < 1 ? Color.Error : Color.Secondary)">@_settings.GetEffectiveRoutes().Count available (minimum 1)</MudText>
+                            @foreach (var route in StarshipExpeditionSettings.BuiltInRoutes)
+                            {
+                                <MudCheckBox T="bool" Color="Color.Primary" Label="@route"
+                                             Value="@(!_settings.DisabledBuiltInRoutes.Contains(route, StringComparer.OrdinalIgnoreCase))"
+                                             ValueChanged="@(enabled => SetBuiltInRouteEnabled(route, enabled))" />
+                            }
+                            <MudDivider Class="my-3" />
+                            <MudText Typo="Typo.subtitle2">Custom Routes</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@_settings.CustomRoutes.Count / @StarshipExpeditionSettings.MaximumCustomRoutes</MudText>
+                            <MudStack Spacing="2" Class="mt-2">
+                                @for (var index = 0; index < _settings.CustomRoutes.Count; index++)
+                                {
+                                    var routeIndex = index;
+                                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                                        <MudTextField T="string" Label="Route Name" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                      Value="@_settings.CustomRoutes[routeIndex]" ValueChanged="@(value => UpdateRouteName(routeIndex, value))" />
+                                        <MudTooltip Text="Remove route"><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" aria-label="Remove custom route" OnClick="@(() => RemoveRoute(routeIndex))" /></MudTooltip>
+                                    </MudStack>
+                                }
+                                <MudStack Row="true" AlignItems="AlignItems.Center">
+                                    <MudTextField T="string" Label="New Route Name" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_newRouteName" />
+                                    <MudTooltip Text="Add route"><MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" aria-label="Add custom route"
+                                        Disabled="@(_settings.CustomRoutes.Count >= StarshipExpeditionSettings.MaximumCustomRoutes || string.IsNullOrWhiteSpace(_newRouteName))" OnClick="AddRoute" /></MudTooltip>
+                                </MudStack>
+                                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                               Disabled="@_isSaving" OnClick="SaveRoutesAsync">Save Routes</MudButton>
+                                </MudStack>
+                            </MudStack>
+                            <MudDivider Class="my-4" />
                             <MudText Typo="Typo.h6">Sectors</MudText>
                             <MudText Typo="Typo.caption" Color="@(_settings.GetEffectiveSectors().Count < 2 ? Color.Error : Color.Secondary)">@_settings.GetEffectiveSectors().Count available (minimum 2)</MudText>
                             @foreach (var sector in StarshipExpeditionSettings.BuiltInSectors)
@@ -758,6 +798,7 @@
     private int _previewSeed = 12345;
     private int _activeTabIndex;
     private string _newSectorName = string.Empty;
+    private string _newRouteName = string.Empty;
     private string _error = string.Empty;
     private bool _isLoading = true;
     private bool _isLoadingRewardEditorOptions;
@@ -921,6 +962,32 @@
         _settings.CustomSectors.RemoveAt(index);
     }
 
+    private void SetBuiltInRouteEnabled(string route, bool enabled)
+    {
+        if (_settings == null) return;
+        _settings.DisabledBuiltInRoutes.RemoveAll(name => string.Equals(name, route, StringComparison.OrdinalIgnoreCase));
+        if (!enabled) _settings.DisabledBuiltInRoutes.Add(route);
+    }
+
+    private void AddRoute()
+    {
+        if (_settings == null || string.IsNullOrWhiteSpace(_newRouteName)) return;
+        _settings.CustomRoutes.Add(_newRouteName.Trim());
+        _newRouteName = string.Empty;
+    }
+
+    private void UpdateRouteName(int index, string? value)
+    {
+        if (_settings == null || index < 0 || index >= _settings.CustomRoutes.Count) return;
+        _settings.CustomRoutes[index] = value ?? string.Empty;
+    }
+
+    private void RemoveRoute(int index)
+    {
+        if (_settings == null || index < 0 || index >= _settings.CustomRoutes.Count) return;
+        _settings.CustomRoutes.RemoveAt(index);
+    }
+
     private Task SaveExpeditionConfigurationAsync() => SaveSectionAsync("Expedition configuration", (saved, current) =>
     {
         saved.LegCount = current.LegCount;
@@ -940,6 +1007,12 @@
     {
         saved.CustomSectors = [.. current.CustomSectors];
         saved.DisabledBuiltInSectors = [.. current.DisabledBuiltInSectors];
+    });
+
+    private Task SaveRoutesAsync() => SaveSectionAsync("Routes", (saved, current) =>
+    {
+        saved.CustomRoutes = [.. current.CustomRoutes];
+        saved.DisabledBuiltInRoutes = [.. current.DisabledBuiltInRoutes];
     });
 
     private Task SaveRewardProfilesAsync() => SaveSectionAsync("Reward profiles", (saved, current) =>

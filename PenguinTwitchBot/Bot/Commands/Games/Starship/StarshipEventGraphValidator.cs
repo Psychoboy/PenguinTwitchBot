@@ -47,10 +47,12 @@ public static partial class StarshipEventGraphValidator
             switch (step.Type)
             {
                 case StarshipEventStepType.Vote:
+                    ValidateNoEndStepOverrides(definition, step);
                     ValidateVoteStep(definition, step, steps);
                     choices.AddRange(step.Choices);
                     break;
                 case StarshipEventStepType.Automatic:
+                    ValidateNoEndStepOverrides(definition, step);
                     if (step.Choices == null || step.Choices.Count != 0 || string.IsNullOrWhiteSpace(step.NextStepId))
                         throw new ArgumentException($"{definition.Title}, step {step.StepId}: automatic steps need one next step and no choices.");
                     if (!steps.ContainsKey(step.NextStepId))
@@ -59,6 +61,7 @@ public static partial class StarshipEventGraphValidator
                 case StarshipEventStepType.End:
                     if (step.Choices == null || step.Choices.Count != 0 || !string.IsNullOrEmpty(step.NextStepId))
                         throw new ArgumentException($"{definition.Title}, end step {step.StepId}: end steps cannot have choices or a next step.");
+                    ValidateEndStep(definition, step);
                     break;
                 default:
                     throw new ArgumentException($"{definition.Title}, step {step.StepId}: unknown step type.");
@@ -103,6 +106,27 @@ public static partial class StarshipEventGraphValidator
             throw new ArgumentException($"{definition.Title}, step {step.StepId}: choose a valid default choice.");
         if (defaultChoice.ShipEffect?.SuppliesCost > 0)
             throw new ArgumentException($"{definition.Title}, step {step.StepId}: the default choice cannot require supplies.");
+    }
+
+    private static void ValidateNoEndStepOverrides(StarshipEventDefinition definition, StarshipEventStepDefinition step)
+    {
+        if (!string.IsNullOrEmpty(step.FixedOutcome) || step.RewardMultiplierOverridePercent != null ||
+            step.RiskMultiplierOverridePercent != null || step.ShipEffectOverride != null ||
+            step.GrantedUpgrade != null || !string.IsNullOrEmpty(step.TargetRoute) || step.CompletesVoyageEarly)
+            throw new ArgumentException($"{definition.Title}, step {step.StepId}: outcome overrides can only be configured on end steps.");
+    }
+
+    private static void ValidateEndStep(StarshipEventDefinition definition, StarshipEventStepDefinition step)
+    {
+        if (!string.IsNullOrEmpty(step.FixedOutcome) &&
+            !StarshipExpeditionNarrative.AllOutcomes.Contains(step.FixedOutcome, StringComparer.Ordinal))
+            throw new ArgumentException($"{definition.Title}, end step {step.StepId}: unknown fixed outcome '{step.FixedOutcome}'.");
+        if (step.RewardMultiplierOverridePercent is < 0 or > 500 || step.RiskMultiplierOverridePercent is < 0 or > 500)
+            throw new ArgumentException($"{definition.Title}, end step {step.StepId}: multiplier overrides must be 0-500%.");
+        step.ShipEffectOverride?.Validate();
+        if (step.ShipEffectOverride?.SuppliesCost > 0)
+            throw new ArgumentException($"{definition.Title}, end step {step.StepId}: end step ship effect cannot require supplies.");
+        step.GrantedUpgrade?.Validate();
     }
 
     private static void Visit(string stepId, IReadOnlyDictionary<string, StarshipEventStepDefinition> steps,

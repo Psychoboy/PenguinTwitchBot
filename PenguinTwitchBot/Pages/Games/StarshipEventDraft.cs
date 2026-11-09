@@ -15,6 +15,13 @@ public sealed class StarshipEventDraft
     public string DefaultChoiceId { get; set; } = "";
     public string SuccessStory { get; set; } = "";
     public string FailureStory { get; set; } = "";
+    public string CriticalSuccessStory { get; set; } = "";
+    public string PartialSuccessStory { get; set; } = "";
+    public string NeutralStory { get; set; } = "";
+    public string CriticalFailureStory { get; set; } = "";
+    public int? CriticalSuccessSharePercent { get; set; }
+    public int? PartialSuccessBandPercent { get; set; }
+    public int? CriticalFailureSharePercent { get; set; }
     public bool Enabled { get; set; } = true;
     public int Weight { get; set; } = 1;
     public int SortOrder { get; set; }
@@ -29,6 +36,10 @@ public sealed class StarshipEventDraft
     public int? SuccessChancePercent { get; set; }
     public StarshipShipEffect? ShipSuccessEffect { get; set; }
     public StarshipShipEffect? ShipFailureEffect { get; set; }
+    public StarshipShipEffect? ShipCriticalSuccessEffect { get; set; }
+    public StarshipShipEffect? ShipPartialSuccessEffect { get; set; }
+    public StarshipShipEffect? ShipCriticalFailureEffect { get; set; }
+    public StarshipShipUpgrade? CriticalSuccessUpgrade { get; set; }
     public DropGameSoundOverride OpenSound { get; set; } = new();
 
     public StarshipEventDefinition ToDefinition() => StarshipEventEditing.Convert<StarshipEventDefinition>(this);
@@ -51,6 +62,7 @@ public sealed class StarshipChoiceDraft
     public int RiskMultiplierPercent { get; set; } = 100;
     public string Hint { get; set; } = "";
     public StarshipShipEffect? ShipEffect { get; set; }
+    public StarshipShipUpgrade? GrantedUpgrade { get; set; }
     public string? TargetRoute { get; set; }
 }
 
@@ -64,4 +76,11 @@ public sealed class StarshipEventStepDraft
     public List<StarshipChoiceDraft> Choices { get; set; } = [];
     public string DefaultChoiceId { get; set; } = "";
     public string? NextStepId { get; set; }
+    public string? FixedOutcome { get; set; }
+    public int? RewardMultiplierOverridePercent { get; set; }
+    public int? RiskMultiplierOverridePercent { get; set; }
+    public StarshipShipEffect? ShipEffectOverride { get; set; }
+    public StarshipShipUpgrade? GrantedUpgrade { get; set; }
+    public string? TargetRoute { get; set; }
+    public bool CompletesVoyageEarly { get; set; }
 }

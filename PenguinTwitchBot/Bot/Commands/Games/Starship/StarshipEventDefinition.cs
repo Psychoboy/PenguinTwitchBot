@@ -27,8 +27,19 @@ public sealed record StarshipEventDefinition(
     public Dictionary<string, string> LootByTier { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     public string? RewardProfileId { get; init; }
     public int? SuccessChancePercent { get; init; }
+    public string CriticalSuccessStory { get; init; } = string.Empty;
+    public string PartialSuccessStory { get; init; } = string.Empty;
+    public string NeutralStory { get; init; } = string.Empty;
+    public string CriticalFailureStory { get; init; } = string.Empty;
+    public int? CriticalSuccessSharePercent { get; init; }
+    public int? PartialSuccessBandPercent { get; init; }
+    public int? CriticalFailureSharePercent { get; init; }
     public StarshipShipEffect? ShipSuccessEffect { get; init; }
     public StarshipShipEffect? ShipFailureEffect { get; init; }
+    public StarshipShipEffect? ShipCriticalSuccessEffect { get; init; }
+    public StarshipShipEffect? ShipPartialSuccessEffect { get; init; }
+    public StarshipShipEffect? ShipCriticalFailureEffect { get; init; }
+    public StarshipShipUpgrade? CriticalSuccessUpgrade { get; init; }
     public DropGameSoundOverride OpenSound { get; init; } = new();
 }
 
@@ -50,4 +61,11 @@ public sealed class StarshipEventStepDefinition
     public List<StarshipEventChoiceSnapshot> Choices { get; set; } = [];
     public string DefaultChoiceId { get; set; } = string.Empty;
     public string? NextStepId { get; set; }
+    public string? FixedOutcome { get; set; }
+    public int? RewardMultiplierOverridePercent { get; set; }
+    public int? RiskMultiplierOverridePercent { get; set; }
+    public StarshipShipEffect? ShipEffectOverride { get; set; }
+    public StarshipShipUpgrade? GrantedUpgrade { get; set; }
+    public string? TargetRoute { get; set; }
+    public bool CompletesVoyageEarly { get; set; }
 }

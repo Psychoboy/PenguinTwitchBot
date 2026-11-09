@@ -15,8 +15,25 @@
         <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Hull Repaired at a Station" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.StationRepairAmount" /></MudItem>
         <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Repair Supplies Cost" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.StationRepairSuppliesCost" /></MudItem>
         <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Continue Success Bonus (pp)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.ContinueSuccessBonusPercent" /></MudItem>
-        <MudItem xs="12"><MudNumericField T="int" Label="Default Event Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.DefaultEventSuccessChancePercent" /></MudItem>
+        <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Default Event Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.DefaultEventSuccessChancePercent" /></MudItem>
     </MudGrid>
+    <MudDivider Class="my-3" />
+    <MudText Typo="Typo.subtitle1">Graduated Event Outcomes</MudText>
+    <MudText Typo="Typo.caption" Color="Color.Secondary">When enabled, event rolls can produce Critical Success, Partial Success (glancing blow with reduced reward and reduced penalty), and Critical Failure in addition to standard Success and Failure.</MudText>
+    <MudSwitch T="bool" Label="Enable Graduated Outcomes" Color="Color.Primary" @bind-Value="Settings.EnableGraduatedOutcomes" />
+    @if (Settings.EnableGraduatedOutcomes)
+    {
+        <MudGrid Spacing="2" Class="mt-1">
+            <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Critical Success Share (% of success band)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.CriticalSuccessSharePercent" /></MudItem>
+            <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Critical Success Reward Multiplier (%)" Variant="Variant.Outlined" Min="0" Max="500" @bind-Value="Settings.CriticalSuccessRewardMultiplierPercent" /></MudItem>
+            <MudItem xs="12"><MudSwitch T="bool" Label="Critical Success Boosts Rarity Tier (+1)" Color="Color.Primary" @bind-Value="Settings.CriticalSuccessBoostsRarity" /></MudItem>
+            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Partial Success Band (pp)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.PartialSuccessBandPercent" /></MudItem>
+            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Partial Success Reward (%)" Variant="Variant.Outlined" Min="0" Max="500" @bind-Value="Settings.PartialSuccessRewardPercent" /></MudItem>
+            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Partial Success Penalty (%)" Variant="Variant.Outlined" Min="0" Max="500" @bind-Value="Settings.PartialSuccessPenaltyPercent" /></MudItem>
+            <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Critical Failure Share (% of failure band)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Settings.CriticalFailureSharePercent" /></MudItem>
+            <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Critical Failure Penalty Multiplier (%)" Variant="Variant.Outlined" Min="0" Max="500" @bind-Value="Settings.CriticalFailurePenaltyMultiplierPercent" /></MudItem>
+        </MudGrid>
+    }
 }
 
 @code {

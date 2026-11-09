@@ -7,6 +7,7 @@
         <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
         <MudTextField T="string" Label="Search Events" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_search" Immediate="true" />
         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="NewEvent">Add Event</MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Download" Variant="Variant.Outlined" OnClick="ExportCatalogAsync">Export All Events</MudButton>
     </MudStack>
     <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
         <thead><tr><th>Event</th><th>State</th><th>Reward Profile</th><th>Weight</th><th>Actions</th></tr></thead>
@@ -79,10 +80,10 @@
                 </MudSelect></MudItem>
                 }
                 <MudItem xs="12"><MudText Typo="Typo.subtitle2">Routes (none selected means all)</MudText><MudStack Row="true" Wrap="Wrap.Wrap">
-                    @foreach (var route in StarshipEventCatalog.Routes)
+                    @foreach (var route in StarshipEventCatalog.Routes.Concat(Settings.CustomRoutes).Distinct(StringComparer.OrdinalIgnoreCase))
                     {
-                        <MudTooltip Text="@(route == StarshipEventCatalog.StartRoute ? "Initial voyage state; random events start after the route vote." : route == StarshipEventCatalog.UnchartedRoute ? "Reserved for future use; no current event can enter this route." : string.Empty)">
-                            <MudCheckBox T="bool" Label="@route" Disabled="@(route is StarshipEventCatalog.StartRoute or StarshipEventCatalog.UnchartedRoute)" Value="@(draft.AllowedRoutes.Contains(route))" ValueChanged="@(enabled => ToggleFilter(draft.AllowedRoutes, route, enabled))" />
+                        <MudTooltip Text="@(route == StarshipEventCatalog.StartRoute ? "Initial voyage state; random events start after the route vote." : string.Empty)">
+                            <MudCheckBox T="bool" Label="@route" Disabled="@(route == StarshipEventCatalog.StartRoute)" Value="@(draft.AllowedRoutes.Contains(route, StringComparer.OrdinalIgnoreCase))" ValueChanged="@(enabled => ToggleFilter(draft.AllowedRoutes, route, enabled))" />
                         </MudTooltip>
                     }
                 </MudStack></MudItem>
@@ -112,9 +113,24 @@
         @if (!IsStructuralDraft)
         {
             <MudDivider />
-            <MudNumericField T="int?" Label="Event Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" Clearable="true" Placeholder="Profile or ship default" @bind-Value="draft.SuccessChancePercent" @bind-Value:after="DraftChanged" />
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="3"><MudNumericField T="int?" Label="Event Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" Clearable="true" Placeholder="Profile or ship default" @bind-Value="draft.SuccessChancePercent" @bind-Value:after="DraftChanged" /></MudItem>
+                <MudItem xs="12" sm="3"><MudNumericField T="int?" Label="Crit Success Share (%)" Variant="Variant.Outlined" Min="0" Max="100" Clearable="true" Placeholder="Ship default" @bind-Value="draft.CriticalSuccessSharePercent" @bind-Value:after="DraftChanged" /></MudItem>
+                <MudItem xs="12" sm="3"><MudNumericField T="int?" Label="Partial Success Band (pp)" Variant="Variant.Outlined" Min="0" Max="100" Clearable="true" Placeholder="Ship default" @bind-Value="draft.PartialSuccessBandPercent" @bind-Value:after="DraftChanged" /></MudItem>
+                <MudItem xs="12" sm="3"><MudNumericField T="int?" Label="Crit Failure Share (%)" Variant="Variant.Outlined" Min="0" Max="100" Clearable="true" Placeholder="Ship default" @bind-Value="draft.CriticalFailureSharePercent" @bind-Value:after="DraftChanged" /></MudItem>
+            </MudGrid>
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.subtitle2">Immediate Ship Resource Changes (One-Time Hull &amp; Supplies)</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Applied once when this event resolves. Positive values repair hull or restore supplies; negative values deal damage or consume supplies.</MudText>
             <StarshipShipEffectEditor Label="Success Ship Effect" Value="draft.ShipSuccessEffect" ValueChanged="@(effect => SetOutcomeEffect(effect, true))" />
             <StarshipShipEffectEditor Label="Failure Ship Effect" Value="draft.ShipFailureEffect" Fallback="@StarshipEventCatalog.GetDefaultShipFailureEffect(draft.EventType)" ValueChanged="@(effect => SetOutcomeEffect(effect, false))" />
+            <StarshipShipEffectEditor Label="Critical Success Ship Effect" Value="draft.ShipCriticalSuccessEffect" ValueChanged="@(effect => { draft.ShipCriticalSuccessEffect = effect; DraftChanged(); })" />
+            <StarshipShipEffectEditor Label="Partial Success Ship Effect" Value="draft.ShipPartialSuccessEffect" ValueChanged="@(effect => { draft.ShipPartialSuccessEffect = effect; DraftChanged(); })" />
+            <StarshipShipEffectEditor Label="Critical Failure Ship Effect" Value="draft.ShipCriticalFailureEffect" ValueChanged="@(effect => { draft.ShipCriticalFailureEffect = effect; DraftChanged(); })" />
+
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.subtitle2">Persistent Voyage Ship Upgrade (Rest of Voyage)</MudText>
+            <StarshipShipUpgradeEditor Label="on Critical Success" Value="draft.CriticalSuccessUpgrade" ValueChanged="@(upgrade => { draft.CriticalSuccessUpgrade = upgrade; DraftChanged(); })" />
             <MudSelect T="string" Label="Reward Profile" Variant="Variant.Outlined" Value="@(draft.RewardProfileId ?? InheritedBinding)" ValueChanged="SetProfile">
                 <MudSelectItem T="string" Value="@string.Empty">No rewards</MudSelectItem>
                 @foreach (var profile in Settings.RewardProfiles) { <MudSelectItem T="string" Value="@profile.Id">@profile.Name</MudSelectItem> }
@@ -157,7 +173,7 @@
                         {
                             StarshipEventStepType.Vote => string.Join("; ", step.Choices.Select(choice => $"{choice.Label} -> {choice.NextStepId}")),
                             StarshipEventStepType.Automatic => $"auto -> {step.NextStepId}",
-                            _ => "End event"
+                            _ => DescribeEndStep(step)
                         };
                         <tr @key="step.StepId" style="@(selectedStep ? "background:var(--mud-palette-action-default-hover)" : null)">
                             <td>@step.StepId @(draft.StartStepId == step.StepId ? "(start)" : "")</td>
@@ -213,6 +229,44 @@
                                 <MudSelect T="string" Label="Next Step" Variant="Variant.Outlined" @bind-Value="editStep.NextStepId" @bind-Value:after="DraftChanged">
                                     @foreach (var target in draft.Steps.Where(step => step.StepId != editStep.StepId)) { <MudSelectItem T="string" Value="@target.StepId">@target.StepId (@target.Type)</MudSelectItem> }
                                 </MudSelect>
+                            </MudItem>
+                        }
+                        else if (editStep.Type == StarshipEventStepType.End)
+                        {
+                            <MudItem xs="12" sm="4">
+                                <MudSelect T="string" Label="Fixed Outcome" Variant="Variant.Outlined" Value="@(editStep.FixedOutcome ?? string.Empty)" ValueChanged="@(val => { editStep.FixedOutcome = string.IsNullOrEmpty(val) ? null : val; DraftChanged(); })">
+                                    <MudSelectItem T="string" Value="@string.Empty">Roll normally</MudSelectItem>
+                                    @foreach (var outcome in StarshipExpeditionNarrative.AllOutcomes)
+                                    {
+                                        <MudSelectItem T="string" Value="@outcome">@StarshipExpeditionNarrative.FormatOutcomeLabel(outcome)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="4">
+                                <MudNumericField T="int?" Label="Reward Multiplier Override (%)" Variant="Variant.Outlined" Min="0" Max="500" Clearable="true"
+                                                 Placeholder="Use accumulated multiplier" @bind-Value="editStep.RewardMultiplierOverridePercent" @bind-Value:after="DraftChanged" />
+                            </MudItem>
+                            <MudItem xs="12" sm="4">
+                                <MudNumericField T="int?" Label="Loss Multiplier Override (%)" Variant="Variant.Outlined" Min="0" Max="500" Clearable="true"
+                                                 Placeholder="Use accumulated multiplier" @bind-Value="editStep.RiskMultiplierOverridePercent" @bind-Value:after="DraftChanged" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" Label="Transition to Route" Variant="Variant.Outlined" Value="@(editStep.TargetRoute ?? string.Empty)" ValueChanged="@(val => { editStep.TargetRoute = string.IsNullOrEmpty(val) ? null : val; DraftChanged(); })">
+                                    <MudSelectItem T="string" Value="@string.Empty">Keep current route</MudSelectItem>
+                                    @foreach (var route in Settings.GetAllConfiguredRoutes())
+                                    {
+                                        <MudSelectItem T="string" Value="@route">@route</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudCheckBox T="bool" Label="Completes Voyage Early (Shortcut Home)" @bind-Value="editStep.CompletesVoyageEarly" @bind-Value:after="DraftChanged" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <StarshipShipEffectEditor Label="End Step Ship Effect" Value="editStep.ShipEffectOverride" ValueChanged="@(effect => { editStep.ShipEffectOverride = effect; DraftChanged(); })" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <StarshipShipUpgradeEditor Label="at This Ending" Value="editStep.GrantedUpgrade" ValueChanged="@(upgrade => { editStep.GrantedUpgrade = upgrade; DraftChanged(); })" />
                             </MudItem>
                         }
                     </MudGrid>
@@ -277,7 +331,17 @@
                         <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Continues Event" @bind-Value="choice.ContinuesEvent" @bind-Value:after="DraftChanged" /></MudItem>
                         <MudItem xs="12"><MudTextField T="string" Label="Granted Flag" Variant="Variant.Outlined" MaxLength="40" @bind-Value="choice.GrantsFlag" @bind-Value:after="DraftChanged" /></MudItem>
                     }
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="string" Label="Target Route (optional)" Variant="Variant.Outlined" Value="@(choice.TargetRoute ?? string.Empty)" ValueChanged="@(val => { choice.TargetRoute = string.IsNullOrEmpty(val) ? null : val; DraftChanged(); })">
+                            <MudSelectItem T="string" Value="@string.Empty">Keep current route</MudSelectItem>
+                            @foreach (var route in Settings.GetAllConfiguredRoutes())
+                            {
+                                <MudSelectItem T="string" Value="@route">@route</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
                     <MudItem xs="12"><StarshipShipEffectEditor Label="Choice Ship Effect" AllowCost="true" Value="choice.ShipEffect" ValueChanged="@(effect => SetChoiceEffect(choice, effect))" /></MudItem>
+                    <MudItem xs="12"><StarshipShipUpgradeEditor Label="When Chosen" Value="choice.GrantedUpgrade" ValueChanged="@(upgrade => { choice.GrantedUpgrade = upgrade; DraftChanged(); })" /></MudItem>
                 }
             </MudGrid>
         }
@@ -285,6 +349,10 @@
         <MudGrid Spacing="2">
             <MudItem xs="12" sm="6"><MudTextField T="string" Label="Success Story" Variant="Variant.Outlined" Lines="3" MaxLength="1000" @bind-Value="draft.SuccessStory" @bind-Value:after="DraftChanged" /></MudItem>
             <MudItem xs="12" sm="6"><MudTextField T="string" Label="Failure Story" Variant="Variant.Outlined" Lines="3" MaxLength="1000" @bind-Value="draft.FailureStory" @bind-Value:after="DraftChanged" /></MudItem>
+            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Critical Success Story (optional)" Variant="Variant.Outlined" Lines="2" MaxLength="1000" @bind-Value="draft.CriticalSuccessStory" @bind-Value:after="DraftChanged" /></MudItem>
+            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Partial Success Story (optional)" Variant="Variant.Outlined" Lines="2" MaxLength="1000" @bind-Value="draft.PartialSuccessStory" @bind-Value:after="DraftChanged" /></MudItem>
+            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Neutral Story (optional)" Variant="Variant.Outlined" Lines="2" MaxLength="1000" @bind-Value="draft.NeutralStory" @bind-Value:after="DraftChanged" /></MudItem>
+            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Critical Failure Story (optional)" Variant="Variant.Outlined" Lines="2" MaxLength="1000" @bind-Value="draft.CriticalFailureStory" @bind-Value:after="DraftChanged" /></MudItem>
         </MudGrid>
         <MudText Typo="Typo.caption">Story tokens: {crew}, {crewlist}, {subject}, {Subject}, {loot}, {rarity}, {sector}</MudText>
         <MudStack Row="true" Wrap="Wrap.Wrap">
@@ -366,10 +434,12 @@
         }
     }
     <MudDivider />
-    <MudText Typo="Typo.subtitle1">Single-Event JSON</MudText>
+    <MudText Typo="Typo.subtitle1">Event &amp; Catalog JSON</MudText>
+    <MudText Typo="Typo.caption" Color="Color.Secondary">Export a single event or use Export All Events to share your catalog with an AI and generate new events. Paste either a single-event JSON or a multi-event catalog JSON below to import.</MudText>
     <MudTextField T="string" Label="Event JSON" Variant="Variant.Outlined" Lines="6" @bind-Value="_json" />
     <MudStack Row="true" Wrap="Wrap.Wrap">
         <MudButton StartIcon="@Icons.Material.Filled.Upload" OnClick="ImportJson">Import as Draft</MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.LibraryAdd" Variant="Variant.Outlined" OnClick="ImportCatalogJsonAsync">Import Multiple Events</MudButton>
         <MudFileUpload T="IBrowserFile" FilesChanged="ImportFileAsync" Accept=".json,application/json">
             <CustomContent><MudButton StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="@context.OpenFilePickerAsync">Open JSON File</MudButton></CustomContent>
             <SelectedTemplate>
@@ -666,6 +736,16 @@
         step.NextStepId = type == StarshipEventStepType.Automatic
             ? _draft?.Steps.FirstOrDefault(other => other.StepId != step.StepId && other.Type == StarshipEventStepType.End)?.StepId
             : null;
+        if (type != StarshipEventStepType.End)
+        {
+            step.FixedOutcome = null;
+            step.RewardMultiplierOverridePercent = null;
+            step.RiskMultiplierOverridePercent = null;
+            step.ShipEffectOverride = null;
+            step.GrantedUpgrade = null;
+            step.TargetRoute = null;
+            step.CompletesVoyageEarly = false;
+        }
         if (type == StarshipEventStepType.Vote && _draft?.Steps.FirstOrDefault(other => other.Type == StarshipEventStepType.End) is { } endStep)
         {
             step.Choices =
@@ -744,8 +824,22 @@
     {
         ContinuesEvent = choice.ContinuesEvent, RevealsRarity = choice.RevealsRarity, EndsWithoutReward = choice.EndsWithoutReward,
         SuccessChanceModifierPercent = choice.SuccessChanceModifierPercent, RewardMultiplierPercent = choice.RewardMultiplierPercent,
-        RiskMultiplierPercent = choice.RiskMultiplierPercent, Hint = choice.Hint ?? ""
+        RiskMultiplierPercent = choice.RiskMultiplierPercent, Hint = choice.Hint ?? "", GrantedUpgrade = choice.GrantedUpgrade, TargetRoute = choice.TargetRoute
     });
+
+    private static string DescribeEndStep(StarshipEventStepDraft step)
+    {
+        var details = new List<string> { "End event" };
+        if (!string.IsNullOrWhiteSpace(step.FixedOutcome))
+            details.Add($"Outcome: {StarshipExpeditionNarrative.FormatOutcomeLabel(step.FixedOutcome)}");
+        if (step.GrantedUpgrade is { } upgrade && !string.IsNullOrWhiteSpace(upgrade.Name))
+            details.Add($"Upgrade: {upgrade.Describe()}");
+        if (!string.IsNullOrWhiteSpace(step.TargetRoute))
+            details.Add($"Route -> {step.TargetRoute}");
+        if (step.CompletesVoyageEarly)
+            details.Add("Shortcut Home");
+        return string.Join(" | ", details);
+    }
     private async Task DeleteEvent()
     {
         if (_deleteId == null || IsBuiltIn(_deleteId)) return;
@@ -870,14 +964,61 @@
         _json = StarshipEventEditing.Export(_draft.ToDefinition());
         await JSRuntime.InvokeVoidAsync("downloadFile", _draft.EventType + ".json", _json);
     }
+    private async Task ExportCatalogAsync()
+    {
+        _json = StarshipEventEditing.ExportCatalog(Settings);
+        _notice = "Catalog JSON exported. You can share this JSON with an AI to generate new events.";
+        _operationError = "";
+        await JSRuntime.InvokeVoidAsync("downloadFile", "starship-events-catalog.json", _json);
+    }
     private void ImportJson()
     {
         if (!CanChangeDraft()) return;
         try
         {
-            Begin(StarshipEventEditing.Import(_json, Settings), null);
+            var imported = StarshipEventEditing.ImportMany(_json, Settings);
+            Begin(imported[0], null);
+            if (imported.Count > 1)
+                _notice = $"Loaded '{imported[0].Title}' as a draft. Use 'Import Multiple Events' to add all {imported.Count} events at once.";
         }
         catch (ArgumentException ex)
+        {
+            _operationError = ex.Message;
+            _notice = "";
+        }
+    }
+    private async Task ImportCatalogJsonAsync()
+    {
+        if (!CanChangeDraft()) return;
+        try
+        {
+            var imported = StarshipEventEditing.ImportMany(_json, Settings);
+            var unmapped = imported.FirstOrDefault(definition =>
+                !string.IsNullOrEmpty(definition.RewardProfileId) &&
+                Settings.RewardProfiles.All(profile => profile.Id != definition.RewardProfileId));
+            if (unmapped != null)
+            {
+                Begin(unmapped, null);
+                _operationError = $"'{unmapped.Title}' references missing reward profile '{unmapped.RewardProfileId}'. Select or create a reward profile and save the draft.";
+                _notice = "";
+                return;
+            }
+            foreach (var definition in imported)
+            {
+                StarshipEventEditing.ValidateDraft(Settings, definition, null);
+            }
+            foreach (var definition in imported)
+            {
+                if (EventApplied.HasDelegate)
+                    await EventApplied.InvokeAsync(definition);
+                var existingIndex = Settings.EventCatalog.FindIndex(item => item.EventType == definition.EventType);
+                if (existingIndex < 0) Settings.EventCatalog.Add(definition);
+                else Settings.EventCatalog[existingIndex] = definition;
+            }
+            _notice = $"Imported {imported.Count} event{(imported.Count == 1 ? "" : "s")}.";
+            _operationError = "";
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             _operationError = ex.Message;
             _notice = "";
