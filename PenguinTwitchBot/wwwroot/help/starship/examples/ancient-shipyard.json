@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 2,
+  "event": {
+    "eventType": "ancient-shipyard",
+    "title": "Ancient Shipyard",
+    "description": "An automated orbital drydock, {subject}, drifts in {sector}. Its repair gantries and fabrication bays still hum with power.",
+    "choices": [],
+    "defaultChoiceId": "",
+    "successStory": "The shipyard gantries deliver {loot} into the cargo bay.",
+    "failureStory": "Automated defense clamps misfire, forcing a hasty undocking from {subject}.",
+    "criticalSuccessStory": "Full fabrication access granted! The crew secures {loot} and installs custom hull plating.",
+    "partialSuccessStory": "A gantry crane jams mid-cycle; the crew salvages {loot} while taking minor hull scrapes.",
+    "neutralStory": "The shipyard's central computer rejects the docking handshake and powers down.",
+    "criticalFailureStory": "Automated security lasers sweep the docking bay, carving into the hull before undocking!",
+    "enabled": true,
+    "weight": 1,
+    "allowedRoutes": ["Frontier Route", "Uncharted"],
+    "subjectStyle": "custom",
+    "subjectNames": ["Gantry Nine", "the Foundry Ring", "the Titan Cradle"],
+    "objectKind": "wreck",
+    "rewardProfileId": "SalvageSite",
+    "shipSuccessEffect": { "hullDelta": 10, "suppliesDelta": 5 },
+    "shipFailureEffect": { "hullDelta": -20, "suppliesDelta": -10 },
+    "shipCriticalSuccessEffect": { "hullDelta": 20, "suppliesDelta": 10 },
+    "shipPartialSuccessEffect": { "hullDelta": -8, "suppliesDelta": 0 },
+    "criticalSuccessUpgrade": {
+      "id": "shipyard-armor",
+      "name": "Foundry Ablative Armor",
+      "hullDamageReductionPercent": 20,
+      "rewardBonusPercent": 10
+    },
+    "lootByTier": {
+      "Common": "prefabricated hull plates",
+      "Uncommon": "an automated repair drone",
+      "Rare": "a prototype drydock core"
+    },
+    "startStepId": "dock",
+    "defaultStepSuppliesCost": 0,
+    "steps": [
+      {
+        "stepId": "dock",
+        "type": "Vote",
+        "prompt": "An automated orbital drydock, {subject}, drifts in {sector}. How should the crew approach?",
+        "defaultChoiceId": "handshake",
+        "choices": [
+          { "choiceId": "handshake", "label": "Transmit ancient docking codes", "story": "{crew} broadcasts a legacy maintenance handshake to {subject}.", "revealsRarity": true, "nextStepId": "gantry-bay" },
+          { "choiceId": "scavenge-outer", "label": "Strip the outer slips", "story": "{crewlist} cut salvage directly from the outer slips of {subject}.", "rewardMultiplierPercent": 110, "riskMultiplierPercent": 60, "nextStepId": "salvage-ending" },
+          { "choiceId": "depart", "label": "Leave the shipyard", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      {
+        "stepId": "gantry-bay",
+        "type": "Vote",
+        "prompt": "The gantry bay doors open, revealing active repair cradles and a sealed fabricator vault.",
+        "defaultChoiceId": "refit-hull",
+        "choices": [
+          { "choiceId": "refit-hull", "label": "Engage automated hull refit", "story": "{crew} aligns the ship with the primary refit cradles.", "successChanceModifierPercent": 15, "nextStepId": "refit-ending" },
+          { "choiceId": "overclock-fab", "label": "Overclock the fabricator vault", "story": "{crew} overrides the fabricator safeties for maximum output.", "successChanceModifierPercent": -15, "rewardMultiplierPercent": 165, "riskMultiplierPercent": 170, "nextStepId": "salvage-ending" },
+          { "choiceId": "undock", "label": "Undock safely", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      {
+        "stepId": "refit-ending",
+        "type": "End",
+        "prompt": "The drydock repairs the ship and installs reinforced plating alongside {loot}.",
+        "shipEffectOverride": { "hullDelta": 15, "suppliesDelta": 5 },
+        "grantedUpgrade": {
+          "id": "shipyard-armor",
+          "name": "Foundry Ablative Armor",
+          "hullDamageReductionPercent": 20,
+          "rewardBonusPercent": 10
+        }
+      },
+      {
+        "stepId": "salvage-ending",
+        "type": "End",
+        "prompt": "The crew hauls {loot} from the shipyard bays."
+      },
+      {
+        "stepId": "pass-ending",
+        "type": "End",
+        "prompt": "The crew undocks and leaves {subject} behind."
+      }
+    ]
+  }
+}

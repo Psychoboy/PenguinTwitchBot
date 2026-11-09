@@ -7,9 +7,42 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 /// </summary>
 public static class StarshipExpeditionNarrative
 {
+    public const string OutcomeCriticalSuccess = "CriticalSuccess";
     public const string OutcomeSuccess = "Success";
+    public const string OutcomePartialSuccess = "PartialSuccess";
+    public const string OutcomeNeutral = "Neutral";
     public const string OutcomeFailure = "Failure";
+    public const string OutcomeCriticalFailure = "CriticalFailure";
     public const string OutcomePassed = "Passed";
+
+    public static IReadOnlyList<string> AllOutcomes { get; } =
+    [
+        OutcomeCriticalSuccess,
+        OutcomeSuccess,
+        OutcomePartialSuccess,
+        OutcomeNeutral,
+        OutcomeFailure,
+        OutcomeCriticalFailure,
+        OutcomePassed
+    ];
+
+    public static bool IsPositiveOutcome(string? outcome) =>
+        outcome is OutcomeCriticalSuccess or OutcomeSuccess or OutcomePartialSuccess;
+
+    public static bool IsNegativeOutcome(string? outcome) =>
+        outcome is OutcomeFailure or OutcomeCriticalFailure;
+
+    public static string FormatOutcomeLabel(string? outcome) => outcome switch
+    {
+        OutcomeCriticalSuccess => "CRITICAL SUCCESS",
+        OutcomeSuccess => "SUCCESS",
+        OutcomePartialSuccess => "PARTIAL SUCCESS",
+        OutcomeNeutral => "NEUTRAL",
+        OutcomeFailure => "FAILED",
+        OutcomeCriticalFailure => "CRITICAL FAILURE",
+        OutcomePassed => "PASSED",
+        _ => outcome ?? string.Empty
+    };
 
     public static string FormatMultiplier(int percent) =>
         (percent / 100m).ToString("0.##", CultureInfo.InvariantCulture);
@@ -71,14 +104,35 @@ public static class StarshipExpeditionNarrative
         var lost = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.LostAmount);
         switch (expeditionEvent.OutcomeResult)
         {
+            case OutcomeCriticalSuccess:
+                lines.Add(string.IsNullOrEmpty(expeditionEvent.OutcomeRarity) ? "CRITICAL SUCCESS!" : $"CRITICAL SUCCESS - {expeditionEvent.OutcomeRarity} find!");
+                lines.Add(earned.Count == 0
+                    ? expeditionEvent.ShipContext is { HasRewards: false } ? "Points rewards are disabled for this event." : "No rewards were paid out (caps reached or crew inactive)."
+                    : $"Earned {FormatAmounts(earned)} average per eligible crew member (unbanked until a station stop or voyage end).");
+                break;
             case OutcomeSuccess:
                 lines.Add(string.IsNullOrEmpty(expeditionEvent.OutcomeRarity) ? "SUCCESS." : $"SUCCESS - {expeditionEvent.OutcomeRarity} find.");
                 lines.Add(earned.Count == 0
                     ? expeditionEvent.ShipContext is { HasRewards: false } ? "Points rewards are disabled for this event." : "No rewards were paid out (caps reached or crew inactive)."
                     : $"Earned {FormatAmounts(earned)} average per eligible crew member (unbanked until a station stop or voyage end).");
                 break;
+            case OutcomePartialSuccess:
+                lines.Add(string.IsNullOrEmpty(expeditionEvent.OutcomeRarity) ? "PARTIAL SUCCESS - mixed outcome." : $"PARTIAL SUCCESS - {expeditionEvent.OutcomeRarity} find recovered at a cost.");
+                if (earned.Count > 0)
+                    lines.Add($"Earned {FormatAmounts(earned)} average per eligible crew member (unbanked until a station stop or voyage end).");
+                if (lost.Count > 0)
+                    lines.Add($"The crew lost {FormatAmounts(lost)} of unbanked points on average per eligible crew member.");
+                break;
+            case OutcomeNeutral:
+                lines.Add("NEUTRAL - the encounter ended without gains or losses.");
+                break;
             case OutcomeFailure:
                 lines.Add(string.IsNullOrEmpty(expeditionEvent.OutcomeRarity) ? "FAILED - the encounter was unsuccessful." : $"FAILED - the {expeditionEvent.OutcomeRarity} find was lost.");
+                if (lost.Count > 0)
+                    lines.Add($"The crew lost {FormatAmounts(lost)} of unbanked points on average per eligible crew member.");
+                break;
+            case OutcomeCriticalFailure:
+                lines.Add(string.IsNullOrEmpty(expeditionEvent.OutcomeRarity) ? "CRITICAL FAILURE - the encounter went badly wrong!" : $"CRITICAL FAILURE - the {expeditionEvent.OutcomeRarity} find was lost in the disaster!");
                 if (lost.Count > 0)
                     lines.Add($"The crew lost {FormatAmounts(lost)} of unbanked points on average per eligible crew member.");
                 break;
@@ -86,6 +140,11 @@ public static class StarshipExpeditionNarrative
                 lines.Add("The crew passed - no risk, no reward.");
                 break;
         }
+
+        if (expeditionEvent.GrantedUpgrade is { } upgrade)
+            lines.Add($"Salvaged upgrade: {upgrade.Name} ({upgrade.Describe()}).");
+        if (!string.IsNullOrWhiteSpace(expeditionEvent.TransitionedToRoute))
+            lines.Add($"Course updated: now following {expeditionEvent.TransitionedToRoute}.");
 
         if (expeditionEvent.ShipContext is { } ship)
             lines.Add($"Ship hull: {ship.HullBefore}/{ship.HullMaximum} -> {ship.HullAfter}/{ship.HullMaximum}. Supplies: {ship.SuppliesBefore}/100 -> {ship.SuppliesAfter}/100.");
@@ -112,12 +171,22 @@ public static class StarshipExpeditionNarrative
             lines.Add(expeditionEvent.OutcomeStory.Trim());
         lines.Add(expeditionEvent.OutcomeResult switch
         {
+            OutcomeCriticalSuccess => string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity)
+                ? "CRITICAL SUCCESS!"
+                : $"CRITICAL SUCCESS - {expeditionEvent.OutcomeRarity} find!",
             OutcomeSuccess => string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity)
                 ? "SUCCESS."
                 : $"SUCCESS - {expeditionEvent.OutcomeRarity} find.",
+            OutcomePartialSuccess => string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity)
+                ? "PARTIAL SUCCESS - mixed outcome."
+                : $"PARTIAL SUCCESS - {expeditionEvent.OutcomeRarity} find.",
+            OutcomeNeutral => "NEUTRAL - no reward or loss.",
             OutcomeFailure => string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity)
                 ? "FAILED - the encounter was unsuccessful."
                 : $"FAILED - the {expeditionEvent.OutcomeRarity} find was lost.",
+            OutcomeCriticalFailure => string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity)
+                ? "CRITICAL FAILURE - heavy losses!"
+                : $"CRITICAL FAILURE - the {expeditionEvent.OutcomeRarity} find was lost!",
             OutcomePassed => "The crew passed - no risk, no reward.",
             _ => "The event ended."
         });
@@ -126,6 +195,10 @@ public static class StarshipExpeditionNarrative
         var lost = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.LostAmount);
         if (earned.Count > 0) lines.Add($"Earned {FormatAmounts(earned)} average per eligible crew member.");
         if (lost.Count > 0) lines.Add($"Lost {FormatAmounts(lost)} of unbanked points on average per eligible crew member.");
+        if (expeditionEvent.GrantedUpgrade is { } upgrade)
+            lines.Add($"Salvaged {upgrade.Name} ({upgrade.Describe()}).");
+        if (!string.IsNullOrWhiteSpace(expeditionEvent.TransitionedToRoute))
+            lines.Add($"Route shifted to {expeditionEvent.TransitionedToRoute}.");
         if (expeditionEvent.ShipContext is { } ship)
         {
             var changes = new List<string>();
@@ -144,18 +217,24 @@ public static class StarshipExpeditionNarrative
         {
             expeditionEvent.OutcomeResult switch
             {
+                OutcomeCriticalSuccess => $"{expeditionEvent.Title} was a critical success.",
                 OutcomeSuccess => $"{expeditionEvent.Title} succeeded.",
+                OutcomePartialSuccess => $"{expeditionEvent.Title} was a partial success.",
+                OutcomeNeutral => $"{expeditionEvent.Title} ended neutrally.",
                 OutcomeFailure => $"{expeditionEvent.Title} failed.",
+                OutcomeCriticalFailure => $"{expeditionEvent.Title} was a critical failure.",
                 OutcomePassed => $"The crew passed on {expeditionEvent.Title}. No reward or loss.",
                 _ => $"{expeditionEvent.Title} is complete."
             }
         };
-        if (expeditionEvent.OutcomeResult == OutcomeSuccess && !string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity))
+        if (IsPositiveOutcome(expeditionEvent.OutcomeResult) && !string.IsNullOrWhiteSpace(expeditionEvent.OutcomeRarity))
             lines.Add($"The find was {expeditionEvent.OutcomeRarity}.");
         var earned = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.EarnedAmount);
         var lost = AverageByPointType(expeditionEvent.RewardOutcomes, outcome => outcome.LostAmount);
         if (earned.Count > 0) lines.Add($"Average reward per eligible crew member: {FormatSpokenAmounts(earned)}.");
         if (lost.Count > 0) lines.Add($"Average loss per eligible crew member: {FormatSpokenAmounts(lost)}.");
+        if (expeditionEvent.GrantedUpgrade is { } upgrade)
+            lines.Add($"The crew salvaged {upgrade.Name}.");
         if (expeditionEvent.ShipContext is { } ship)
         {
             var hull = ship.HullAfter - ship.HullBefore;
@@ -175,6 +254,9 @@ public static class StarshipExpeditionNarrative
     public static string BuildTtsVoyageMessage(StarshipExpeditionSnapshot snapshot)
     {
         var result = snapshot.ReturnReason == "HullDepleted" ? "returned early because the hull was depleted" :
+            snapshot.ReturnReason == "ShortcutHome" ? "returned early through a shortcut home" :
+            snapshot.VoyageOutcome == "Triumphant" ? "returned in triumph" :
+            snapshot.VoyageOutcome == "LimpingHome" ? "limped home safely" :
             snapshot.Status == StarshipExpeditionStatus.Returned ? "is complete" : "was aborted";
         var lines = new List<string> { $"The voyage {result}. {snapshot.Crew.Count} crew members were aboard." };
         var banked = snapshot.BankedPayouts.Where(payout => payout.IsPaid).GroupBy(payout => (payout.PointTypeId, payout.PointTypeName))
@@ -203,9 +285,12 @@ public static class StarshipExpeditionNarrative
     public static IReadOnlyList<string> BuildVoyageLines(StarshipExpeditionSnapshot snapshot)
     {
         var result = snapshot.ReturnReason == "HullDepleted" ? "returned early (hull depleted)" :
+            snapshot.ReturnReason == "ShortcutHome" ? "returned early (shortcut home)" :
+            snapshot.VoyageOutcome == "Triumphant" ? "completed (triumphant return)" :
+            snapshot.VoyageOutcome == "LimpingHome" ? "completed (limping home)" :
             snapshot.Status == StarshipExpeditionStatus.Returned ? "completed" : "aborted";
-        var succeeded = snapshot.CompletedEvents.Count(item => item.OutcomeResult == OutcomeSuccess);
-        var failed = snapshot.CompletedEvents.Count(item => item.OutcomeResult == OutcomeFailure);
+        var succeeded = snapshot.CompletedEvents.Count(item => IsPositiveOutcome(item.OutcomeResult));
+        var failed = snapshot.CompletedEvents.Count(item => IsNegativeOutcome(item.OutcomeResult));
         var lines = new List<string>
         {
             $"Voyage {result}: {snapshot.CompletedEvents.Count} events, {succeeded} successful, {failed} failed, {snapshot.Crew.Count} crew."

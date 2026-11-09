@@ -154,8 +154,12 @@
 
     private Color GetOutcomeTimelineColor(string outcome) => outcome switch
     {
+        StarshipExpeditionNarrative.OutcomeCriticalSuccess => Color.Success,
         StarshipExpeditionNarrative.OutcomeSuccess => Color.Success,
+        StarshipExpeditionNarrative.OutcomePartialSuccess => Color.Warning,
+        StarshipExpeditionNarrative.OutcomeNeutral => Color.Info,
         StarshipExpeditionNarrative.OutcomeFailure => Color.Error,
+        StarshipExpeditionNarrative.OutcomeCriticalFailure => Color.Error,
         StarshipExpeditionNarrative.OutcomePassed => Color.Default,
         _ => Color.Info
     };

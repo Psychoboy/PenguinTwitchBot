@@ -457,6 +457,7 @@
         const bonus = [];
         if (ship.pendingSuccessBonusPercent) bonus.push('Next +' + ship.pendingSuccessBonusPercent + 'pp');
         if (ship.activeSuccessBonusPercent) bonus.push('Event +' + ship.activeSuccessBonusPercent + 'pp');
+        if (Array.isArray(ship.activeUpgrades) && ship.activeUpgrades.length) bonus.push('Upgrades: ' + ship.activeUpgrades.map(u => u.name).join(', '));
         if (supplies === 0) bonus.push('Empty supplies');
         setText('ship-bonus', bonus.join(' | '));
     }
@@ -573,7 +574,7 @@
         for (const text of lines) {
             const line = document.createElement('span');
             line.textContent = compactResultText(text);
-            line.hidden = /^(Crew path:|SUCCESS\b|FAILED\b|The crew passed|Ship hull:)/i.test(text);
+            line.hidden = /^(Crew path:|CRITICAL SUCCESS\b|SUCCESS\b|PARTIAL SUCCESS\b|NEUTRAL\b|FAILED\b|CRITICAL FAILURE\b|The crew passed|Ship hull:)/i.test(text);
             container.appendChild(line);
         }
     }
@@ -609,7 +610,9 @@
             const pill = document.createElement('span');
             pill.className = 'timeline-entry';
             pill.dataset.outcome = entry.outcome || '';
-            const mark = entry.outcome === 'Success' ? ' ✓' : entry.outcome === 'Failure' ? ' ✗' : '';
+            const mark = (entry.outcome === 'Success' || entry.outcome === 'CriticalSuccess') ? ' ✓'
+                : entry.outcome === 'PartialSuccess' ? ' ~'
+                : (entry.outcome === 'Failure' || entry.outcome === 'CriticalFailure') ? ' ✗' : '';
             pill.textContent = entry.sequence + ' ' + entry.title + (entry.rarity ? ' · ' + entry.rarity : '') + mark;
             container.appendChild(pill);
         }
@@ -634,13 +637,29 @@
             const shipName = snapshot?.ship?.name || 'Starship Expedition';
             setText('event-kicker', terminal ? 'VOYAGE COMPLETE' : latest ? 'EVENT RESOLVED' : 'EVENT WIDGET');
             setText('event-title', terminal ? shipName : latest?.title || shipName);
-            setText('event-timer', terminal ? 'END' : latest?.outcome === 'Success' ? '\u2713' : latest?.outcome === 'Failure' ? '\u2717' : snapshot?.status || 'SHOWING');
+            const outcomeMark = (latest?.outcome === 'Success' || latest?.outcome === 'CriticalSuccess') ? '\u2713'
+                : latest?.outcome === 'PartialSuccess' ? '~'
+                : (latest?.outcome === 'Failure' || latest?.outcome === 'CriticalFailure') ? '\u2717'
+                : snapshot?.status || 'SHOWING';
+            setText('event-timer', terminal ? 'END' : outcomeMark);
             document.getElementById('ring-fg').style.strokeDashoffset = '0';
             setText('event-description', '');
             const banner = document.getElementById('result-banner');
             const outcome = terminal ? snapshot.status : (latest?.outcome || '');
             banner.dataset.outcome = outcome;
-            banner.textContent = terminal ? (snapshot.shipSystems?.returnReason === 'HullDepleted' ? 'Emergency return: hull depleted' : outcome === 'Aborted' ? 'Voyage aborted' : 'Voyage complete') : outcome;
+            const formatOutcome = function (val) {
+                if (val === 'CriticalSuccess') return 'Critical Success';
+                if (val === 'PartialSuccess') return 'Partial Success';
+                if (val === 'CriticalFailure') return 'Critical Failure';
+                return val;
+            };
+            banner.textContent = terminal
+                ? (snapshot.shipSystems?.returnReason === 'HullDepleted' ? 'Emergency return: hull depleted'
+                    : snapshot.shipSystems?.returnReason === 'ShortcutHome' ? 'Shortcut return complete'
+                    : snapshot.shipSystems?.voyageOutcome === 'Triumphant' ? 'Triumphant return!'
+                    : snapshot.shipSystems?.voyageOutcome === 'LimpingHome' ? 'Limping home intact'
+                    : outcome === 'Aborted' ? 'Voyage aborted' : 'Voyage complete')
+                : formatOutcome(outcome);
             banner.hidden = !banner.textContent;
             setText('result-choice', terminal ? '' : latest?.choice || 'Event overlay triggered');
             setText('result-detail', terminal ? '' : latest ? latest.sector + ' \u00b7 Leg ' + latest.sequence : '');

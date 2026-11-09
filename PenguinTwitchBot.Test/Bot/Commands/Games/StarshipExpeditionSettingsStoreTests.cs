@@ -143,7 +143,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(Setting.DataTypeEnum.String, saved.DataType);
         Assert.DoesNotContain("\"rewardProfiles\"", saved.StringSetting);
         Assert.DoesNotContain("\"eventCatalog\"", saved.StringSetting);
-        Assert.Equal(8, context.StarshipEvents.Count());
+        Assert.Equal(11, context.StarshipEvents.Count());
         Assert.Equal(4, context.StarshipRewardProfiles.Count());
     }
 
@@ -437,7 +437,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Contains(loaded.EventCatalog, definition => definition.EventType == "custom-event");
         using var check = _services.CreateScope();
         var database = check.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Assert.Equal(9, await database.StarshipEvents.CountAsync());
+        Assert.Equal(12, await database.StarshipEvents.CountAsync());
         Assert.Equal(4, await database.StarshipRewardProfiles.CountAsync());
         loaded.EventCatalog.RemoveAll(definition => definition.EventType == "custom-event");
         await CreateStore().SaveAsync(loaded);
@@ -486,7 +486,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
 
         using var check = _services.CreateScope();
         var database = check.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Assert.Equal(8, await database.StarshipEvents.CountAsync());
+        Assert.Equal(11, await database.StarshipEvents.CountAsync());
         Assert.Equal(4, await database.StarshipRewardProfiles.CountAsync());
         Assert.Equal(originalJson, (await database.Settings.SingleAsync()).StringSetting);
     }
@@ -583,14 +583,14 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
     {
         var settings = await CreateStore().LoadAsync();
         Assert.True(settings.StarterEventsInstalled);
-        Assert.Equal(8, settings.EventCatalog.Count);
+        Assert.Equal(11, settings.EventCatalog.Count);
         var index = settings.EventCatalog.FindIndex(definition => definition.EventType == "courier-relay");
         settings.EventCatalog[index] = settings.EventCatalog[index] with { Title = "My Relay" };
         settings.EventCatalog.RemoveAll(definition => definition.EventType == "debris-crossing");
         await CreateStore().SaveAsync(settings);
 
         var reloaded = await CreateStore().LoadAsync();
-        Assert.Equal(7, reloaded.EventCatalog.Count);
+        Assert.Equal(10, reloaded.EventCatalog.Count);
         Assert.Equal("My Relay", reloaded.EventCatalog.Single(definition => definition.EventType == "courier-relay").Title);
         Assert.DoesNotContain(reloaded.EventCatalog, definition => definition.EventType == "debris-crossing");
     }
@@ -698,7 +698,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
 
             var settings = await store.LoadAsync();
 
-            Assert.Equal(7, settings.EventCatalog.Count);
+            Assert.Equal(10, settings.EventCatalog.Count);
             Assert.Equal(5, settings.EventCatalog.Single(definition => definition.EventType == "courier-relay").SortOrder);
             Assert.Equal(6, settings.EventCatalog.Single(definition => definition.EventType == "debris-crossing").SortOrder);
             Assert.DoesNotContain(settings.EventCatalog, definition => definition.EventType == "survey-cache");
@@ -708,6 +708,29 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         {
             root.Delete(recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_PreservesCustomRoutesAndValidatesEffectiveRoutes()
+    {
+        var settings = new StarshipExpeditionSettings
+        {
+            DisabledBuiltInRoutes = [" uncharted ", "Core Route"],
+            CustomRoutes = ["Smuggler's Run", "Abysmal Rift"]
+        };
+        await CreateStore().SaveAsync(settings);
+
+        var loaded = await CreateStore().LoadAsync();
+
+        Assert.Equal(["Core Route", "Uncharted"], loaded.DisabledBuiltInRoutes);
+        Assert.Equal(["Smuggler's Run", "Abysmal Rift"], loaded.CustomRoutes);
+        Assert.Equal(["Frontier Route", "Smuggler's Run", "Abysmal Rift"], loaded.GetEffectiveRoutes());
+
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(new StarshipExpeditionSettings
+        {
+            DisabledBuiltInRoutes = [.. StarshipExpeditionSettings.BuiltInRoutes],
+            CustomRoutes = []
+        }));
     }
 
     private StarshipExpeditionSettingsStore CreateStore()

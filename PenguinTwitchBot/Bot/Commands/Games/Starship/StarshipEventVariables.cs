@@ -37,7 +37,10 @@ internal static class StarshipEventVariables
             ["SuppliesAfter"] = Format(expeditionEvent.ShipContext?.SuppliesAfter),
             ["SuppliesChange"] = Format(expeditionEvent.ShipContext is { } supplies ? supplies.SuppliesAfter - supplies.SuppliesBefore : null),
             ["EventBaseSuccessChancePercent"] = Format(expeditionEvent.ShipContext?.BaseSuccessChancePercent),
-            ["EventSuccessModifierPercent"] = Format(expeditionEvent.ShipContext?.ResourceSuccessModifierPercent)
+            ["EventSuccessModifierPercent"] = Format(expeditionEvent.ShipContext?.ResourceSuccessModifierPercent),
+            ["GrantedUpgrade"] = expeditionEvent.GrantedUpgrade?.Name ?? string.Empty,
+            ["TransitionedToRoute"] = expeditionEvent.TransitionedToRoute ?? string.Empty,
+            ["CompletedVoyageEarly"] = expeditionEvent.CompletedVoyageEarly ? "true" : "false"
         };
         AddRewardAmounts(variables, expeditionEvent.RewardOutcomes);
         return variables;
@@ -80,7 +83,9 @@ internal static class StarshipEventVariables
             ["Supplies"] = Format(ship?.Supplies),
             ["PendingSuccessBonusPercent"] = Format(ship?.PendingSuccessBonusPercent),
             ["ActiveSuccessBonusPercent"] = Format(ship?.ActiveSuccessBonusPercent),
-            ["ReturnReason"] = snapshot.ReturnReason
+            ["ReturnReason"] = snapshot.ReturnReason,
+            ["VoyageOutcome"] = snapshot.VoyageOutcome,
+            ["ActiveUpgrades"] = ship == null ? string.Empty : string.Join(", ", ship.ActiveUpgrades.Select(upgrade => upgrade.Name))
         };
     }
 

@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 2,
+  "event": {
+    "eventType": "uncharted-wormhole",
+    "title": "Uncharted Wormhole",
+    "description": "A shimmering spatial tear, {subject}, opens ahead in {sector}. Chart its rim, dive into the aperture, or hold course.",
+    "choices": [],
+    "defaultChoiceId": "",
+    "successStory": "The crew rides the slipstream of {subject} and recovers {loot}.",
+    "failureStory": "Gravitational shear batters the hull as {subject} collapses.",
+    "criticalSuccessStory": "A textbook transit! The crew harvests {loot} and locks in phase-stabilizer telemetry.",
+    "partialSuccessStory": "Tidal shear rattles the frame, but the crew pulls {loot} from the eddy before escaping.",
+    "neutralStory": "The aperture of {subject} seals itself before the ship can lock onto a vector.",
+    "criticalFailureStory": "The wormhole throat destabilizes violently, slamming the hull against a gravity well!",
+    "enabled": true,
+    "weight": 1,
+    "subjectStyle": "custom",
+    "subjectNames": ["the Shear Aperture", "the Velvet Singularity", "the Echo Maw"],
+    "objectKind": "beacon",
+    "rewardProfileId": "SignalDetected",
+    "shipFailureEffect": { "hullDelta": -20, "suppliesDelta": -10 },
+    "shipCriticalSuccessEffect": { "hullDelta": 0, "suppliesDelta": 10 },
+    "shipPartialSuccessEffect": { "hullDelta": -10, "suppliesDelta": -5 },
+    "shipCriticalFailureEffect": { "hullDelta": -35, "suppliesDelta": -15 },
+    "criticalSuccessUpgrade": {
+      "id": "phase-stabilizer",
+      "name": "Phase Stabilizer",
+      "successChanceBonusPercent": 5,
+      "travelSuppliesDiscount": 2
+    },
+    "lootByTier": {
+      "Common": "exotic tachyon residue",
+      "Uncommon": "a phase-shifted nav core",
+      "Rare": "a singularity anchor crystal"
+    },
+    "startStepId": "approach",
+    "defaultStepSuppliesCost": 0,
+    "steps": [
+      {
+        "stepId": "approach",
+        "type": "Vote",
+        "prompt": "A shimmering spatial tear, {subject}, opens ahead in {sector}. How should the crew approach?",
+        "defaultChoiceId": "chart-rim",
+        "choices": [
+          { "choiceId": "chart-rim", "label": "Chart the wormhole rim", "story": "{crew} sweeps gravimetric sensors across {subject}.", "revealsRarity": true, "nextStepId": "rim-readings" },
+          { "choiceId": "enter-throat", "label": "Dive into the wormhole", "story": "{crew} angles the bow straight into {subject}.", "successChanceModifierPercent": -10, "rewardMultiplierPercent": 140, "riskMultiplierPercent": 150, "nextStepId": "inside-aperture" },
+          { "choiceId": "hold-course", "label": "Hold current course", "story": "The crew steers clear of {subject}.", "endsWithoutReward": true, "nextStepId": "pass-ending" }
+        ]
+      },
+      {
+        "stepId": "rim-readings",
+        "type": "Automatic",
+        "prompt": "Gravimetric telemetry locks onto two exit vectors.",
+        "narrative": "One vector leads into uncharted space; the other folds back toward home dock.",
+        "suppliesCostOverride": 2,
+        "nextStepId": "inside-aperture"
+      },
+      {
+        "stepId": "inside-aperture",
+        "type": "Vote",
+        "prompt": "Inside the wormhole eddy, two exit vectors shimmer ahead. Choose a vector.",
+        "defaultChoiceId": "uncharted-exit",
+        "choices": [
+          { "choiceId": "uncharted-exit", "label": "Ride the wake into Uncharted space", "story": "{crewlist} ride the slipstream out the far side of {subject}.", "rewardMultiplierPercent": 130, "nextStepId": "uncharted-ending" },
+          { "choiceId": "shortcut-home", "label": "Take the homeward fold shortcut", "story": "{crew} locks onto the homeward fold.", "successChanceModifierPercent": 15, "rewardMultiplierPercent": 120, "nextStepId": "shortcut-ending" },
+          { "choiceId": "abort-transit", "label": "Back out of the shear zone", "endsWithoutReward": true, "nextStepId": "neutral-ending" }
+        ]
+      },
+      {
+        "stepId": "uncharted-ending",
+        "type": "End",
+        "prompt": "The ship emerges in Uncharted space with {loot}.",
+        "targetRoute": "Uncharted"
+      },
+      {
+        "stepId": "shortcut-ending",
+        "type": "End",
+        "prompt": "The fold deposits the ship within sight of home dock with {loot}!",
+        "fixedOutcome": "CriticalSuccess",
+        "completesVoyageEarly": true
+      },
+      {
+        "stepId": "neutral-ending",
+        "type": "End",
+        "prompt": "The crew backs away as {subject} collapses harmlessly.",
+        "fixedOutcome": "Neutral"
+      },
+      {
+        "stepId": "pass-ending",
+        "type": "End",
+        "prompt": "The crew steers clear of {subject}."
+      }
+    ]
+  }
+}

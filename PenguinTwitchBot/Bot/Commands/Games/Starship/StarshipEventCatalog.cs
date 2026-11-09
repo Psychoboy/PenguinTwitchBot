@@ -27,6 +27,11 @@ public static partial class StarshipEventCatalog
             [], "", "It was real: the crew recovers {loot}.", "The signal was a trap. The ship limps home damaged and empty.")
         {
             SortOrder = 0, SubjectStyle = "signal", ObjectKind = "beacon", ShipFailureEffect = GetDefaultShipFailureEffect("SignalDetected"),
+            CriticalSuccessStory = "A clean decryption! The crew recovers {loot} and salvages a signal booster.",
+            PartialSuccessStory = "Static corrupts half the feed, but the crew salvages {loot} before the array shorts out.",
+            NeutralStory = "The signal dissolves into background noise before anything useful can be locked in.",
+            CriticalFailureStory = "A feedback spike from {subject} overloads the sensors and scorches the hull!",
+            CriticalSuccessUpgrade = new() { Id = "signal-booster", Name = "Signal Array Booster", SuccessChanceBonusPercent = 5 },
             StartStepId = "approach", DefaultStepSuppliesCost = 0,
             Steps =
             [
@@ -58,6 +63,11 @@ public static partial class StarshipEventCatalog
             [], "", "The hatch gives way and the crew hauls out {loot}.", "A reactor surge rips through {subject}. The crew drops {loot} and flees.")
         {
             SortOrder = 1, SubjectStyle = "ship", ObjectKind = "wreck", ShipFailureEffect = GetDefaultShipFailureEffect("SalvageSite"), AllowedRoutes = ["Uncharted", FrontierRoute],
+            CriticalSuccessStory = "The vault opens cleanly! The crew secures {loot} and strips intact hull plating from {subject}.",
+            PartialSuccessStory = "A bulkhead collapses mid-haul; the crew escapes with part of {loot} and minor hull scrapes.",
+            NeutralStory = "Every cargo bay aboard {subject} has already been picked clean.",
+            CriticalFailureStory = "A secondary reactor detonation rips through {subject}, slamming debris into the ship!",
+            CriticalSuccessUpgrade = new() { Id = "reinforced-clamps", Name = "Reinforced Salvage Clamps", HullDamageReductionPercent = 15 },
             StartStepId = "approach", DefaultStepSuppliesCost = 0,
             Steps =
             [
@@ -85,6 +95,11 @@ public static partial class StarshipEventCatalog
             [], "", "The crew clears {subject} and scoops up {loot}.", "{Subject} clips the hull and cargo is lost.")
         {
             SortOrder = 2, SubjectStyle = "hazard", ObjectKind = "debris", ShipFailureEffect = GetDefaultShipFailureEffect("Hazard"), AllowedRoutes = ["Uncharted", CoreRoute],
+            CriticalSuccessStory = "Masterful piloting! The crew threads {subject}, scoops up {loot}, and rides the slipstream.",
+            PartialSuccessStory = "The ship clips the edge of {subject}, taking light damage while securing {loot}.",
+            NeutralStory = "The crew skirts the edge of {subject} without incident or salvage.",
+            CriticalFailureStory = "{Subject} shears across the bow, tearing through hull plating and cargo locks!",
+            CriticalSuccessUpgrade = new() { Id = "slipstream-trim", Name = "Slipstream Thruster Trim", TravelSuppliesDiscount = 2 },
             StartStepId = "reaction", DefaultStepSuppliesCost = 0,
             Steps =
             [
@@ -126,6 +141,9 @@ public static partial class StarshipEventCatalog
         "courier-relay" => new() { Enabled = true, AudioFile = "/media/starship_courier_relay.wav", Volume = 50 },
         "survey-cache" => new() { Enabled = true, AudioFile = "/media/starship_survey_cache.wav", Volume = 50 },
         "debris-crossing" => new() { Enabled = true, AudioFile = "/media/starship_debris_crossing.wav", Volume = 55 },
+        "uncharted-wormhole" => new() { Enabled = true, AudioFile = "/media/starship_signal_detected.wav", Volume = 55 },
+        "ancient-shipyard" => new() { Enabled = true, AudioFile = "/media/starship_salvage_found.wav", Volume = 55 },
+        "ghost-convoy" => new() { Enabled = true, AudioFile = "/media/starship_hazard_warning.wav", Volume = 55 },
         _ => new() { Enabled = true, AudioFile = "/media/starship_custom_event.wav", Volume = 50 }
     };
     public static DropGameSoundConfig GetEffectiveOpenSound(StarshipEventDefinition? definition, string eventType, DropGameSoundConfig? typeDefault = null)
@@ -227,11 +245,25 @@ public static partial class StarshipEventCatalog
             ValidateText(definition.Description, 1000, true);
             ValidateText(definition.SuccessStory, 1000);
             ValidateText(definition.FailureStory, 1000);
+            ValidateText(definition.CriticalSuccessStory, 1000);
+            ValidateText(definition.PartialSuccessStory, 1000);
+            ValidateText(definition.NeutralStory, 1000);
+            ValidateText(definition.CriticalFailureStory, 1000);
             if (definition.SuccessChancePercent is < 0 or > 100)
                 throw new ArgumentException($"{definition.Title}: success chance must be 0-100 percent.");
+            if (definition.CriticalSuccessSharePercent is < 0 or > 100 ||
+                definition.PartialSuccessBandPercent is < 0 or > 100 ||
+                definition.CriticalFailureSharePercent is < 0 or > 100)
+                throw new ArgumentException($"{definition.Title}: graduated outcome shares and bands must be 0-100 percent.");
             definition.ShipSuccessEffect?.Validate();
             definition.ShipFailureEffect?.Validate();
-            if (definition.ShipSuccessEffect?.SuppliesCost > 0 || definition.ShipFailureEffect?.SuppliesCost > 0)
+            definition.ShipCriticalSuccessEffect?.Validate();
+            definition.ShipPartialSuccessEffect?.Validate();
+            definition.ShipCriticalFailureEffect?.Validate();
+            definition.CriticalSuccessUpgrade?.Validate();
+            if (definition.ShipSuccessEffect?.SuppliesCost > 0 || definition.ShipFailureEffect?.SuppliesCost > 0 ||
+                definition.ShipCriticalSuccessEffect?.SuppliesCost > 0 || definition.ShipPartialSuccessEffect?.SuppliesCost > 0 ||
+                definition.ShipCriticalFailureEffect?.SuppliesCost > 0)
                 throw new ArgumentException($"{definition.Title}: outcome effects cannot require a supply payment.");
             if (definition.Weight is < 1 or > 10 || definition.SortOrder < 0)
                 throw new ArgumentException($"{definition.Title}: weight must be 1-10 and sort order non-negative.");
@@ -255,6 +287,10 @@ public static partial class StarshipEventCatalog
                 ValidateText(choice.Story, 1000);
                 ValidateText(choice.Hint, 160, false, false);
                 choice.ShipEffect?.Validate();
+                choice.GrantedUpgrade?.Validate();
+                if (!string.IsNullOrWhiteSpace(choice.TargetRoute) && !IsStructural(definition.EventType) &&
+                    !settings.GetAllConfiguredRoutes().Contains(choice.TargetRoute.Trim(), StringComparer.OrdinalIgnoreCase))
+                    throw new ArgumentException($"{definition.Title}: choice '{choice.ChoiceId}' targets an unknown route '{choice.TargetRoute}'.");
                 if (!isGraphEvent && !labels.Add(choice.Label.Trim())) throw new ArgumentException($"{definition.Title}: choice labels must be unique.");
                 if (choice.IsRisky || choice.SuccessChanceModifierPercent is < -50 or > 50 ||
                     choice.RewardMultiplierPercent is < 10 or > 300 || choice.RiskMultiplierPercent is < 0 or > 300)
@@ -273,11 +309,15 @@ public static partial class StarshipEventCatalog
                 throw new ArgumentException($"{definition.Title}: the reward profile does not exist.");
             if (!IsBuiltIn(definition.EventType) && eventChoices.Any(choice => choice.RevealsRarity) && binding.Length == 0)
                 throw new ArgumentException($"{definition.Title}: revealing rarity requires a reward profile.");
+            var validRoutes = Routes.Concat(settings.CustomRoutes).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (definition.AllowedRoutes == null || definition.AllowedRoutes.Any(route =>
-                !Routes.Contains(route, StringComparer.Ordinal) &&
+                !validRoutes.Contains(route) &&
                 !string.Equals(route, LegacyDirectRoute, StringComparison.Ordinal) &&
                 !string.Equals(route, LegacySurveyRoute, StringComparison.Ordinal)))
                 throw new ArgumentException($"{definition.Title}: unknown route filter.");
+            if (isGraphEvent && definition.Steps.Any(step => !string.IsNullOrWhiteSpace(step.TargetRoute) &&
+                !settings.GetAllConfiguredRoutes().Contains(step.TargetRoute.Trim(), StringComparer.OrdinalIgnoreCase)))
+                throw new ArgumentException($"{definition.Title}: an end step targets an unknown route.");
             if (definition.AllowedSectors == null || definition.AllowedSectors.Any(sector => !StarshipExpeditionSettings.BuiltInSectors.Concat(settings.CustomSectors).Contains(sector, StringComparer.OrdinalIgnoreCase)))
                 throw new ArgumentException($"{definition.Title}: unknown sector filter.");
             if (!SubjectStyles.Contains(definition.SubjectStyle, StringComparer.Ordinal))
@@ -300,7 +340,7 @@ public static partial class StarshipEventCatalog
         }
         foreach (var structural in defaults.Where(definition => IsStructural(definition.EventType)))
             if (!ids.Contains(structural.EventType)) throw new ArgumentException($"The catalog requires {structural.EventType}.");
-        foreach (var route in Routes)
+        foreach (var route in settings.GetEffectiveRoutes().Prepend(StartRoute).Distinct(StringComparer.OrdinalIgnoreCase))
             foreach (var sector in settings.GetEffectiveSectors())
                 if (!catalog.Any(definition => !IsStructural(definition.EventType) && IsAvailable(definition, route, sector)))
                     throw new ArgumentException($"No event is eligible for {route} in {sector}.");

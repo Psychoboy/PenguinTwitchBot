@@ -3391,6 +3391,138 @@ public class StarshipExpeditionServiceTests
         Assert.Contains("Station stop at", stationResult);
     }
 
+    [Fact]
+    public void GraduatedOutcomes_RollCriticalPartialAndCriticalFailureWithUpgradesAndScaling()
+    {
+        var pointTypeId = Guid.CreateVersion7();
+        var member = new StarshipCrewMemberSnapshot
+        {
+            UserId = "pilot", UserName = "pilot", DisplayName = "Pilot",
+            UnbankedBalances = [new() { PointTypeId = pointTypeId, PointTypeName = "Credits", Amount = 100 }]
+        };
+        var shipSystems = StarshipShipSystems.Create(new()
+        {
+            MaximumHull = 100, StartingHull = 80, StartingSupplies = 50,
+            EnableGraduatedOutcomes = true,
+            CriticalSuccessSharePercent = 100,
+            CriticalSuccessRewardMultiplierPercent = 150,
+            CriticalSuccessBoostsRarity = true,
+            PartialSuccessBandPercent = 10,
+            PartialSuccessRewardPercent = 50,
+            PartialSuccessPenaltyPercent = 50,
+            CriticalFailureSharePercent = 100,
+            CriticalFailurePenaltyMultiplierPercent = 150
+        });
+        var snapshot = new StarshipExpeditionSnapshot { Seed = 101, Crew = [member], ShipSystems = shipSystems };
+        var profile = new StarshipRewardProfile
+        {
+            EventType = "SignalDetected",
+            Enabled = true,
+            SuccessChancePercent = 100,
+            Tiers =
+            [
+                new() { Id = "common", Name = "Common", Weight = 100, Rewards = [new() { PointTypeId = pointTypeId, PointTypeName = "Credits", Minimum = 20, Maximum = 20 }] },
+                new() { Id = "rare", Name = "Rare", Weight = 0, Rewards = [new() { PointTypeId = pointTypeId, PointTypeName = "Credits", Minimum = 40, Maximum = 40 }] }
+            ],
+            LossRules = [new() { PointTypeId = pointTypeId, PointTypeName = "Credits", Percent = 50 }]
+        };
+        var critUpgrade = new StarshipShipUpgrade
+        {
+            Id = "nav-core", Name = "Nav Core", SuccessChanceBonusPercent = 10
+        };
+        var critEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), Sequence = 1, EventType = "SignalDetected",
+            CriticalSuccessUpgrade = critUpgrade,
+            ShipContext = new()
+            {
+                BaseSuccessChancePercent = 100, HullBefore = 80, HullMaximum = 100, SuppliesBefore = 50, HullAfter = 80, SuppliesAfter = 50,
+                CriticalSuccessEffect = new() { SuppliesDelta = 5 }
+            },
+            Choices = [new() { ChoiceId = "scan", Label = "Scan" }],
+            ChoicePool = [new() { ChoiceId = "scan", Label = "Scan" }],
+            ResolvedChoiceId = "scan"
+        };
+
+        StarshipRewardResolver.ApplyRewardProfile(snapshot, critEvent, profile, new HashSet<string>(["pilot"]));
+        var effect = StarshipShipSystems.ResolveOutcomeEffect(shipSystems!, critEvent, null, 100);
+        if (effect != null)
+            StarshipShipSystems.ApplyEffect(shipSystems!, $"outcome:{critEvent.EventId:N}", effect);
+        if (critEvent.CriticalSuccessUpgrade != null)
+            StarshipShipSystems.GrantUpgrade(shipSystems!, $"upgrade:{critEvent.EventId:N}", critEvent.CriticalSuccessUpgrade);
+
+        Assert.Equal(StarshipExpeditionNarrative.OutcomeCriticalSuccess, critEvent.OutcomeResult);
+        Assert.Equal("Rare", critEvent.OutcomeRarity);
+        Assert.Equal(60, Assert.Single(critEvent.RewardOutcomes).EarnedAmount); // 40 (boosted tier) * 150% = 60
+        Assert.Contains(shipSystems!.ActiveUpgrades, u => u.Id == "nav-core");
+        Assert.Equal(55, shipSystems.Supplies);
+    }
+
+    [Fact]
+    public async Task EndStep_SupportsFixedOutcomeRouteTransitionUpgradeAndShortcutReturn()
+    {
+        var settingsStore = new InMemorySettingsStore();
+        settingsStore.Settings.CustomRoutes = ["Slipstream Corridor"];
+        var upgrade = new StarshipShipUpgrade
+        {
+            Id = "slipstream-coil", Name = "Slipstream Coil", TravelSuppliesDiscount = 2
+        };
+        settingsStore.Settings.EventCatalog = settingsStore.Settings.EventCatalog
+            .Where(e => StarshipEventCatalog.IsStructural(e.EventType))
+            .Append(new StarshipEventDefinition(
+                "wormhole-test",
+                "Wormhole Shortcut",
+                "A wormhole opens ahead.",
+                [new() { ChoiceId = "dive", Label = "Dive In", NextStepId = "shortcut-end" }, new() { ChoiceId = "hold", Label = "Hold", NextStepId = "neutral-end" }],
+                "dive")
+            {
+                Steps =
+                [
+                    new()
+                    {
+                        StepId = "start", Type = StarshipEventStepType.Vote, Prompt = "Enter the wormhole?", DefaultChoiceId = "dive",
+                        Choices =
+                        [
+                            new() { ChoiceId = "dive", Label = "Dive In", NextStepId = "shortcut-end" },
+                            new() { ChoiceId = "hold", Label = "Hold Position", NextStepId = "neutral-end" }
+                        ]
+                    },
+                    new()
+                    {
+                        StepId = "shortcut-end", Type = StarshipEventStepType.End, Prompt = "Emerged near home.",
+                        FixedOutcome = StarshipExpeditionNarrative.OutcomeCriticalSuccess,
+                        GrantedUpgrade = upgrade,
+                        TargetRoute = "Slipstream Corridor",
+                        CompletesVoyageEarly = true
+                    },
+                    new()
+                    {
+                        StepId = "neutral-end", Type = StarshipEventStepType.End, Prompt = "Held position.",
+                        FixedOutcome = StarshipExpeditionNarrative.OutcomeNeutral
+                    }
+                ],
+                StartStepId = "start"
+            })
+            .ToList();
+
+        var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore);
+        await service.StartExpeditionAsync("mod", legCount: 5, seed: 42);
+        await service.JoinCrewAsync(CreateArgs("viewer-1", "Viewer1"));
+        var leg1 = await service.AdvanceEventAsync(); // RouteChoice
+        Assert.Contains(leg1.CurrentEvent!.Choices, c => c.TargetRoute == "Slipstream Corridor");
+        await service.AdvanceEventAsync(); // Resolve RouteChoice
+        await service.AdvanceEventAsync(); // Open wormhole-test
+        await service.VoteAsync(CreateArgs("viewer-1", "Viewer1"), "dive");
+        var resolved = await service.AdvanceEventAsync(); // Resolve wormhole-test -> completes voyage early!
+
+        Assert.Equal(StarshipExpeditionStatus.Returned, resolved.Status);
+        Assert.Equal("ShortcutHome", resolved.ReturnReason);
+        Assert.Equal("ShortcutHome", resolved.VoyageOutcome);
+        Assert.Equal("Slipstream Corridor", resolved.CurrentRoute);
+        Assert.Contains(resolved.ShipSystems!.ActiveUpgrades, u => u.Id == "slipstream-coil");
+        Assert.Equal(StarshipExpeditionNarrative.OutcomeCriticalSuccess, resolved.CompletedEvents[^1].OutcomeResult);
+    }
+
     private sealed class InMemorySettingsStore : IStarshipExpeditionSettingsStore
     {
         public int SaveCount { get; private set; }

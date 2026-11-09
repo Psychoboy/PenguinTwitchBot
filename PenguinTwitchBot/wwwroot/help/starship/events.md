@@ -15,13 +15,16 @@ Apply or discard the current draft before opening another event. Deleting a cust
 
 ## Included Starter Events
 
-These three editable events are added automatically the first time this catalog version is loaded. They do not replace existing IDs, are not duplicated on later loads, and stay deleted if you remove them. There is no extra import step. The JSON links below are available for sharing or making another copy.
+These six editable events are added automatically the first time this catalog version is loaded. They do not replace existing IDs, are not duplicated on later loads, and stay deleted if you remove them. There is no extra import step. The JSON links below are available for sharing or making another copy.
 
 | Event | Demonstrates | Availability | Rewards |
 | :--- | :--- | :--- | :--- |
-| [Courier Relay](/help/starship/examples/courier-relay.json) | A simple branching narrative event | All routes and sectors, weight 1 | No reward profile by default |
+| [Courier Relay](/help/starship/examples/courier-relay.json) | A simple branching narrative event with graduated outcome stories | All routes and sectors, weight 1 | No reward profile by default |
 | [Survey Cache](/help/starship/examples/survey-cache.json) | Scan, optional stabilization, recovery or pass; named subjects and tier loot | Frontier Route in Ternion Belt, weight 2 | References the SalvageSite profile |
 | [Debris Crossing](/help/starship/examples/debris-crossing.json) | Balanced, safer or higher-reward choices with different loss exposure | All routes and sectors, weight 1 | References the Hazard profile |
+| [Uncharted Wormhole](/help/starship/examples/uncharted-wormhole.json) | Route transition to Uncharted, early shortcut voyage return, and slipstream upgrade | All routes and sectors, weight 1 | References the SignalDetected profile |
+| [Ancient Shipyard](/help/starship/examples/ancient-shipyard.json) | Salvaging persistent ship upgrades (`Reinforced Plating`, `Quantum Nav Core`) and fixed end-step outcomes | Uncharted and Frontier Route, weight 1 | References the SalvageSite profile |
+| [Ghost Convoy](/help/starship/examples/ghost-convoy.json) | Multi-branch ending outcomes (`Neutral`, `PartialSuccess`, rolled recovery) | All routes and sectors, weight 1 | References the SalvageSite profile |
 
 The examples do not choose a point currency or enable an existing reward profile for you. Configure and enable the referenced profile to activate rarity, payouts and point-loss rules. On integrated voyages, success/failure and shared ship effects still resolve without points. A scan only reveals rarity when an enabled reward profile is available. Legacy/disabled ship-system voyages keep their previous outcome behavior.
 

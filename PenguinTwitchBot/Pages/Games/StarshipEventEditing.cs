@@ -90,6 +90,8 @@ public static class StarshipEventEditing
 
     public static string Export(StarshipEventDefinition definition) => StarshipEventDocument.Write(definition);
 
+    public static string ExportCatalog(StarshipExpeditionSettings settings) => StarshipEventDocument.WriteCatalog(settings);
+
     public static StarshipEventDefinition Import(string json, StarshipExpeditionSettings settings)
     {
         if (System.Text.Encoding.UTF8.GetByteCount(json) > MaximumImportBytes) throw new ArgumentException("Event JSON exceeds 256 KB.");
@@ -103,6 +105,45 @@ public static class StarshipEventEditing
                 validationSettings.RewardProfiles.Add(new StarshipRewardProfile { Id = imported.RewardProfileId, Name = "Imported profile reference" });
             ValidateDraft(validationSettings, imported, null);
             return imported;
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException("Event JSON is malformed or contains unsupported fields.", ex);
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new ArgumentException(ex.Message, ex);
+        }
+    }
+
+    public static IReadOnlyList<StarshipEventDefinition> ImportMany(string json, StarshipExpeditionSettings settings)
+    {
+        if (System.Text.Encoding.UTF8.GetByteCount(json) > MaximumImportBytes) throw new ArgumentException("Event JSON exceeds 256 KB.");
+        try
+        {
+            var definitions = StarshipEventDocument.ReadMany(json);
+            if (definitions.Count == 1 && !json.Contains("\"events\"", StringComparison.Ordinal))
+                return [Import(json, settings)];
+
+            var workingSettings = Copy(settings);
+            var importedList = new List<StarshipEventDefinition>(definitions.Count);
+            foreach (var definition in definitions)
+            {
+                if (definition == null) throw new ArgumentException("Event entry cannot be null.");
+                ValidateShape(definition);
+                var needsDuplicateId = StarshipEventCatalog.IsBuiltIn(definition.EventType) ||
+                    workingSettings.EventCatalog.Any(existing => string.Equals(existing.EventType, definition.EventType, StringComparison.OrdinalIgnoreCase));
+                var candidate = needsDuplicateId
+                    ? Duplicate(definition, workingSettings)
+                    : Copy(definition) with { SortOrder = workingSettings.EventCatalog.Count };
+                var validationSettings = Copy(workingSettings);
+                if (!string.IsNullOrEmpty(candidate.RewardProfileId) && !validationSettings.RewardProfiles.Any(profile => profile.Id == candidate.RewardProfileId))
+                    validationSettings.RewardProfiles.Add(new StarshipRewardProfile { Id = candidate.RewardProfileId, Name = "Imported profile reference" });
+                ValidateDraft(validationSettings, candidate, null);
+                workingSettings.EventCatalog.Add(candidate);
+                importedList.Add(candidate);
+            }
+            return importedList;
         }
         catch (JsonException ex)
         {

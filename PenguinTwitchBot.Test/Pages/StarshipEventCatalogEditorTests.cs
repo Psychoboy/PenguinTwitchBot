@@ -144,7 +144,7 @@ public class StarshipEventCatalogEditorTests
         Assert.Contains("Frontier Route", routeLabels);
         Assert.Contains("Uncharted", StarshipEventCatalog.Routes);
         Assert.True(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Start").Instance.Disabled);
-        Assert.True(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Uncharted").Instance.Disabled);
+        Assert.False(editor.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == "Uncharted").Instance.Disabled);
         var defaults = StarshipEventCatalog.CreateDefaults();
         Assert.Equal(["Uncharted", "Frontier Route"], defaults.Single(definition => definition.EventType == "SalvageSite").AllowedRoutes);
         Assert.Equal(["Uncharted", "Core Route"], defaults.Single(definition => definition.EventType == "Hazard").AllowedRoutes);
