@@ -241,8 +241,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         [.. BuiltInSectors.Where(name => !DisabledBuiltInSectors.Contains(name, StringComparer.OrdinalIgnoreCase)), .. CustomSectors];
 
     public List<string> GetEffectiveRoutes() =>
-        [.. BuiltInRoutes.Where(name => !DisabledBuiltInRoutes.Contains(name, StringComparer.OrdinalIgnoreCase)),
-         .. CustomRoutes.Where(name => !EventOnlyRoutes.Contains(name, StringComparer.OrdinalIgnoreCase))];
+        [.. BuiltInRoutes.Where(name => !DisabledBuiltInRoutes.Any(disabled => string.Equals(disabled?.Trim(), name, StringComparison.OrdinalIgnoreCase))),
+         .. CustomRoutes.Where(name => !EventOnlyRoutes.Any(eventOnly => string.Equals(eventOnly?.Trim(), name?.Trim(), StringComparison.OrdinalIgnoreCase)))];
 
     public List<string> GetAllConfiguredRoutes() =>
         [.. BuiltInRoutes, .. CustomRoutes];
