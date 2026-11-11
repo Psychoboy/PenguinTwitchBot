@@ -199,14 +199,21 @@
                             }
                             <MudDivider Class="my-3" />
                             <MudText Typo="Typo.subtitle2">Custom Routes</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">@_settings.CustomRoutes.Count / @StarshipExpeditionSettings.MaximumCustomRoutes</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@_settings.CustomRoutes.Count / @StarshipExpeditionSettings.MaximumCustomRoutes (check to include in initial Leg 1 vote; uncheck for event-only)</MudText>
                             <MudStack Spacing="2" Class="mt-2">
                                 @for (var index = 0; index < _settings.CustomRoutes.Count; index++)
                                 {
                                     var routeIndex = index;
-                                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                                    var routeName = _settings.CustomRoutes[routeIndex];
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudTooltip Text="Include in Leg 1 Route Choice vote (uncheck for event-only)">
+                                            <MudCheckBox T="bool" Color="Color.Primary" Dense="true"
+                                                         aria-label="@($"Include {routeName} in initial route vote")"
+                                                         Value="@(!_settings.EventOnlyRoutes.Any(name => string.Equals(name.Trim(), routeName.Trim(), StringComparison.OrdinalIgnoreCase)))"
+                                                         ValueChanged="@(enabled => SetCustomRouteInitialVoteEnabled(routeName, enabled))" />
+                                        </MudTooltip>
                                         <MudTextField T="string" Label="Route Name" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                      Value="@_settings.CustomRoutes[routeIndex]" ValueChanged="@(value => UpdateRouteName(routeIndex, value))" />
+                                                      Value="@routeName" ValueChanged="@(value => UpdateRouteName(routeIndex, value))" />
                                         <MudTooltip Text="Remove route"><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" aria-label="Remove custom route" OnClick="@(() => RemoveRoute(routeIndex))" /></MudTooltip>
                                     </MudStack>
                                 }
@@ -969,6 +976,14 @@
         if (!enabled) _settings.DisabledBuiltInRoutes.Add(route);
     }
 
+    private void SetCustomRouteInitialVoteEnabled(string route, bool enabled)
+    {
+        if (_settings == null) return;
+        var normalized = route.Trim();
+        _settings.EventOnlyRoutes.RemoveAll(name => string.Equals(name.Trim(), normalized, StringComparison.OrdinalIgnoreCase));
+        if (!enabled) _settings.EventOnlyRoutes.Add(normalized);
+    }
+
     private void AddRoute()
     {
         if (_settings == null || string.IsNullOrWhiteSpace(_newRouteName)) return;
@@ -979,13 +994,19 @@
     private void UpdateRouteName(int index, string? value)
     {
         if (_settings == null || index < 0 || index >= _settings.CustomRoutes.Count) return;
-        _settings.CustomRoutes[index] = value ?? string.Empty;
+        var previousName = _settings.CustomRoutes[index].Trim();
+        var nextName = (value ?? string.Empty).Trim();
+        _settings.CustomRoutes[index] = nextName;
+        var eventOnlyIndex = _settings.EventOnlyRoutes.FindIndex(name => string.Equals(name.Trim(), previousName, StringComparison.OrdinalIgnoreCase));
+        if (eventOnlyIndex >= 0) _settings.EventOnlyRoutes[eventOnlyIndex] = nextName;
     }
 
     private void RemoveRoute(int index)
     {
         if (_settings == null || index < 0 || index >= _settings.CustomRoutes.Count) return;
+        var removed = _settings.CustomRoutes[index].Trim();
         _settings.CustomRoutes.RemoveAt(index);
+        _settings.EventOnlyRoutes.RemoveAll(name => string.Equals(name.Trim(), removed, StringComparison.OrdinalIgnoreCase));
     }
 
     private Task SaveExpeditionConfigurationAsync() => SaveSectionAsync("Expedition configuration", (saved, current) =>
@@ -1013,6 +1034,7 @@
     {
         saved.CustomRoutes = [.. current.CustomRoutes];
         saved.DisabledBuiltInRoutes = [.. current.DisabledBuiltInRoutes];
+        saved.EventOnlyRoutes = [.. current.EventOnlyRoutes];
     });
 
     private Task SaveRewardProfilesAsync() => SaveSectionAsync("Reward profiles", (saved, current) =>

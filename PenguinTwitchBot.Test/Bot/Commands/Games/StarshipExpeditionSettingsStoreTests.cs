@@ -716,7 +716,8 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         var settings = new StarshipExpeditionSettings
         {
             DisabledBuiltInRoutes = [" uncharted ", "Core Route"],
-            CustomRoutes = ["Smuggler's Run", "Abysmal Rift"]
+            CustomRoutes = ["Smuggler's Run", "Abysmal Rift"],
+            EventOnlyRoutes = [" abysmal rift "]
         };
         await CreateStore().SaveAsync(settings);
 
@@ -724,7 +725,9 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
 
         Assert.Equal(["Core Route", "Uncharted"], loaded.DisabledBuiltInRoutes);
         Assert.Equal(["Smuggler's Run", "Abysmal Rift"], loaded.CustomRoutes);
-        Assert.Equal(["Frontier Route", "Smuggler's Run", "Abysmal Rift"], loaded.GetEffectiveRoutes());
+        Assert.Equal(["Abysmal Rift"], loaded.EventOnlyRoutes);
+        Assert.Equal(["Frontier Route", "Smuggler's Run"], loaded.GetEffectiveRoutes());
+        Assert.Contains("Abysmal Rift", loaded.GetAllConfiguredRoutes());
 
         Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(new StarshipExpeditionSettings
         {

@@ -3462,7 +3462,9 @@ public class StarshipExpeditionServiceTests
     public async Task EndStep_SupportsFixedOutcomeRouteTransitionUpgradeAndShortcutReturn()
     {
         var settingsStore = new InMemorySettingsStore();
-        settingsStore.Settings.CustomRoutes = ["Slipstream Corridor"];
+        settingsStore.Settings.StationIntervalLegs = 10;
+        settingsStore.Settings.CustomRoutes = ["Slipstream Corridor", "Aaron Halo Bypass"];
+        settingsStore.Settings.EventOnlyRoutes = ["Aaron Halo Bypass"];
         var upgrade = new StarshipShipUpgrade
         {
             Id = "slipstream-coil", Name = "Slipstream Coil", TravelSuppliesDiscount = 2
@@ -3473,7 +3475,11 @@ public class StarshipExpeditionServiceTests
                 "wormhole-test",
                 "Wormhole Shortcut",
                 "A wormhole opens ahead.",
-                [new() { ChoiceId = "dive", Label = "Dive In", NextStepId = "shortcut-end" }, new() { ChoiceId = "hold", Label = "Hold", NextStepId = "neutral-end" }],
+                [
+                    new() { ChoiceId = "enter-halo", Label = "Enter Halo", NextStepId = "halo-end" },
+                    new() { ChoiceId = "dive", Label = "Dive In", NextStepId = "shortcut-end" },
+                    new() { ChoiceId = "hold", Label = "Hold", NextStepId = "neutral-end" }
+                ],
                 "dive")
             {
                 Steps =
@@ -3483,16 +3489,22 @@ public class StarshipExpeditionServiceTests
                         StepId = "start", Type = StarshipEventStepType.Vote, Prompt = "Enter the wormhole?", DefaultChoiceId = "dive",
                         Choices =
                         [
+                            new() { ChoiceId = "enter-halo", Label = "Enter Halo", NextStepId = "halo-end" },
                             new() { ChoiceId = "dive", Label = "Dive In", NextStepId = "shortcut-end" },
                             new() { ChoiceId = "hold", Label = "Hold Position", NextStepId = "neutral-end" }
                         ]
                     },
                     new()
                     {
+                        StepId = "halo-end", Type = StarshipEventStepType.End, Prompt = "Shifted onto Aaron Halo Bypass.",
+                        TargetRoute = "Aaron Halo Bypass"
+                    },
+                    new()
+                    {
                         StepId = "shortcut-end", Type = StarshipEventStepType.End, Prompt = "Emerged near home.",
                         FixedOutcome = StarshipExpeditionNarrative.OutcomeCriticalSuccess,
                         GrantedUpgrade = upgrade,
-                        TargetRoute = "Slipstream Corridor",
+                        TargetRoute = "Aaron Halo Bypass",
                         CompletesVoyageEarly = true
                     },
                     new()
@@ -3505,20 +3517,36 @@ public class StarshipExpeditionServiceTests
             })
             .ToList();
 
-        var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore);
+        var stateStore = new InMemoryStateStore();
+        var service = CreateService(stateStore, settingsStore: settingsStore);
         await service.StartExpeditionAsync("mod", legCount: 5, seed: 42);
         await service.JoinCrewAsync(CreateArgs("viewer-1", "Viewer1"));
         var leg1 = await service.AdvanceEventAsync(); // RouteChoice
         Assert.Contains(leg1.CurrentEvent!.Choices, c => c.TargetRoute == "Slipstream Corridor");
+        Assert.DoesNotContain(leg1.CurrentEvent.Choices, c => c.TargetRoute == "Aaron Halo Bypass");
         await service.AdvanceEventAsync(); // Resolve RouteChoice
-        await service.AdvanceEventAsync(); // Open wormhole-test
-        await service.VoteAsync(CreateArgs("viewer-1", "Viewer1"), "dive");
-        var resolved = await service.AdvanceEventAsync(); // Resolve wormhole-test -> completes voyage early!
+        await service.AdvanceEventAsync(); // Open wormhole-test (Leg 2)
+        await service.VoteAsync(CreateArgs("viewer-1", "Viewer1"), "enter-halo");
+        var afterTransition = await service.AdvanceEventAsync(); // Resolve Leg 2 -> transitions onto Aaron Halo Bypass
+        Assert.Equal(StarshipExpeditionStatus.Cruising, afterTransition.Status);
+        Assert.Equal("Aaron Halo Bypass", afterTransition.CurrentRoute);
+
+        // Reload state and continue voyage on the event-only route
+        var reloadedService = CreateService(stateStore, settingsStore: settingsStore);
+        var reloadedSnapshot = await reloadedService.GetSnapshotAsync();
+        Assert.NotNull(reloadedSnapshot);
+        Assert.Equal("Aaron Halo Bypass", reloadedSnapshot!.CurrentRoute);
+
+        var leg3Opened = await reloadedService.AdvanceEventAsync(); // Open Leg 3 on Aaron Halo Bypass
+        Assert.Equal("Aaron Halo Bypass", leg3Opened.CurrentRoute);
+        Assert.Equal("wormhole-test", leg3Opened.CurrentEvent!.EventType);
+        await reloadedService.VoteAsync(CreateArgs("viewer-1", "Viewer1"), "dive");
+        var resolved = await reloadedService.AdvanceEventAsync(); // Resolve wormhole-test -> completes voyage early!
 
         Assert.Equal(StarshipExpeditionStatus.Returned, resolved.Status);
         Assert.Equal("ShortcutHome", resolved.ReturnReason);
         Assert.Equal("ShortcutHome", resolved.VoyageOutcome);
-        Assert.Equal("Slipstream Corridor", resolved.CurrentRoute);
+        Assert.Equal("Aaron Halo Bypass", resolved.CurrentRoute);
         Assert.Contains(resolved.ShipSystems!.ActiveUpgrades, u => u.Id == "slipstream-coil");
         Assert.Equal(StarshipExpeditionNarrative.OutcomeCriticalSuccess, resolved.CompletedEvents[^1].OutcomeResult);
     }
