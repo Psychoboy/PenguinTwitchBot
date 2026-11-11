@@ -3462,7 +3462,8 @@ public class StarshipExpeditionServiceTests
     public async Task EndStep_SupportsFixedOutcomeRouteTransitionUpgradeAndShortcutReturn()
     {
         var settingsStore = new InMemorySettingsStore();
-        settingsStore.Settings.CustomRoutes = ["Slipstream Corridor"];
+        settingsStore.Settings.CustomRoutes = ["Slipstream Corridor", "Aaron Halo Bypass"];
+        settingsStore.Settings.EventOnlyRoutes = ["Aaron Halo Bypass"];
         var upgrade = new StarshipShipUpgrade
         {
             Id = "slipstream-coil", Name = "Slipstream Coil", TravelSuppliesDiscount = 2
@@ -3492,7 +3493,7 @@ public class StarshipExpeditionServiceTests
                         StepId = "shortcut-end", Type = StarshipEventStepType.End, Prompt = "Emerged near home.",
                         FixedOutcome = StarshipExpeditionNarrative.OutcomeCriticalSuccess,
                         GrantedUpgrade = upgrade,
-                        TargetRoute = "Slipstream Corridor",
+                        TargetRoute = "Aaron Halo Bypass",
                         CompletesVoyageEarly = true
                     },
                     new()
@@ -3510,6 +3511,7 @@ public class StarshipExpeditionServiceTests
         await service.JoinCrewAsync(CreateArgs("viewer-1", "Viewer1"));
         var leg1 = await service.AdvanceEventAsync(); // RouteChoice
         Assert.Contains(leg1.CurrentEvent!.Choices, c => c.TargetRoute == "Slipstream Corridor");
+        Assert.DoesNotContain(leg1.CurrentEvent.Choices, c => c.TargetRoute == "Aaron Halo Bypass");
         await service.AdvanceEventAsync(); // Resolve RouteChoice
         await service.AdvanceEventAsync(); // Open wormhole-test
         await service.VoteAsync(CreateArgs("viewer-1", "Viewer1"), "dive");
@@ -3518,7 +3520,7 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(StarshipExpeditionStatus.Returned, resolved.Status);
         Assert.Equal("ShortcutHome", resolved.ReturnReason);
         Assert.Equal("ShortcutHome", resolved.VoyageOutcome);
-        Assert.Equal("Slipstream Corridor", resolved.CurrentRoute);
+        Assert.Equal("Aaron Halo Bypass", resolved.CurrentRoute);
         Assert.Contains(resolved.ShipSystems!.ActiveUpgrades, u => u.Id == "slipstream-coil");
         Assert.Equal(StarshipExpeditionNarrative.OutcomeCriticalSuccess, resolved.CompletedEvents[^1].OutcomeResult);
     }

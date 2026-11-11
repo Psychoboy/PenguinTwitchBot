@@ -48,6 +48,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public List<string> CustomSectors { get; set; } = [];
     public List<string> DisabledBuiltInRoutes { get; set; } = [];
     public List<string> CustomRoutes { get; set; } = [];
+    public List<string> EventOnlyRoutes { get; set; } = [];
     public List<StarshipRewardProfile> RewardProfiles { get; set; } = CreateDefaultRewardProfiles();
     public Dictionary<string, string> EventRewardProfileIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<StarshipEventDefinition> EventCatalog { get; set; } = StarshipEventCatalog.CreateDefaults();
@@ -152,6 +153,10 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         var allRouteNames = BuiltInRoutes.Concat(settings.CustomRoutes).ToList();
         if (allRouteNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != allRouteNames.Count)
             throw new ArgumentException("Route names must be unique, including built-in routes.", nameof(settings.CustomRoutes));
+        settings.EventOnlyRoutes ??= [];
+        settings.EventOnlyRoutes = settings.CustomRoutes
+            .Where(route => settings.EventOnlyRoutes.Any(eventOnly => string.Equals(eventOnly?.Trim(), route, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
         if (settings.GetEffectiveRoutes().Count < 1)
             throw new ArgumentException("Enable or add at least one expedition route.", nameof(settings.DisabledBuiltInRoutes));
 
@@ -236,7 +241,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         [.. BuiltInSectors.Where(name => !DisabledBuiltInSectors.Contains(name, StringComparer.OrdinalIgnoreCase)), .. CustomSectors];
 
     public List<string> GetEffectiveRoutes() =>
-        [.. BuiltInRoutes.Where(name => !DisabledBuiltInRoutes.Contains(name, StringComparer.OrdinalIgnoreCase)), .. CustomRoutes];
+        [.. BuiltInRoutes.Where(name => !DisabledBuiltInRoutes.Contains(name, StringComparer.OrdinalIgnoreCase)),
+         .. CustomRoutes.Where(name => !EventOnlyRoutes.Contains(name, StringComparer.OrdinalIgnoreCase))];
 
     public List<string> GetAllConfiguredRoutes() =>
         [.. BuiltInRoutes, .. CustomRoutes];
