@@ -57,7 +57,7 @@
     <PackageReference Include="PiperSharp" Version="1.0.7" />
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
     <PackageReference Include="MathParser.org-mXparser" Version="6.1.2" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="11.0.0" />
     <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="10.0.14" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
