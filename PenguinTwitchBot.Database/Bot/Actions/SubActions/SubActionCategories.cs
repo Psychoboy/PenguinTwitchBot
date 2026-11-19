@@ -7,6 +7,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
         public const string LogicAndFlow = "Logic & Flow";
         public const string Obs = "OBS";
         public const string OverlayTimer = "Overlay Timer";
+        public const string Credits = "Credits";
         public const string PointsAndRewards = "Points & Rewards";
         public const string Raffles = "Raffles";
         public const string TwitchAndViewers = "Twitch & Viewers";

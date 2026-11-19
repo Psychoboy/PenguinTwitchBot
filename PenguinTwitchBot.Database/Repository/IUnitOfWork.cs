@@ -86,6 +86,12 @@ namespace PenguinTwitchBot.Database.Repository
         IOverlayLayoutRepository OverlayLayouts { get; }
         IOverlayWidgetRepository OverlayWidgets { get; }
 
+        // Credits repositories
+        IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditEvent> CreditEvents { get; }
+        IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditStreamSession> CreditStreamSessions { get; }
+        IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditProfile> CreditProfiles { get; }
+        IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditTheme> CreditThemes { get; }
+
         IOBSConnectionsRepository OBSConnections { get; }
         IUserThemePreferencesRepository UserThemePreferences { get; }
     }

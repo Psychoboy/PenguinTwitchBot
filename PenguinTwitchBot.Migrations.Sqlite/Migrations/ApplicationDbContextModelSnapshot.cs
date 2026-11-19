@@ -807,6 +807,187 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("Counters");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Credits.CreditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsAnonymous")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsManual")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StreamSessionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tier")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAtUtc");
+
+                    b.HasIndex("EventType", "OccurredAtUtc");
+
+                    b.HasIndex("StreamSessionId", "EventType");
+
+                    b.HasIndex("UserId", "OccurredAtUtc");
+
+                    b.ToTable("CreditEvents");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Credits.CreditProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConfigJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ThemeId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("ThemeId");
+
+                    b.ToTable("CreditProfiles");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Credits.CreditStreamSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EndedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GameName")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsManualCheckpoint")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedAtUtc");
+
+                    b.ToTable("CreditStreamSessions");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Credits.CreditTheme", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BuiltInKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsBuiltIn")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThemeJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuiltInKey");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("CreditThemes");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.DeathCounter", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2949,6 +3130,101 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("subactions_checkpoints", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.CreditsAddEntryType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Amount")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AvatarUrl")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SectionTag")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_credits_add_entry", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.CreditsMarkStartType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProfileName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_credits_mark_start", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.CreditsPauseResumeType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("ActionMode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProfileName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_credits_pause_resume", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.CreditsPlayType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("LookbackMinutes")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProfileName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SampleMode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WindowOverrideMode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_credits_play", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.CreditsStopType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("ProfileName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_credits_stop", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.CurlingSlideType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -4483,6 +4759,26 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasForeignKey("PointTypeId");
 
                     b.Navigation("PointType");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Credits.CreditEvent", b =>
+                {
+                    b.HasOne("PenguinTwitchBot.Database.Bot.Models.Credits.CreditStreamSession", "StreamSession")
+                        .WithMany()
+                        .HasForeignKey("StreamSessionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("StreamSession");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Credits.CreditProfile", b =>
+                {
+                    b.HasOne("PenguinTwitchBot.Database.Bot.Models.Credits.CreditTheme", "Theme")
+                        .WithMany()
+                        .HasForeignKey("ThemeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Theme");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishCatch", b =>

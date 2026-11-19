@@ -484,6 +484,21 @@
                         }
                     </MudSelect>
                 }
+                else if (_selectedType == TriggerTypes.CreditsCompleted)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Fires when the Stream Credits overlay finishes rolling.
+                        Variables added: %creditsProfile%, %totalEntries%, %totalSections%.
+                    </MudAlert>
+
+                    <MudSelect T="string" @bind-Value="_creditsProfileName" Label="Credits Profile" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("*")">Any Profile (*)</MudSelectItem>
+                        @foreach (var profileName in _creditProfileNames)
+                        {
+                            <MudSelectItem Value="@profileName">@profileName</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
                 else if (_selectedType == TriggerTypes.BannedSongRequest)
                 {
                     <MudAlert Severity="Severity.Info" Dense="true">
@@ -548,6 +563,7 @@
     [Inject] private IFeatureRuntimeCoordinator FeatureRuntimeCoordinator { get; set; } = null!;
     [Inject] private IFishingService FishingService { get; set; } = null!;
     [Inject] private PenguinTwitchBot.Bot.Overlay.IStreamTimerService StreamTimerService { get; set; } = null!;
+    [Inject] private IServiceProvider ServiceProvider { get; set; } = null!;
 
     private enum WizardStep
     {
@@ -578,6 +594,8 @@
     private FishingTournamentCatchTriggerConfiguration _fishingTournamentCatchConfig = new();
     private string _triggerName = "";
     private string _streamTimerName = "Default";
+    private string _creditsProfileName = "*";
+    private List<string> _creditProfileNames = ["Default"];
 
     // Racing Trigger Filters
     private string _racingPlacementPreset = "Any";
@@ -628,6 +646,17 @@
         if (IsTriggerTypeAvailable(TriggerTypes.FishCatch))
         {
             _fishTypes = await FishingService.GetAllFishTypes();
+        }
+
+        var creditsService = ServiceProvider.GetService<PenguinTwitchBot.Bot.Overlay.Credits.ICreditsService>();
+        if (creditsService != null)
+        {
+            try
+            {
+                var names = (await creditsService.GetProfileNamesAsync()).ToList();
+                if (names.Count > 0) _creditProfileNames = names;
+            }
+            catch { }
         }
 
         if (IsEditMode && ExistingTrigger != null)
@@ -782,6 +811,14 @@
             _streamTimerName = trigger.Name.StartsWith(prefix, StringComparison.Ordinal) && trigger.Name.Length > prefix.Length
                 ? trigger.Name[prefix.Length..]
                 : "Default";
+            _selectedItem = TriggerCatalog.FindItem(trigger.Type);
+        }
+        else if (trigger.Type == TriggerTypes.CreditsCompleted)
+        {
+            var prefix = PenguinTwitchBot.Bot.Overlay.Credits.ICreditsService.CompletedTriggerNamePrefix;
+            _creditsProfileName = trigger.Name.StartsWith(prefix, StringComparison.Ordinal) && trigger.Name.Length > prefix.Length
+                ? trigger.Name[prefix.Length..]
+                : "*";
             _selectedItem = TriggerCatalog.FindItem(trigger.Type);
         }
         else
@@ -1581,6 +1618,10 @@
         else if (_selectedType == TriggerTypes.StreamTimerZero)
         {
             _triggerName = PenguinTwitchBot.Bot.Overlay.StreamTimerService.ZeroTriggerNamePrefix + (string.IsNullOrWhiteSpace(_streamTimerName) ? "Default" : _streamTimerName.Trim());
+        }
+        else if (_selectedType == TriggerTypes.CreditsCompleted)
+        {
+            _triggerName = PenguinTwitchBot.Bot.Overlay.Credits.ICreditsService.CompletedTriggerNamePrefix + (string.IsNullOrWhiteSpace(_creditsProfileName) ? "*" : _creditsProfileName.Trim());
         }
         else if (_selectedType == TriggerTypes.BannedSongRequest)
         {

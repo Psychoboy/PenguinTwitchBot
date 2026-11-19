@@ -38,6 +38,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Overlay
             new("racing",    "Racing Minigame",        "/racing.html",  1920, 1080),
             new("starship-status", "Starship Expedition Status", "/starship-status.html", 520, 180),
                 new("starship-event",  "Starship Expedition Event",  "/starship-event.html", 620, 360),
+            new("credits", "Credits", "/credits.html", 1920, 1080),
         ];
 
         public static WidgetDefinition? Find(string type) =>

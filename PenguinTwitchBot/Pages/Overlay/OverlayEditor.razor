@@ -732,6 +732,41 @@
                            ValueChanged="@((bool v) => { _timerSettings.HideWhenZero = v; SaveTimerSettings(); })" />
             }
 
+            @* ---- Credits widget configuration ---- *@
+            @if (_selected.WidgetType == "credits" && _creditsWidgetSettings != null)
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Credits Settings</b></MudText>
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    Design themes, sections, time windows, and Custom CSS in the Stream Credits Designer.
+                </MudAlert>
+
+                <MudSelect T="string" Label="Credits Profile"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                           Value="_creditsWidgetSettings.Profile"
+                           ValueChanged="@((string v) => { _creditsWidgetSettings.Profile = string.IsNullOrWhiteSpace(v) ? "Default" : v.Trim(); SaveCreditsWidgetSettings(); })">
+                    @foreach (var pName in GetAvailableCreditsProfileNames())
+                    {
+                        <MudSelectItem Value="@pName">@pName</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="string" Label="Start Behavior Override"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-3"
+                           Value="@(_creditsWidgetSettings.AutoStart ?? "")"
+                           ValueChanged="@((string v) => { _creditsWidgetSettings.AutoStart = string.IsNullOrWhiteSpace(v) ? null : v; SaveCreditsWidgetSettings(); })">
+                    <MudSelectItem Value="@("")">Use Profile Setting</MudSelectItem>
+                    <MudSelectItem Value="@("false")">Wait for Trigger / Sub-Action</MudSelectItem>
+                    <MudSelectItem Value="@("true")">Auto-Start on Load</MudSelectItem>
+                </MudSelect>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.MovieFilter"
+                           Href="/overlay/credits" Class="mb-2">
+                    Open Stream Credits Designer
+                </MudButton>
+            }
+
             @* ---- Counter widget configuration ---- *@
             @if (_selected.WidgetType == "counter" && _counterSettings != null)
             {
@@ -1141,6 +1176,19 @@
         {
             _availableCounterNames = [];
         }
+        try
+        {
+            await using var creditsScope = ScopeFactory.CreateAsyncScope();
+            var creditsService = creditsScope.ServiceProvider.GetService<PenguinTwitchBot.Bot.Overlay.Credits.ICreditsService>();
+            if (creditsService != null)
+            {
+                _availableCreditsProfiles = (await creditsService.GetProfileNamesAsync()).ToList();
+            }
+        }
+        catch
+        {
+            _availableCreditsProfiles = ["Default"];
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -1474,6 +1522,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         LoadFireworksSettings();
         LoadTimerSettings();
         LoadCounterSettings();
+        LoadCreditsWidgetSettings();
     }
 
     private void RemoveSelectedWidget()
@@ -1633,6 +1682,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "golf"      => "#16A34A",
         "racing"    => "#EA580C",
         "ufoclaw"   => "#239b83",
+        "credits"   => "#D97706",
         _           => "#455A64"
     };
     // ---- Chat settings helpers ----
@@ -1640,6 +1690,8 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     private ChatSettings? _chatSettings;
     private FireworksSettings? _fireworksSettings;
     private TimerSettings? _timerSettings;
+    private CreditsWidgetSettings? _creditsWidgetSettings;
+    private List<string> _availableCreditsProfiles = ["Default"];
     private string _alertChannel = "";
 
     private static readonly string[] _fontFamilyOptions =
@@ -2148,5 +2200,50 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         var px = Math.Max(4, (int)(settings.Padding * 1.5 * Scale));
         sb.Append($"padding: {py}px {px}px; ");
         return sb.ToString();
+    }
+
+    private List<string> GetAvailableCreditsProfileNames()
+    {
+        var names = _availableCreditsProfiles.ToList();
+        if (names.Count == 0) names.Add("Default");
+        if (!string.IsNullOrWhiteSpace(_creditsWidgetSettings?.Profile) &&
+            !names.Contains(_creditsWidgetSettings.Profile, StringComparer.OrdinalIgnoreCase))
+        {
+            names.Add(_creditsWidgetSettings.Profile);
+        }
+        return names;
+    }
+
+    private void LoadCreditsWidgetSettings()
+    {
+        if (_selected?.WidgetType == "credits")
+        {
+            try
+            {
+                _creditsWidgetSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                    ? new CreditsWidgetSettings()
+                    : (JsonSerializer.Deserialize<CreditsWidgetSettings>(_selected.CustomSettings, _chatJsonOptions) ?? new CreditsWidgetSettings());
+            }
+            catch
+            {
+                _creditsWidgetSettings = new CreditsWidgetSettings();
+            }
+        }
+        else
+        {
+            _creditsWidgetSettings = null;
+        }
+    }
+
+    private void SaveCreditsWidgetSettings()
+    {
+        if (_selected != null && _creditsWidgetSettings != null)
+            _selected.CustomSettings = JsonSerializer.Serialize(_creditsWidgetSettings, _chatJsonOptions);
+    }
+
+    private sealed class CreditsWidgetSettings
+    {
+        public string Profile { get; set; } = "Default";
+        public string? AutoStart { get; set; }
     }
 }

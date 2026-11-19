@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stream Credits Overlay</title>
+    <link rel="stylesheet" href="/css/credits-overlay.css" />
+    <style id="credits-theme-css"></style>
+    <style id="credits-profile-css"></style>
+    <script>
+        try {
+            var p = new URLSearchParams(window.location.search);
+            if (((window.parent && window.parent !== window) || p.get('shared') === '1' || p.get('preview') === '1') && !window.__overlayCompositorHub) {
+                var hideStyle = document.createElement('style');
+                hideStyle.textContent = '#ws-status { display: none !important; }';
+                document.head.appendChild(hideStyle);
+            }
+        } catch (_) {}
+    </script>
+</head>
+<body>
+    <div id="credits-root" class="credits-root credits-hidden" aria-live="polite">
+        <div id="credits-backdrop" class="credits-backdrop">
+            <div class="credits-stars credits-stars--1"></div>
+            <div class="credits-stars credits-stars--2"></div>
+            <div class="credits-stars credits-stars--3"></div>
+            <div id="credits-bg-image" class="credits-bg-image"></div>
+            <div id="credits-bg-scrim" class="credits-bg-scrim"></div>
+        </div>
+
+        <div id="credits-viewport" class="credits-viewport">
+            <div id="credits-stage" class="credits-stage">
+                <div id="credits-track" class="credits-track"></div>
+            </div>
+        </div>
+
+        <div id="credits-paged-container" class="credits-paged-container"></div>
+    </div>
+
+    <audio id="credits-audio" preload="auto"></audio>
+    <div id="ws-status" data-overlay="Credits">Disconnected</div>
+
+    <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="/js/ws-client.js"></script>
+    <script src="/js/ws-status.js"></script>
+    <script>
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const script = document.createElement('script');
+        script.src = '/js/credits-overlay.js?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>

@@ -9,7 +9,7 @@ namespace PenguinTwitchBot.Bot.Actions.Variables.Triggers;
 public class MiscellaneousTriggerVariableResolver : ITriggerVariableResolver
 {
     public bool CanHandle(TriggerTypes triggerType) =>
-        triggerType is TriggerTypes.BannedSongRequest or TriggerTypes.Manual or TriggerTypes.StreamTimerZero;
+        triggerType is TriggerTypes.BannedSongRequest or TriggerTypes.Manual or TriggerTypes.StreamTimerZero or TriggerTypes.CreditsCompleted;
 
     public void ResolveVariables(
         TriggerType trigger,
@@ -39,6 +39,15 @@ public class MiscellaneousTriggerVariableResolver : ITriggerVariableResolver
             {
                 var source = sourcePrefix != null ? $"{sourcePrefix} (Stream Timer: {triggerName})" : $"Trigger: Stream Timer Zero ({triggerName})";
                 variables.SetVariable("timerName", "Name of the stream timer that reached zero", source, category, "Default");
+                break;
+            }
+
+            case TriggerTypes.CreditsCompleted:
+            {
+                var source = sourcePrefix != null ? $"{sourcePrefix} (Credits Completed: {triggerName})" : $"Trigger: Credits Completed ({triggerName})";
+                variables.SetVariable("creditsProfile", "Name of the credits profile that finished rolling", source, category, "Default");
+                variables.SetVariable("totalEntries", "Total entries displayed in the credits roll", source, category, "24");
+                variables.SetVariable("totalSections", "Total sections displayed in the credits roll", source, category, "5");
                 break;
             }
 

@@ -118,6 +118,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
                 return SubActionCategories.Raffles;
             if (displayName.StartsWith("Overlay Timer", StringComparison.OrdinalIgnoreCase) || type.ToString().StartsWith("OverlayTimer"))
                 return SubActionCategories.OverlayTimer;
+            if (displayName.StartsWith("Credits", StringComparison.OrdinalIgnoreCase) || type.ToString().StartsWith("Credits"))
+                return SubActionCategories.Credits;
 
             return type switch
             {

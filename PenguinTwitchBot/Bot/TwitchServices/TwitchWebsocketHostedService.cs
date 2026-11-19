@@ -106,6 +106,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             {
                 var eventArgs = CreateChatNotificationEventArgs(payload.Event);
                 logger.LogInformation("ChatNotification: {NoticeType} from {User}", eventArgs.NoticeType, eventArgs.DisplayName);
+                await eventService.OnChatNotification(eventArgs);
                 await twitchEventActionHandler.HandleChatNotificationAsync(eventArgs);
             }
             catch (Exception ex)
@@ -832,6 +833,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Fragments = bitsFragments
                 };
 
+                await eventService.OnBitsUse(bitsUseEventArgs);
                 await twitchEventActionHandler.HandleBitsUseAsync(bitsUseEventArgs);
             }
             catch (Exception ex)

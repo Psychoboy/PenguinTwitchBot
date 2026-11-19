@@ -25,7 +25,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private readonly ILogger<TwitchService> _logger;
         private readonly IConfiguration _configuration;
         static readonly SemaphoreSlim semaphoreSlim = new(1, 1);
-        readonly ConcurrentDictionary<string, User?> UserCache = new();
+        readonly ConcurrentDictionary<string, User?> UserCache = new(StringComparer.OrdinalIgnoreCase);
+        readonly ConcurrentDictionary<string, User?> UserByIdCache = new(StringComparer.OrdinalIgnoreCase);
         readonly Timer _timer;
         private readonly IAuthClient _authClient;
         private readonly IChatClient _chatClient;
@@ -568,6 +569,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 foreach (var user in users.Users)
                 {
                     UserCache[user.Login] = user;
+                    UserByIdCache[user.Id] = user;
                 }
                 return mappedUsers;
             }
@@ -580,6 +582,151 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 _logger.LogCritical("Failed getting users: {users}", string.Join(", ", userNames));
                 return null;
             }
+        }
+
+        public async Task<Dictionary<string, User>> GetUsersByIdsAsync(IEnumerable<string> userIds)
+        {
+            var result = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+            if (userIds == null) return result;
+
+            var distinctIds = userIds
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (distinctIds.Count == 0) return result;
+
+            var toFetch = new List<string>();
+            foreach (var id in distinctIds)
+            {
+                if (UserByIdCache.TryGetValue(id, out var cached) && cached != null)
+                {
+                    result[id] = cached;
+                }
+                else if (!UserByIdCache.ContainsKey(id))
+                {
+                    toFetch.Add(id);
+                }
+            }
+
+            if (toFetch.Count == 0) return result;
+
+            try
+            {
+                await ValidateAndRefreshToken();
+                foreach (var chunk in toFetch.Chunk(100))
+                {
+                    var response = await _usersClient.GetUsersAsync(
+                        _configuration["twitchClientId"]!,
+                        _accessToken,
+                        chunk.ToList(),
+                        null);
+
+                    var returnedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (response?.Users != null)
+                    {
+                        foreach (var user in response.Users)
+                        {
+                            returnedIds.Add(user.Id);
+                            UserByIdCache[user.Id] = user;
+                            if (!string.IsNullOrWhiteSpace(user.Login))
+                                UserCache[user.Login] = user;
+                            result[user.Id] = user;
+                        }
+                    }
+
+                    foreach (var requestedId in chunk)
+                    {
+                        if (!returnedIds.Contains(requestedId))
+                            UserByIdCache.TryAdd(requestedId, null);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex.GetType().Name == "TooManyRequestsException")
+            {
+                _logger.LogWarning("Rate limited while batch-fetching Twitch users by ID.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed batch-fetching Twitch users by ID.");
+            }
+
+            return result;
+        }
+
+        public async Task<Dictionary<string, User>> GetUsersByLoginsAsync(IEnumerable<string> logins)
+        {
+            var result = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+            if (logins == null) return result;
+
+            var distinctLogins = logins
+                .Where(l => !string.IsNullOrWhiteSpace(l))
+                .Select(l => l.Trim().ToLowerInvariant())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (distinctLogins.Count == 0) return result;
+
+            var toFetch = new List<string>();
+            foreach (var login in distinctLogins)
+            {
+                if (UserCache.TryGetValue(login, out var cached) && cached != null)
+                {
+                    result[login] = cached;
+                }
+                else if (!UserCache.ContainsKey(login))
+                {
+                    toFetch.Add(login);
+                }
+            }
+
+            if (toFetch.Count == 0) return result;
+
+            try
+            {
+                await ValidateAndRefreshToken();
+                foreach (var chunk in toFetch.Chunk(100))
+                {
+                    var response = await _usersClient.GetUsersAsync(
+                        _configuration["twitchClientId"]!,
+                        _accessToken,
+                        null,
+                        chunk.ToList());
+
+                    var returnedLogins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (response?.Users != null)
+                    {
+                        foreach (var user in response.Users)
+                        {
+                            if (!string.IsNullOrWhiteSpace(user.Login))
+                            {
+                                returnedLogins.Add(user.Login);
+                                UserCache[user.Login] = user;
+                                result[user.Login] = user;
+                            }
+                            if (!string.IsNullOrWhiteSpace(user.Id))
+                                UserByIdCache[user.Id] = user;
+                        }
+                    }
+
+                    foreach (var requestedLogin in chunk)
+                    {
+                        if (!returnedLogins.Contains(requestedLogin))
+                            UserCache.TryAdd(requestedLogin, null);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex.GetType().Name == "TooManyRequestsException")
+            {
+                _logger.LogWarning("Rate limited while batch-fetching Twitch users by login.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed batch-fetching Twitch users by login.");
+            }
+
+            return result;
         }
 
         public async Task<Follower?> GetUserFollow(string user)

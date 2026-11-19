@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Events;
+using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 // using PenguinTwitchBot.CustomMiddleware;
 using PenguinTwitchBot.TwitchApi.EventSub.SubscriptionTypes.Channel;
@@ -27,6 +27,8 @@ namespace PenguinTwitchBot.Bot.Core
         event AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
         event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
         event AsyncEventHandler<BanEventArgs>? BanEvent;
+        event AsyncEventHandler<BitsUseEventArgs>? BitsUseEvent;
+        event AsyncEventHandler<ChatNotificationEventArgs>? ChatNotificationEvent;
 
         bool IsBroadcasterOrBot(string name);
         bool IsKnownBot(string name);
@@ -56,6 +58,8 @@ namespace PenguinTwitchBot.Bot.Core
         Task SendChatMessageWithTitle(string viewerName, string message);
         Task SendChatMessageWithTitle(string viewerName, string message, bool sourceOnly);
         Task OnViewerBan(string userId, string username, bool unbanned, DateTimeOffset? endsAt);
+        Task OnBitsUse(BitsUseEventArgs eventArgs);
+        Task OnChatNotification(ChatNotificationEventArgs eventArgs);
         Task ResponseWithMessage(CommandEventArgs e, string message);
         Task ResponseWithMessage(CommandEventArgs e, string message, bool sourceOnly);
     }

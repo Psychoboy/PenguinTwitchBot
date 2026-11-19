@@ -22,7 +22,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
                 SubActionCategories.TwitchAndViewers,
                 SubActionCategories.VariablesAndUtilities,
                 SubActionCategories.Ai,
-                SubActionCategories.Minigames
+                SubActionCategories.Minigames,
+                SubActionCategories.Credits
             };
 
             var allMetadata = SubActionRegistry.Metadata.Values.ToList();
@@ -43,6 +44,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [InlineData(SubActionTypes.RaffleStart, SubActionCategories.Raffles)]
         [InlineData(SubActionTypes.RaffleEnd, SubActionCategories.Raffles)]
         [InlineData(SubActionTypes.OverlayTimerStart, SubActionCategories.OverlayTimer)]
+        [InlineData(SubActionTypes.CreditsPlay, SubActionCategories.Credits)]
+        [InlineData(SubActionTypes.CreditsStop, SubActionCategories.Credits)]
+        [InlineData(SubActionTypes.CreditsPauseResume, SubActionCategories.Credits)]
+        [InlineData(SubActionTypes.CreditsMarkStart, SubActionCategories.Credits)]
+        [InlineData(SubActionTypes.CreditsAddEntry, SubActionCategories.Credits)]
         [InlineData(SubActionTypes.Delay, SubActionCategories.LogicAndFlow)]
         [InlineData(SubActionTypes.LogicIfElse, SubActionCategories.LogicAndFlow)]
         [InlineData(SubActionTypes.SendMessage, SubActionCategories.ChatAndMedia)]

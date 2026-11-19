@@ -86,6 +86,12 @@ namespace PenguinTwitchBot.Database.Repository
             OverlayLayouts = new OverlayLayoutRepository(_context);
             OverlayWidgets = new OverlayWidgetRepository(_context);
 
+            // Initialize credits repositories
+            CreditEvents = new GenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditEvent>(_context);
+            CreditStreamSessions = new GenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditStreamSession>(_context);
+            CreditProfiles = new GenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditProfile>(_context);
+            CreditThemes = new GenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditTheme>(_context);
+
             OBSConnections = new OBSConnectionsRepository(_context);
             UserThemePreferences = new UserThemePreferencesRepository(_context);
         }
@@ -163,6 +169,12 @@ namespace PenguinTwitchBot.Database.Repository
         // Overlay repository properties
         public IOverlayLayoutRepository OverlayLayouts { get; private set; }
         public IOverlayWidgetRepository OverlayWidgets { get; private set; }
+
+        // Credits repository properties
+        public IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditEvent> CreditEvents { get; private set; }
+        public IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditStreamSession> CreditStreamSessions { get; private set; }
+        public IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditProfile> CreditProfiles { get; private set; }
+        public IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Credits.CreditTheme> CreditThemes { get; private set; }
 
         public IOBSConnectionsRepository OBSConnections { get; private set; }
         public IUserThemePreferencesRepository UserThemePreferences { get; private set; }
