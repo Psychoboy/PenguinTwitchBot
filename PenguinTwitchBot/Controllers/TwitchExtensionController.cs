@@ -43,6 +43,7 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
     private readonly IConfiguration _configuration;
     private readonly ILogger<TwitchExtensionController> _logger;
     private readonly IStarshipExpeditionService? _starshipExpeditionService;
+    private readonly ITwitchExtensionTrackingService? _trackingService;
 
     public TwitchExtensionController(
         IFishingService fishingService,
@@ -60,7 +61,8 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
         IIpLog ipLog,
         IConfiguration configuration,
         ILogger<TwitchExtensionController> logger,
-        IStarshipExpeditionService? starshipExpeditionService = null)
+        IStarshipExpeditionService? starshipExpeditionService = null,
+        ITwitchExtensionTrackingService? trackingService = null)
     {
         _fishingService = fishingService;
         _fishingShopService = fishingShopService;
@@ -78,6 +80,7 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
         _configuration = configuration;
         _logger = logger;
         _starshipExpeditionService = starshipExpeditionService;
+        _trackingService = trackingService;
     }
 
     // Used for unit tests
@@ -86,24 +89,70 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
     [NonAction]
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
+        TwitchExtensionTokenValidationResult? validation = null;
+        string? clientIp = null;
+
         try
         {
-            var claims = GetClaims();
-            var clientIp = GetClientIpAddress();
-            if (claims != null && claims.HasUserId && !string.IsNullOrWhiteSpace(clientIp))
+            validation = GetTokenValidationResult();
+            clientIp = GetClientIpAddress();
+
+            if (!validation.IsValid)
             {
-                if (!_ipLog.IsInteractionCached(claims.UserId!, clientIp))
+                _trackingService?.RecordAuthFailure(validation.FailureReason);
+            }
+            else if (validation.Claims != null && validation.Claims.HasUserId && !string.IsNullOrWhiteSpace(clientIp))
+            {
+                if (!_ipLog.IsInteractionCached(validation.Claims.UserId!, clientIp))
                 {
-                    LastTrackingTask = Task.Run(() => TrackExtensionUserInteractionAsync(claims.UserId!, clientIp));
+                    LastTrackingTask = Task.Run(() => TrackExtensionUserInteractionAsync(validation.Claims.UserId!, clientIp));
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to initiate IP interaction tracking for Twitch extension request");
+            _logger.LogWarning(ex, "Failed to initiate tracking for Twitch extension request");
         }
 
-        await next();
+        var executedContext = await next();
+
+        try
+        {
+            if (_trackingService != null && validation?.Claims != null)
+            {
+                var actionMethodName = (context.ActionDescriptor as Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor)?.ActionName;
+                var (feature, endpoint, actionName) = ResolveActionTelemetry(actionMethodName);
+                var statusCode = ResolveStatusCode(executedContext);
+                var httpMethod = HttpContext.Request.Method;
+                var claims = validation.Claims;
+
+                Func<Task<string?>>? resolveUsernameAsync = claims.HasUserId
+                    ? async () =>
+                    {
+                        var viewer = await TwitchExtensionSecurity.ResolveViewerAsync(
+                            claims.UserId!,
+                            _viewerFeature,
+                            _twitchService,
+                            _logger);
+                        return viewer?.Username;
+                    }
+                    : null;
+
+                _trackingService.RecordRequest(
+                    claims,
+                    feature,
+                    endpoint,
+                    httpMethod,
+                    statusCode,
+                    clientIp,
+                    actionName,
+                    resolveUsernameAsync);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to record Twitch extension request telemetry");
+        }
     }
 
     #region Feature Status & Metadata
@@ -843,6 +892,25 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
 
     #region Helper Methods
 
+    private TwitchExtensionTokenValidationResult GetTokenValidationResult()
+    {
+        if (HttpContext.Items.TryGetValue("TwitchExtensionTokenValidation", out var cached) &&
+            cached is TwitchExtensionTokenValidationResult result)
+        {
+            return result;
+        }
+
+        var authHeader = Request.Headers.Authorization.ToString();
+        var validated = TwitchExtensionSecurity.ValidateTokenWithResult(authHeader, _configuration, _logger);
+        HttpContext.Items["TwitchExtensionTokenValidation"] = validated;
+        if (validated.Claims != null)
+        {
+            HttpContext.Items["TwitchExtensionClaims"] = validated.Claims;
+        }
+
+        return validated;
+    }
+
     private TwitchExtensionClaims? GetClaims()
     {
         if (HttpContext.Items.TryGetValue("TwitchExtensionClaims", out var cached) && cached is TwitchExtensionClaims claims)
@@ -850,13 +918,52 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
             return claims;
         }
 
-        var authHeader = Request.Headers.Authorization.ToString();
-        var parsed = TwitchExtensionSecurity.ParseAndValidateToken(authHeader, _configuration, _logger);
-        if (parsed != null)
+        return GetTokenValidationResult().Claims;
+    }
+
+    internal static (string Feature, string Endpoint, string? ActionName) ResolveActionTelemetry(string? actionName)
+    {
+        return actionName switch
         {
-            HttpContext.Items["TwitchExtensionClaims"] = parsed;
+            nameof(GetFeatures) => ("features", "features", null),
+            nameof(GetLeaderboards) => ("leaderboards", "leaderboards", null),
+            nameof(GetLeaderboardsMeta) => ("leaderboards", "leaderboards_meta", null),
+            nameof(GetGiveaway) => ("giveaway", "giveaway", null),
+            nameof(GetGiveawayViewer) => ("giveaway", "giveaway_viewer", null),
+            nameof(EnterGiveaway) => ("giveaway", "giveaway_enter", "giveaway_enter"),
+            nameof(GetFishingTournaments) => ("fishing", "fishing_tournaments", null),
+            nameof(GetRecentCatches) => ("fishing", "fishing_recent_catches", null),
+            nameof(GetFishingStore) => ("fishing", "fishing_store", null),
+            nameof(GetFishingViewer) => ("fishing", "fishing_viewer", null),
+            nameof(BuyFishingItem) => ("fishing", "fishing_buy", "fishing_buy"),
+            nameof(EquipFishingItem) => ("fishing", "fishing_equip", "fishing_equip"),
+            nameof(UnequipFishingItem) => ("fishing", "fishing_unequip", "fishing_unequip"),
+            nameof(RepairFishingItem) => ("fishing", "fishing_repair", "fishing_repair"),
+            nameof(GetStarshipViewer) => ("starship", "starship_viewer", null),
+            nameof(JoinStarshipCrew) => ("starship", "starship_join", "starship_join"),
+            nameof(VoteStarship) => ("starship", "starship_vote", "starship_vote"),
+            nameof(GetCommands) => ("commands", "commands", null),
+            nameof(GetCommandCategories) => ("commands", "commands_categories", null),
+            _ => ("other", string.IsNullOrWhiteSpace(actionName) ? "unknown" : actionName.ToLowerInvariant(), null)
+        };
+    }
+
+    private int ResolveStatusCode(ActionExecutedContext executedContext)
+    {
+        if (executedContext.Exception != null && !executedContext.ExceptionHandled)
+        {
+            return StatusCodes.Status500InternalServerError;
         }
-        return parsed;
+
+        if (executedContext.Result is Microsoft.AspNetCore.Mvc.Infrastructure.IStatusCodeActionResult statusCodeResult &&
+            statusCodeResult.StatusCode.HasValue)
+        {
+            return statusCodeResult.StatusCode.Value;
+        }
+
+        return HttpContext.Response.StatusCode > 0
+            ? HttpContext.Response.StatusCode
+            : StatusCodes.Status200OK;
     }
 
     private async Task TrackExtensionUserInteractionAsync(string userId, string clientIp)
