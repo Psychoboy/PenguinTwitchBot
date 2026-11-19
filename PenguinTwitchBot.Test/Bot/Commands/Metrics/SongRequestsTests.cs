@@ -11,6 +11,7 @@ using PenguinTwitchBot.Database.Bot.Models.Metrics;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Database.Repository.Repositories;
 using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Test.Helpers;
 using System;
 using System.Threading.Tasks;
 
@@ -23,13 +24,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Metrics
 
         public SongRequestsTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(_connection)
                 .Options;
             _context = new ApplicationDbContext(options);
-            _context.Database.EnsureCreated();
         }
 
         public void Dispose()

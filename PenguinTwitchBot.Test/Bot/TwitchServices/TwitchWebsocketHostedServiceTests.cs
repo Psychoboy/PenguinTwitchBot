@@ -1035,6 +1035,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task Connect_WhenConnectFailsThenSucceeds_Returns()
     {
+        _service.ConnectRetryUnitDelay = TimeSpan.FromMilliseconds(1);
         _eventSubWebsocketClient.ConnectAsync().Returns(false, true);
         await _service.Connect(CancellationToken.None);
         await _eventSubWebsocketClient.Received(2).ConnectAsync();

@@ -14,10 +14,10 @@ namespace PenguinTwitchBot.Test.Database
         [Fact]
         public void Migration_RemovesDuplicateViewers_KeepsLatestAndTitle_ThenEnforcesUniqueness()
         {
-            var path = Path.Combine(Path.GetTempPath(), $"viewers_{Guid.NewGuid():N}.db");
-            var cs = $"Data Source={path}";
+            using var conn = new SqliteConnection("Data Source=:memory:;Foreign Keys=True");
+            conn.Open();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseSqlite(cs, o => o.MigrationsAssembly("PenguinTwitchBot.Migrations.Sqlite"))
+                .UseSqlite(conn, o => o.MigrationsAssembly("PenguinTwitchBot.Migrations.Sqlite"))
                 .Options;
 
             using (var ctx = new ApplicationDbContext(options))
@@ -25,41 +25,34 @@ namespace PenguinTwitchBot.Test.Database
                 ctx.GetService<IMigrator>().Migrate(PreviousMigration);
             }
 
-            using (var conn = new SqliteConnection(cs))
-            {
-                conn.Open();
-                Exec(conn, """
-                    INSERT INTO Viewers (Id, UserId, Username, DisplayName, Title, LastSeen, isSub, isVip, isMod, isEditor, isBroadcaster) VALUES
-                    ('00000000-0000-7000-8000-00000000a3cc','73229846','riffderplays','RiffderPlays','Boss','2026-10-29 16:25:22',0,0,0,0,0),
-                    ('00000000-0000-7000-8000-00000000a3cd','73229846','riffderplays','RiffderPlays','','2026-10-29 22:41:01',0,0,0,0,0),
-                    ('00000000-0000-7000-8000-00000000a3ce','111','solo','Solo','','2026-10-01 00:00:00',0,0,0,0,0),
-                    ('00000000-0000-7000-8000-00000000a3cf','','blank1','Blank1','','2026-10-01 00:00:00',0,0,0,0,0),
-                    ('00000000-0000-7000-8000-00000000a3d0','','blank2','Blank2','','2026-10-02 00:00:00',0,0,0,0,0),
-                    ('00000000-0000-7000-8000-00000000a3d1','222','triple','Triple','Old','2026-10-01 00:00:00',0,0,0,0,0),
-                    ('00000000-0000-7000-8000-00000000a3d2','222','triple','Triple','','2026-10-03 00:00:00',0,0,0,0,0),
-                    ('00000000-0000-7000-8000-00000000a3d3','222','triple','Triple','','2026-10-02 00:00:00',0,0,0,0,0);
-                    """);
-            }
+            Exec(conn, """
+                INSERT INTO Viewers (Id, UserId, Username, DisplayName, Title, LastSeen, isSub, isVip, isMod, isEditor, isBroadcaster) VALUES
+                ('00000000-0000-7000-8000-00000000a3cc','73229846','riffderplays','RiffderPlays','Boss','2026-10-29 16:25:22',0,0,0,0,0),
+                ('00000000-0000-7000-8000-00000000a3cd','73229846','riffderplays','RiffderPlays','','2026-10-29 22:41:01',0,0,0,0,0),
+                ('00000000-0000-7000-8000-00000000a3ce','111','solo','Solo','','2026-10-01 00:00:00',0,0,0,0,0),
+                ('00000000-0000-7000-8000-00000000a3cf','','blank1','Blank1','','2026-10-01 00:00:00',0,0,0,0,0),
+                ('00000000-0000-7000-8000-00000000a3d0','','blank2','Blank2','','2026-10-02 00:00:00',0,0,0,0,0),
+                ('00000000-0000-7000-8000-00000000a3d1','222','triple','Triple','Old','2026-10-01 00:00:00',0,0,0,0,0),
+                ('00000000-0000-7000-8000-00000000a3d2','222','triple','Triple','','2026-10-03 00:00:00',0,0,0,0,0),
+                ('00000000-0000-7000-8000-00000000a3d3','222','triple','Triple','','2026-10-02 00:00:00',0,0,0,0,0);
+                """);
 
             using (var ctx = new ApplicationDbContext(options))
             {
                 ctx.GetService<IMigrator>().Migrate();
             }
 
-            using var verify = new SqliteConnection(cs);
-            verify.Open();
-
-            var kept = Query(verify, "SELECT Id, Title FROM Viewers WHERE UserId = '73229846'");
+            var kept = Query(conn, "SELECT Id, Title FROM Viewers WHERE UserId = '73229846'");
             var row = Assert.Single(kept);
             Assert.Equal("00000000-0000-7000-8000-00000000a3cd|Boss", row);
-            Assert.Equal("00000000-0000-7000-8000-00000000a3d2|Old", Assert.Single(Query(verify, "SELECT Id, Title FROM Viewers WHERE UserId = '222'")));
-            Assert.Equal("3", Query(verify, "SELECT COUNT(*) FROM Viewers").Single());
+            Assert.Equal("00000000-0000-7000-8000-00000000a3d2|Old", Assert.Single(Query(conn, "SELECT Id, Title FROM Viewers WHERE UserId = '222'")));
+            Assert.Equal("3", Query(conn, "SELECT COUNT(*) FROM Viewers").Single());
 
-            var ex = Assert.Throws<SqliteException>(() => Exec(verify,
+            var ex = Assert.Throws<SqliteException>(() => Exec(conn,
                 "INSERT INTO Viewers (Id, UserId, Username, DisplayName, Title, LastSeen, isSub, isVip, isMod, isEditor, isBroadcaster) VALUES ('x','111','dup','Dup','','2026-10-30',0,0,0,0,0)"));
             Assert.Equal(2067, ex.SqliteExtendedErrorCode);
 
-            var blank = Assert.Throws<SqliteException>(() => Exec(verify,
+            var blank = Assert.Throws<SqliteException>(() => Exec(conn,
                 "INSERT INTO Viewers (Id, UserId, Username, DisplayName, Title, LastSeen, isSub, isVip, isMod, isEditor, isBroadcaster) VALUES ('y','','blank3','Blank3','','2026-10-30',0,0,0,0,0)"));
             Assert.Equal(275, blank.SqliteExtendedErrorCode);
         }

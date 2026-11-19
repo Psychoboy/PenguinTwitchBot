@@ -117,13 +117,11 @@ public class FireworksQueueControllerTests
     [Fact]
     public async Task GlobalQueueCapSetting_PersistsAndClampsValues()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
+        await using var connection = PenguinTwitchBot.Test.Helpers.SqliteTestDatabase.CreateConnection();
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlite(connection)
             .Options;
         await using var context = new ApplicationDbContext(options);
-        await context.Database.EnsureCreatedAsync();
         var unitOfWork = new UnitOfWork(context);
 
         Assert.Equal(250, await FireworksQueueDefaults.GetGlobalMaxQueuedBurstsAsync(unitOfWork));

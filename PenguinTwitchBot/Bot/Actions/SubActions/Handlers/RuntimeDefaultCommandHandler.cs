@@ -12,6 +12,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         public SubActionTypes SupportedType => SubActionTypes.RuntimeDefaultCommand;
         static readonly ConcurrentDictionary<string, SemaphoreSlim> CommandLock = new ConcurrentDictionary<string, SemaphoreSlim>();
         private string lastCommand = string.Empty;
+        internal TimeSpan LockTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
         public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context, int subActionIndex)
         {
@@ -47,7 +48,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (eventArgs.SkipLock) return null;
 
             var lockInstance = CommandLock.GetOrAdd(eventArgs.Command, _ => new SemaphoreSlim(1));
-            if (await lockInstance.WaitAsync(10000) == false)
+            if (await lockInstance.WaitAsync(LockTimeout) == false)
             {
                 logger.LogWarning("BaseCommand Lock expired while waiting... Last Locked Command: {lastCommand}", lastCommand);
             }

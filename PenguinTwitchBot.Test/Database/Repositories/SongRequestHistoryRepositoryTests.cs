@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Metrics;
 using PenguinTwitchBot.Database.Repository.Repositories;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Database.Repositories
 {
@@ -14,13 +15,11 @@ namespace PenguinTwitchBot.Test.Database.Repositories
 
         public SongRequestHistoryRepositoryTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(_connection)
                 .Options;
             _context = new ApplicationDbContext(options);
-            _context.Database.EnsureCreated();
             _repository = new SongRequestHistoryRepository(_context);
         }
 

@@ -12,10 +12,10 @@ namespace PenguinTwitchBot.Test.Database
         [Fact]
         public void LegacyIntIds_MigrateToDeterministicUuids_WithForeignKeysIntact()
         {
-            var path = Path.Combine(Path.GetTempPath(), $"legacy_{Guid.NewGuid():N}.db");
-            var cs = $"Data Source={path};Foreign Keys=True";
+            using var conn = new SqliteConnection("Data Source=:memory:;Foreign Keys=True");
+            conn.Open();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseSqlite(cs, o => o.MigrationsAssembly("PenguinTwitchBot.Migrations.Sqlite"))
+                .UseSqlite(conn, o => o.MigrationsAssembly("PenguinTwitchBot.Migrations.Sqlite"))
                 .Options;
 
             using (var ctx = new ApplicationDbContext(options))
@@ -23,11 +23,9 @@ namespace PenguinTwitchBot.Test.Database
                 ctx.GetService<IMigrator>().Migrate("20261027163815_RefactorMinigameSubActions");
             }
 
-            using (var seed = new SqliteConnection($"Data Source={path};Foreign Keys=False"))
+            using (var seedCmd = conn.CreateCommand())
             {
-                seed.Open();
-                using var seedCmd = seed.CreateCommand();
-                seedCmd.CommandText = "INSERT INTO Playlists (Id, Name) VALUES (1,'a'),(11,'b'); INSERT INTO Songs (Id, Duration, MusicPlaylistId, RequestedBy, SongId, Title) VALUES (1,'00:03:00',1,'x','s1','t1'),(12,'00:03:00',11,'x','s2','t2'),(13,'00:03:00',11,'x','s3','t3'),(4,'00:03:00',99,'x','s4','orphan');";
+                seedCmd.CommandText = "PRAGMA foreign_keys = OFF; INSERT INTO Playlists (Id, Name) VALUES (1,'a'),(11,'b'); INSERT INTO Songs (Id, Duration, MusicPlaylistId, RequestedBy, SongId, Title) VALUES (1,'00:03:00',1,'x','s1','t1'),(12,'00:03:00',11,'x','s2','t2'),(13,'00:03:00',11,'x','s3','t3'),(4,'00:03:00',99,'x','s4','orphan'); PRAGMA foreign_keys = ON;";
                 seedCmd.ExecuteNonQuery();
             }
 
@@ -40,8 +38,6 @@ namespace PenguinTwitchBot.Test.Database
                 catch (Exception e) { throw new Exception("DATA MIGRATION FAILED: " + e.Message, e); }
             }
 
-            using var conn = new SqliteConnection(cs);
-            conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT s.Id, s.MusicPlaylistId, p.Id FROM Songs s JOIN Playlists p ON p.Id = s.MusicPlaylistId ORDER BY s.Id";
             using var r = cmd.ExecuteReader();

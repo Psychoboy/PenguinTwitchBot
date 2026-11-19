@@ -8,6 +8,7 @@ using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Bot.Overlay;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Bot.Overlay
 {
@@ -18,16 +19,12 @@ namespace PenguinTwitchBot.Test.Bot.Overlay
 
         public StreamTimerPersistenceTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
 
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(o => o.UseSqlite(_connection), ServiceLifetime.Scoped);
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             _provider = services.BuildServiceProvider();
-
-            using var scope = _provider.CreateScope();
-            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
         }
 
         public void Dispose()

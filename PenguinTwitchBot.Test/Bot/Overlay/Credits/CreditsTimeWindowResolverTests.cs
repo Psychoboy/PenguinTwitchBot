@@ -4,6 +4,7 @@ using PenguinTwitchBot.Bot.Overlay.Credits;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Credits;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
 {
@@ -17,13 +18,11 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
 
         public CreditsTimeWindowResolverTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(_connection)
                 .Options;
             _context = new ApplicationDbContext(options);
-            _context.Database.EnsureCreated();
             _uow = new UnitOfWork(_context);
             _resolver = new CreditsTimeWindowResolver(new FixedTimeProvider(_now));
         }

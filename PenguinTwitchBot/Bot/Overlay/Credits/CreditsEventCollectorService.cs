@@ -317,7 +317,11 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed recording credit event {EventType} for {Username}.", creditEvent.EventType, creditEvent.Username);
+                _logger.LogError(
+                    ex,
+                    "Failed recording credit event {EventType} for {Username}.",
+                    CreditsService.SanitizeForLog(creditEvent.EventType),
+                    CreditsService.SanitizeForLog(creditEvent.Username));
             }
         }
 

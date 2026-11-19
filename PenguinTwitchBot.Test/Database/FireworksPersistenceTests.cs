@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Database
 {
@@ -11,14 +12,12 @@ namespace PenguinTwitchBot.Test.Database
         [Fact]
         public async Task FireworksSubAction_RoundTripsThroughItsDedicatedTable()
         {
-            await using var connection = new SqliteConnection("Data Source=:memory:");
-            await connection.OpenAsync();
+            await using var connection = SqliteTestDatabase.CreateConnection();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(connection)
                 .Options;
 
             await using var context = new ApplicationDbContext(options);
-            await context.Database.EnsureCreatedAsync();
 
             var fireworks = new FireworksType
             {

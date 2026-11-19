@@ -35,7 +35,10 @@ namespace PenguinTwitchBot.Test.Bot.Hubs
         {
             // Arrange
             var (connection, mockHandler) = CreateConfigurableHubConnection();
-            var wrapper = new SignalRHubConnectionWrapper(connection);
+            var wrapper = new SignalRHubConnectionWrapper(connection)
+            {
+                InitialRetryDelay = TimeSpan.FromMilliseconds(1)
+            };
 
             // Force private '_started' field to true to target the early exit condition
             var startedField = typeof(SignalRHubConnectionWrapper)
@@ -66,7 +69,10 @@ namespace PenguinTwitchBot.Test.Bot.Hubs
                 .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
                 .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.InternalServerError)); // Force network drops
 
-            var wrapper = new SignalRHubConnectionWrapper(connection);
+            var wrapper = new SignalRHubConnectionWrapper(connection)
+            {
+                InitialRetryDelay = TimeSpan.FromMilliseconds(1)
+            };
 
             // Act & Assert - Verifies that the loop exhausts all 5 attempts and bubbles up the exception
             await Assert.ThrowsAsync<HttpRequestException>(async () => await wrapper.StartAsync());
@@ -91,7 +97,10 @@ namespace PenguinTwitchBot.Test.Bot.Hubs
         {
             // Arrange
             var (connection, _) = CreateConfigurableHubConnection();
-            var wrapper = new SignalRHubConnectionWrapper(connection);
+            var wrapper = new SignalRHubConnectionWrapper(connection)
+            {
+                InitialRetryDelay = TimeSpan.FromMilliseconds(1)
+            };
             Func<string, Task> handler = (msg) => Task.CompletedTask;
 
             // Act
@@ -107,7 +116,10 @@ namespace PenguinTwitchBot.Test.Bot.Hubs
         {
             // Arrange
             var (connection, _) = CreateConfigurableHubConnection();
-            var wrapper = new SignalRHubConnectionWrapper(connection);
+            var wrapper = new SignalRHubConnectionWrapper(connection)
+            {
+                InitialRetryDelay = TimeSpan.FromMilliseconds(1)
+            };
 
             // Act
             var exception = await Record.ExceptionAsync(async () => await wrapper.DisposeAsync());

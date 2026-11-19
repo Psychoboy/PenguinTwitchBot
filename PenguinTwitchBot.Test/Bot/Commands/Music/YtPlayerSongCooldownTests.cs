@@ -16,6 +16,7 @@ using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Music
 {
@@ -25,13 +26,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
 
         public YtPlayerSongCooldownTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(_connection)
                 .Options;
             using var context = new ApplicationDbContext(options);
-            context.Database.EnsureCreated();
 
             var defaultPlaylist = new MusicPlaylist
             {

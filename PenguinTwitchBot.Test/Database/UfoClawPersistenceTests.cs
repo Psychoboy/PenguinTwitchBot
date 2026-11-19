@@ -6,7 +6,7 @@ using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
 using PenguinTwitchBot.Database.Repository;
-using PenguinTwitchBot.Migrations.Sqlite;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Database;
 
@@ -15,16 +15,13 @@ public class UfoClawPersistenceTests
     [Fact]
     public async Task MigratedSqliteRoundTripsClawControlSettingsAndFrozenGrab()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
+        await using var connection = SqliteTestDatabase.CreateMigratedConnection();
         await using var services = new ServiceCollection()
-            .AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection,
-                sqlite => sqlite.MigrationsAssembly(typeof(SqliteDesignTimeDbContextFactory).Assembly.GetName().Name)))
+            .AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection))
             .AddScoped<IUnitOfWork, UnitOfWork>().BuildServiceProvider();
         await using (var scope = services.CreateAsyncScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            await context.Database.MigrateAsync();
             context.Add(new UfoClawControlType { Id = Guid.CreateVersion7(), Operation = "show", PrizeSetId = "set" });
             await context.SaveChangesAsync();
         }

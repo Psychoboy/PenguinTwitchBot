@@ -18,6 +18,7 @@ using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Bot.Models.Games;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Migrations.Sqlite;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 
@@ -28,14 +29,10 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
 
     public StarshipExpeditionSettingsStoreTests()
     {
-        _connection = new SqliteConnection("Data Source=:memory:");
-        _connection.Open();
+        _connection = SqliteTestDatabase.CreateMigratedConnection();
         _services = new ServiceCollection()
-            .AddDbContext<ApplicationDbContext>(options => options.UseSqlite(_connection,
-                sqlite => sqlite.MigrationsAssembly(typeof(SqliteDesignTimeDbContextFactory).Assembly.GetName().Name)))
+            .AddDbContext<ApplicationDbContext>(options => options.UseSqlite(_connection))
             .AddScoped<IUnitOfWork, UnitOfWork>().BuildServiceProvider();
-        using var scope = _services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.Migrate();
     }
 
     public void Dispose()

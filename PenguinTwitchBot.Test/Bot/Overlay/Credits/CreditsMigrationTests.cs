@@ -1,44 +1,24 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Credits;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
 {
-    public class CreditsMigrationTests : IDisposable
+    public class CreditsMigrationTests
     {
-        private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"credits_mig_{Guid.NewGuid():N}.db");
-
-        public void Dispose()
-        {
-            SqliteConnection.ClearAllPools();
-            foreach (var suffix in new[] { "", "-wal", "-shm" })
-            {
-                var file = _dbPath + suffix;
-                if (File.Exists(file))
-                {
-                    try { File.Delete(file); } catch { /* best-effort cleanup */ }
-                }
-            }
-            GC.SuppressFinalize(this);
-        }
-
         [Fact]
         public async Task SqliteMigrations_CreateAndRoundTripAllCreditsAndSubActionTables()
         {
+            await using var connection = SqliteTestDatabase.CreateMigratedConnection();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseSqlite($"Data Source={_dbPath};Foreign Keys=True",
-                    o => o.MigrationsAssembly("PenguinTwitchBot.Migrations.Sqlite"))
+                .UseSqlite(connection)
                 .Options;
 
             await using (var ctx = new ApplicationDbContext(options))
             {
-                await ctx.GetService<IMigrator>().MigrateAsync();
-
                 var theme = new CreditTheme
                 {
                     Name = "Migration Test Theme",

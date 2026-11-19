@@ -7,6 +7,7 @@ using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Test.Helpers;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
@@ -22,8 +23,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
         public FishingAnalyticsServiceTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
 
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(_connection));
@@ -33,7 +33,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _serviceProvider = services.BuildServiceProvider();
             _scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
             _context = _serviceProvider.GetRequiredService<ApplicationDbContext>();
-            _context.Database.EnsureCreated();
 
             _fishingService = Substitute.For<IFishingService>();
             var settings = new FishingSettings

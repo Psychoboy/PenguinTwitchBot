@@ -87,13 +87,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
 
         public QuoteSystemTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = PenguinTwitchBot.Test.Helpers.SqliteTestDatabase.CreateConnection();
             _options = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(_connection).Options;
-            using (var ctx = new ApplicationDbContext(_options))
-            {
-                ctx.Database.EnsureCreated();
-            }
 
             var services = new ServiceCollection();
             services.AddScoped<IUnitOfWork>(_ => new UnitOfWork(new ApplicationDbContext(_options)));

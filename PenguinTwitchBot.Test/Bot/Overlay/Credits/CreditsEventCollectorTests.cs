@@ -12,6 +12,7 @@ using PenguinTwitchBot.CustomMiddleware;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Credits;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
 {
@@ -26,16 +27,12 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
 
         public CreditsEventCollectorTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
 
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(o => o.UseSqlite(_connection), ServiceLifetime.Scoped);
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             _provider = services.BuildServiceProvider();
-
-            using var scope = _provider.CreateScope();
-            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
 
             _backbone = Substitute.For<IServiceBackbone>();
             _twitchService = Substitute.For<ITwitchService>();

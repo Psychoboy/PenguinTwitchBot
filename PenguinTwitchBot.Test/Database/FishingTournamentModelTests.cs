@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Bot.Models.Points;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Database;
 
@@ -13,15 +14,13 @@ public class FishingTournamentModelTests : IDisposable
 
     public FishingTournamentModelTests()
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
+        _connection = SqliteTestDatabase.CreateConnection();
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlite(_connection)
             .Options;
 
         _context = new ApplicationDbContext(options);
-        _context.Database.EnsureCreated();
     }
 
     public void Dispose()

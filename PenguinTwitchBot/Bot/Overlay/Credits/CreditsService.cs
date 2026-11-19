@@ -790,8 +790,15 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed triggering CreditsCompleted actions for profile {Profile}.", profileName);
+                logger.LogError(ex, "Failed triggering CreditsCompleted actions for profile {Profile}.", SanitizeForLog(profileName));
             }
+        }
+
+        internal static string SanitizeForLog(string? input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+            var sanitized = input.Replace(Environment.NewLine, string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
+            return sanitized.Length > 120 ? sanitized[..120] : sanitized;
         }
 
         private Task BroadcastJsonAsync(object message)

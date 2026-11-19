@@ -6,6 +6,7 @@ using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Models.Themes;
 using PenguinTwitchBot.Services;
+using PenguinTwitchBot.Test.Helpers;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Services;
@@ -18,13 +19,11 @@ public class CustomThemeServiceTests : IDisposable
 
     public CustomThemeServiceTests()
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
+        _connection = SqliteTestDatabase.CreateConnection();
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlite(_connection)
             .Options;
         _context = new ApplicationDbContext(options);
-        _context.Database.EnsureCreated();
 
         var services = new ServiceCollection();
         services.AddScoped<IUnitOfWork>(_ => new UnitOfWork(new ApplicationDbContext(options)));

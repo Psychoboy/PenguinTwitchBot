@@ -25,28 +25,27 @@ using PenguinTwitchBot.Bot.Actions.Variables.Triggers;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Database.Bot.Models.Points;
 using PenguinTwitchBot.Pages.Components;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Bot.Commands;
 
-public sealed class DefaultCommandTriggerServiceTests : IDisposable
+public abstract class DefaultCommandTriggerServiceTestBase : IDisposable
 {
-    private readonly SqliteConnection _connection;
-    private readonly ApplicationDbContext _context;
-    private readonly IAction _actionService;
-    private readonly IFeatureRuntimeCoordinator _featureRuntimeCoordinator;
-    private readonly IServiceProvider _serviceProvider;
+    protected readonly SqliteConnection _connection;
+    protected readonly ApplicationDbContext _context;
+    protected readonly IAction _actionService;
+    protected readonly IFeatureRuntimeCoordinator _featureRuntimeCoordinator;
+    protected readonly IServiceProvider _serviceProvider;
 
-    public DefaultCommandTriggerServiceTests()
+    protected DefaultCommandTriggerServiceTestBase()
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
+        _connection = SqliteTestDatabase.CreateConnection();
 
         var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlite(_connection)
             .Options;
 
         _context = new ApplicationDbContext(dbOptions);
-        _context.Database.EnsureCreated();
 
         _actionService = Substitute.For<IAction>();
         _featureRuntimeCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
@@ -75,91 +74,10 @@ public sealed class DefaultCommandTriggerServiceTests : IDisposable
         _context.Dispose();
         _connection.Dispose();
         (_serviceProvider as IDisposable)?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
-    [Fact]
-    public async Task TriggerDefaultCommandEventAsync_ExecutesWizardStyleNestedTrigger()
-    {
-        var defaultCommand = new DefaultCommand { CommandName = "plinko", CustomCommandName = "plinko", ModuleName = "DropGames" };
-        _context.DefaultCommands.Add(defaultCommand);
-        await _context.SaveChangesAsync();
-        var action = new ActionType
-        {
-            Name = "Plinko Bounce Plinko - Win", Enabled = true, QueueName = "Default",
-            Triggers =
-            [
-                new()
-                {
-                    Name = "Plinko Bounce Plinko - Win", Type = TriggerTypes.DefaultCommand, Enabled = true,
-                    DefaultCommandId = defaultCommand.Id,
-                    Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
-                    {
-                        DefaultCommandName = "plinko", EventType = DefaultCommandEventTypes.PlinkoWin
-                    })
-                }
-            ]
-        };
-        using (var scope = _serviceProvider.CreateScope())
-            await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().Actions.CreateActionAsync(action);
-
-        var service = new DefaultCommandTriggerService(
-            _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
-            Substitute.For<ILogger<DefaultCommandTriggerService>>(), _featureRuntimeCoordinator);
-        await service.TriggerDefaultCommandEventAsync("plinko", DefaultCommandEventTypes.PlinkoWin,
-            new CommandEventArgs { Command = "plinko", DisplayName = "Pilot", Name = "pilot" });
-
-        await _actionService.Received(1).EnqueueAction(Arg.Any<System.Collections.Concurrent.ConcurrentDictionary<string, string>>(),
-            Arg.Is<ActionType>(queued => queued.Id == action.Id));
-    }
-
-    public static IEnumerable<object[]> MinigameOutcomes() => TriggerCatalog.AllTriggers
-        .Where(item => item.Type == TriggerTypes.DefaultCommand &&
-            item.DefaultCommandName is "drop" or "plinko" or "balloon" or "curl" or "golf" or "starship")
-        .SelectMany(item => new[] { false, true }.Select(existingAction =>
-            new object[] { item.DefaultCommandName!, item.DefaultCommandEventType!, existingAction }));
-
-    [Theory]
-    [InlineData("plinko_Win", "Plinko - Win")]
-    [InlineData("My special Plinko reward", "My special Plinko reward")]
-    public void TriggerDisplayName_UsesReadableLabelOnlyForLegacyGeneratedNames(string savedName, string expectedName)
-    {
-        var trigger = new TriggerType
-        {
-            Name = savedName, Type = TriggerTypes.DefaultCommand,
-            Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
-            {
-                DefaultCommandName = "plinko", EventType = DefaultCommandEventTypes.PlinkoWin
-            })
-        };
-
-        Assert.Equal(expectedName, TriggerCatalog.GetDefaultCommandTriggerDisplayName(trigger));
-        Assert.Equal(savedName, trigger.Name);
-        trigger.Configuration = "{";
-        Assert.Equal(savedName, TriggerCatalog.GetDefaultCommandTriggerDisplayName(trigger));
-    }
-
-    [Fact]
-    public void DefaultCommandNames_UseCatalogLabelsAcrossAllBuiltInCategories()
-    {
-        foreach (var item in TriggerCatalog.AllTriggers.Where(item => item.Type == TriggerTypes.DefaultCommand))
-        {
-            Assert.Equal(item.DisplayName, TriggerCatalog.GetDefaultCommandTriggerName(item.DefaultCommandName!, item.DefaultCommandEventType!));
-            var trigger = new TriggerType
-            {
-                Type = item.Type,
-                Name = $"{item.DefaultCommandName}_{item.DefaultCommandEventType!.Split('.').Last()}",
-                Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
-                {
-                    DefaultCommandName = item.DefaultCommandName!, EventType = item.DefaultCommandEventType!
-                })
-            };
-            Assert.Equal(item.DisplayName, TriggerCatalog.GetDefaultCommandTriggerDisplayName(trigger));
-        }
-    }
-
-    [Theory]
-    [MemberData(nameof(MinigameOutcomes))]
-    public async Task AutomationWizard_AllMinigameOutcomesPersistCanonicalTriggersAndDispatch(string commandName, string eventType, bool existingAction)
+    protected async Task RunMinigameOutcomeWizardTestAsync(string commandName, string eventType, bool existingAction)
     {
         var defaultCommand = new DefaultCommand
         {
@@ -256,6 +174,94 @@ public sealed class DefaultCommandTriggerServiceTests : IDisposable
             Assert.True(reenabled.Enabled);
         }
     }
+}
+
+public sealed class DefaultCommandTriggerServiceTests : DefaultCommandTriggerServiceTestBase
+{
+    [Fact]
+    public async Task TriggerDefaultCommandEventAsync_ExecutesWizardStyleNestedTrigger()
+    {
+        var defaultCommand = new DefaultCommand { CommandName = "plinko", CustomCommandName = "plinko", ModuleName = "DropGames" };
+        _context.DefaultCommands.Add(defaultCommand);
+        await _context.SaveChangesAsync();
+        var action = new ActionType
+        {
+            Name = "Plinko Bounce Plinko - Win", Enabled = true, QueueName = "Default",
+            Triggers =
+            [
+                new()
+                {
+                    Name = "Plinko Bounce Plinko - Win", Type = TriggerTypes.DefaultCommand, Enabled = true,
+                    DefaultCommandId = defaultCommand.Id,
+                    Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                    {
+                        DefaultCommandName = "plinko", EventType = DefaultCommandEventTypes.PlinkoWin
+                    })
+                }
+            ]
+        };
+        using (var scope = _serviceProvider.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().Actions.CreateActionAsync(action);
+
+        var service = new DefaultCommandTriggerService(
+            _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+            Substitute.For<ILogger<DefaultCommandTriggerService>>(), _featureRuntimeCoordinator);
+        await service.TriggerDefaultCommandEventAsync("plinko", DefaultCommandEventTypes.PlinkoWin,
+            new CommandEventArgs { Command = "plinko", DisplayName = "Pilot", Name = "pilot" });
+
+        await _actionService.Received(1).EnqueueAction(Arg.Any<System.Collections.Concurrent.ConcurrentDictionary<string, string>>(),
+            Arg.Is<ActionType>(queued => queued.Id == action.Id));
+    }
+
+    public static IEnumerable<object[]> PrimaryMinigameOutcomes() => TriggerCatalog.AllTriggers
+        .Where(item => item.Type == TriggerTypes.DefaultCommand &&
+            item.DefaultCommandName is "drop" or "plinko" or "balloon")
+        .SelectMany(item => new[] { false, true }.Select(existingAction =>
+            new object[] { item.DefaultCommandName!, item.DefaultCommandEventType!, existingAction }));
+
+    [Theory]
+    [InlineData("plinko_Win", "Plinko - Win")]
+    [InlineData("My special Plinko reward", "My special Plinko reward")]
+    public void TriggerDisplayName_UsesReadableLabelOnlyForLegacyGeneratedNames(string savedName, string expectedName)
+    {
+        var trigger = new TriggerType
+        {
+            Name = savedName, Type = TriggerTypes.DefaultCommand,
+            Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+            {
+                DefaultCommandName = "plinko", EventType = DefaultCommandEventTypes.PlinkoWin
+            })
+        };
+
+        Assert.Equal(expectedName, TriggerCatalog.GetDefaultCommandTriggerDisplayName(trigger));
+        Assert.Equal(savedName, trigger.Name);
+        trigger.Configuration = "{";
+        Assert.Equal(savedName, TriggerCatalog.GetDefaultCommandTriggerDisplayName(trigger));
+    }
+
+    [Fact]
+    public void DefaultCommandNames_UseCatalogLabelsAcrossAllBuiltInCategories()
+    {
+        foreach (var item in TriggerCatalog.AllTriggers.Where(item => item.Type == TriggerTypes.DefaultCommand))
+        {
+            Assert.Equal(item.DisplayName, TriggerCatalog.GetDefaultCommandTriggerName(item.DefaultCommandName!, item.DefaultCommandEventType!));
+            var trigger = new TriggerType
+            {
+                Type = item.Type,
+                Name = $"{item.DefaultCommandName}_{item.DefaultCommandEventType!.Split('.').Last()}",
+                Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = item.DefaultCommandName!, EventType = item.DefaultCommandEventType!
+                })
+            };
+            Assert.Equal(item.DisplayName, TriggerCatalog.GetDefaultCommandTriggerDisplayName(trigger));
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(PrimaryMinigameOutcomes))]
+    public Task AutomationWizard_AllMinigameOutcomesPersistCanonicalTriggersAndDispatch(string commandName, string eventType, bool existingAction) =>
+        RunMinigameOutcomeWizardTestAsync(commandName, eventType, existingAction);
 
     [Fact]
     public async Task TriggerDefaultCommandEventAsync_DoesNotExecuteActions_WhenFeatureDisabled()

@@ -7,6 +7,7 @@ using NSubstitute;
 using PenguinTwitchBot.Bot.Commands.Music;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Services
 {
@@ -18,13 +19,11 @@ namespace PenguinTwitchBot.Test.Services
 
         public SongCooldownServiceTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(_connection)
                 .Options;
             _context = new ApplicationDbContext(options);
-            _context.Database.EnsureCreated();
 
             var services = new ServiceCollection();
             services.AddScoped<IUnitOfWork>(_ => new UnitOfWork(new ApplicationDbContext(options)));

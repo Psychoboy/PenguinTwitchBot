@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Repository.Repositories;
+using PenguinTwitchBot.Test.Helpers;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Database.Repositories;
@@ -14,15 +15,13 @@ public class UserThemePreferencesRepositoryTests : IDisposable
 
     public UserThemePreferencesRepositoryTests()
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
+        _connection = SqliteTestDatabase.CreateConnection();
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlite(_connection)
             .Options;
 
         _context = new ApplicationDbContext(options);
-        _context.Database.EnsureCreated();
         _repository = new UserThemePreferencesRepository(_context);
     }
 

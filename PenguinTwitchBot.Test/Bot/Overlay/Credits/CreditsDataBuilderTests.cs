@@ -14,6 +14,7 @@ using PenguinTwitchBot.Database.Bot.Models.Credits;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Bot.Models.Giveaway;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Test.Helpers;
 using PenguinTwitchBot.TwitchApi.Models.Users;
 
 namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
@@ -32,16 +33,12 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
 
         public CreditsDataBuilderTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
 
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(o => o.UseSqlite(_connection), ServiceLifetime.Scoped);
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             _provider = services.BuildServiceProvider();
-
-            using var scope = _provider.CreateScope();
-            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
 
             _collector = Substitute.For<ICreditsEventCollector>();
             _backbone = Substitute.For<IServiceBackbone>();

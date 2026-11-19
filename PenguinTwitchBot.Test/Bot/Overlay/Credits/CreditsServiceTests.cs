@@ -17,6 +17,7 @@ using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Credits;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Test.Helpers;
 using PenguinTwitchBot.TwitchApi.Models.Users;
 
 namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
@@ -34,8 +35,7 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
 
         public CreditsServiceTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
 
             _actionMgmt = Substitute.For<IActionManagementService>();
             _actionRunner = Substitute.For<IAction>();
@@ -46,9 +46,6 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
             services.AddSingleton(_actionMgmt);
             services.AddSingleton(_actionRunner);
             _provider = services.BuildServiceProvider();
-
-            using var scope = _provider.CreateScope();
-            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
 
             var backbone = Substitute.For<IServiceBackbone>();
             backbone.BroadcasterName.Returns("host");
@@ -206,6 +203,53 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
             await _actionRunner.Received(1).EnqueueAction(
                 Arg.Is<ConcurrentDictionary<string, string>>(v => v["creditsProfile"] == "Default"),
                 wildcardAction);
+        }
+
+        [Fact]
+        public async Task TriggerCompletedAsync_SanitizesLogEntry_WhenExceptionLoggedForUntrustedProfileName()
+        {
+            var capturingLogger = new CapturingCreditsLogger();
+            var backbone = Substitute.For<IServiceBackbone>();
+            backbone.BroadcasterName.Returns("host");
+            backbone.BotName.Returns("bot");
+            var twitch = Substitute.For<ITwitchService>();
+
+            var dataBuilder = new CreditsDataBuilder(
+                _provider.GetRequiredService<IServiceScopeFactory>(),
+                _collector,
+                new CreditsTimeWindowResolver(),
+                new CreditsAvatarResolver(twitch, _cache),
+                backbone,
+                Substitute.For<IKnownBots>(),
+                twitch);
+
+            var service = new CreditsService(
+                _provider.GetRequiredService<IServiceScopeFactory>(),
+                dataBuilder,
+                _collector,
+                _wsMessenger,
+                capturingLogger);
+
+            _actionMgmt.GetActionsByTriggerTypeAndNameEnabledAsync(
+                    TriggerTypes.CreditsCompleted,
+                    Arg.Any<string>())
+                .Returns<List<ActionType>>(_ => throw new InvalidOperationException("boom"));
+
+            await service.TriggerCompletedAsync("Evil\r\nForgedLogLine\nNext", totalEntries: 1, totalSections: 1);
+
+            var logged = Assert.Single(capturingLogger.Messages);
+            Assert.DoesNotContain("\r", logged, StringComparison.Ordinal);
+            Assert.DoesNotContain("\n", logged, StringComparison.Ordinal);
+            Assert.Contains("EvilForgedLogLineNext", logged, StringComparison.Ordinal);
+        }
+
+        private sealed class CapturingCreditsLogger : ILogger<CreditsService>
+        {
+            public List<string> Messages { get; } = [];
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+            public bool IsEnabled(LogLevel logLevel) => true;
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+                => Messages.Add(formatter(state, exception));
         }
     }
 }
