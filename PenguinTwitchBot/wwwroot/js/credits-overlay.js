@@ -731,7 +731,7 @@
         pagedEl.innerHTML = '';
         pagedEl.appendChild(measureWrapper);
 
-        if (measureWrapper.scrollHeight <= availableH) {
+        if (Math.max(measureWrapper.scrollHeight, fullNode.scrollHeight, fullNode.offsetHeight) <= availableH) {
             measureWrapper.removeChild(fullNode);
             pagedEl.innerHTML = '';
             return [fullNode];
@@ -754,11 +754,19 @@
         const sectionSlides = [];
         let current = { sectionEl: fullNode, listEl: listEl };
 
+        function exceedsAvailableHeight() {
+            return Math.max(
+                measureWrapper.scrollHeight,
+                current.sectionEl.scrollHeight,
+                current.sectionEl.offsetHeight
+            ) > availableH;
+        }
+
         for (let i = 0; i < entryNodes.length; i++) {
             const entryNode = entryNodes[i];
             current.listEl.appendChild(entryNode);
 
-            if (current.listEl.children.length > 1 && measureWrapper.scrollHeight > availableH) {
+            if (current.listEl.children.length > 1 && exceedsAvailableHeight()) {
                 current.listEl.removeChild(entryNode);
                 measureWrapper.removeChild(current.sectionEl);
                 sectionSlides.push(current.sectionEl);
@@ -831,13 +839,13 @@
 
             const durationMs = Math.max(1000, baseMs / speedMultiplier);
             schedulePagedDeadline(durationMs, function () {
+                if (gen !== runGeneration || !isRunning) return;
                 wrapper.classList.remove('credits-page-slide--active');
-                pagedTransitionTimerId = setTimeout(function () {
-                    pagedTransitionTimerId = null;
+                schedulePagedDeadline(450, function () {
                     if (gen !== runGeneration || !isRunning) return;
                     idx += 1;
                     showSlide(idx);
-                }, 450);
+                }, gen);
             }, gen);
         }
 
@@ -911,6 +919,7 @@
             url.searchParams.set('_cb', Date.now().toString());
 
             const resp = await fetch(url.toString(), { cache: 'no-store' });
+            if (reqId !== activeRequestId) return;
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const payload = await resp.json();
             if (reqId !== activeRequestId) return;
