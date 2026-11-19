@@ -15,6 +15,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
         BannedSongRequest,
         FishingItemBroken,
         FishingAccident,
-        StreamTimerZero
+        StreamTimerZero,
+        CreditsCompleted
     }
 }

@@ -15,12 +15,13 @@ using PenguinTwitchBot.Circuit;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Services;
 using PenguinTwitchBot.Shared;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Services;
 
 public sealed class AnnouncementServiceTests : IDisposable
 {
-    private readonly SqliteConnection _connection = new("Data Source=:memory:");
+    private readonly SqliteConnection _connection;
     private readonly ServiceProvider _services;
     private readonly AnnouncementService _service;
     private static readonly ClaimsPrincipal Streamer = User("streamer", "Streamer");
@@ -28,13 +29,11 @@ public sealed class AnnouncementServiceTests : IDisposable
 
     public AnnouncementServiceTests()
     {
-        _connection.Open();
+        _connection = SqliteTestDatabase.CreateConnection();
         _services = new ServiceCollection()
             .AddDbContext<ApplicationDbContext>(options => options.UseSqlite(_connection))
             .AddScoped<IUnitOfWork, UnitOfWork>()
             .BuildServiceProvider();
-        using var scope = _services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
         _service = new AnnouncementService(_services.GetRequiredService<IServiceScopeFactory>());
     }
 

@@ -8,6 +8,7 @@ using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.IpLogs;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Services;
+using PenguinTwitchBot.Test.Helpers;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Circuit
@@ -23,8 +24,7 @@ namespace PenguinTwitchBot.Test.Circuit
 
         public IpLogTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
 
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(options =>
@@ -33,7 +33,6 @@ namespace PenguinTwitchBot.Test.Circuit
 
             _serviceProvider = services.BuildServiceProvider();
             _context = _serviceProvider.GetRequiredService<ApplicationDbContext>();
-            _context.Database.EnsureCreated();
 
             _logger = Substitute.For<ILogger<IpLog>>();
             _retentionSettings = Substitute.For<IIpLogRetentionSettingsService>();

@@ -8,6 +8,8 @@ using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Commands.Games.Racing;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.Overlay;
+using PenguinTwitchBot.Bot.Overlay.Credits;
+using PenguinTwitchBot.Database.Bot.Models.Credits;
 
 namespace PenguinTwitchBot.Application.DropGameNotifications
 {
@@ -21,7 +23,8 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         IBalloonAscentService? balloonAscentService = null,
         ICurlingGameService? curlingGameService = null,
         IGolfGameService? golfGameService = null,
-        IRacingGameService? racingGameService = null)
+        IRacingGameService? racingGameService = null,
+        ICreditsEventCollector? creditsCollector = null)
         : Notifications.INotificationHandler<DropGameCompleteNotification>
     {
         public async Task Handle(DropGameCompleteNotification notification, CancellationToken cancellationToken)
@@ -245,6 +248,17 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     {
                         await racingGameService.ProcessCompletionAsync(record);
                     }
+                }
+
+                if (creditsCollector != null && (record.IsWin || record.IsBullseye || record.RacePlacement == 1))
+                {
+                    await creditsCollector.RecordCustomEventAsync(
+                        CreditEventTypes.DropGameWin,
+                        record.UserId,
+                        record.Username,
+                        record.DisplayName,
+                        amount: Math.Max(1, record.Score),
+                        detail: record.GameType.ToString());
                 }
 
                 dropRegistry.AcknowledgeCompletion(notification.DropToken);

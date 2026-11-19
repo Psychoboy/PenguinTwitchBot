@@ -62,6 +62,7 @@ public static class SubActionUIFieldEnhancer
             GetGlobalVariableType getGlobalVariable => EnhanceGlobalVariableNames(fields, getGlobalVariable, scope.ServiceProvider),
             OpenAiType openAi => EnhanceOpenAiModels(fields, openAi, scope.ServiceProvider),
             OverlayTimerStartType or OverlayTimerStopType or OverlayTimerAddTimeType or OverlayTimerRemoveTimeType or OverlayTimerVisibilityType => EnhanceOverlayTimer(fields, scope.ServiceProvider),
+            CreditsPlayType or CreditsStopType or CreditsPauseResumeType or CreditsMarkStartType => EnhanceCredits(fields, scope.ServiceProvider),
             _ => fields
         };
     }
@@ -1061,6 +1062,40 @@ public static class SubActionUIFieldEnhancer
             timerField.FieldType = UIFieldType.Select;
             timerField.SelectOptions = timerOptions;
             timerField.AllowCustomValue = true;
+        }
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceCredits(List<SubActionUIField> fields, IServiceProvider serviceProvider)
+    {
+        var creditsService = serviceProvider.GetService<Overlay.Credits.ICreditsService>();
+        if (creditsService == null)
+            return fields;
+
+        IReadOnlyList<string> profileNames;
+        try
+        {
+            profileNames = Task.Run(async () => await creditsService.GetProfileNamesAsync()).GetAwaiter().GetResult();
+        }
+        catch
+        {
+            return fields;
+        }
+
+        if (profileNames.Count == 0)
+            return fields;
+
+        var profileOptions = profileNames
+            .Select(name => new SelectOption { Name = name, Value = name })
+            .ToList();
+
+        var profileField = fields.FirstOrDefault(f => f.PropertyName == nameof(CreditsPlayType.ProfileName));
+        if (profileField != null)
+        {
+            profileField.FieldType = UIFieldType.Select;
+            profileField.SelectOptions = profileOptions;
+            profileField.AllowCustomValue = true;
         }
 
         return fields;

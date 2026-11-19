@@ -1,0 +1,100 @@
+@using PenguinTwitchBot.Bot.Overlay.Credits
+@using PenguinTwitchBot.Database.Bot.Models.Credits
+@inject ICreditsService CreditsService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Add Credits Entry</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2" Style="width: 100%;">
+            <MudTextField @bind-Value="_username" Label="Username (Twitch login or name)" Required="true"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <MudTextField @bind-Value="_displayName" Label="Display Name (optional)"
+                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                          HelperText="Defaults to Username if left blank" />
+            <MudSelect T="string" @bind-Value="_eventType" Label="Event / Section Target Type"
+                       Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="string" Value="@CreditEventTypes.Manual">Manual (Action-Added Entries)</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.Subscribe">New Subscriber</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.Resubscribe">Resubscriber</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.SubGift">Sub Gifter</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.Cheer">Cheer / Bits</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.IncomingRaid">Incoming Raid</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.Follow">New Follower</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.ChannelPointRedeem">Channel Point Redeem</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.CharityDonation">Charity Donation</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.DropGameWin">Drop Game Win</MudSelectItem>
+                <MudSelectItem T="string" Value="@CreditEventTypes.SongRequest">Song Request</MudSelectItem>
+            </MudSelect>
+            <MudNumericField T="decimal" @bind-Value="_amount" Label="Amount / Count" Min="0"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <MudTextField @bind-Value="_detail" Label="Detail / Role / Note (optional)"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <MediaUrlPicker @bind-Value="_avatarUrl"
+                            Label="Custom Avatar URL (optional)"
+                            HelperText="Leave blank to auto-fetch Twitch avatar when Username is a Twitch user."
+                            ShowPreview="true"
+                            AllowBrowse="true" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="@_isSaving" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@_isSaving" OnClick="SubmitAsync">
+            Add Entry
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private string _username = string.Empty;
+    private string? _displayName;
+    private string _eventType = CreditEventTypes.Manual;
+    private decimal _amount = 1;
+    private string? _detail;
+    private string? _avatarUrl;
+    private bool _isSaving;
+
+    private void Cancel()
+    {
+        if (_isSaving) return;
+        MudDialog.Cancel();
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_username))
+        {
+            Snackbar.Add("Username is required.", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var created = await CreditsService.AddManualEventAsync(
+                _username.Trim(),
+                string.IsNullOrWhiteSpace(_displayName) ? null : _displayName.Trim(),
+                _amount,
+                string.IsNullOrWhiteSpace(_detail) ? null : _detail.Trim(),
+                string.IsNullOrWhiteSpace(_avatarUrl) ? null : _avatarUrl.Trim(),
+                _eventType);
+
+            MudDialog.Close(DialogResult.Ok(created));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to add entry: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

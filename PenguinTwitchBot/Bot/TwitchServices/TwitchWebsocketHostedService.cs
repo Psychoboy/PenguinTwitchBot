@@ -106,6 +106,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             {
                 var eventArgs = CreateChatNotificationEventArgs(payload.Event);
                 logger.LogInformation("ChatNotification: {NoticeType} from {User}", eventArgs.NoticeType, eventArgs.DisplayName);
+                await eventService.OnChatNotification(eventArgs);
                 await twitchEventActionHandler.HandleChatNotificationAsync(eventArgs);
             }
             catch (Exception ex)
@@ -832,6 +833,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Fragments = bitsFragments
                 };
 
+                await eventService.OnBitsUse(bitsUseEventArgs);
                 await twitchEventActionHandler.HandleBitsUseAsync(bitsUseEventArgs);
             }
             catch (Exception ex)
@@ -981,7 +983,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        internal async Task Connect(CancellationToken cancellationToken = default)
+        internal Task Connect(CancellationToken cancellationToken = default) =>
+            ConnectWithDelay(cancellationToken);
+
+        internal TimeSpan ConnectRetryUnitDelay { get; set; } = TimeSpan.FromSeconds(1);
+
+        private async Task ConnectWithDelay(CancellationToken cancellationToken)
         {
             try
             {
@@ -1005,7 +1012,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     {
                         delayCounter = 30;
                     }
-                    await Task.Delay(delayCounter * 1000, cancellationToken);
+                    await Task.Delay(ConnectRetryUnitDelay * delayCounter, cancellationToken);
                     logger.LogError("Twitch Websocket connected failed! Attempting again in {delayCounter} seconds.", delayCounter);
                 }
             }

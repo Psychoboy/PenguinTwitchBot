@@ -36,7 +36,8 @@ public class QuickSearchService : IQuickSearchService
         // 1. Pages (in-memory)
         var matchedPages = pageLinks
             .Where(p => p.Title.Contains(cleanQuery, StringComparison.OrdinalIgnoreCase) ||
-                        (!string.IsNullOrWhiteSpace(p.Subtitle) && p.Subtitle.Contains(cleanQuery, StringComparison.OrdinalIgnoreCase)))
+                        (!string.IsNullOrWhiteSpace(p.Subtitle) && p.Subtitle.Contains(cleanQuery, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrWhiteSpace(p.SearchText) && p.SearchText.Contains(cleanQuery, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(p => p.Title.StartsWith(cleanQuery, StringComparison.OrdinalIgnoreCase) ? 0 :
                           p.Title.Contains(cleanQuery, StringComparison.OrdinalIgnoreCase) ? 1 : 2)
             .ThenBy(p => p.Title)

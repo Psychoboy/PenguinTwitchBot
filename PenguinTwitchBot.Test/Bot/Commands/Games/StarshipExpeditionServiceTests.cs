@@ -2745,19 +2745,11 @@ public class StarshipExpeditionServiceTests
     [Fact]
     public async Task TerminalVoyage_IsPersistedToHistory_AndCanBeRetrieved()
     {
-        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
+        await using var connection = PenguinTwitchBot.Test.Helpers.SqliteTestDatabase.CreateMigratedConnection();
         await using var services = new ServiceCollection()
-            .AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection,
-                sqlite => sqlite.MigrationsAssembly(typeof(PenguinTwitchBot.Migrations.Sqlite.SqliteDesignTimeDbContextFactory).Assembly.GetName().Name)))
+            .AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection))
             .AddScoped<IUnitOfWork, UnitOfWork>()
             .BuildServiceProvider();
-
-        await using (var scope = services.CreateAsyncScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            await context.Database.MigrateAsync();
-        }
 
         var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
         var stateStore = new InMemoryStateStore();

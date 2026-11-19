@@ -39,6 +39,8 @@ namespace PenguinTwitchBot.Bot.Core
         public event AsyncEventHandler<RaidEventArgs>? IncomingRaidEvent;
         public event AsyncEventHandler<OutgoingRaidEventArgs>? OutgoingRaidEvent;
         public event AsyncEventHandler<BanEventArgs>? BanEvent;
+        public event AsyncEventHandler<BitsUseEventArgs>? BitsUseEvent;
+        public event AsyncEventHandler<ChatNotificationEventArgs>? ChatNotificationEvent;
         public event AsyncEventHandler? StreamStarted;
         public event AsyncEventHandler? StreamEnded;
         public bool IsOnline { get; set; }
@@ -328,6 +330,22 @@ namespace PenguinTwitchBot.Bot.Core
             if (BanEvent != null)
             {
                 await BanEvent(this, new BanEventArgs {UserId = userId, Name = username, IsUnBan = unbanned, BanEndsAt = endsAt });
+            }
+        }
+
+        public async Task OnBitsUse(BitsUseEventArgs eventArgs)
+        {
+            if (BitsUseEvent != null)
+            {
+                await BitsUseEvent(this, eventArgs);
+            }
+        }
+
+        public async Task OnChatNotification(ChatNotificationEventArgs eventArgs)
+        {
+            if (ChatNotificationEvent != null)
+            {
+                await ChatNotificationEvent(this, eventArgs);
             }
         }
     }

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository.Repositories;
+using PenguinTwitchBot.Test.Helpers;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Database.Repositories
@@ -16,13 +17,11 @@ namespace PenguinTwitchBot.Test.Database.Repositories
 
         public VoiceTableSeparationTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(_connection)
                 .Options;
             _context = new ApplicationDbContext(options);
-            _context.Database.EnsureCreated();
             _registeredVoiceRepo = new RegisteredVoiceRepository(_context);
             _userRegisteredVoiceRepo = new UserRegisteredVoicesRepository(_context);
         }

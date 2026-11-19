@@ -1455,6 +1455,17 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 Icon = Icons.Material.Filled.TimerOff,
                 Color = Color.Info
             },
+            new()
+            {
+                Id = "credits-completed",
+                Type = TriggerTypes.CreditsCompleted,
+                CategoryId = "general",
+                CategoryName = "General & Manual",
+                DisplayName = "Stream Credits Completed",
+                Description = "Triggers when the Stream Credits overlay finishes rolling",
+                Icon = Icons.Material.Filled.MovieFilter,
+                Color = Color.Warning
+            },
 
             // === Media & Audio ===
             new()

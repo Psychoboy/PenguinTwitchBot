@@ -22,7 +22,8 @@
         golf: 'golf',
         racing: 'racing',
         starship: 'starship',
-        ufoclaw: 'ufoclaw'
+        ufoclaw: 'ufoclaw',
+        credits: 'credits'
     };
 
     function buildQueryString(paramsObj) {
@@ -466,6 +467,7 @@
                 if (msg.clipId !== undefined || msg.type === 'clip') return 'clips';
                 if (msg.expeditionId !== undefined || (msg.type && String(msg.type).startsWith('starship_'))) return 'starship';
                 if (msg.claw !== undefined || msg.roundId !== undefined) return 'ufoclaw';
+                if (msg.type && String(msg.type).startsWith('credits_')) return 'credits';
                 if (msg.type === 'other_game_status' || msg.type === 'other_drop_active') return 'drop_games_all';
                 if (['follower', 'sub', 'cheer', 'raid', 'reward', 'tip'].includes(msg.type)) return 'alerts';
             } catch (_) {}

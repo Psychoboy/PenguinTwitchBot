@@ -357,6 +357,11 @@ namespace PenguinTwitchBot.CustomMiddleware
                 description: "Passive tax timer that runs after stream end."
             );
             services.AddHostedApiService<Bot.Overlay.IStreamTimerService, Bot.Overlay.StreamTimerService>();
+            services.AddSingleton<Bot.Overlay.Credits.CreditsTimeWindowResolver>();
+            services.AddSingleton<Bot.Overlay.Credits.CreditsAvatarResolver>();
+            services.AddSingleton<Bot.Overlay.Credits.CreditsDataBuilder>();
+            services.AddHostedApiService<Bot.Overlay.Credits.ICreditsEventCollector, Bot.Overlay.Credits.CreditsEventCollectorService>();
+            services.AddSingleton<Bot.Overlay.Credits.ICreditsService, Bot.Overlay.Credits.CreditsService>();
             services.AddSingleton<Bot.Commands.Music.IBannedSongService, Bot.Commands.Music.BannedSongService>();
             services.AddSingleton<Bot.Commands.Music.ISongCooldownService, Bot.Commands.Music.SongCooldownService>();
             services.AddRuntimeFeatureService<Bot.Commands.Music.YtPlayer>(

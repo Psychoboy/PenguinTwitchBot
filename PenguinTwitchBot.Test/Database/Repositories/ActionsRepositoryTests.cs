@@ -6,6 +6,7 @@ using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Repository.Repositories;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Database.Repositories
 {
@@ -17,13 +18,11 @@ namespace PenguinTwitchBot.Test.Database.Repositories
 
         public ActionsRepositoryTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(_connection)
                 .Options;
             _context = new ApplicationDbContext(options);
-            _context.Database.EnsureCreated();
             _repository = new ActionsRepository(_context);
         }
 

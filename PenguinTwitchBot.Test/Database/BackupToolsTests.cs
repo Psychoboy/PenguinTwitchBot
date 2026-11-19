@@ -17,6 +17,7 @@ using System.IO.Abstractions.TestingHelpers;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
+using PenguinTwitchBot.Test.Helpers;
 
 namespace PenguinTwitchBot.Test.Database;
 
@@ -41,13 +42,11 @@ public class BackupToolsTests : IDisposable
         _logger = new TestLogger();
         _sut = new BackupTools(_fs, _logger, _zipMock.Object);
 
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
+        _connection = SqliteTestDatabase.CreateConnection();
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlite(_connection)
             .Options;
         _context = new ApplicationDbContext(options);
-        _context.Database.EnsureCreated();
     }
 
     public void Dispose()

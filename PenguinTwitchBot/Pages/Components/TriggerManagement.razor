@@ -582,6 +582,7 @@
             TriggerTypes.FishingAccident => "Fishing Accident",
             TriggerTypes.BannedSongRequest => "Banned Song Requested",
             TriggerTypes.StreamTimerZero => $"Stream timer reached zero ({trigger.Name.Replace(PenguinTwitchBot.Bot.Overlay.StreamTimerService.ZeroTriggerNamePrefix, "")})",
+            TriggerTypes.CreditsCompleted => $"Stream credits completed ({(trigger.Name.Replace(PenguinTwitchBot.Bot.Overlay.Credits.ICreditsService.CompletedTriggerNamePrefix, "") is "*" ? "Any Profile" : trigger.Name.Replace(PenguinTwitchBot.Bot.Overlay.Credits.ICreditsService.CompletedTriggerNamePrefix, ""))})",
             _ => trigger.Name
         };
     }

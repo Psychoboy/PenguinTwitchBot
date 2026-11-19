@@ -18,7 +18,8 @@ public sealed record QuickSearchResult(
     string Icon,
     string Category,
     QuickSearchResultType ResultType,
-    string? Subtitle = null
+    string? Subtitle = null,
+    string? SearchText = null
 );
 
 public interface IQuickSearchService

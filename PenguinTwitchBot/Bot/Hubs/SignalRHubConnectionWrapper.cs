@@ -8,6 +8,7 @@ namespace PenguinTwitchBot.Bot.Hubs
     {
         private readonly HubConnection _connection;
         private bool _started;
+        internal TimeSpan InitialRetryDelay { get; set; } = TimeSpan.FromMilliseconds(500);
 
         public SignalRHubConnectionWrapper(HubConnection connection)
         {
@@ -24,7 +25,7 @@ namespace PenguinTwitchBot.Bot.Hubs
             if (_started) return;
 
             const int maxRetries = 5;
-            var delay = TimeSpan.FromMilliseconds(500);
+            var delay = InitialRetryDelay;
 
             for (int attempt = 0; attempt < maxRetries; attempt++)
             {

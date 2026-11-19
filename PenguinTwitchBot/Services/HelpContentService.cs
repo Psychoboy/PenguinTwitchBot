@@ -109,6 +109,16 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
                 ("Sub-Actions & Automation", Icons.Material.Filled.Bolt, "stream-timer/subactions.md")
             ]
         ),
+        ["credits"] = (
+            "Stream Credits Guide",
+            Icons.Material.Filled.MovieFilter,
+            [
+                ("Overview & OBS Setup", Icons.Material.Filled.MovieFilter, "credits/overview.md"),
+                ("Sections & Time Windows", Icons.Material.Filled.ViewList, "credits/sections-time-window.md"),
+                ("Themes, Media & Custom CSS", Icons.Material.Filled.Palette, "credits/themes-css.md"),
+                ("Actions, Triggers & Test Modes", Icons.Material.Filled.Bolt, "credits/automation.md")
+            ]
+        ),
         ["themes"] = (
             "Themes Guide",
             Icons.Material.Filled.Palette,

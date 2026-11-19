@@ -315,6 +315,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             try
             {
+                _handler.LockTimeout = TimeSpan.FromMilliseconds(25);
                 await _handler.ExecuteAsync(type, variables, null, -1);
             }
             finally

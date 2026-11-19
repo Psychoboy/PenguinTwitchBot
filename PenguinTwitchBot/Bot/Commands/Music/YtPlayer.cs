@@ -1307,6 +1307,19 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             await UpdateRequestedSongsState();
             NextSong ??= song;
             await using var scope = _scopeFactory.CreateAsyncScope();
+            var creditsCollector = scope.ServiceProvider.GetService<Bot.Overlay.Credits.ICreditsEventCollector>();
+            if (creditsCollector != null &&
+                !string.IsNullOrWhiteSpace(song.RequestedBy) &&
+                !song.RequestedBy.Equals(ServiceBackbone.BotName ?? "TheBot", StringComparison.OrdinalIgnoreCase))
+            {
+                await creditsCollector.RecordCustomEventAsync(
+                    Database.Bot.Models.Credits.CreditEventTypes.SongRequest,
+                    userId: null,
+                    username: song.RequestedBy,
+                    displayName: song.RequestedBy,
+                    amount: 1,
+                    detail: song.Title);
+            }
             var SongRequestMetrics = scope.ServiceProvider.GetRequiredService<Metrics.SongRequests>();
             return await SongRequestMetrics.IncrementSongCount(song);
         }

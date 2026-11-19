@@ -73,7 +73,7 @@
                 </MudStack>
             </MudPaper>
 
-            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "bannedsongs", "songcooldowns", "overlay/editor", "overlay/timer", "overlay/fireworks-queue")">
+            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "bannedsongs", "songcooldowns", "overlay/editor", "overlay/timer", "overlay/credits", "overlay/fireworks-queue")">
                 <MudNavLink Icon="@Icons.Material.Filled.Groups" Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.PlayCircle" Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.QueueMusic" Href="/playlists" Match="NavLinkMatch.Prefix">Playlists</MudNavLink>
@@ -82,6 +82,7 @@
                 <MudNavLink Icon="@Icons.Material.Filled.Layers" Href="/overlay/editor" Match="NavLinkMatch.Prefix">Overlay Editor</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Queue" Href="/overlay/fireworks-queue" Match="NavLinkMatch.Prefix">Fireworks Queue</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/overlay/timer" Match="NavLinkMatch.Prefix">Stream Timer</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.MovieFilter" Href="/overlay/credits" Match="NavLinkMatch.Prefix">Stream Credits</MudNavLink>
             </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Games" Expanded="@GetGroupExpanded("games", GetGamesNavRoutes())">
                 <MudNavLink Icon="@Icons.Material.Filled.Dashboard" Href="/games" Match="NavLinkMatch.All">All Games</MudNavLink>
@@ -310,7 +311,8 @@
                 Icon: l.Icon,
                 Category: "Pages",
                 ResultType: QuickSearchResultType.Page,
-                Subtitle: l.Group
+                Subtitle: l.Group,
+                SearchText: l.SearchText
             ));
 
             var results = await QuickSearchService.SearchAsync(_navSearchText, pageLinks, token);
@@ -386,6 +388,7 @@
             CreateQuickLink("Song Cooldowns", "/songcooldowns", Icons.Material.Filled.Timer, "Stream Tools", "music", "cooldown", "song requests"),
             CreateQuickLink("Overlay Editor", "/overlay/editor", Icons.Material.Filled.Layers, "Stream Tools", "overlay"),
             CreateQuickLink("Stream Timer", "/overlay/timer", Icons.Material.Filled.Timer, "Stream Tools", "overlay", "timer", "countdown"),
+            CreateQuickLink("Stream Credits", "/overlay/credits", Icons.Material.Filled.MovieFilter, "Stream Tools", "overlay", "credits", "end screen", "outro", "roll"),
             CreateQuickLink("Default Commands", "/commands/default", Icons.Material.Filled.Code, "Commands", "chat commands"),
             CreateQuickLink("Command Cooldowns", "/commands/cooldowns", Icons.Material.Filled.Schedule, "Commands", "cooldown"),
             CreateQuickLink("External Commands", "/commands/external", Icons.Material.Filled.Extension, "Commands", "chat commands"),

@@ -1,0 +1,395 @@
+@using System.Text.Json
+@using PenguinTwitchBot.Bot.Overlay.Credits
+@using PenguinTwitchBot.Database.Bot.Models.Credits
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.ViewList" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@(IsNew ? "Add Credits Section" : $"Edit Section: {_edit.Title}")</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Style="max-height: 75vh; overflow-y: auto; padding-right: 4px;">
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Quick Grouping Presets</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2 d-block">
+                    Combine related events under one header (for example, New Subscribers + Resubscribers together, with Sub Gifters in its own section).
+                </MudText>
+                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small"
+                             OnClick="@(() => ApplyPreset("Subscribers", new[] { CreditSectionSources.NewSubscribers, CreditSectionSources.Resubscribers }, "{name} x{amount}"))">
+                        All Subscribers (New + Resubs)
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small"
+                             OnClick="@(() => ApplyPreset("Sub Gifters", new[] { CreditSectionSources.SubGifters }, "{name} x{amount}"))">
+                        Sub Gifters
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small"
+                             OnClick="@(() => ApplyPreset("Cheers & Bits", new[] { CreditSectionSources.CheersAndBits, CreditSectionSources.BitsPowerUps }, "{name} — {amount} bits"))">
+                        All Bits (Cheers + Power-Ups)
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small"
+                             OnClick="@(() => ApplyPreset("Raids", new[] { CreditSectionSources.IncomingRaids }, "{name} x{amount}"))">
+                        Incoming Raids
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small"
+                             OnClick="@(() => ApplyPreset("Top Supporters", new[] { CreditSectionSources.TopSupporters }, "{name}"))">
+                        Top Supporters
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small"
+                             OnClick="@(() => ApplyPreset("Special Thanks", new[] { CreditSectionSources.CustomStatic }, "{name} — {detail}"))">
+                        Custom / Static Cast
+                    </MudChip>
+                </MudStack>
+            </MudPaper>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_edit.Title" Label="Section Header Title" Required="true"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Placeholder="e.g. Subscribers, Raiders, Top Anglers" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_edit.Subtitle" Label="Section Subtitle (optional)"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Placeholder="Optional tagline under the header" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MediaUrlPicker @bind-Value="_edit.HeaderImageUrl"
+                                    Label="Section Header Icon / Banner Image (optional)"
+                                    HelperText="Optional image displayed above this section's title."
+                                    ShowPreview="true"
+                                    AllowBrowse="true" />
+                </MudItem>
+            </MudGrid>
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                    <MudText Typo="Typo.subtitle2">Included Sources (Select 1 or more)</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">
+                        @_edit.SourceTypes.Count selected
+                    </MudChip>
+                </MudStack>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2 d-block">
+                    Selecting multiple sources merges them together inside this single section.
+                </MudText>
+                @foreach (var group in CreditSectionSources.Catalog.GroupBy(c => c.Group))
+                {
+                    <MudText Typo="Typo.overline" Color="Color.Primary" Class="mt-2 d-block">@group.Key</MudText>
+                    <MudGrid Spacing="1">
+                        @foreach (var src in group)
+                        {
+                            var isChecked = IsSourceSelected(src.Key);
+                            <MudItem xs="12" sm="6">
+                                <MudTooltip Text="@src.Description">
+                                    <MudCheckBox T="bool"
+                                                 Value="@isChecked"
+                                                 ValueChanged="@(val => ToggleSource(src.Key, val))"
+                                                 Label="@src.DisplayName"
+                                                 Color="Color.Primary"
+                                                 Dense="true" />
+                                </MudTooltip>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                }
+            </MudPaper>
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Visibility, Layout &amp; Avatars</MudText>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudSwitch T="bool" @bind-Value="_edit.Enabled" Color="Color.Success" Label="Section Enabled" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSwitch T="bool" @bind-Value="_edit.HideWhenEmpty" Color="Color.Primary"
+                                   Label="Hide section automatically when empty" />
+                    </MudItem>
+                    @if (!_edit.HideWhenEmpty)
+                    {
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_edit.EmptyFallbackText" Label="Empty Section Fallback Text"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Placeholder="e.g. No new followers yet this stream" />
+                        </MudItem>
+                    }
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="string" @bind-Value="_edit.LayoutOverride" Label="Layout Override"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem T="string" Value="@CreditLayouts.InheritTheme">Inherit Theme</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditLayouts.SingleColumn">Single Column</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditLayouts.Grid2">2-Column Grid</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditLayouts.Grid3">3-Column Grid</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditLayouts.Grid4">4-Column Grid</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditLayouts.InlinePills">Inline Pills</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditLayouts.AvatarCards">Avatar Cards</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditLayouts.ClassicCast">Classic Cast (Role Left / Name Right)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="string" @bind-Value="_edit.AvatarMode" Label="Avatar Visibility"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem T="string" Value="@CreditAvatarModes.InheritTheme">Inherit Theme</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditAvatarModes.Show">Always Show Avatars</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditAvatarModes.Hide">Hide Avatars</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField T="int?" @bind-Value="_edit.AvatarSizePxOverride" Label="Avatar Size Override (px)"
+                                         Min="16" Max="160" Clearable="true"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         HelperText="Leave empty to use theme size" />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Formatting, Grouping &amp; Filtering</MudText>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="8">
+                        <MudTextField @bind-Value="_edit.EntryFormatTemplate" Label="Entry Format Template"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Placeholder="{name} x{amount}" />
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="1" Class="mt-1">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Insert token:</MudText>
+                            @foreach (var token in new[] { "{name}", "{amount}", "{detail}", "{tier}" })
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default"
+                                         OnClick="@(() => AppendFormatToken(token))">@token</MudChip>
+                            }
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudSwitch T="bool" @bind-Value="_edit.ShowAmount" Color="Color.Primary" Label="Show {amount} Token" Class="mt-2" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="string" @bind-Value="_edit.AggregationMode" Label="User Aggregation"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem T="string" Value="@CreditAggregationModes.CombineByUserSum">Combine by User (Sum Amount)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditAggregationModes.UniqueUsersLatest">Unique Users (Keep Latest)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditAggregationModes.UniqueUsersHighest">Unique Users (Keep Highest)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditAggregationModes.IndividualEvents">Individual Events (Do Not Merge)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="string" @bind-Value="_edit.SortMode" Label="Sort Order"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem T="string" Value="@CreditSortModes.HighestAmount">Highest Amount First</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditSortModes.MostRecent">Most Recent First</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditSortModes.OldestFirst">Chronological (Oldest First)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditSortModes.Alphabetical">Alphabetical (A-Z)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@CreditSortModes.Random">Random Shuffle</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField T="decimal?" @bind-Value="_edit.MinAmount" Label="Minimum Amount"
+                                         Min="0" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         HelperText="e.g. min 100 bits" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField T="int" @bind-Value="_edit.MaxEntries" Label="Max Entries (0 = Unlimited)"
+                                         Min="0" Max="5000" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="_edit.DetailFilter" Label="Detail Substring Filter"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                                      HelperText="Filter by reward/game/role text" />
+                    </MudItem>
+
+                    @if (IsSourceSelected(CreditSectionSources.FishingTopAnglers))
+                    {
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="string" @bind-Value="_edit.FishingRankBy" Label="Fishing Rank Metric"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense">
+                                <MudSelectItem T="string" Value="@("Gold")">Total Gold Earned</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("MaxWeight")">Heaviest Catch (lbs)</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("CatchCount")">Total Catches</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                    }
+
+                    @if (IsSourceSelected(CreditSectionSources.Moderators) || IsSourceSelected(CreditSectionSources.Vips))
+                    {
+                        <MudItem xs="12" sm="6">
+                            <MudSwitch T="bool" @bind-Value="_edit.IncludeAllChannelRoleMembers" Color="Color.Primary"
+                                       Label="Include all channel Mods/VIPs (even if silent this stream)" Class="mt-2" />
+                        </MudItem>
+                    }
+
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_edit.CustomCssClass" Label="Custom CSS Class (optional)"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Placeholder="e.g. highlight-gold" />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            @if (IsSourceSelected(CreditSectionSources.CustomStatic))
+            {
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                        <MudText Typo="Typo.subtitle2">Static Cast Entries</MudText>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add" OnClick="AddStaticEntry">
+                            Add Cast Row
+                        </MudButton>
+                    </MudStack>
+                    @if (_edit.StaticEntries.Count == 0)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            No static entries yet. Add co-streamers, artists, editors, or special thanks rows here.
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="2">
+                            @for (var i = 0; i < _edit.StaticEntries.Count; i++)
+                            {
+                                var index = i;
+                                var entry = _edit.StaticEntries[index];
+                                <MudPaper Outlined="true" Class="pa-2">
+                                    <MudGrid Spacing="2">
+                                        <MudItem xs="12" sm="4">
+                                            <MudTextField @bind-Value="entry.Name" Label="Display Name"
+                                                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudTextField @bind-Value="entry.Role" Label="Role / Credit Note"
+                                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                          Placeholder="e.g. Emote Artist" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudTextField @bind-Value="entry.TwitchUsername" Label="Twitch Username (for avatar)"
+                                                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="9">
+                                            <MediaUrlPicker @bind-Value="entry.ImageUrl"
+                                                            Label="Custom Avatar Image Override (optional)"
+                                                            ShowPreview="false"
+                                                            AllowBrowse="true" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="3">
+                                            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small"
+                                                               aria-label="@($"Move {GetStaticEntryLabel(index)} up")"
+                                                               Disabled="@(index == 0)"
+                                                               OnClick="@(() => MoveStaticEntry(index, -1))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small"
+                                                               aria-label="@($"Move {GetStaticEntryLabel(index)} down")"
+                                                               Disabled="@(index == _edit.StaticEntries.Count - 1)"
+                                                               OnClick="@(() => MoveStaticEntry(index, 1))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                               aria-label="@($"Delete {GetStaticEntryLabel(index)}")"
+                                                               OnClick="@(() => _edit.StaticEntries.RemoveAt(index))" />
+                                            </MudStack>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    }
+                </MudPaper>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Save Section</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public CreditsSectionConfig Section { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+
+    private CreditsSectionConfig _edit = new();
+
+    protected override void OnInitialized()
+    {
+        var json = JsonSerializer.Serialize(Section, CreditsDataBuilder.JsonOptions);
+        _edit = JsonSerializer.Deserialize<CreditsSectionConfig>(json, CreditsDataBuilder.JsonOptions) ?? new CreditsSectionConfig();
+        if (string.IsNullOrWhiteSpace(_edit.Id))
+        {
+            _edit.Id = Guid.NewGuid().ToString("N");
+        }
+    }
+
+    private bool IsSourceSelected(string key) =>
+        _edit.SourceTypes.Any(s => s.Equals(key, StringComparison.OrdinalIgnoreCase));
+
+    private void ToggleSource(string key, bool selected)
+    {
+        var existing = _edit.SourceTypes.FirstOrDefault(s => s.Equals(key, StringComparison.OrdinalIgnoreCase));
+        if (selected && existing == null)
+        {
+            _edit.SourceTypes.Add(key);
+        }
+        else if (!selected && existing != null)
+        {
+            _edit.SourceTypes.Remove(existing);
+        }
+    }
+
+    private void ApplyPreset(string title, string[] sources, string template)
+    {
+        _edit.Title = title;
+        _edit.SourceTypes = [.. sources];
+        _edit.EntryFormatTemplate = template;
+        _edit.HideWhenEmpty = true;
+    }
+
+    private void AppendFormatToken(string token)
+    {
+        _edit.EntryFormatTemplate = string.IsNullOrEmpty(_edit.EntryFormatTemplate)
+            ? token
+            : $"{_edit.EntryFormatTemplate} {token}";
+    }
+
+    private void AddStaticEntry()
+    {
+        _edit.StaticEntries.Add(new CreditsStaticEntry());
+    }
+
+    private void MoveStaticEntry(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= _edit.StaticEntries.Count) return;
+        (_edit.StaticEntries[index], _edit.StaticEntries[target]) = (_edit.StaticEntries[target], _edit.StaticEntries[index]);
+    }
+
+    private string GetStaticEntryLabel(int index)
+    {
+        if (index < 0 || index >= _edit.StaticEntries.Count)
+        {
+            return $"cast entry {index + 1}";
+        }
+
+        var item = _edit.StaticEntries[index];
+        return string.IsNullOrWhiteSpace(item.Name)
+            ? $"cast entry {index + 1}"
+            : item.Name.Trim();
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_edit.Title))
+        {
+            Snackbar.Add("Section Header Title is required.", Severity.Warning);
+            return;
+        }
+        if (_edit.SourceTypes.Count == 0)
+        {
+            Snackbar.Add("Select at least one source topic for this section.", Severity.Warning);
+            return;
+        }
+
+        _edit.Title = _edit.Title.Trim();
+        MudDialog.Close(DialogResult.Ok(_edit));
+    }
+}

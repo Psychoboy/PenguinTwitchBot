@@ -440,3 +440,10 @@ window.penguinTheme = {
         }
     }
 };
+
+window.creditsPreviewPostMessage = function (frameId, message) {
+    const frame = document.getElementById(frameId);
+    if (!frame || !frame.contentWindow) return false;
+    frame.contentWindow.postMessage(message, window.location.origin);
+    return true;
+};

@@ -56,6 +56,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task<ChannelInformation?> GetChannelInfo(string userId);
         Task<Game?> GetGameInfo(string gameId);
         Task<List<User?>?> GetUsers(List<string> userNames);
+        Task<Dictionary<string, User>> GetUsersByIdsAsync(IEnumerable<string> userIds);
+        Task<Dictionary<string, User>> GetUsersByLoginsAsync(IEnumerable<string> logins);
         Task<List<ChannelEditor>> GetEditors();
         Task DeleteMessage(string messageId);
         Task SendMesssageAsStreamer(string message);

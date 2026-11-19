@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.IpLogs;
 using PenguinTwitchBot.Database.Repository.Repositories;
+using PenguinTwitchBot.Test.Helpers;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Database
@@ -15,15 +16,13 @@ namespace PenguinTwitchBot.Test.Database
 
         public IpLogRepositoryTests()
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _connection = SqliteTestDatabase.CreateConnection();
 
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(_connection)
                 .Options;
 
             _context = new ApplicationDbContext(options);
-            _context.Database.EnsureCreated();
             _repository = new IpLogRepository(_context);
         }
 

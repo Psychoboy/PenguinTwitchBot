@@ -79,6 +79,22 @@ public class QuickSearchServiceTests
     }
 
     [Fact]
+    public async Task SearchAsync_MatchesPageLinksBySearchTextKeywords()
+    {
+        var pageLinks = new List<QuickSearchResult>
+        {
+            new("Stream Credits", "/overlay/credits", "icon", "Pages", QuickSearchResultType.Page, "Overlays", "credits roll end stream cast star wars crawl"),
+            new("Music Player", "/musicplayer", "icon", "Pages", QuickSearchResultType.Page, "Stream Tools", "songs playlist")
+        };
+
+        var results = await _service.SearchAsync("crawl", pageLinks);
+
+        var match = Assert.Single(results);
+        Assert.Equal("Stream Credits", match.Title);
+        Assert.Equal("/overlay/credits", match.Href);
+    }
+
+    [Fact]
     public async Task SearchAsync_MatchesActions_DeepLinksWithActionId()
     {
         var actionId1 = Guid.CreateVersion7();

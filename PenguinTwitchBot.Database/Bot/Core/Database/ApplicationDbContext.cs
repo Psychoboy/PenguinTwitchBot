@@ -11,6 +11,7 @@ using PenguinTwitchBot.Database.Bot.Models.Wheel;
 using PenguinTwitchBot.Database.Bot.Models.Obs;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
+using PenguinTwitchBot.Database.Bot.Models.Credits;
 using PenguinTwitchBot.Database.Bot.Models.Themes;
 using PenguinTwitchBot.Database.Bot.Core;
 using PenguinTwitchBot.Database.Bot.DatabaseTools;
@@ -94,6 +95,12 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         // Overlay tables
         public DbSet<OverlayLayout> OverlayLayouts { get; set; } = null!;
         public DbSet<OverlayWidget> OverlayWidgets { get; set; } = null!;
+
+        // Credits tables
+        public DbSet<CreditEvent> CreditEvents { get; set; } = null!;
+        public DbSet<CreditStreamSession> CreditStreamSessions { get; set; } = null!;
+        public DbSet<CreditProfile> CreditProfiles { get; set; } = null!;
+        public DbSet<CreditTheme> CreditThemes { get; set; } = null!;
 
         public DbSet<BannedSong> BannedSongs { get; set; } = null!;
         public DbSet<SongCooldown> SongCooldowns { get; set; } = null!;
@@ -383,6 +390,40 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .WithOne(w => w.Layout)
                 .HasForeignKey(w => w.OverlayLayoutId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Credits tables configuration
+            var jsonColumnType = Database.IsNpgsql() ? "jsonb" : "TEXT";
+
+            modelBuilder.Entity<CreditEvent>()
+                .Property(e => e.MetadataJson)
+                .HasColumnType(jsonColumnType);
+
+            modelBuilder.Entity<CreditEvent>()
+                .Property(e => e.Username)
+                .HasMaxLength(255)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            modelBuilder.Entity<CreditEvent>()
+                .HasOne(e => e.StreamSession)
+                .WithMany()
+                .HasForeignKey(e => e.StreamSessionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CreditProfile>()
+                .Property(p => p.ConfigJson)
+                .HasColumnType(jsonColumnType);
+
+            modelBuilder.Entity<CreditProfile>()
+                .HasOne(p => p.Theme)
+                .WithMany()
+                .HasForeignKey(p => p.ThemeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CreditTheme>()
+                .Property(t => t.ThemeJson)
+                .HasColumnType(jsonColumnType);
 
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {

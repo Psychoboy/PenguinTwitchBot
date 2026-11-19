@@ -99,6 +99,11 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         RacingStopSession,
         RacingJoin,
         OverlayTimerVisibility,
-        Fireworks
+        Fireworks,
+        CreditsPlay,
+        CreditsStop,
+        CreditsPauseResume,
+        CreditsMarkStart,
+        CreditsAddEntry
     }
 }
