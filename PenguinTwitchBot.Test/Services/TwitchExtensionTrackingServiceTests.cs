@@ -210,4 +210,42 @@ public sealed class TwitchExtensionTrackingServiceTests
         Assert.Equal(0, TwitchExtensionTrackingService.ActiveUsers.WithLabels("true", "viewer").Value);
         Assert.Equal(0, TwitchExtensionTrackingService.ActiveUsersByFeature.WithLabels("giveaway").Value);
     }
+
+    [Fact]
+    public void RecordRequest_ReplacesExpiredSession_AndTracksSessionsStartedIndependentlyOfLogCooldown()
+    {
+        var startTime = new DateTimeOffset(2026, 11, 19, 12, 0, 0, TimeSpan.Zero);
+        var time = new FakeTimeProvider(startTime);
+        var logger = new ListLogger<TwitchExtensionTrackingService>();
+        using var service = new TwitchExtensionTrackingService(logger, timeProvider: time);
+
+        var claims = CreateSharedClaims("u500");
+        var beforeSessionsStarted = TwitchExtensionTrackingService.SessionsStartedTotal.WithLabels("true").Value;
+
+        // First request starts session 1
+        service.RecordRequest(claims, "features", "features", "GET", 200, "10.0.0.5");
+        Assert.Equal(beforeSessionsStarted + 1, TwitchExtensionTrackingService.SessionsStartedTotal.WithLabels("true").Value);
+
+        // Stay continuously active past the 15-minute log cooldown (every 2 minutes) -> still same session
+        for (var i = 0; i < 9; i++)
+        {
+            time.Advance(TimeSpan.FromMinutes(2));
+            service.RecordRequest(claims, "fishing", "fishing_viewer", "GET", 200, "10.0.0.5");
+        }
+
+        Assert.Equal(beforeSessionsStarted + 1, TwitchExtensionTrackingService.SessionsStartedTotal.WithLabels("true").Value);
+        var active = Assert.Single(service.GetActiveSessions());
+        Assert.Equal(startTime.UtcDateTime, active.FirstSeenUtc);
+        Assert.Equal(10, active.RequestCount);
+
+        // Go inactive past the 3-minute session timeout (without calling PruneExpiredSessions) -> starts session 2
+        time.Advance(TimeSpan.FromMinutes(4));
+        var resumeTime = time.GetUtcNow().UtcDateTime;
+        service.RecordRequest(claims, "giveaway", "giveaway", "GET", 200, "10.0.0.5");
+
+        Assert.Equal(beforeSessionsStarted + 2, TwitchExtensionTrackingService.SessionsStartedTotal.WithLabels("true").Value);
+        var resumed = Assert.Single(service.GetActiveSessions());
+        Assert.Equal(resumeTime, resumed.FirstSeenUtc);
+        Assert.Equal(1, resumed.RequestCount);
+    }
 }

@@ -190,8 +190,11 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
                 _uniqueAnonymousUsers.Add(sessionKey);
             }
 
-            if (_activeSessions.TryGetValue(sessionKey, out var existing))
+            bool isNewSession;
+            if (_activeSessions.TryGetValue(sessionKey, out var existing) &&
+                (now - existing.LastSeenUtc) <= _activeSessionTimeout)
             {
+                isNewSession = false;
                 existing.LastSeenUtc = now;
                 existing.LastFeature = normalizedFeature;
                 existing.LastEndpoint = normalizedEndpoint;
@@ -209,6 +212,7 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
             }
             else
             {
+                isNewSession = true;
                 var initialUsername = claims.IsIdentityShared
                     ? (cachedUsername ?? claims.UserId ?? "Unknown")
                     : "Anonymous";
@@ -230,13 +234,17 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
                 };
             }
 
+            if (isNewSession)
+            {
+                SessionsStartedTotal.WithLabels(identitySharedLabel).Inc();
+            }
+
             shouldLogSessionStart = !_lastLoggedActivityUtc.TryGetValue(sessionKey, out var lastLoggedUtc)
                                     || (now - lastLoggedUtc) >= _reengagementLogCooldown;
 
             if (shouldLogSessionStart)
             {
                 _lastLoggedActivityUtc[sessionKey] = now;
-                SessionsStartedTotal.WithLabels(identitySharedLabel).Inc();
             }
 
             if (claims.IsIdentityShared
@@ -355,35 +363,31 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
         try
         {
             var now = _timeProvider.GetUtcNow().UtcDateTime;
-            Dictionary<(string IdentityShared, string Role), int> activeByIdentityAndRole;
-            Dictionary<string, int> activeByFeature;
-            int uniqueSharedCount;
-            int uniqueAnonymousCount;
             bool pruned;
-
-            lock (_stateLock)
-            {
-                pruned = PruneExpiredSessionsLocked(now);
-
-                activeByIdentityAndRole = _activeSessions.Values
-                    .GroupBy(s => (IdentityShared: s.IsIdentityShared ? "true" : "false", Role: s.Role))
-                    .ToDictionary(g => g.Key, g => g.Count());
-
-                activeByFeature = _activeSessions.Values
-                    .GroupBy(s => s.LastFeature)
-                    .ToDictionary(g => g.Key, g => g.Count());
-
-                uniqueSharedCount = _uniqueSharedUsers.Count;
-                uniqueAnonymousCount = _uniqueAnonymousUsers.Count;
-            }
-
-            if (pruned)
-            {
-                NotifySessionsChanged();
-            }
 
             lock (_metricsLock)
             {
+                Dictionary<(string IdentityShared, string Role), int> activeByIdentityAndRole;
+                Dictionary<string, int> activeByFeature;
+                int uniqueSharedCount;
+                int uniqueAnonymousCount;
+
+                lock (_stateLock)
+                {
+                    pruned = PruneExpiredSessionsLocked(now);
+
+                    activeByIdentityAndRole = _activeSessions.Values
+                        .GroupBy(s => (IdentityShared: s.IsIdentityShared ? "true" : "false", Role: s.Role))
+                        .ToDictionary(g => g.Key, g => g.Count());
+
+                    activeByFeature = _activeSessions.Values
+                        .GroupBy(s => s.LastFeature)
+                        .ToDictionary(g => g.Key, g => g.Count());
+
+                    uniqueSharedCount = _uniqueSharedUsers.Count;
+                    uniqueAnonymousCount = _uniqueAnonymousUsers.Count;
+                }
+
                 foreach (var (label, count) in activeByIdentityAndRole)
                 {
                     ActiveUsers.WithLabels(label.IdentityShared, label.Role).Set(count);
@@ -414,6 +418,11 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
 
                 UniqueUsersSinceRestart.WithLabels("true").Set(uniqueSharedCount);
                 UniqueUsersSinceRestart.WithLabels("false").Set(uniqueAnonymousCount);
+            }
+
+            if (pruned)
+            {
+                NotifySessionsChanged();
             }
         }
         catch (Exception ex)

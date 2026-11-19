@@ -150,11 +150,15 @@
                             <MudAvatar Color="@(context.IsIdentityShared ? Color.Info : Color.Default)" Size="Size.Small">
                                 @(context.IsIdentityShared && !string.IsNullOrWhiteSpace(context.Username) ? context.Username.Substring(0, 1).ToUpperInvariant() : "?")
                             </MudAvatar>
-                            @if (context.IsIdentityShared)
+                            @if (HasResolvedUsername(context))
                             {
                                 <MudLink Href="@($"/community/viewers/edit?name={Uri.EscapeDataString(context.Username)}")" Typo="Typo.subtitle2">
                                     @context.Username
                                 </MudLink>
+                            }
+                            else if (context.IsIdentityShared)
+                            {
+                                <MudText Typo="Typo.subtitle2">@context.Username</MudText>
                             }
                             else
                             {
@@ -191,7 +195,7 @@
                         <code>@(string.IsNullOrWhiteSpace(context.UserIp) ? "Unknown" : context.UserIp)</code>
                     </MudTd>
                     <MudTd DataLabel="Action" Style="text-align: right;">
-                        @if (context.IsIdentityShared)
+                        @if (HasResolvedUsername(context))
                         {
                             <MudTooltip Text="View profile">
                                 <MudIconButton Icon="@Icons.Material.Filled.AccountCircle"
@@ -285,9 +289,17 @@
 
     private void ExtensionTrackingService_SessionsChanged(object? sender, EventArgs e)
     {
-        extensionSessions = ExtensionTrackingService.GetActiveSessions();
-        InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(() =>
+        {
+            extensionSessions = ExtensionTrackingService.GetActiveSessions();
+            StateHasChanged();
+        });
     }
+
+    private static bool HasResolvedUsername(TwitchExtensionSession session) =>
+        session.IsIdentityShared &&
+        !string.IsNullOrWhiteSpace(session.Username) &&
+        !string.Equals(session.Username, session.UserId, StringComparison.OrdinalIgnoreCase);
 
     private static string FormatTitle(string? value)
     {
