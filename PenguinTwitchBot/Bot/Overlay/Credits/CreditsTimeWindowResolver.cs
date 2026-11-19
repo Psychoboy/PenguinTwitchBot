@@ -49,13 +49,13 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
 
                     if (anySession != null)
                     {
-                        return new ResolvedCreditsWindow(
+                        return CreateOrderedWindow(
                             anySession.StartedAtUtc - grace,
                             anySession.EndedAtUtc ?? nowUtc,
                             anySession);
                     }
 
-                    return new ResolvedCreditsWindow(nowUtc.AddHours(-6), nowUtc, null);
+                    return CreateOrderedWindow(nowUtc.AddHours(-6), nowUtc, null);
                 }
 
                 case CreditTimeWindowModes.RollingLookback:
@@ -76,7 +76,8 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                         };
                     }
 
-                    return new ResolvedCreditsWindow(nowUtc - span, nowUtc, null);
+                    var lookbackStart = span >= nowUtc - DateTime.MinValue ? DateTime.MinValue : nowUtc - span;
+                    return CreateOrderedWindow(lookbackStart, nowUtc, null);
                 }
 
                 case CreditTimeWindowModes.SinceManualCheckpoint:
@@ -94,7 +95,7 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                             : latestCheckpoint.StartedAtUtc;
                     }
 
-                    return new ResolvedCreditsWindow(startUtc ?? nowUtc.AddHours(-6), nowUtc, latestCheckpoint);
+                    return CreateOrderedWindow(startUtc ?? nowUtc.AddHours(-6), nowUtc, latestCheckpoint);
                 }
 
                 case CreditTimeWindowModes.CustomDateRange:
@@ -145,7 +146,7 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
 
             if (openSession != null)
             {
-                return new ResolvedCreditsWindow(openSession.StartedAtUtc - grace, nowUtc, openSession);
+                return CreateOrderedWindow(openSession.StartedAtUtc - grace, nowUtc, openSession);
             }
 
             // Offline fallback: use the most recent stream session so streamers can run or preview credits right after ending stream
@@ -156,13 +157,20 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
 
             if (lastSession != null)
             {
-                var start = lastSession.StartedAtUtc - grace;
-                var end = lastSession.EndedAtUtc ?? nowUtc;
-                if (end < start) end = start;
-                return new ResolvedCreditsWindow(start, end, lastSession);
+                return CreateOrderedWindow(lastSession.StartedAtUtc - grace, lastSession.EndedAtUtc ?? nowUtc, lastSession);
             }
 
-            return new ResolvedCreditsWindow(nowUtc.AddHours(-6), nowUtc, null);
+            return CreateOrderedWindow(nowUtc.AddHours(-6), nowUtc, null);
+        }
+
+        private static ResolvedCreditsWindow CreateOrderedWindow(
+            DateTime startUtc,
+            DateTime endUtc,
+            CreditStreamSession? session)
+        {
+            if (endUtc < startUtc)
+                endUtc = startUtc;
+            return new ResolvedCreditsWindow(startUtc, endUtc, session);
         }
     }
 }

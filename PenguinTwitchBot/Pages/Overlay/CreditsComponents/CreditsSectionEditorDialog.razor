@@ -273,12 +273,15 @@
                                         <MudItem xs="12" sm="3">
                                             <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
                                                 <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small"
+                                                               aria-label="@($"Move {GetStaticEntryLabel(index)} up")"
                                                                Disabled="@(index == 0)"
                                                                OnClick="@(() => MoveStaticEntry(index, -1))" />
                                                 <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small"
+                                                               aria-label="@($"Move {GetStaticEntryLabel(index)} down")"
                                                                Disabled="@(index == _edit.StaticEntries.Count - 1)"
                                                                OnClick="@(() => MoveStaticEntry(index, 1))" />
                                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                               aria-label="@($"Delete {GetStaticEntryLabel(index)}")"
                                                                OnClick="@(() => _edit.StaticEntries.RemoveAt(index))" />
                                             </MudStack>
                                         </MudItem>
@@ -356,6 +359,19 @@
         var target = index + delta;
         if (target < 0 || target >= _edit.StaticEntries.Count) return;
         (_edit.StaticEntries[index], _edit.StaticEntries[target]) = (_edit.StaticEntries[target], _edit.StaticEntries[index]);
+    }
+
+    private string GetStaticEntryLabel(int index)
+    {
+        if (index < 0 || index >= _edit.StaticEntries.Count)
+        {
+            return $"cast entry {index + 1}";
+        }
+
+        var item = _edit.StaticEntries[index];
+        return string.IsNullOrWhiteSpace(item.Name)
+            ? $"cast entry {index + 1}"
+            : item.Name.Trim();
     }
 
     private void Cancel() => MudDialog.Cancel();

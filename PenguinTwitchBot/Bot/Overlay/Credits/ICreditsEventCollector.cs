@@ -24,7 +24,7 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             Dictionary<string, object?>? metadata = null,
             CancellationToken cancellationToken = default);
 
-        Task<Guid> MarkManualCheckpointAsync(string? label = null, CancellationToken cancellationToken = default);
+        Task<Guid> MarkManualCheckpointAsync(string? label = null, DateTime? checkpointUtc = null, CancellationToken cancellationToken = default);
 
         Task<int> CleanupOldEventsAsync(int retentionDays, CancellationToken cancellationToken = default);
     }

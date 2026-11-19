@@ -311,7 +311,8 @@
                 Icon: l.Icon,
                 Category: "Pages",
                 ResultType: QuickSearchResultType.Page,
-                Subtitle: l.Group
+                Subtitle: l.Group,
+                SearchText: l.SearchText
             ));
 
             var results = await QuickSearchService.SearchAsync(_navSearchText, pageLinks, token);

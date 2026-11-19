@@ -166,7 +166,9 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                     ChatterSnapshot? snap = null;
                     lock (kvp.Value)
                     {
-                        if (!kvp.Value.Dirty) continue;
+                        if (!kvp.Value.Dirty && kvp.Value.MessageCount <= kvp.Value.FlushedMessageCount)
+                            continue;
+
                         snap = new ChatterSnapshot(
                             kvp.Value.PersistedEventId,
                             kvp.Value.UserId,
@@ -177,8 +179,8 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                             kvp.Value.IsSub,
                             kvp.Value.IsBroadcaster,
                             kvp.Value.MessageCount,
+                            kvp.Value.FlushedMessageCount,
                             kvp.Value.LastSeenUtc);
-                        kvp.Value.Dirty = false;
                     }
                     if (snap != null)
                         toFlush.Add((kvp.Key, kvp.Value, snap));
@@ -188,6 +190,7 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
 
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var persisted = new List<(ChatterAccumulator Acc, ChatterSnapshot Snap, CreditEvent Entity)>(toFlush.Count);
 
                 foreach (var (key, acc, snap) in toFlush)
                 {
@@ -213,15 +216,16 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                             .FirstOrDefaultAsync(cancellationToken);
                     }
 
+                    var delta = Math.Max(0, snap.MessageCount - snap.FlushedMessageCount);
                     if (existing != null)
                     {
                         existing.Username = snap.Username;
                         existing.DisplayName = snap.DisplayName;
-                        existing.Amount = snap.MessageCount;
+                        existing.Amount += delta;
                         existing.MetadataJson = metadataJson;
                         existing.OccurredAtUtc = snap.LastSeenUtc;
                         db.CreditEvents.Update(existing);
-                        lock (acc) { acc.PersistedEventId = existing.Id; }
+                        persisted.Add((acc, snap, existing));
                     }
                     else
                     {
@@ -238,23 +242,37 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                         };
                         entity.NormalizeUsername();
                         await db.CreditEvents.AddAsync(entity);
-                        lock (acc) { acc.PersistedEventId = entity.Id; }
+                        persisted.Add((acc, snap, entity));
                     }
                 }
 
                 await db.SaveChangesAsync();
 
-                // Prune old offline hour buckets from memory (keep active session buckets so counts aggregate cleanly)
+                foreach (var (acc, snap, entity) in persisted)
+                {
+                    lock (acc)
+                    {
+                        acc.PersistedEventId = entity.Id;
+                        acc.FlushedMessageCount = Math.Max(acc.FlushedMessageCount, snap.MessageCount);
+                        if (acc.MessageCount == snap.MessageCount)
+                        {
+                            acc.Dirty = false;
+                        }
+                    }
+                }
+
+                // Prune old offline hour buckets and inactive session buckets from memory
                 var currentHourBucket = _timeProvider.GetUtcNow().UtcDateTime.Ticks / TimeSpan.TicksPerHour;
                 foreach (var key in _chatterBuffer.Keys.ToList())
                 {
-                    if (key.SessionId != _currentStreamSessionId &&
-                        (key.SessionId.HasValue || key.HourBucket < currentHourBucket - 1))
+                    var isExpiredOffline = !key.SessionId.HasValue && key.HourBucket < currentHourBucket - 1;
+                    var isOldSession = key.SessionId.HasValue && key.SessionId != _currentStreamSessionId;
+                    if (isExpiredOffline || isOldSession)
                     {
                         if (_chatterBuffer.TryGetValue(key, out var acc))
                         {
                             bool canRemove;
-                            lock (acc) { canRemove = !acc.Dirty; }
+                            lock (acc) { canRemove = !acc.Dirty && acc.MessageCount <= acc.FlushedMessageCount; }
                             if (canRemove) _chatterBuffer.TryRemove(key, out _);
                         }
                     }
@@ -325,9 +343,9 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             }
         }
 
-        public async Task<Guid> MarkManualCheckpointAsync(string? label = null, CancellationToken cancellationToken = default)
+        public async Task<Guid> MarkManualCheckpointAsync(string? label = null, DateTime? checkpointUtc = null, CancellationToken cancellationToken = default)
         {
-            var now = _timeProvider.GetUtcNow().UtcDateTime;
+            var now = checkpointUtc ?? _timeProvider.GetUtcNow().UtcDateTime;
             var session = new CreditStreamSession
             {
                 StartedAtUtc = now,
@@ -647,21 +665,32 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                 var isOnline = await _twitchService.IsStreamOnline();
                 if (!isOnline)
                 {
-                    // Close any stale unclosed non-checkpoint sessions left over from a crash when stream is now offline.
-                    await using var scope = _scopeFactory.CreateAsyncScope();
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var staleOpen = await db.CreditStreamSessions
-                        .Find(s => !s.IsManualCheckpoint && s.EndedAtUtc == null)
-                        .ToListAsync(cancellationToken);
-                    if (staleOpen.Count > 0)
+                    await _sessionLock.WaitAsync(cancellationToken);
+                    try
                     {
-                        var now = _timeProvider.GetUtcNow().UtcDateTime;
-                        foreach (var s in staleOpen)
+                        if (_currentStreamSessionId.HasValue || await _twitchService.IsStreamOnline())
+                            return;
+
+                        // Close any stale unclosed non-checkpoint sessions left over from a crash when stream is now offline.
+                        await using var scope = _scopeFactory.CreateAsyncScope();
+                        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        var staleOpen = await db.CreditStreamSessions
+                            .Find(s => !s.IsManualCheckpoint && s.EndedAtUtc == null)
+                            .ToListAsync(cancellationToken);
+                        if (staleOpen.Count > 0)
                         {
-                            s.EndedAtUtc = now;
-                            db.CreditStreamSessions.Update(s);
+                            var now = _timeProvider.GetUtcNow().UtcDateTime;
+                            foreach (var s in staleOpen)
+                            {
+                                s.EndedAtUtc = now;
+                                db.CreditStreamSessions.Update(s);
+                            }
+                            await db.SaveChangesAsync();
                         }
-                        await db.SaveChangesAsync();
+                    }
+                    finally
+                    {
+                        _sessionLock.Release();
                     }
                     return;
                 }
@@ -813,6 +842,7 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             public bool IsSub { get; set; }
             public bool IsBroadcaster { get; set; }
             public int MessageCount { get; set; }
+            public int FlushedMessageCount { get; set; }
             public DateTime FirstSeenUtc { get; set; }
             public DateTime LastSeenUtc { get; set; }
             public bool Dirty { get; set; }
@@ -828,6 +858,7 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             bool IsSub,
             bool IsBroadcaster,
             int MessageCount,
+            int FlushedMessageCount,
             DateTime LastSeenUtc);
     }
 

@@ -743,8 +743,9 @@
 
                 <MudSelect T="string" Label="Credits Profile"
                            Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
-                           Value="_creditsWidgetSettings.Profile"
-                           ValueChanged="@((string v) => { _creditsWidgetSettings.Profile = string.IsNullOrWhiteSpace(v) ? "Default" : v.Trim(); SaveCreditsWidgetSettings(); })">
+                           Value="@(_creditsWidgetSettings.Profile ?? string.Empty)"
+                           ValueChanged="@((string v) => { _creditsWidgetSettings.Profile = v?.Trim() ?? string.Empty; SaveCreditsWidgetSettings(); })">
+                    <MudSelectItem Value="@("")">Use Current Default Profile</MudSelectItem>
                     @foreach (var pName in GetAvailableCreditsProfileNames())
                     {
                         <MudSelectItem Value="@pName">@pName</MudSelectItem>
@@ -2205,7 +2206,6 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     private List<string> GetAvailableCreditsProfileNames()
     {
         var names = _availableCreditsProfiles.ToList();
-        if (names.Count == 0) names.Add("Default");
         if (!string.IsNullOrWhiteSpace(_creditsWidgetSettings?.Profile) &&
             !names.Contains(_creditsWidgetSettings.Profile, StringComparer.OrdinalIgnoreCase))
         {
@@ -2243,7 +2243,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
 
     private sealed class CreditsWidgetSettings
     {
-        public string Profile { get; set; } = "Default";
+        public string Profile { get; set; } = string.Empty;
         public string? AutoStart { get; set; }
     }
 }

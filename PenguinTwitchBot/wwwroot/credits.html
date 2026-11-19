@@ -43,11 +43,6 @@
     <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="/js/ws-client.js"></script>
     <script src="/js/ws-status.js"></script>
-    <script>
-        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
-        const script = document.createElement('script');
-        script.src = '/js/credits-overlay.js?v=' + encodeURIComponent(cacheBust);
-        document.head.appendChild(script);
-    </script>
+    <script src="/js/credits-overlay.js?v=1"></script>
 </body>
 </html>

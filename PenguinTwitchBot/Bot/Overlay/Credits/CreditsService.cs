@@ -21,6 +21,7 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
         TimeProvider? timeProvider = null) : ICreditsService
     {
         private readonly SemaphoreSlim _seedLock = new(1, 1);
+        private readonly SemaphoreSlim _profileLock = new(1, 1);
         private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
         private volatile bool _seeded;
 
@@ -157,62 +158,85 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             return profiles.Select(p => p.Name).ToList();
         }
 
-        public async Task<CreditProfile> CreateProfileAsync(
+        public Task<CreditProfile> CreateProfileAsync(
             string name,
             Guid? themeId = null,
             CreditsProfileConfig? config = null,
             bool isDefault = false,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default) =>
+            CreateProfileInternalAsync(name, themeId, config, isDefault, assignDefaultThemeIfNull: true, cancellationToken);
+
+        private async Task<CreditProfile> CreateProfileInternalAsync(
+            string name,
+            Guid? themeId,
+            CreditsProfileConfig? config,
+            bool isDefault,
+            bool assignDefaultThemeIfNull,
+            CancellationToken cancellationToken)
         {
             await EnsureSeededAsync(cancellationToken);
             var trimmedName = string.IsNullOrWhiteSpace(name)
                 ? throw new ArgumentException("Profile name is required.", nameof(name))
                 : name.Trim();
 
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var normalizedConfig = config ?? CreditsBuiltInThemes.CreateDefaultProfileConfig();
+            CreditsDataBuilder.NormalizeProfileConfig(normalizedConfig);
 
-            var existingNames = await db.CreditProfiles
-                .Query()
-                .Select(p => p.Name)
-                .ToListAsync(cancellationToken);
-            var exists = existingNames.Any(n => n.Equals(trimmedName, StringComparison.OrdinalIgnoreCase));
-            if (exists)
-                throw new InvalidOperationException($"A credits profile named '{trimmedName}' already exists.");
-
-            if (!themeId.HasValue)
+            Guid createdId;
+            await _profileLock.WaitAsync(cancellationToken);
+            try
             {
-                var defaultTheme = await db.CreditThemes
-                    .Find(t => t.BuiltInKey == CreditsBuiltInThemes.DefaultThemeKey)
-                    .FirstOrDefaultAsync(cancellationToken);
-                themeId = defaultTheme?.Id;
-            }
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var now = _timeProvider.GetUtcNow().UtcDateTime;
-            if (isDefault)
-            {
-                var currentDefaults = await db.CreditProfiles.Find(p => p.IsDefault).ToListAsync(cancellationToken);
-                foreach (var d in currentDefaults)
+                var existingNames = await db.CreditProfiles
+                    .Query()
+                    .Select(p => p.Name)
+                    .ToListAsync(cancellationToken);
+                var exists = existingNames.Any(n => n.Equals(trimmedName, StringComparison.OrdinalIgnoreCase));
+                if (exists)
+                    throw new InvalidOperationException($"A credits profile named '{trimmedName}' already exists.");
+
+                if (!themeId.HasValue && assignDefaultThemeIfNull)
                 {
-                    d.IsDefault = false;
-                    d.UpdatedAtUtc = now;
-                    db.CreditProfiles.Update(d);
+                    var defaultTheme = await db.CreditThemes
+                        .Find(t => t.BuiltInKey == CreditsBuiltInThemes.DefaultThemeKey)
+                        .FirstOrDefaultAsync(cancellationToken);
+                    themeId = defaultTheme?.Id;
                 }
+
+                var now = _timeProvider.GetUtcNow().UtcDateTime;
+                if (isDefault)
+                {
+                    var currentDefaults = await db.CreditProfiles.Find(p => p.IsDefault).ToListAsync(cancellationToken);
+                    foreach (var d in currentDefaults)
+                    {
+                        d.IsDefault = false;
+                        d.UpdatedAtUtc = now;
+                        db.CreditProfiles.Update(d);
+                    }
+                }
+
+                var profile = new CreditProfile
+                {
+                    Name = trimmedName,
+                    IsDefault = isDefault,
+                    ThemeId = themeId,
+                    ConfigJson = JsonSerializer.Serialize(normalizedConfig, CreditsDataBuilder.JsonOptions),
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                };
+
+                await db.CreditProfiles.AddAsync(profile);
+                await db.SaveChangesAsync();
+                createdId = profile.Id;
+            }
+            finally
+            {
+                _profileLock.Release();
             }
 
-            var profile = new CreditProfile
-            {
-                Name = trimmedName,
-                IsDefault = isDefault,
-                ThemeId = themeId,
-                ConfigJson = JsonSerializer.Serialize(config ?? CreditsBuiltInThemes.CreateDefaultProfileConfig(), CreditsDataBuilder.JsonOptions),
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
-            };
-
-            await db.CreditProfiles.AddAsync(profile);
-            await db.SaveChangesAsync();
-            return (await GetProfileByIdAsync(profile.Id, cancellationToken))!;
+            return (await GetProfileByIdAsync(createdId, cancellationToken))!;
         }
 
         public async Task<CreditProfile> SaveProfileAsync(
@@ -228,40 +252,50 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                 ? throw new ArgumentException("Profile name is required.", nameof(name))
                 : name.Trim();
 
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            CreditsDataBuilder.NormalizeProfileConfig(config);
 
-            var existing = await db.CreditProfiles.GetByIdAsync(id)
-                ?? throw new KeyNotFoundException($"Credits profile {id} was not found.");
-
-            var profileEntries = await db.CreditProfiles
-                .Query()
-                .Select(p => new { p.Id, p.Name })
-                .ToListAsync(cancellationToken);
-            var nameConflict = profileEntries.Any(p => p.Id != id && p.Name.Equals(trimmedName, StringComparison.OrdinalIgnoreCase));
-            if (nameConflict)
-                throw new InvalidOperationException($"Another credits profile named '{trimmedName}' already exists.");
-
-            var now = _timeProvider.GetUtcNow().UtcDateTime;
-
-            if (isDefault && !existing.IsDefault)
+            await _profileLock.WaitAsync(cancellationToken);
+            try
             {
-                var currentDefaults = await db.CreditProfiles.Find(p => p.Id != id && p.IsDefault).ToListAsync(cancellationToken);
-                foreach (var d in currentDefaults)
-                {
-                    d.IsDefault = false;
-                    d.UpdatedAtUtc = now;
-                    db.CreditProfiles.Update(d);
-                }
-            }
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            existing.Name = trimmedName;
-            existing.ThemeId = themeId;
-            existing.IsDefault = isDefault || existing.IsDefault; // Can't unset default without making another default
-            existing.ConfigJson = JsonSerializer.Serialize(config, CreditsDataBuilder.JsonOptions);
-            existing.UpdatedAtUtc = now;
-            db.CreditProfiles.Update(existing);
-            await db.SaveChangesAsync();
+                var existing = await db.CreditProfiles.GetByIdAsync(id)
+                    ?? throw new KeyNotFoundException($"Credits profile {id} was not found.");
+
+                var profileEntries = await db.CreditProfiles
+                    .Query()
+                    .Select(p => new { p.Id, p.Name })
+                    .ToListAsync(cancellationToken);
+                var nameConflict = profileEntries.Any(p => p.Id != id && p.Name.Equals(trimmedName, StringComparison.OrdinalIgnoreCase));
+                if (nameConflict)
+                    throw new InvalidOperationException($"Another credits profile named '{trimmedName}' already exists.");
+
+                var now = _timeProvider.GetUtcNow().UtcDateTime;
+
+                if (isDefault && !existing.IsDefault)
+                {
+                    var currentDefaults = await db.CreditProfiles.Find(p => p.Id != id && p.IsDefault).ToListAsync(cancellationToken);
+                    foreach (var d in currentDefaults)
+                    {
+                        d.IsDefault = false;
+                        d.UpdatedAtUtc = now;
+                        db.CreditProfiles.Update(d);
+                    }
+                }
+
+                existing.Name = trimmedName;
+                existing.ThemeId = themeId;
+                existing.IsDefault = isDefault || existing.IsDefault; // Can't unset default without making another default
+                existing.ConfigJson = JsonSerializer.Serialize(config, CreditsDataBuilder.JsonOptions);
+                existing.UpdatedAtUtc = now;
+                db.CreditProfiles.Update(existing);
+                await db.SaveChangesAsync();
+            }
+            finally
+            {
+                _profileLock.Release();
+            }
 
             return (await GetProfileByIdAsync(id, cancellationToken))!;
         }
@@ -271,51 +305,67 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             var source = await GetProfileByIdAsync(sourceId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Credits profile {sourceId} was not found.");
             var config = CreditsDataBuilder.DeserializeProfileConfig(source.ConfigJson);
-            return await CreateProfileAsync(newName, source.ThemeId, config, isDefault: false, cancellationToken);
+            return await CreateProfileInternalAsync(newName, source.ThemeId, config, isDefault: false, assignDefaultThemeIfNull: false, cancellationToken);
         }
 
         public async Task SetDefaultProfileAsync(Guid id, CancellationToken cancellationToken = default)
         {
             await EnsureSeededAsync(cancellationToken);
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var all = (await db.CreditProfiles.GetAllAsync()).ToList();
-            if (all.All(p => p.Id != id))
-                throw new KeyNotFoundException($"Credits profile {id} was not found.");
-
-            var now = _timeProvider.GetUtcNow().UtcDateTime;
-            foreach (var p in all)
+            await _profileLock.WaitAsync(cancellationToken);
+            try
             {
-                p.IsDefault = p.Id == id;
-                p.UpdatedAtUtc = now;
-                db.CreditProfiles.Update(p);
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var all = (await db.CreditProfiles.GetAllAsync()).ToList();
+                if (all.All(p => p.Id != id))
+                    throw new KeyNotFoundException($"Credits profile {id} was not found.");
+
+                var now = _timeProvider.GetUtcNow().UtcDateTime;
+                foreach (var p in all)
+                {
+                    p.IsDefault = p.Id == id;
+                    p.UpdatedAtUtc = now;
+                    db.CreditProfiles.Update(p);
+                }
+                await db.SaveChangesAsync();
             }
-            await db.SaveChangesAsync();
+            finally
+            {
+                _profileLock.Release();
+            }
         }
 
         public async Task<bool> DeleteProfileAsync(Guid id, CancellationToken cancellationToken = default)
         {
             await EnsureSeededAsync(cancellationToken);
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var all = (await db.CreditProfiles.GetAllAsync()).ToList();
-            if (all.Count <= 1) return false;
-
-            var target = all.FirstOrDefault(p => p.Id == id);
-            if (target == null) return false;
-
-            var wasDefault = target.IsDefault;
-            db.CreditProfiles.Remove(target);
-
-            if (wasDefault)
+            await _profileLock.WaitAsync(cancellationToken);
+            try
             {
-                var nextDefault = all.First(p => p.Id != id);
-                nextDefault.IsDefault = true;
-                db.CreditProfiles.Update(nextDefault);
-            }
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var all = (await db.CreditProfiles.GetAllAsync()).ToList();
+                if (all.Count <= 1) return false;
 
-            await db.SaveChangesAsync();
-            return true;
+                var target = all.FirstOrDefault(p => p.Id == id);
+                if (target == null) return false;
+
+                var wasDefault = target.IsDefault;
+                db.CreditProfiles.Remove(target);
+
+                if (wasDefault)
+                {
+                    var nextDefault = all.First(p => p.Id != id);
+                    nextDefault.IsDefault = true;
+                    db.CreditProfiles.Update(nextDefault);
+                }
+
+                await db.SaveChangesAsync();
+                return true;
+            }
+            finally
+            {
+                _profileLock.Release();
+            }
         }
 
         public async Task<List<CreditTheme>> GetThemesAsync(CancellationToken cancellationToken = default)
@@ -564,23 +614,23 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             await BroadcastJsonAsync(new { type = "credits_play", profile = payload.ProfileName, payload });
         }
 
-        public Task StopAsync(string? profileName = null) =>
-            BroadcastJsonAsync(new { type = "credits_stop", profile = NormalizeTargetProfile(profileName) });
+        public async Task StopAsync(string? profileName = null) =>
+            await BroadcastJsonAsync(new { type = "credits_stop", profile = await ResolveTargetProfileNameAsync(profileName) });
 
-        public Task PauseAsync(string? profileName = null) =>
-            BroadcastJsonAsync(new { type = "credits_pause", profile = NormalizeTargetProfile(profileName) });
+        public async Task PauseAsync(string? profileName = null) =>
+            await BroadcastJsonAsync(new { type = "credits_pause", profile = await ResolveTargetProfileNameAsync(profileName) });
 
-        public Task ResumeAsync(string? profileName = null) =>
-            BroadcastJsonAsync(new { type = "credits_resume", profile = NormalizeTargetProfile(profileName) });
+        public async Task ResumeAsync(string? profileName = null) =>
+            await BroadcastJsonAsync(new { type = "credits_resume", profile = await ResolveTargetProfileNameAsync(profileName) });
 
-        public Task TogglePauseAsync(string? profileName = null) =>
-            BroadcastJsonAsync(new { type = "credits_toggle_pause", profile = NormalizeTargetProfile(profileName) });
+        public async Task TogglePauseAsync(string? profileName = null) =>
+            await BroadcastJsonAsync(new { type = "credits_toggle_pause", profile = await ResolveTargetProfileNameAsync(profileName) });
 
-        public Task RestartAsync(string? profileName = null) =>
-            BroadcastJsonAsync(new { type = "credits_restart", profile = NormalizeTargetProfile(profileName) });
+        public async Task RestartAsync(string? profileName = null) =>
+            await BroadcastJsonAsync(new { type = "credits_restart", profile = await ResolveTargetProfileNameAsync(profileName) });
 
-        public Task SetSpeedAsync(string? profileName, double multiplier) =>
-            BroadcastJsonAsync(new { type = "credits_speed", profile = NormalizeTargetProfile(profileName), speed = Math.Clamp(multiplier, 0.25, 10.0) });
+        public async Task SetSpeedAsync(string? profileName, double multiplier) =>
+            await BroadcastJsonAsync(new { type = "credits_speed", profile = await ResolveTargetProfileNameAsync(profileName), speed = Math.Clamp(multiplier, 0.25, 10.0) });
 
         public Task NotifyReloadAsync(string? profileName = null) =>
             BroadcastJsonAsync(new { type = "credits_reload", profile = string.IsNullOrWhiteSpace(profileName) ? "*" : profileName.Trim() });
@@ -603,33 +653,46 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             CancellationToken cancellationToken = default)
         {
             await EnsureSeededAsync(cancellationToken);
-            await eventCollector.MarkManualCheckpointAsync(label, cancellationToken);
             var checkpointUtc = _timeProvider.GetUtcNow().UtcDateTime;
 
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-            var allProfiles = (await db.CreditProfiles.GetAllAsync()).ToList();
-            List<CreditProfile> targets = !string.IsNullOrWhiteSpace(profileName)
-                ? allProfiles.Where(p => p.Name.Equals(profileName.Trim(), StringComparison.OrdinalIgnoreCase)).ToList()
-                : allProfiles;
-
-            foreach (var p in targets)
+            if (string.IsNullOrWhiteSpace(profileName))
             {
-                var cfg = CreditsDataBuilder.DeserializeProfileConfig(p.ConfigJson);
-                if (string.IsNullOrWhiteSpace(profileName) &&
-                    cfg.TimeWindow.Mode != CreditTimeWindowModes.SinceManualCheckpoint)
-                {
-                    continue;
-                }
-
-                cfg.TimeWindow.ManualCheckpointUtc = checkpointUtc;
-                p.ConfigJson = JsonSerializer.Serialize(cfg, CreditsDataBuilder.JsonOptions);
-                p.UpdatedAtUtc = checkpointUtc;
-                db.CreditProfiles.Update(p);
+                await eventCollector.MarkManualCheckpointAsync(label, checkpointUtc, cancellationToken);
             }
 
-            await db.SaveChangesAsync();
+            await _profileLock.WaitAsync(cancellationToken);
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                var allProfiles = (await db.CreditProfiles.GetAllAsync()).ToList();
+                List<CreditProfile> targets = !string.IsNullOrWhiteSpace(profileName)
+                    ? allProfiles.Where(p => p.Name.Equals(profileName.Trim(), StringComparison.OrdinalIgnoreCase)).ToList()
+                    : allProfiles;
+
+                foreach (var p in targets)
+                {
+                    var cfg = CreditsDataBuilder.DeserializeProfileConfig(p.ConfigJson);
+                    if (string.IsNullOrWhiteSpace(profileName) &&
+                        cfg.TimeWindow.Mode != CreditTimeWindowModes.SinceManualCheckpoint)
+                    {
+                        continue;
+                    }
+
+                    cfg.TimeWindow.ManualCheckpointUtc = checkpointUtc;
+                    p.ConfigJson = JsonSerializer.Serialize(cfg, CreditsDataBuilder.JsonOptions);
+                    p.UpdatedAtUtc = checkpointUtc;
+                    db.CreditProfiles.Update(p);
+                }
+
+                await db.SaveChangesAsync();
+            }
+            finally
+            {
+                _profileLock.Release();
+            }
+
             return checkpointUtc;
         }
 
@@ -791,6 +854,7 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed triggering CreditsCompleted actions for profile {Profile}.", SanitizeForLog(profileName));
+                throw;
             }
         }
 
@@ -807,8 +871,16 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             return webSocketMessenger.AddToQueue(WsTopics.Credits, json);
         }
 
-        private static string NormalizeTargetProfile(string? profileName) =>
-            string.IsNullOrWhiteSpace(profileName) ? "Default" : profileName.Trim();
+        private async Task<string> ResolveTargetProfileNameAsync(string? profileName)
+        {
+            if (!string.IsNullOrWhiteSpace(profileName))
+            {
+                return profileName.Trim();
+            }
+
+            var resolvedDefault = await ResolveProfileAsync(null);
+            return resolvedDefault.Name;
+        }
 
         private static string MakeUniqueName(string baseName, IEnumerable<string> existingNames)
         {

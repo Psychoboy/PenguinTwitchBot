@@ -25,8 +25,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private readonly ILogger<TwitchService> _logger;
         private readonly IConfiguration _configuration;
         static readonly SemaphoreSlim semaphoreSlim = new(1, 1);
-        readonly ConcurrentDictionary<string, User?> UserCache = new(StringComparer.OrdinalIgnoreCase);
-        readonly ConcurrentDictionary<string, User?> UserByIdCache = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly TimeSpan UserCacheTtl = TimeSpan.FromHours(6);
+        private sealed record CachedUserEntry(User? User, DateTime CachedAtUtc);
+        readonly ConcurrentDictionary<string, CachedUserEntry> UserCache = new(StringComparer.OrdinalIgnoreCase);
+        readonly ConcurrentDictionary<string, CachedUserEntry> UserByIdCache = new(StringComparer.OrdinalIgnoreCase);
         readonly Timer _timer;
         private readonly IAuthClient _authClient;
         private readonly IChatClient _chatClient;
@@ -501,9 +503,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (UserCache.TryGetValue(user, out var cachedUser))
+                if (UserCache.TryGetValue(user, out var cachedEntry) &&
+                    DateTime.UtcNow - cachedEntry.CachedAtUtc < UserCacheTtl)
                 {
-                    return cachedUser;
+                    return cachedEntry.User;
                 }
                 await ValidateAndRefreshToken();
                 var users = await _usersClient.GetUsersAsync(
@@ -512,12 +515,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     null,
                     [user]);
                 var userObj = users.Users.FirstOrDefault();
+                var now = DateTime.UtcNow;
                 if (userObj != null)
                 {
-                    UserCache[user] = userObj;
+                    UserCache[user] = new CachedUserEntry(userObj, now);
                     return userObj;
                 }
-                UserCache[user] = null;
+                UserCache[user] = new CachedUserEntry(null, now);
                 return null;
             }
             catch (Exception ex) when (ex.GetType().Name == "TooManyRequestsException")
@@ -566,10 +570,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     userNames);
                 if (users == null) throw new Exception("Got a null response");
                 var mappedUsers = users.Users.Select(u => (User?)u).ToList();
+                var now = DateTime.UtcNow;
                 foreach (var user in users.Users)
                 {
-                    UserCache[user.Login] = user;
-                    UserByIdCache[user.Id] = user;
+                    UserCache[user.Login] = new CachedUserEntry(user, now);
+                    UserByIdCache[user.Id] = new CachedUserEntry(user, now);
                 }
                 return mappedUsers;
             }
@@ -597,14 +602,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
             if (distinctIds.Count == 0) return result;
 
+            var now = DateTime.UtcNow;
             var toFetch = new List<string>();
             foreach (var id in distinctIds)
             {
-                if (UserByIdCache.TryGetValue(id, out var cached) && cached != null)
+                if (UserByIdCache.TryGetValue(id, out var cached) &&
+                    cached.User != null &&
+                    now - cached.CachedAtUtc < UserCacheTtl)
                 {
-                    result[id] = cached;
+                    result[id] = cached.User;
                 }
-                else if (!UserByIdCache.ContainsKey(id))
+                else
                 {
                     toFetch.Add(id);
                 }
@@ -623,23 +631,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                         chunk.ToList(),
                         null);
 
-                    var returnedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     if (response?.Users != null)
                     {
+                        var fetchedAt = DateTime.UtcNow;
                         foreach (var user in response.Users)
                         {
-                            returnedIds.Add(user.Id);
-                            UserByIdCache[user.Id] = user;
+                            var entry = new CachedUserEntry(user, fetchedAt);
+                            UserByIdCache[user.Id] = entry;
                             if (!string.IsNullOrWhiteSpace(user.Login))
-                                UserCache[user.Login] = user;
+                                UserCache[user.Login] = entry;
                             result[user.Id] = user;
                         }
-                    }
-
-                    foreach (var requestedId in chunk)
-                    {
-                        if (!returnedIds.Contains(requestedId))
-                            UserByIdCache.TryAdd(requestedId, null);
                     }
                 }
             }
@@ -668,14 +670,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
             if (distinctLogins.Count == 0) return result;
 
+            var now = DateTime.UtcNow;
             var toFetch = new List<string>();
             foreach (var login in distinctLogins)
             {
-                if (UserCache.TryGetValue(login, out var cached) && cached != null)
+                if (UserCache.TryGetValue(login, out var cached) &&
+                    cached.User != null &&
+                    now - cached.CachedAtUtc < UserCacheTtl)
                 {
-                    result[login] = cached;
+                    result[login] = cached.User;
                 }
-                else if (!UserCache.ContainsKey(login))
+                else
                 {
                     toFetch.Add(login);
                 }
@@ -694,26 +699,20 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                         null,
                         chunk.ToList());
 
-                    var returnedLogins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     if (response?.Users != null)
                     {
+                        var fetchedAt = DateTime.UtcNow;
                         foreach (var user in response.Users)
                         {
+                            var entry = new CachedUserEntry(user, fetchedAt);
                             if (!string.IsNullOrWhiteSpace(user.Login))
                             {
-                                returnedLogins.Add(user.Login);
-                                UserCache[user.Login] = user;
+                                UserCache[user.Login] = entry;
                                 result[user.Login] = user;
                             }
                             if (!string.IsNullOrWhiteSpace(user.Id))
-                                UserByIdCache[user.Id] = user;
+                                UserByIdCache[user.Id] = entry;
                         }
-                    }
-
-                    foreach (var requestedLogin in chunk)
-                    {
-                        if (!returnedLogins.Contains(requestedLogin))
-                            UserCache.TryAdd(requestedLogin, null);
                     }
                 }
             }

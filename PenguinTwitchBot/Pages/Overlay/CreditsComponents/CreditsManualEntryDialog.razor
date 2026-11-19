@@ -11,7 +11,7 @@
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="2" Style="min-width: 360px;">
+        <MudStack Spacing="2" Style="width: 100%;">
             <MudTextField @bind-Value="_username" Label="Username (Twitch login or name)" Required="true"
                           Variant="Variant.Outlined" Margin="Margin.Dense" />
             <MudTextField @bind-Value="_displayName" Label="Display Name (optional)"
@@ -43,7 +43,7 @@
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Disabled="@_isSaving" OnClick="Cancel">Cancel</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@_isSaving" OnClick="SubmitAsync">
             Add Entry
         </MudButton>
@@ -61,7 +61,11 @@
     private string? _avatarUrl;
     private bool _isSaving;
 
-    private void Cancel() => MudDialog.Cancel();
+    private void Cancel()
+    {
+        if (_isSaving) return;
+        MudDialog.Cancel();
+    }
 
     private async Task SubmitAsync()
     {

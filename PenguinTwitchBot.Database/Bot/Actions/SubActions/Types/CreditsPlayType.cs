@@ -114,7 +114,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 values.TryGetValue(nameof(LookbackMinutes), out var lb))
             {
                 var raw = lb as string ?? "";
-                if (!raw.Contains('%') && (!int.TryParse(raw, out var mins) || mins <= 0))
+                if (!string.IsNullOrWhiteSpace(raw) && !raw.Contains('%') && (!int.TryParse(raw, out var mins) || mins <= 0))
                     return "Lookback minutes must be a positive whole number when Rolling Lookback override is selected.";
             }
 

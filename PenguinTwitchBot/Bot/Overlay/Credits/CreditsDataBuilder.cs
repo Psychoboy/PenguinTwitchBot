@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Bot.Commands.Moderation;
 using PenguinTwitchBot.Bot.Core;
@@ -81,9 +82,11 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                 ? "Streamer"
                 : serviceBackbone.BroadcasterName;
 
-            var sessionDuration = window.EndUtc > window.StartUtc
-                ? window.EndUtc - window.StartUtc
-                : TimeSpan.Zero;
+            var sessionDuration = window.Session != null && !window.Session.IsManualCheckpoint
+                ? ((window.Session.EndedAtUtc ?? window.EndUtc) > window.Session.StartedAtUtc
+                    ? (window.Session.EndedAtUtc ?? window.EndUtc) - window.Session.StartedAtUtc
+                    : TimeSpan.Zero)
+                : (window.EndUtc > window.StartUtc ? window.EndUtc - window.StartUtc : TimeSpan.Zero);
 
             var tokenMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -157,7 +160,9 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
 
             var neededSources = enabledSections
                 .SelectMany(s => s.SourceTypes)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(NormalizeSourceKey)
+                .Where(k => k != null)
+                .Select(k => k!)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var events = await db.CreditEvents
@@ -203,10 +208,13 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             {
                 var candidates = new List<CandidateEntry>();
 
-                foreach (var source in section.SourceTypes.Distinct(StringComparer.OrdinalIgnoreCase))
+                foreach (var source in section.SourceTypes
+                             .Select(NormalizeSourceKey)
+                             .Where(k => k != null)
+                             .Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     CollectCandidatesForSource(
-                        source,
+                        source!,
                         section,
                         events,
                         giveawayWinners,
@@ -285,13 +293,15 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                             Detail = st.Role,
                             Amount = 1,
                             Role = st.Role,
-                            EventType = CreditEventTypes.Manual
+                            EventType = CreditSectionSources.CustomStatic
                         });
                     }
                 }
 
                 var nonStaticSources = section.SourceTypes
-                    .Where(src => !src.Equals(CreditSectionSources.CustomStatic, StringComparison.OrdinalIgnoreCase))
+                    .Select(NormalizeSourceKey)
+                    .Where(src => src != null && !src.Equals(CreditSectionSources.CustomStatic, StringComparison.OrdinalIgnoreCase))
+                    .Select(src => src!)
                     .ToList();
 
                 if (nonStaticSources.Count > 0)
@@ -325,6 +335,11 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                         });
                     }
                     cursor = (cursor + sampleCount) % seeds.Count;
+                }
+
+                if (section.MaxEntries > 0 && entries.Count > section.MaxEntries)
+                {
+                    entries = entries.Take(section.MaxEntries).ToList();
                 }
 
                 if (entries.Count == 0 && section.HideWhenEmpty)
@@ -539,6 +554,8 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
 
                 case CreditSectionSources.CustomStatic:
                 {
+                    var staticBatchUtc = DateTime.UtcNow;
+                    var staticOrder = 0;
                     foreach (var st in section.StaticEntries.Where(x => !string.IsNullOrWhiteSpace(x.Name)))
                     {
                         if (!MatchesDetailFilter(st.Role, section.DetailFilter)) continue;
@@ -551,10 +568,11 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                             1,
                             st.Role,
                             null,
-                            DateTime.UtcNow,
+                            staticBatchUtc,
                             CreditSectionSources.CustomStatic,
                             false,
-                            st.Role));
+                            st.Role,
+                            staticOrder++));
                     }
                     break;
                 }
@@ -641,8 +659,21 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
 
                         case CreditAggregationModes.CombineByUserSum:
                         default:
-                            finalAmount = g.Sum(x => x.Amount);
+                        {
+                            var isFishingMaxWeight =
+                                string.Equals(section.FishingRankBy, "MaxWeight", StringComparison.OrdinalIgnoreCase) &&
+                                g.All(x => string.Equals(x.EventType, CreditSectionSources.FishingTopAnglers, StringComparison.OrdinalIgnoreCase));
+                            if (isFishingMaxWeight)
+                            {
+                                chosen = g.OrderByDescending(x => x.Amount).ThenByDescending(x => x.OccurredAtUtc).First();
+                                finalAmount = chosen.Amount;
+                            }
+                            else
+                            {
+                                finalAmount = g.Sum(x => x.Amount);
+                            }
                             break;
+                        }
                     }
 
                     list.Add(chosen with { Amount = finalAmount });
@@ -658,12 +689,17 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
 
             aggregated = section.SortMode switch
             {
-                CreditSortModes.OldestFirst => aggregated.OrderBy(c => c.OccurredAtUtc),
-                CreditSortModes.MostRecent => aggregated.OrderByDescending(c => c.OccurredAtUtc),
+                CreditSortModes.OldestFirst => aggregated
+                    .OrderBy(c => c.OccurredAtUtc)
+                    .ThenBy(c => c.StaticOrder ?? int.MaxValue),
+                CreditSortModes.MostRecent => aggregated
+                    .OrderByDescending(c => c.OccurredAtUtc)
+                    .ThenBy(c => c.StaticOrder ?? int.MaxValue),
                 CreditSortModes.Alphabetical => aggregated.OrderBy(c => c.DisplayName, StringComparer.OrdinalIgnoreCase),
                 CreditSortModes.Random => aggregated.OrderBy(_ => Random.Shared.Next()),
                 CreditSortModes.HighestAmount or _ => aggregated
                     .OrderByDescending(c => c.Amount)
+                    .ThenBy(c => c.StaticOrder ?? int.MaxValue)
                     .ThenByDescending(c => c.OccurredAtUtc)
             };
 
@@ -705,7 +741,7 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                     if (entry.IsAnonymous || !string.IsNullOrWhiteSpace(entry.AvatarUrl))
                         continue;
 
-                    if (skipTwitchLookup && section.SourceTypes.All(t => !t.Equals(CreditSectionSources.CustomStatic, StringComparison.OrdinalIgnoreCase)))
+                    if (skipTwitchLookup && !entry.EventType.Equals(CreditSectionSources.CustomStatic, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     lookups.Add((entry.InternalUserId, entry.Username, entry.AvatarUrl));
@@ -771,13 +807,19 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                 ? "{name}"
                 : section.EntryFormatTemplate;
 
-            var amountText = FormatAmount(amount);
-            var text = template
-                .Replace("{name}", displayName, StringComparison.OrdinalIgnoreCase)
-                .Replace("{amount}", section.ShowAmount ? amountText : string.Empty, StringComparison.OrdinalIgnoreCase)
-                .Replace("{detail}", detail ?? string.Empty, StringComparison.OrdinalIgnoreCase)
-                .Replace("{tier}", tier ?? string.Empty, StringComparison.OrdinalIgnoreCase)
-                .Replace("{count}", section.ShowAmount ? amountText : string.Empty, StringComparison.OrdinalIgnoreCase);
+            var amountText = section.ShowAmount ? FormatAmount(amount) : string.Empty;
+            var text = Regex.Replace(
+                template,
+                @"\{(name|amount|detail|tier|count)\}",
+                m => m.Groups[1].Value.ToLowerInvariant() switch
+                {
+                    "name" => displayName,
+                    "amount" or "count" => amountText,
+                    "detail" => detail ?? string.Empty,
+                    "tier" => tier ?? string.Empty,
+                    _ => m.Value
+                },
+                RegexOptions.IgnoreCase);
 
             // Clean up dangling separators when {detail} or {amount} is empty
             text = text.Trim();
@@ -931,11 +973,11 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
         private static string ReplaceHeaderFooterTokens(string? input, Dictionary<string, string> tokens)
         {
             if (string.IsNullOrWhiteSpace(input)) return string.Empty;
-            var result = input;
-            foreach (var kvp in tokens)
-            {
-                result = result.Replace($"{{{kvp.Key}}}", kvp.Value, StringComparison.OrdinalIgnoreCase);
-            }
+            var result = Regex.Replace(
+                input,
+                @"\{([a-zA-Z0-9_]+)\}",
+                m => tokens.TryGetValue(m.Groups[1].Value, out var val) ? val : m.Value,
+                RegexOptions.IgnoreCase);
             return result.Trim();
         }
 
@@ -966,13 +1008,46 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                 return CreditsBuiltInThemes.CreateDefaultProfileConfig();
             try
             {
-                var parsed = JsonSerializer.Deserialize<CreditsProfileConfig>(json, JsonOptions);
-                return parsed ?? CreditsBuiltInThemes.CreateDefaultProfileConfig();
+                var parsed = JsonSerializer.Deserialize<CreditsProfileConfig>(json, JsonOptions)
+                    ?? CreditsBuiltInThemes.CreateDefaultProfileConfig();
+                NormalizeProfileConfig(parsed);
+                return parsed;
             }
             catch
             {
                 return CreditsBuiltInThemes.CreateDefaultProfileConfig();
             }
+        }
+
+        internal static void NormalizeProfileConfig(CreditsProfileConfig config)
+        {
+            config.TimeWindow ??= new CreditsTimeWindowConfig();
+            config.Header ??= new CreditsHeaderConfig();
+            config.Footer ??= new CreditsFooterConfig();
+            config.Footer.Lines ??= [];
+            config.Playback ??= new CreditsPlaybackConfig();
+            config.Exclusions ??= new CreditsExclusionConfig();
+            config.Exclusions.ExcludedUsernames ??= [];
+            config.Media ??= new CreditsMediaOverrideConfig();
+            config.CustomCssOverride ??= string.Empty;
+            config.Sections = (config.Sections ?? [])
+                .Where(s => s != null)
+                .Select(s =>
+                {
+                    s.SourceTypes ??= [];
+                    s.StaticEntries ??= [];
+                    return s;
+                })
+                .ToList();
+        }
+
+        private static string? NormalizeSourceKey(string? source)
+        {
+            if (string.IsNullOrWhiteSpace(source)) return null;
+            var trimmed = source.Trim();
+            return CreditSectionSources.Catalog
+                .FirstOrDefault(c => c.Key.Equals(trimmed, StringComparison.OrdinalIgnoreCase))
+                ?.Key;
         }
 
         public static CreditsThemeConfig DeserializeThemeConfig(string? json)
@@ -1017,7 +1092,8 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
             DateTime OccurredAtUtc,
             string EventType,
             bool IsAnonymous,
-            string? Role);
+            string? Role,
+            int? StaticOrder = null);
 
         private sealed record ExclusionContext(
             CreditsExclusionConfig Config,

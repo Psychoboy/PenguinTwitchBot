@@ -61,6 +61,7 @@
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Style="flex: 1 1 auto;">
                             <MudSelect T="Guid" Value="_selectedProfileId" ValueChanged="OnProfileSelectedAsync"
                                        Label="Active Credits Profile" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       Disabled="@_isSaving"
                                        Style="min-width: 220px;">
                                 @foreach (var p in _profiles)
                                 {
@@ -1141,6 +1142,7 @@
                                     </MudChip>
                                 }
                                 <MudIconButton Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" Color="Color.Default"
+                                               aria-label="Refresh credits preview"
                                                OnClick="RefreshPreviewFrame" />
                             </MudStack>
 
@@ -1177,6 +1179,9 @@
 
     private bool _isLoading = true;
     private bool _isSaving;
+    private int _profileSelectionVersion;
+    private int _themeSelectionVersion;
+    private int _eventsLoadVersion;
     private List<CreditProfile> _profiles = [];
     private List<CreditTheme> _themes = [];
     private List<CreditStreamSession> _sessions = [];
@@ -1204,6 +1209,8 @@
     private string _footerLinesText = string.Empty;
     private string _customStartUtcInput = string.Empty;
     private string _customEndUtcInput = string.Empty;
+    private string _loadedCustomStartInput = string.Empty;
+    private string _loadedCustomEndInput = string.Empty;
 
     private string _previewSampleMode = CreditSampleModes.Fake;
     private double _previewSpeed = 1.0;
@@ -1254,6 +1261,7 @@
 
     private void LoadProfileIntoEditor(CreditProfile profile)
     {
+        _profileSelectionVersion++;
         _selectedProfile = profile;
         _selectedProfileId = profile.Id;
         _profileNameDraft = profile.Name;
@@ -1264,6 +1272,8 @@
         _footerLinesText = string.Join("\n", _profileConfig.Footer.Lines);
         _customStartUtcInput = _profileConfig.TimeWindow.CustomStartUtc?.ToString("yyyy-MM-ddTHH:mm") ?? string.Empty;
         _customEndUtcInput = _profileConfig.TimeWindow.CustomEndUtc?.ToString("yyyy-MM-ddTHH:mm") ?? string.Empty;
+        _loadedCustomStartInput = _customStartUtcInput;
+        _loadedCustomEndInput = _customEndUtcInput;
 
         var activeTheme = _themes.FirstOrDefault(t => t.Id == profile.ThemeId) ?? _themes.FirstOrDefault();
         if (activeTheme != null)
@@ -1274,6 +1284,7 @@
 
     private void SelectThemeForEditing(CreditTheme theme)
     {
+        _themeSelectionVersion++;
         _editingTheme = theme;
         _editingThemeName = theme.Name;
         _editingThemeDescription = theme.Description;
@@ -1292,21 +1303,49 @@
             .Select(l => l.TrimEnd())
             .ToList();
 
-        _profileConfig.TimeWindow.CustomStartUtc = DateTime.TryParse(_customStartUtcInput, out var parsedStart)
-            ? DateTime.SpecifyKind(parsedStart, DateTimeKind.Utc)
-            : null;
-        _profileConfig.TimeWindow.CustomEndUtc = DateTime.TryParse(_customEndUtcInput, out var parsedEnd)
-            ? DateTime.SpecifyKind(parsedEnd, DateTimeKind.Utc)
-            : null;
+        if (!string.Equals(_customStartUtcInput, _loadedCustomStartInput, StringComparison.Ordinal))
+        {
+            _profileConfig.TimeWindow.CustomStartUtc = DateTime.TryParse(
+                _customStartUtcInput,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out var parsedStart)
+                ? DateTime.SpecifyKind(parsedStart, DateTimeKind.Utc)
+                : null;
+        }
+
+        if (!string.Equals(_customEndUtcInput, _loadedCustomEndInput, StringComparison.Ordinal))
+        {
+            _profileConfig.TimeWindow.CustomEndUtc = DateTime.TryParse(
+                _customEndUtcInput,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out var parsedEnd)
+                ? DateTime.SpecifyKind(parsedEnd, DateTimeKind.Utc)
+                : null;
+        }
     }
 
     private async Task OnProfileSelectedAsync(Guid id)
     {
+        if (_isSaving) return;
         var profile = _profiles.FirstOrDefault(p => p.Id == id);
         if (profile == null) return;
         LoadProfileIntoEditor(profile);
-        await RefreshEventsAndSessionsAsync();
-        RefreshPreviewFrame();
+        var selectionVersion = _profileSelectionVersion;
+        try
+        {
+            await RefreshEventsAndSessionsAsync();
+            if (_profileSelectionVersion != selectionVersion) return;
+            RefreshPreviewFrame();
+        }
+        catch (Exception ex)
+        {
+            if (_profileSelectionVersion == selectionVersion)
+            {
+                Snackbar.Add($"Failed to load profile events: {ex.Message}", Severity.Error);
+            }
+        }
     }
 
     private async Task SaveProfileAsync()
@@ -1318,24 +1357,47 @@
             return;
         }
 
+        var trimmedName = _profileNameDraft.Trim();
+        if (!string.Equals(trimmedName, _selectedProfile.Name, StringComparison.Ordinal))
+        {
+            var confirmRename = await DialogService.ShowMessageBoxAsync(
+                "Rename Credits Profile",
+                $"Rename profile '{_selectedProfile.Name}' to '{trimmedName}'? Existing OBS browser source URLs or Bot Actions referencing '{_selectedProfile.Name}' will need to be updated.",
+                yesText: "Rename",
+                cancelText: "Cancel");
+            if (confirmRename != true) return;
+        }
+
         _isSaving = true;
+        var selectionVersion = _profileSelectionVersion;
         try
         {
             SyncProfileDraftFieldsToConfig();
             var saved = await CreditsService.SaveProfileAsync(
                 _selectedProfile.Id,
-                _profileNameDraft.Trim(),
+                trimmedName,
                 _selectedThemeId,
                 _profileConfig,
                 _selectedProfile.IsDefault);
 
             _profiles = await CreditsService.GetProfilesAsync();
             var refreshed = _profiles.FirstOrDefault(p => p.Id == saved.Id) ?? saved;
-            LoadProfileIntoEditor(refreshed);
-            await RefreshEventsAndSessionsAsync();
-            await CreditsService.NotifyReloadAsync(refreshed.Name);
-            RefreshPreviewFrame();
-            Snackbar.Add($"Saved credits profile '{refreshed.Name}'.", Severity.Success);
+            if (_profileSelectionVersion == selectionVersion)
+            {
+                LoadProfileIntoEditor(refreshed);
+                RefreshPreviewFrame();
+                await RefreshEventsAndSessionsAsync();
+            }
+
+            try
+            {
+                await CreditsService.NotifyReloadAsync(refreshed.Name);
+                Snackbar.Add($"Saved credits profile '{refreshed.Name}'.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Saved credits profile '{refreshed.Name}', but live overlay reload notification failed: {ex.Message}", Severity.Warning);
+            }
         }
         catch (Exception ex)
         {
@@ -1390,34 +1452,58 @@
     private async Task SetDefaultProfileAsync()
     {
         if (_selectedProfile == null) return;
-        await CreditsService.SetDefaultProfileAsync(_selectedProfile.Id);
-        await LoadAllAsync(_selectedProfile.Id);
-        Snackbar.Add($"'{_selectedProfile.Name}' is now the default credits profile.", Severity.Success);
+        var profileId = _selectedProfile.Id;
+        var profileName = _selectedProfile.Name;
+        try
+        {
+            await CreditsService.SetDefaultProfileAsync(profileId);
+            await LoadAllAsync(profileId);
+            Snackbar.Add($"'{profileName}' is now the default credits profile.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to set default profile: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task DeleteProfileAsync()
     {
         if (_selectedProfile == null || _profiles.Count <= 1) return;
+        var profileId = _selectedProfile.Id;
+        var deletedName = _selectedProfile.Name;
         var confirm = await DialogService.ShowMessageBoxAsync(
             "Delete Credits Profile",
-            $"Delete profile '{_selectedProfile.Name}'? Recorded credit events are kept, but this profile configuration will be removed.",
+            $"Delete profile '{deletedName}'? Recorded credit events are kept, but this profile configuration will be removed.",
             yesText: "Delete",
             cancelText: "Cancel");
         if (confirm != true) return;
 
-        var deletedName = _selectedProfile.Name;
-        await CreditsService.DeleteProfileAsync(_selectedProfile.Id);
-        await LoadAllAsync();
-        RefreshPreviewFrame();
-        Snackbar.Add($"Deleted profile '{deletedName}'.", Severity.Info);
+        try
+        {
+            await CreditsService.DeleteProfileAsync(profileId);
+            await LoadAllAsync();
+            RefreshPreviewFrame();
+            Snackbar.Add($"Deleted profile '{deletedName}'.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete profile: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task ExportProfileAsync()
     {
         if (_selectedProfile == null) return;
-        var json = await CreditsService.ExportProfileJsonAsync(_selectedProfile.Id);
-        if (json == null) return;
-        await JS.InvokeVoidAsync("downloadFile", $"credits-profile-{_selectedProfile.Name}.json", json);
+        try
+        {
+            var json = await CreditsService.ExportProfileJsonAsync(_selectedProfile.Id);
+            if (json == null) return;
+            await JS.InvokeVoidAsync("downloadFile", $"credits-profile-{_selectedProfile.Name}.json", json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to export profile: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task ImportProfileAsync(IBrowserFile? file)
@@ -1439,17 +1525,71 @@
         }
     }
 
+    private async Task AssignThemeOnlyAsync(Guid themeId)
+    {
+        if (_selectedProfile == null) return;
+        var targetProfileId = _selectedProfile.Id;
+        var selectionVersion = _profileSelectionVersion;
+        _isSaving = true;
+        try
+        {
+            var persisted = await CreditsService.GetProfileByIdAsync(targetProfileId);
+            if (persisted == null)
+            {
+                Snackbar.Add("Selected profile could not be found.", Severity.Warning);
+                await LoadAllAsync();
+                return;
+            }
+
+            var persistedConfig = CreditsDataBuilder.DeserializeProfileConfig(persisted.ConfigJson);
+            var saved = await CreditsService.SaveProfileAsync(
+                persisted.Id,
+                persisted.Name,
+                themeId,
+                persistedConfig,
+                persisted.IsDefault);
+
+            _profiles = await CreditsService.GetProfilesAsync();
+            var refreshed = _profiles.FirstOrDefault(p => p.Id == saved.Id) ?? saved;
+            if (_profileSelectionVersion == selectionVersion)
+            {
+                _selectedProfile = refreshed;
+                _selectedThemeId = refreshed.ThemeId;
+                RefreshPreviewFrame();
+            }
+
+            try
+            {
+                await CreditsService.NotifyReloadAsync(refreshed.Name);
+                Snackbar.Add($"Applied theme '{GetActiveThemeName()}' to '{refreshed.Name}'.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Applied theme '{GetActiveThemeName()}' to '{refreshed.Name}', but live overlay reload notification failed: {ex.Message}", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to apply theme: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
     private async Task ApplyThemeAsync(CreditTheme theme)
     {
         if (_selectedProfile == null) return;
-        _selectedThemeId = theme.Id;
         SelectThemeForEditing(theme);
-        await SaveProfileAsync();
+        await AssignThemeOnlyAsync(theme.Id);
     }
 
     private async Task SaveEditingThemeAsync()
     {
         if (_editingTheme == null) return;
+        var targetThemeId = _editingTheme.Id;
+        var themeVersion = _themeSelectionVersion;
         _isSaving = true;
         try
         {
@@ -1460,10 +1600,42 @@
                 _themeConfig);
 
             _themes = await CreditsService.GetThemesAsync();
-            SelectThemeForEditing(_themes.FirstOrDefault(t => t.Id == saved.Id) ?? saved);
-            await CreditsService.NotifyReloadAsync(_selectedProfile?.Name);
+            var updatedTheme = _themes.FirstOrDefault(t => t.Id == saved.Id) ?? saved;
+            if (_themeSelectionVersion == themeVersion && _editingTheme?.Id == targetThemeId)
+            {
+                SelectThemeForEditing(updatedTheme);
+            }
+
+            _profiles = await CreditsService.GetProfilesAsync();
             RefreshPreviewFrame();
-            Snackbar.Add($"Saved theme '{saved.Name}'.", Severity.Success);
+
+            var affectedProfiles = _profiles
+                .Where(p => p.ThemeId == saved.Id)
+                .Select(p => p.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var reloadFailures = 0;
+            foreach (var profileName in affectedProfiles)
+            {
+                try
+                {
+                    await CreditsService.NotifyReloadAsync(profileName);
+                }
+                catch
+                {
+                    reloadFailures++;
+                }
+            }
+
+            if (reloadFailures == 0)
+            {
+                Snackbar.Add($"Saved theme '{saved.Name}'.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Saved theme '{saved.Name}', but live overlay reload notification failed for {reloadFailures} profile(s).", Severity.Warning);
+            }
         }
         catch (Exception ex)
         {
@@ -1483,15 +1655,26 @@
             return;
         }
 
+        var themeVersion = _themeSelectionVersion;
         try
         {
             var created = await CreditsService.CreateThemeAsync(_newThemeName.Trim(), "Custom credits theme", _themeConfig);
             _showNewThemeForm = false;
             _newThemeName = string.Empty;
             _themes = await CreditsService.GetThemesAsync();
-            _selectedThemeId = created.Id;
-            SelectThemeForEditing(created);
-            await SaveProfileAsync();
+            if (_themeSelectionVersion == themeVersion)
+            {
+                SelectThemeForEditing(created);
+            }
+
+            if (_selectedProfile != null)
+            {
+                await AssignThemeOnlyAsync(created.Id);
+            }
+            else
+            {
+                Snackbar.Add($"Created theme '{created.Name}'.", Severity.Success);
+            }
         }
         catch (Exception ex)
         {
@@ -1509,11 +1692,22 @@
 
     private async Task CloneThemeAsync(CreditTheme theme)
     {
-        var copyName = $"{theme.Name} Copy {DateTime.UtcNow:HHmmss}";
-        var cloned = await CreditsService.CloneThemeAsync(theme.Id, copyName);
-        _themes = await CreditsService.GetThemesAsync();
-        SelectThemeForEditing(cloned);
-        Snackbar.Add($"Cloned theme to '{cloned.Name}'.", Severity.Success);
+        var themeVersion = _themeSelectionVersion;
+        try
+        {
+            var copyName = $"{theme.Name} Copy {DateTime.UtcNow:HHmmss}";
+            var cloned = await CreditsService.CloneThemeAsync(theme.Id, copyName);
+            _themes = await CreditsService.GetThemesAsync();
+            if (_themeSelectionVersion == themeVersion)
+            {
+                SelectThemeForEditing(cloned);
+            }
+            Snackbar.Add($"Cloned theme to '{cloned.Name}'.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to clone theme: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task ResetBuiltInThemeAsync(CreditTheme theme)
@@ -1525,13 +1719,24 @@
             cancelText: "Cancel");
         if (confirm != true) return;
 
-        var reset = await CreditsService.ResetBuiltInThemeAsync(theme.Id);
-        _themes = await CreditsService.GetThemesAsync();
-        if (reset != null)
+        var themeVersion = _themeSelectionVersion;
+        try
         {
-            SelectThemeForEditing(reset);
-            RefreshPreviewFrame();
-            Snackbar.Add($"Reset '{theme.Name}' to defaults.", Severity.Success);
+            var reset = await CreditsService.ResetBuiltInThemeAsync(theme.Id);
+            _themes = await CreditsService.GetThemesAsync();
+            if (reset != null)
+            {
+                if (_themeSelectionVersion == themeVersion)
+                {
+                    SelectThemeForEditing(reset);
+                }
+                RefreshPreviewFrame();
+                Snackbar.Add($"Reset '{theme.Name}' to defaults.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to reset theme: {ex.Message}", Severity.Error);
         }
     }
 
@@ -1545,22 +1750,37 @@
             cancelText: "Cancel");
         if (confirm != true) return;
 
-        await CreditsService.DeleteThemeAsync(theme.Id);
-        await LoadAllAsync(_selectedProfileId);
-        RefreshPreviewFrame();
-        Snackbar.Add($"Deleted theme '{theme.Name}'.", Severity.Info);
+        try
+        {
+            await CreditsService.DeleteThemeAsync(theme.Id);
+            await LoadAllAsync(_selectedProfileId);
+            RefreshPreviewFrame();
+            Snackbar.Add($"Deleted theme '{theme.Name}'.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete theme: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task ExportThemeAsync(CreditTheme theme)
     {
-        var json = await CreditsService.ExportThemeJsonAsync(theme.Id);
-        if (json == null) return;
-        await JS.InvokeVoidAsync("downloadFile", $"credits-theme-{theme.Name}.json", json);
+        try
+        {
+            var json = await CreditsService.ExportThemeJsonAsync(theme.Id);
+            if (json == null) return;
+            await JS.InvokeVoidAsync("downloadFile", $"credits-theme-{theme.Name}.json", json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to export theme: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task ImportThemeAsync(IBrowserFile? file)
     {
         if (file == null) return;
+        var themeVersion = _themeSelectionVersion;
         try
         {
             using var stream = file.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
@@ -1568,7 +1788,10 @@
             var json = await reader.ReadToEndAsync();
             var imported = await CreditsService.ImportThemeAsync(json);
             _themes = await CreditsService.GetThemesAsync();
-            SelectThemeForEditing(imported);
+            if (_themeSelectionVersion == themeVersion)
+            {
+                SelectThemeForEditing(imported);
+            }
             Snackbar.Add($"Imported theme '{imported.Name}'.", Severity.Success);
         }
         catch (Exception ex)
@@ -1668,91 +1891,177 @@
     private async Task MarkCheckpointNowAsync()
     {
         if (_selectedProfile == null) return;
-        var utc = await CreditsService.MarkManualCheckpointAsync("Manual Designer Checkpoint", _selectedProfile.Name);
-        _profileConfig.TimeWindow.ManualCheckpointUtc = utc;
-        _sessions = await CreditsService.GetSessionsAsync(30);
-        await RefreshEventsAndSessionsAsync();
-        RefreshPreviewFrame();
-        Snackbar.Add($"Marked checkpoint at {utc:u}.", Severity.Success);
+        var selectedProfile = _selectedProfile;
+        var selectionVersion = _profileSelectionVersion;
+        try
+        {
+            var utc = await CreditsService.MarkManualCheckpointAsync("Manual Designer Checkpoint", selectedProfile.Name);
+            if (_profileSelectionVersion == selectionVersion && _selectedProfile?.Id == selectedProfile.Id)
+            {
+                _profileConfig.TimeWindow.ManualCheckpointUtc = utc;
+                await RefreshEventsAndSessionsAsync();
+                RefreshPreviewFrame();
+            }
+            Snackbar.Add($"Marked checkpoint at {utc:u}.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to mark checkpoint: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task SaveRetentionDaysAsync()
     {
-        await CreditsService.SetRetentionDaysAsync(_retentionDays);
-        _retentionDays = await CreditsService.GetRetentionDaysAsync();
-        Snackbar.Add($"Event retention set to {_retentionDays} days.", Severity.Success);
+        try
+        {
+            await CreditsService.SetRetentionDaysAsync(_retentionDays);
+            _retentionDays = await CreditsService.GetRetentionDaysAsync();
+            Snackbar.Add($"Event retention set to {_retentionDays} days.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update retention: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task RefreshEventsAndSessionsAsync()
     {
-        if (_selectedProfile == null) return;
-        var payload = await CreditsService.RenderAsync(_selectedProfile.Name, CreditSampleModes.Off);
+        var selectedProfile = _selectedProfile;
+        if (selectedProfile == null) return;
+        var loadVersion = ++_eventsLoadVersion;
+        var filterSnapshot = _eventTypeFilter;
+
+        var payload = await CreditsService.RenderAsync(selectedProfile.Name, CreditSampleModes.Off);
+        if (_eventsLoadVersion != loadVersion || _selectedProfile?.Id != selectedProfile.Id) return;
+
+        var events = await CreditsService.GetEventsAsync(
+            payload.WindowStartUtc,
+            payload.WindowEndUtc,
+            string.IsNullOrWhiteSpace(filterSnapshot) ? null : filterSnapshot,
+            includeHidden: true);
+        if (_eventsLoadVersion != loadVersion || _selectedProfile?.Id != selectedProfile.Id) return;
+
+        var sessions = await CreditsService.GetSessionsAsync(30);
+        if (_eventsLoadVersion != loadVersion || _selectedProfile?.Id != selectedProfile.Id) return;
+
         _windowStartUtc = payload.WindowStartUtc;
         _windowEndUtc = payload.WindowEndUtc;
-        _windowEvents = await CreditsService.GetEventsAsync(
-            _windowStartUtc,
-            _windowEndUtc,
-            string.IsNullOrWhiteSpace(_eventTypeFilter) ? null : _eventTypeFilter,
-            includeHidden: true);
-        _sessions = await CreditsService.GetSessionsAsync(30);
+        _windowEvents = events;
+        _sessions = sessions;
     }
 
     private async Task OnEventTypeFilterChangedAsync(string value)
     {
         _eventTypeFilter = value;
-        await RefreshEventsAndSessionsAsync();
+        try
+        {
+            await RefreshEventsAndSessionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to refresh filtered events: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task OpenManualEntryDialogAsync()
     {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
-        var dialog = await DialogService.ShowAsync<CreditsManualEntryDialog>("Add Credits Entry", options);
-        var result = await dialog.Result;
-        if (result is { Canceled: false })
+        try
         {
-            await RefreshEventsAndSessionsAsync();
-            RefreshPreviewFrame();
-            Snackbar.Add("Added manual entry.", Severity.Success);
+            var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+            var dialog = await DialogService.ShowAsync<CreditsManualEntryDialog>("Add Credits Entry", options);
+            var result = await dialog.Result;
+            if (result is { Canceled: false })
+            {
+                await RefreshEventsAndSessionsAsync();
+                RefreshPreviewFrame();
+                Snackbar.Add("Added manual entry.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to add manual entry: {ex.Message}", Severity.Error);
         }
     }
 
     private async Task ToggleEventHiddenAsync(CreditEvent ev)
     {
-        await CreditsService.SetEventHiddenAsync(ev.Id, !ev.IsHidden);
-        await RefreshEventsAndSessionsAsync();
-        RefreshPreviewFrame();
+        try
+        {
+            await CreditsService.SetEventHiddenAsync(ev.Id, !ev.IsHidden);
+            await RefreshEventsAndSessionsAsync();
+            RefreshPreviewFrame();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update event visibility: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task DeleteEventAsync(CreditEvent ev)
     {
-        await CreditsService.DeleteEventAsync(ev.Id);
-        await RefreshEventsAndSessionsAsync();
-        RefreshPreviewFrame();
+        try
+        {
+            await CreditsService.DeleteEventAsync(ev.Id);
+            await RefreshEventsAndSessionsAsync();
+            RefreshPreviewFrame();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete event: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task TriggerLiveOverlayAsync(string sampleMode)
     {
         if (_selectedProfile == null) return;
-        await CreditsService.PlayAsync(_selectedProfile.Name, sampleMode: sampleMode);
-        Snackbar.Add($"Triggered '{_selectedProfile.Name}' roll on live OBS overlay ({sampleMode}).", Severity.Success);
+        try
+        {
+            await CreditsService.PlayAsync(_selectedProfile.Name, sampleMode: sampleMode);
+            Snackbar.Add($"Triggered '{_selectedProfile.Name}' roll on live OBS overlay ({sampleMode}).", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to trigger live overlay: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task ToggleLivePauseAsync()
     {
         if (_selectedProfile == null) return;
-        await CreditsService.TogglePauseAsync(_selectedProfile.Name);
+        try
+        {
+            await CreditsService.TogglePauseAsync(_selectedProfile.Name);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to toggle pause on live overlay: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task RestartLiveAsync()
     {
         if (_selectedProfile == null) return;
-        await CreditsService.RestartAsync(_selectedProfile.Name);
+        try
+        {
+            await CreditsService.RestartAsync(_selectedProfile.Name);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to restart live overlay: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task StopLiveAsync()
     {
         if (_selectedProfile == null) return;
-        await CreditsService.StopAsync(_selectedProfile.Name);
+        try
+        {
+            await CreditsService.StopAsync(_selectedProfile.Name);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to stop live overlay: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task OnPreviewSampleModeChanged(string mode)
@@ -1770,29 +2079,44 @@
     private async Task SendPreviewCommandAsync(string type)
     {
         if (_selectedProfile == null) return;
-        await JS.InvokeVoidAsync("creditsPreviewPostMessage", PreviewIframeId, new
+        try
         {
-            type,
-            profile = _selectedProfile.Name
-        });
+            await JS.InvokeVoidAsync("creditsPreviewPostMessage", PreviewIframeId, new
+            {
+                type,
+                profile = _selectedProfile.Name
+            });
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to control preview: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task SetPreviewSpeedAsync(double speed)
     {
         if (_selectedProfile == null) return;
         _previewSpeed = speed;
-        await JS.InvokeVoidAsync("creditsPreviewPostMessage", PreviewIframeId, new
+        try
         {
-            type = "credits_speed",
-            profile = _selectedProfile.Name,
-            speed
-        });
+            await JS.InvokeVoidAsync("creditsPreviewPostMessage", PreviewIframeId, new
+            {
+                type = "credits_speed",
+                profile = _selectedProfile.Name,
+                speed
+            });
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to set preview speed: {ex.Message}", Severity.Error);
+        }
     }
 
     private string GetPreviewIframeUrl()
     {
         var profile = _selectedProfile?.Name ?? "Default";
-        return $"/credits.html?profile={Uri.EscapeDataString(profile)}&sample={Uri.EscapeDataString(_previewSampleMode)}&preview=1&_cb={_previewNonce}";
+        var speed = _previewSpeed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return $"/credits.html?profile={Uri.EscapeDataString(profile)}&sample={Uri.EscapeDataString(_previewSampleMode)}&speed={Uri.EscapeDataString(speed)}&preview=1&_cb={_previewNonce}";
     }
 
     private string GetStandaloneUrl(bool autoStart)

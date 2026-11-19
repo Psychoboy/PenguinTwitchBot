@@ -476,6 +476,7 @@ html, body {
     align-items: center;
     justify-content: center;
     padding: 48px;
+    overflow: hidden;
 }
 
 .credits-root--paged .credits-viewport {
@@ -489,6 +490,7 @@ html, body {
 .credits-page-slide {
     width: 100%;
     max-width: var(--credits-max-width);
+    max-height: 100%;
     opacity: 0;
     transform: translateY(16px);
     transition: opacity 0.65s ease, transform 0.65s ease;

@@ -2,13 +2,14 @@
     'use strict';
 
     const params = new URLSearchParams(window.location.search);
-    const profileParam = params.get('profile') || 'Default';
+    const profileParam = params.get('profile') ? params.get('profile').trim() : '';
     const sampleParam = params.get('sample') || '';
     const autoStartParam = params.get('autoStart');
     const previewMode = params.get('preview') === '1';
     const overlayKey = params.get('key') || '';
     const windowModeParam = params.get('windowMode') || '';
     const lookbackParam = params.get('lookbackMinutes') || '';
+    const speedParam = Number(params.get('speed'));
 
     const rootEl = document.getElementById('credits-root');
     const backdropEl = document.getElementById('credits-backdrop');
@@ -31,14 +32,23 @@
     const loadedGoogleFonts = new Set();
 
     let currentPayload = null;
+    let resolvedProfileName = '';
+    let activeRequestId = 0;
+    let runGeneration = 0;
     let rafId = null;
     let pagedTimerId = null;
+    let pagedTransitionTimerId = null;
+    let pagedRemainingMs = 0;
+    let pagedStartedAt = 0;
+    let pagedDeadlineCallback = null;
     let introTimerId = null;
     let outroTimerId = null;
     let audioFadeInterval = null;
     let isRunning = false;
     let isPaused = false;
-    let speedMultiplier = 1.0;
+    let speedMultiplier = Number.isFinite(speedParam) && speedParam > 0
+        ? Math.max(0.25, Math.min(10, speedParam))
+        : 1.0;
     let scrollY = 0;
     let endScrollY = 0;
     let lastFrameTime = 0;
@@ -83,6 +93,13 @@
             clearTimeout(pagedTimerId);
             pagedTimerId = null;
         }
+        if (pagedTransitionTimerId !== null) {
+            clearTimeout(pagedTransitionTimerId);
+            pagedTransitionTimerId = null;
+        }
+        pagedRemainingMs = 0;
+        pagedStartedAt = 0;
+        pagedDeadlineCallback = null;
         if (introTimerId !== null) {
             clearTimeout(introTimerId);
             introTimerId = null;
@@ -90,6 +107,53 @@
         if (outroTimerId !== null) {
             clearTimeout(outroTimerId);
             outroTimerId = null;
+        }
+    }
+
+    function schedulePagedDeadline(durationMs, callback, gen) {
+        if (pagedTimerId !== null) {
+            clearTimeout(pagedTimerId);
+            pagedTimerId = null;
+        }
+        pagedRemainingMs = Math.max(0, durationMs);
+        pagedDeadlineCallback = function () {
+            if (gen !== runGeneration || !isRunning) return;
+            pagedTimerId = null;
+            pagedRemainingMs = 0;
+            pagedStartedAt = 0;
+            pagedDeadlineCallback = null;
+            callback();
+        };
+        if (isPaused) {
+            pagedStartedAt = 0;
+            return;
+        }
+        pagedStartedAt = performance.now();
+        pagedTimerId = setTimeout(pagedDeadlineCallback, pagedRemainingMs);
+    }
+
+    function pausePagedTimer() {
+        if (pagedTimerId !== null) {
+            clearTimeout(pagedTimerId);
+            pagedTimerId = null;
+            if (pagedStartedAt > 0) {
+                const elapsed = Math.max(0, performance.now() - pagedStartedAt);
+                pagedRemainingMs = Math.max(0, pagedRemainingMs - elapsed);
+            }
+            pagedStartedAt = 0;
+        }
+    }
+
+    function resumePagedTimer() {
+        if (pagedDeadlineCallback && pagedTimerId === null) {
+            if (pagedRemainingMs <= 0) {
+                const cb = pagedDeadlineCallback;
+                pagedDeadlineCallback = null;
+                cb();
+                return;
+            }
+            pagedStartedAt = performance.now();
+            pagedTimerId = setTimeout(pagedDeadlineCallback, pagedRemainingMs);
         }
     }
 
