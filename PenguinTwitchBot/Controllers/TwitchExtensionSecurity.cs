@@ -94,6 +94,11 @@ public static class TwitchExtensionSecurity
 
             return TokenHandler.ValidateToken(token, validationParameters, out _);
         }
+        catch (SecurityTokenExpiredException)
+        {
+            // Token has expired, return null to indicate validation failure. Expected when viewers leave a stream tab open.
+            return null;
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to validate Twitch Extension JWT signature");
