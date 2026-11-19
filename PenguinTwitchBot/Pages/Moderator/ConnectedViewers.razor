@@ -1,11 +1,13 @@
 @page "/community/connected-viewers"
 @using PenguinTwitchBot.Circuit
 @using PenguinTwitchBot.Models
+@using PenguinTwitchBot.Services
 @using Microsoft.AspNetCore.Components.Server.Circuits
 @using System.Collections.Concurrent
 @implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @inject ICircuitUserService UserService
+@inject ITwitchExtensionTrackingService ExtensionTrackingService
 @inject ISessionRevocationService SessionRevocation
 @inject ISnackbar Snackbar
 
@@ -21,12 +23,15 @@
                     <MudText Typo="Typo.h4">Connected Viewers</MudText>
                 </MudStack>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                    View active web browser circuits and live navigation sessions in real-time.
+                    View active web browser circuits and Twitch Extension users in real-time.
                 </MudText>
             </MudStack>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                 <MudChip T="string" Color="Color.Success" Size="Size.Medium" Icon="@Icons.Material.Filled.Wifi">
-                    @circuits.Count Active @(circuits.Count == 1 ? "Session" : "Sessions")
+                    @circuits.Count Web @(circuits.Count == 1 ? "Session" : "Sessions")
+                </MudChip>
+                <MudChip T="string" Color="Color.Info" Size="Size.Medium" Icon="@Icons.Material.Filled.Extension">
+                    @extensionSessions.Count Extension @(extensionSessions.Count == 1 ? "User" : "Users")
                 </MudChip>
                 <HelpButton Topic="connected-viewers" />
             </MudStack>
@@ -38,7 +43,7 @@
                 <ToolBarContent>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-1" Style="width: 100%;">
                         <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" />
-                        <MudText Typo="Typo.h6">Active Sessions</MudText>
+                        <MudText Typo="Typo.h6">Active Web Sessions</MudText>
                         <MudSpacer />
                         <MudTextField @bind-Value="_searchString"
                                       Placeholder="Filter by username, page, or IP..."
@@ -109,12 +114,112 @@
                 </PagerContent>
             </MudTable>
         </MudPaper>
+
+        <!-- Twitch Extension Users Table -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudTable Items="@FilteredExtensionSessions" Dense="true" Hover="true" FixedHeader="true" RowsPerPage="10">
+                <ToolBarContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-1" Style="width: 100%;">
+                        <MudIcon Icon="@Icons.Material.Filled.Extension" Color="Color.Info" />
+                        <MudText Typo="Typo.h6">Twitch Extension Users</MudText>
+                        <MudSpacer />
+                        <MudTextField @bind-Value="_extensionSearchString"
+                                      Placeholder="Filter by username, feature, role, or IP..."
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      IconSize="Size.Medium"
+                                      Clearable="true"
+                                      Immediate="true"
+                                      Style="max-width: 320px;" />
+                    </MudStack>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>User</MudTh>
+                    <MudTh>Identity</MudTh>
+                    <MudTh>Last Feature</MudTh>
+                    <MudTh>Connected Since</MudTh>
+                    <MudTh>Last Active</MudTh>
+                    <MudTh>IP Address</MudTh>
+                    <MudTh Style="text-align: right;">Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="User">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudAvatar Color="@(context.IsIdentityShared ? Color.Info : Color.Default)" Size="Size.Small">
+                                @(context.IsIdentityShared && !string.IsNullOrWhiteSpace(context.Username) ? context.Username.Substring(0, 1).ToUpperInvariant() : "?")
+                            </MudAvatar>
+                            @if (context.IsIdentityShared)
+                            {
+                                <MudLink Href="@($"/community/viewers/edit?name={Uri.EscapeDataString(context.Username)}")" Typo="Typo.subtitle2">
+                                    @context.Username
+                                </MudLink>
+                            }
+                            else
+                            {
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.subtitle2">Anonymous</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary"><code>@context.ShortOpaqueId</code></MudText>
+                                </MudStack>
+                            }
+                            @if (!string.Equals(context.Role, "viewer", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Warning">
+                                    @FormatTitle(context.Role)
+                                </MudChip>
+                            }
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Identity">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(context.IsIdentityShared ? Color.Success : Color.Default)">
+                            @(context.IsIdentityShared ? "Shared" : "Anonymous")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Last Feature">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" Icon="@Icons.Material.Filled.Extension">
+                            @FormatTitle(context.LastFeature)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Connected Since">
+                        <ToLocal DateTime="@context.FirstSeenUtc" />
+                    </MudTd>
+                    <MudTd DataLabel="Last Active">
+                        <ToLocal DateTime="@context.LastSeenUtc" />
+                    </MudTd>
+                    <MudTd DataLabel="IP Address">
+                        <code>@(string.IsNullOrWhiteSpace(context.UserIp) ? "Unknown" : context.UserIp)</code>
+                    </MudTd>
+                    <MudTd DataLabel="Action" Style="text-align: right;">
+                        @if (context.IsIdentityShared)
+                        {
+                            <MudTooltip Text="View profile">
+                                <MudIconButton Icon="@Icons.Material.Filled.AccountCircle"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               Href="@($"/community/viewers/edit?name={Uri.EscapeDataString(context.Username)}")" />
+                            </MudTooltip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4 text-center">
+                        @(string.IsNullOrWhiteSpace(_extensionSearchString) ? "No active Twitch Extension users currently connected." : "No active Twitch Extension users match the filter.")
+                    </MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
     </MudStack>
 </MudContainer>
 
 @code {
     private ConcurrentDictionary<string, CircuitUser> circuits = new();
+    private IReadOnlyCollection<TwitchExtensionSession> extensionSessions = [];
     private string _searchString = "";
+    private string _extensionSearchString = "";
 
     private IEnumerable<KeyValuePair<string, CircuitUser>> FilteredCircuits
     {
@@ -133,11 +238,32 @@
         }
     }
 
+    private IEnumerable<TwitchExtensionSession> FilteredExtensionSessions
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_extensionSearchString))
+            {
+                return extensionSessions;
+            }
+
+            var search = _extensionSearchString.Trim();
+            return extensionSessions.Where(s =>
+                (!string.IsNullOrEmpty(s.Username) && s.Username.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(s.OpaqueUserId) && s.OpaqueUserId.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(s.LastFeature) && s.LastFeature.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(s.Role) && s.Role.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(s.UserIp) && s.UserIp.Contains(search, StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
     protected override void OnInitialized()
     {
         UserService.CircuitsChanged += UserService_CircuitsChanged;
         UserService.UserRemoved += UserService_UserRemoved;
+        ExtensionTrackingService.SessionsChanged += ExtensionTrackingService_SessionsChanged;
         circuits = UserService.Circuits;
+        extensionSessions = ExtensionTrackingService.GetActiveSessions();
     }
 
     private async Task RevokeSession(CircuitUser user)
@@ -157,9 +283,26 @@
         InvokeAsync(StateHasChanged);
     }
 
+    private void ExtensionTrackingService_SessionsChanged(object? sender, EventArgs e)
+    {
+        extensionSessions = ExtensionTrackingService.GetActiveSessions();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static string FormatTitle(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Unknown";
+        }
+
+        return char.ToUpperInvariant(value[0]) + value[1..];
+    }
+
     public void Dispose()
     {
         UserService.CircuitsChanged -= UserService_CircuitsChanged;
         UserService.UserRemoved -= UserService_UserRemoved;
+        ExtensionTrackingService.SessionsChanged -= ExtensionTrackingService_SessionsChanged;
     }
 }

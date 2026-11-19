@@ -285,6 +285,9 @@ internal class Program
         builder.Services.AddSingleton<PenguinTwitchBot.Circuit.IpLog>();
         builder.Services.AddSingleton<PenguinTwitchBot.Circuit.IIpLog>(sp => sp.GetRequiredService<PenguinTwitchBot.Circuit.IpLog>());
         builder.Services.AddSingleton<ICircuitUserService, CircuitUserService>();
+        builder.Services.AddSingleton<TwitchExtensionTrackingService>();
+        builder.Services.AddSingleton<ITwitchExtensionTrackingService>(sp => sp.GetRequiredService<TwitchExtensionTrackingService>());
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<TwitchExtensionTrackingService>());
         builder.Services.AddScoped<CircuitHandler>((sp) =>
             new CircuitHandlerService(
                 sp.GetRequiredService<ICircuitUserService>(),

@@ -17,6 +17,7 @@ using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Controllers;
+using PenguinTwitchBot.Services;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
@@ -57,7 +58,10 @@ public class TwitchExtensionControllerTests
         _configuration["TwitchExtension:Secret"].Returns(TestSecretBase64);
     }
 
-    private TwitchExtensionController CreateController(string? authHeader = null, IStarshipExpeditionService? starshipExpeditionService = null)
+    private TwitchExtensionController CreateController(
+        string? authHeader = null,
+        IStarshipExpeditionService? starshipExpeditionService = null,
+        ITwitchExtensionTrackingService? trackingService = null)
     {
         var scopeFactory = Substitute.For<IServiceScopeFactory>();
         var leaderboards = new Leaderboards(scopeFactory);
@@ -78,7 +82,8 @@ public class TwitchExtensionControllerTests
             _ipLog,
             _configuration,
             _logger,
-            starshipExpeditionService);
+            starshipExpeditionService,
+            trackingService);
 
         var httpContext = new DefaultHttpContext();
         if (!string.IsNullOrWhiteSpace(authHeader))
@@ -755,6 +760,83 @@ public class TwitchExtensionControllerTests
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.NotNull(badRequest.Value);
         await starshipService.DidNotReceive().ConfirmRiskActionAsync(Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_RecordsTelemetry_ForValidExtensionRequest()
+    {
+        var token = GenerateTestJwt("channel123", userId: "user789");
+        var trackingService = Substitute.For<ITwitchExtensionTrackingService>();
+        var controller = CreateController($"Bearer {token}", trackingService: trackingService);
+        controller.HttpContext.Request.Method = "POST";
+        controller.HttpContext.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.5");
+        controller.ControllerContext.ActionDescriptor.ActionName = nameof(TwitchExtensionController.EnterGiveaway);
+
+        var executingContext = new ActionExecutingContext(
+            controller.ControllerContext,
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object?>(),
+            controller);
+
+        await controller.OnActionExecutionAsync(executingContext, () =>
+        {
+            var executed = new ActionExecutedContext(
+                controller.ControllerContext,
+                new List<IFilterMetadata>(),
+                controller)
+            {
+                Result = new OkObjectResult(new { ok = true })
+            };
+            return Task.FromResult(executed);
+        });
+
+        trackingService.Received(1).RecordRequest(
+            Arg.Is<TwitchExtensionClaims>(c => c.UserId == "user789" && c.IsIdentityShared),
+            "giveaway",
+            "giveaway_enter",
+            "POST",
+            200,
+            "203.0.113.5",
+            "giveaway_enter",
+            Arg.Any<Func<Task<string?>>?>());
+        trackingService.DidNotReceive().RecordAuthFailure(Arg.Any<TwitchExtensionTokenFailureReason>());
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_RecordsAuthFailure_WhenTokenMissing()
+    {
+        var trackingService = Substitute.For<ITwitchExtensionTrackingService>();
+        var controller = CreateController(authHeader: null, trackingService: trackingService);
+        controller.ControllerContext.ActionDescriptor.ActionName = nameof(TwitchExtensionController.GetFeatures);
+
+        var executingContext = new ActionExecutingContext(
+            controller.ControllerContext,
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object?>(),
+            controller);
+
+        await controller.OnActionExecutionAsync(executingContext, () =>
+        {
+            var executed = new ActionExecutedContext(
+                controller.ControllerContext,
+                new List<IFilterMetadata>(),
+                controller)
+            {
+                Result = new OkResult()
+            };
+            return Task.FromResult(executed);
+        });
+
+        trackingService.Received(1).RecordAuthFailure(TwitchExtensionTokenFailureReason.MissingHeader);
+        trackingService.DidNotReceive().RecordRequest(
+            Arg.Any<TwitchExtensionClaims>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int>(),
+            Arg.Any<string?>(),
+            Arg.Any<string?>(),
+            Arg.Any<Func<Task<string?>>?>());
     }
 }
 

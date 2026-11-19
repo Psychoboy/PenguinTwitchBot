@@ -17,6 +17,22 @@ public sealed record TwitchExtensionClaims(
     public bool HasUserId => !string.IsNullOrWhiteSpace(UserId);
 }
 
+public enum TwitchExtensionTokenFailureReason
+{
+    None = 0,
+    MissingHeader = 1,
+    UnconfiguredSecret = 2,
+    Expired = 3,
+    InvalidSignature = 4
+}
+
+public sealed record TwitchExtensionTokenValidationResult(
+    TwitchExtensionClaims? Claims,
+    TwitchExtensionTokenFailureReason FailureReason)
+{
+    public bool IsValid => Claims != null && FailureReason == TwitchExtensionTokenFailureReason.None;
+}
+
 public static class TwitchExtensionSecurity
 {
     private static readonly JwtSecurityTokenHandler TokenHandler = new();
@@ -26,20 +42,34 @@ public static class TwitchExtensionSecurity
         IConfiguration configuration,
         ILogger logger)
     {
+        return ValidateTokenWithResult(authorizationHeader, configuration, logger).Claims;
+    }
+
+    public static TwitchExtensionTokenValidationResult ValidateTokenWithResult(
+        string? authorizationHeader,
+        IConfiguration configuration,
+        ILogger logger)
+    {
         var token = ExtractBearerToken(authorizationHeader);
         if (token == null)
         {
-            return null;
+            return new TwitchExtensionTokenValidationResult(null, TwitchExtensionTokenFailureReason.MissingHeader);
         }
 
         var secret = GetExtensionSecret(configuration);
-        var principal = ValidateOrReadToken(token, secret, logger);
-        if (principal == null)
+        if (string.IsNullOrWhiteSpace(secret))
         {
-            return null;
+            logger.LogError("Twitch Extension secret is not configured; cannot validate JWT token");
+            return new TwitchExtensionTokenValidationResult(null, TwitchExtensionTokenFailureReason.UnconfiguredSecret);
         }
 
-        return ExtractClaims(principal);
+        var (principal, failureReason) = ValidateSignedToken(token, secret, logger);
+        if (principal == null)
+        {
+            return new TwitchExtensionTokenValidationResult(null, failureReason);
+        }
+
+        return new TwitchExtensionTokenValidationResult(ExtractClaims(principal), TwitchExtensionTokenFailureReason.None);
     }
 
     private static string? ExtractBearerToken(string? authorizationHeader)
@@ -66,18 +96,10 @@ public static class TwitchExtensionSecurity
                ?? configuration["Twitch:ExtensionSecret"];
     }
 
-    private static ClaimsPrincipal? ValidateOrReadToken(string token, string? secret, ILogger logger)
-    {
-        if (string.IsNullOrWhiteSpace(secret))
-        {
-            logger.LogError("Twitch Extension secret is not configured; cannot validate JWT token");
-            return null;
-        }
-
-        return ValidateSignedToken(token, secret, logger);
-    }
-
-    private static ClaimsPrincipal? ValidateSignedToken(string token, string secret, ILogger logger)
+    private static (ClaimsPrincipal? Principal, TwitchExtensionTokenFailureReason FailureReason) ValidateSignedToken(
+        string token,
+        string secret,
+        ILogger logger)
     {
         try
         {
@@ -92,17 +114,17 @@ public static class TwitchExtensionSecurity
                 ClockSkew = TimeSpan.FromMinutes(2)
             };
 
-            return TokenHandler.ValidateToken(token, validationParameters, out _);
+            return (TokenHandler.ValidateToken(token, validationParameters, out _), TwitchExtensionTokenFailureReason.None);
         }
         catch (SecurityTokenExpiredException)
         {
             // Token has expired, return null to indicate validation failure. Expected when viewers leave a stream tab open.
-            return null;
+            return (null, TwitchExtensionTokenFailureReason.Expired);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to validate Twitch Extension JWT signature");
-            return null;
+            return (null, TwitchExtensionTokenFailureReason.InvalidSignature);
         }
     }
 
