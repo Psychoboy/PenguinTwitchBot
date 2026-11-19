@@ -1023,10 +1023,13 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
         {
             config.TimeWindow ??= new CreditsTimeWindowConfig();
             config.Header ??= new CreditsHeaderConfig();
+            config.Header.Title ??= string.Empty;
             config.Footer ??= new CreditsFooterConfig();
+            config.Footer.Title ??= string.Empty;
             config.Footer.Lines ??= [];
             config.Playback ??= new CreditsPlaybackConfig();
             config.Exclusions ??= new CreditsExclusionConfig();
+            config.Exclusions.AnonymousLabel ??= "Anonymous";
             config.Exclusions.ExcludedUsernames ??= [];
             config.Media ??= new CreditsMediaOverrideConfig();
             config.CustomCssOverride ??= string.Empty;
@@ -1034,8 +1037,22 @@ namespace PenguinTwitchBot.Bot.Overlay.Credits
                 .Where(s => s != null)
                 .Select(s =>
                 {
+                    if (string.IsNullOrWhiteSpace(s.Id))
+                    {
+                        s.Id = Guid.NewGuid().ToString("N");
+                    }
+                    s.Title ??= string.Empty;
+                    s.EntryFormatTemplate ??= "{name}";
                     s.SourceTypes ??= [];
-                    s.StaticEntries ??= [];
+                    s.StaticEntries = (s.StaticEntries ?? [])
+                        .Where(e => e != null)
+                        .Select(e =>
+                        {
+                            e.Name ??= string.Empty;
+                            e.Role ??= string.Empty;
+                            return e;
+                        })
+                        .ToList();
                     return s;
                 })
                 .ToList();

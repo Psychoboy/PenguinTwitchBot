@@ -296,6 +296,115 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
             Assert.Equal("Viewer", CreditsDataBuilder.FormatEntryText(sec2, "Viewer", 5, null, null));
         }
 
+        [Fact]
+        public void FormatEntryText_SinglePassDoesNotReExpandTokensInUserValues()
+        {
+            var sec = new CreditsSectionConfig
+            {
+                EntryFormatTemplate = "{name} - {detail} ({amount})",
+                ShowAmount = true
+            };
+
+            var formatted = CreditsDataBuilder.FormatEntryText(sec, "User{detail}", 42, "Won {amount} coins", null);
+            Assert.Equal("User{detail} - Won {amount} coins (42)", formatted);
+        }
+
+        [Fact]
+        public void DeserializeProfileConfig_NormalizesNullNestedObjectsAndCollections()
+        {
+            const string json = """
+            {
+                "timeWindow": null,
+                "header": null,
+                "footer": { "title": null, "lines": null },
+                "playback": null,
+                "exclusions": { "excludedUsernames": null },
+                "media": null,
+                "sections": [
+                    null,
+                    { "id": "", "title": null, "sourceTypes": null, "staticEntries": [ null, { "name": null, "role": null } ] }
+                ]
+            }
+            """;
+
+            var config = CreditsDataBuilder.DeserializeProfileConfig(json);
+            Assert.NotNull(config.TimeWindow);
+            Assert.NotNull(config.Header);
+            Assert.NotNull(config.Footer);
+            Assert.NotNull(config.Footer.Lines);
+            Assert.NotNull(config.Playback);
+            Assert.NotNull(config.Exclusions);
+            Assert.NotNull(config.Exclusions.ExcludedUsernames);
+            Assert.NotNull(config.Media);
+
+            var section = Assert.Single(config.Sections);
+            Assert.False(string.IsNullOrWhiteSpace(section.Id));
+            Assert.NotNull(section.Title);
+            Assert.NotNull(section.SourceTypes);
+            var staticEntry = Assert.Single(section.StaticEntries);
+            Assert.NotNull(staticEntry.Name);
+            Assert.NotNull(staticEntry.Role);
+        }
+
+        [Fact]
+        public async Task BuildPayloadAsync_PreservesDuplicateNameStaticOrder_AndSupportsMaxWeightFishing()
+        {
+            await using (var scope = _provider.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var fishType = new FishType { Name = "Trout", Rarity = FishRarity.Common, ImageFileName = "tr.png" };
+                db.FishTypes.Add(fishType);
+                db.FishCatches.AddRange(
+                    new FishCatch { UserId = "f10", Username = "manyfish", FishType = fishType, Weight = 30.0, GoldEarned = 10, CaughtAt = _now.AddMinutes(-30) },
+                    new FishCatch { UserId = "f10", Username = "manyfish", FishType = fishType, Weight = 35.0, GoldEarned = 10, CaughtAt = _now.AddMinutes(-20) },
+                    new FishCatch { UserId = "f20", Username = "bigfish", FishType = fishType, Weight = 50.0, GoldEarned = 10, CaughtAt = _now.AddMinutes(-10) });
+                await db.SaveChangesAsync();
+            }
+
+            var profile = CreateProfile(new CreditsProfileConfig
+            {
+                TimeWindow = new CreditsTimeWindowConfig
+                {
+                    Mode = CreditTimeWindowModes.RollingLookback,
+                    LookbackValue = 2,
+                    LookbackUnit = CreditLookbackUnits.Hours
+                },
+                Sections =
+                [
+                    new CreditsSectionConfig
+                    {
+                        Title = "Cast",
+                        SourceTypes = [CreditSectionSources.CustomStatic],
+                        AggregationMode = CreditAggregationModes.IndividualEvents,
+                        SortMode = CreditSortModes.MostRecent,
+                        EntryFormatTemplate = "{detail}: {name}",
+                        StaticEntries =
+                        [
+                            new CreditsStaticEntry { Name = "Alex", Role = "Director" },
+                            new CreditsStaticEntry { Name = "Sam", Role = "Editor" },
+                            new CreditsStaticEntry { Name = "Alex", Role = "Producer" }
+                        ]
+                    },
+                    new CreditsSectionConfig
+                    {
+                        Title = "Biggest Catch",
+                        SourceTypes = [CreditSectionSources.FishingTopAnglers],
+                        FishingRankBy = "MaxWeight",
+                        SortMode = CreditSortModes.HighestAmount,
+                        EntryFormatTemplate = "{name} ({amount})"
+                    }
+                ]
+            });
+
+            var payload = await _builder.BuildPayloadAsync(profile, null, CreditSampleModes.Off);
+            var cast = payload.Sections.Single(s => s.Title == "Cast");
+            Assert.Equal(["Director: Alex", "Editor: Sam", "Producer: Alex"], cast.Entries.Select(e => e.FormattedText).ToArray());
+
+            var fish = payload.Sections.Single(s => s.Title == "Biggest Catch");
+            Assert.Equal("bigfish (50)", fish.Entries[0].FormattedText);
+            Assert.Equal("manyfish (35)", fish.Entries[1].FormattedText);
+        }
+
         private static CreditProfile CreateProfile(CreditsProfileConfig cfg) => new()
         {
             Name = "Default",

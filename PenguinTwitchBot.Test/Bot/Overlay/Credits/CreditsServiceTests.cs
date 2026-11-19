@@ -235,12 +235,66 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
                     Arg.Any<string>())
                 .Returns<List<ActionType>>(_ => throw new InvalidOperationException("boom"));
 
-            await service.TriggerCompletedAsync("Evil\r\nForgedLogLine\nNext", totalEntries: 1, totalSections: 1);
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                service.TriggerCompletedAsync("Evil\r\nForgedLogLine\nNext", totalEntries: 1, totalSections: 1));
 
             var logged = Assert.Single(capturingLogger.Messages);
             Assert.DoesNotContain("\r", logged, StringComparison.Ordinal);
             Assert.DoesNotContain("\n", logged, StringComparison.Ordinal);
             Assert.Contains("EvilForgedLogLineNext", logged, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public async Task CloneProfileAsync_PreservesNullThemeId_AndUnnamedControlsResolveRenamedDefaultProfile()
+        {
+            await _service.EnsureSeededAsync();
+            var profiles = await _service.GetProfilesAsync();
+            var defaultProfile = profiles.Single(p => p.IsDefault);
+
+            // Save default profile with a custom name and null ThemeId
+            var cfg = CreditsDataBuilder.DeserializeProfileConfig(defaultProfile.ConfigJson);
+            var savedDefault = await _service.SaveProfileAsync(
+                defaultProfile.Id,
+                "MainShow",
+                themeId: null,
+                cfg,
+                isDefault: true);
+
+            Assert.Null(savedDefault.ThemeId);
+
+            var cloned = await _service.CloneProfileAsync(savedDefault.Id, "ClonedNullTheme");
+            Assert.Null(cloned.ThemeId);
+
+            _wsMessenger.ClearReceivedCalls();
+            await _service.StopAsync();
+            await _wsMessenger.Received(1).AddToQueue(
+                WsTopics.Credits,
+                Arg.Is<string>(s =>
+                    s.Contains("\"type\": \"credits_stop\"", StringComparison.OrdinalIgnoreCase) &&
+                    s.Contains("\"profile\": \"MainShow\"", StringComparison.Ordinal)));
+        }
+
+        [Fact]
+        public async Task MarkManualCheckpointAsync_ProfileScopedDoesNotCreateGlobalSessionRow()
+        {
+            await _service.EnsureSeededAsync();
+            _collector.ClearReceivedCalls();
+
+            var profileUtc = await _service.MarkManualCheckpointAsync("Profile Scoped", "Default");
+            await _collector.DidNotReceive().MarkManualCheckpointAsync(
+                Arg.Any<string?>(),
+                Arg.Any<DateTime?>(),
+                Arg.Any<CancellationToken>());
+
+            var defaultProfile = await _service.ResolveProfileAsync("Default");
+            var cfg = CreditsDataBuilder.DeserializeProfileConfig(defaultProfile.ConfigJson);
+            Assert.Equal(profileUtc, cfg.TimeWindow.ManualCheckpointUtc);
+
+            var globalUtc = await _service.MarkManualCheckpointAsync("Global Checkpoint", profileName: null);
+            await _collector.Received(1).MarkManualCheckpointAsync(
+                "Global Checkpoint",
+                globalUtc,
+                Arg.Any<CancellationToken>());
         }
 
         private sealed class CapturingCreditsLogger : ILogger<CreditsService>

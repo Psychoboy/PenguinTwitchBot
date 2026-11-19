@@ -312,6 +312,57 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
             Assert.NotNull(session.EndedAtUtc);
         }
 
+        [Fact]
+        public async Task OfflineChatterCoalescing_AccumulatesDeltasAndPrunesOnlyExpiredHourBuckets()
+        {
+            _backbone.IsOnline = false;
+            await _collector.StartAsync(CancellationToken.None);
+
+            _collector.RecordChatter(new ChatMessageEventArgs
+            {
+                FromOwnChannel = true,
+                UserId = "501",
+                Name = "OfflineChatter",
+                DisplayName = "OfflineChatter",
+                Message = "First"
+            });
+            await _collector.FlushPendingChattersAsync();
+
+            _collector.RecordChatter(new ChatMessageEventArgs
+            {
+                FromOwnChannel = true,
+                UserId = "501",
+                Name = "OfflineChatter",
+                DisplayName = "OfflineChatter",
+                Message = "Second"
+            });
+            await _collector.FlushPendingChattersAsync();
+
+            // Advance 3 hours so the earlier offline hour bucket is pruned cleanly
+            _timeProvider.Advance(TimeSpan.FromHours(3));
+            _collector.RecordChatter(new ChatMessageEventArgs
+            {
+                FromOwnChannel = true,
+                UserId = "501",
+                Name = "OfflineChatter",
+                DisplayName = "OfflineChatter",
+                Message = "LaterBucket"
+            });
+            await _collector.FlushPendingChattersAsync();
+            await _collector.StopAsync(CancellationToken.None);
+
+            await using var scope = _provider.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var rows = await db.CreditEvents
+                .Where(e => e.EventType == CreditEventTypes.Chatter && e.Username == "offlinechatter")
+                .OrderBy(e => e.OccurredAtUtc)
+                .ToListAsync();
+
+            Assert.Equal(2, rows.Count);
+            Assert.Equal(2m, rows[0].Amount);
+            Assert.Equal(1m, rows[1].Amount);
+        }
+
         private sealed class MutableTestTimeProvider(DateTimeOffset initial) : TimeProvider
         {
             private DateTimeOffset _now = initial;

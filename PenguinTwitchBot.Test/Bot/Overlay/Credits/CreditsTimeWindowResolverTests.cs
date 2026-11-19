@@ -193,6 +193,31 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
             Assert.Equal(session.EndedAtUtc!.Value, sessionResolved.EndUtc);
         }
 
+        [Fact]
+        public async Task InvertedCustomRange_AndLargeRollingLookback_ClampGracefully()
+        {
+            var later = _now.AddHours(-1);
+            var earlier = _now.AddHours(-5);
+            var customResolved = await _resolver.ResolveAsync(_uow, new CreditsTimeWindowConfig
+            {
+                Mode = CreditTimeWindowModes.CustomDateRange,
+                CustomStartUtc = later,
+                CustomEndUtc = earlier
+            });
+            Assert.True(customResolved.EndUtc >= customResolved.StartUtc);
+            Assert.Equal(later, customResolved.StartUtc);
+            Assert.Equal(later, customResolved.EndUtc);
+
+            var earlyResolver = new CreditsTimeWindowResolver(new FixedTimeProvider(new DateTime(1, 1, 2, 0, 0, 0, DateTimeKind.Utc)));
+            var clamped = await earlyResolver.ResolveAsync(_uow, new CreditsTimeWindowConfig
+            {
+                Mode = CreditTimeWindowModes.RollingLookback,
+                LookbackValue = 30,
+                LookbackUnit = CreditLookbackUnits.Days
+            });
+            Assert.Equal(DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc), clamped.StartUtc);
+        }
+
         private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
         {
             public override DateTimeOffset GetUtcNow() => new(utcNow, TimeSpan.Zero);

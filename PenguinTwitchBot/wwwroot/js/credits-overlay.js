@@ -622,7 +622,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 overlayKey: overlayKey,
-                profileName: payload.profileName || profileParam,
+                profileName: payload.profileName || resolvedProfileName || profileParam || 'Default',
                 totalEntries: payload.totalEntries || 0,
                 totalSections: (payload.sections || []).length
             })
@@ -631,7 +631,8 @@
         });
     }
 
-    function handleEndReached(payload) {
+    function handleEndReached(payload, gen) {
+        if (gen !== undefined && gen !== runGeneration) return;
         const playback = payload.playback || {};
         const endBehavior = playback.endBehavior || 'FadeOutAndHide';
         const media = payload.media || {};
@@ -651,7 +652,10 @@
 
         if (endBehavior === 'HoldFooter') {
             const holdMs = Math.max(0, (Number(payload.footer?.holdSeconds) || 4) * 1000);
+            const expectedGen = runGeneration;
             outroTimerId = setTimeout(function () {
+                if (expectedGen !== runGeneration) return;
+                outroTimerId = null;
                 stopAudio(media.audioFadeOutSeconds);
                 rootEl.classList.add('credits-hidden');
             }, holdMs);
@@ -663,7 +667,7 @@
         rootEl.classList.add('credits-hidden');
     }
 
-    function startScrollPlayback(payload) {
+    function startScrollPlayback(payload, gen) {
         const viewportH = viewportEl.clientHeight || window.innerHeight || 1080;
         const trackH = trackEl.scrollHeight || trackEl.offsetHeight || 600;
         const playback = payload.playback || {};
@@ -693,7 +697,7 @@
         lastFrameTime = performance.now();
 
         function step(now) {
-            if (!isRunning) return;
+            if (gen !== runGeneration || !isRunning) return;
             const dt = Math.min(0.1, Math.max(0, (now - lastFrameTime) / 1000));
             lastFrameTime = now;
 
@@ -701,7 +705,7 @@
                 scrollY -= effectiveSpeedPxPerSec * speedMultiplier * dt;
                 trackEl.style.transform = 'translate3d(0, ' + scrollY.toFixed(1) + 'px, 0)';
                 if (scrollY <= endScrollY) {
-                    handleEndReached(payload);
+                    handleEndReached(payload, gen);
                     return;
                 }
             }
@@ -712,20 +716,95 @@
         rafId = requestAnimationFrame(step);
     }
 
-    function startPagedPlayback(payload) {
+    function buildPagedSectionSlides(section, theme, availableH) {
+        const fullNode = buildSectionNode(section, theme);
+        const listEl = fullNode.querySelector('.credits-list');
+        if (!listEl || listEl.children.length <= 1) {
+            return [fullNode];
+        }
+
+        const measureWrapper = document.createElement('div');
+        measureWrapper.className = 'credits-page-slide';
+        measureWrapper.style.visibility = 'hidden';
+        measureWrapper.style.pointerEvents = 'none';
+        measureWrapper.appendChild(fullNode);
+        pagedEl.innerHTML = '';
+        pagedEl.appendChild(measureWrapper);
+
+        if (measureWrapper.scrollHeight <= availableH) {
+            measureWrapper.removeChild(fullNode);
+            pagedEl.innerHTML = '';
+            return [fullNode];
+        }
+
+        const headerEl = fullNode.querySelector('.credits-section-header');
+        const entryNodes = Array.from(listEl.children);
+        listEl.innerHTML = '';
+
+        function createSectionShell() {
+            const shell = fullNode.cloneNode(false);
+            if (headerEl) {
+                shell.appendChild(headerEl.cloneNode(true));
+            }
+            const shellList = listEl.cloneNode(false);
+            shell.appendChild(shellList);
+            return { sectionEl: shell, listEl: shellList };
+        }
+
+        const sectionSlides = [];
+        let current = { sectionEl: fullNode, listEl: listEl };
+
+        for (let i = 0; i < entryNodes.length; i++) {
+            const entryNode = entryNodes[i];
+            current.listEl.appendChild(entryNode);
+
+            if (current.listEl.children.length > 1 && measureWrapper.scrollHeight > availableH) {
+                current.listEl.removeChild(entryNode);
+                measureWrapper.removeChild(current.sectionEl);
+                sectionSlides.push(current.sectionEl);
+
+                current = createSectionShell();
+                measureWrapper.appendChild(current.sectionEl);
+                current.listEl.appendChild(entryNode);
+            }
+        }
+
+        if (current.listEl.children.length > 0) {
+            if (current.sectionEl.parentNode === measureWrapper) {
+                measureWrapper.removeChild(current.sectionEl);
+            }
+            sectionSlides.push(current.sectionEl);
+        }
+
+        pagedEl.innerHTML = '';
+        return sectionSlides.length > 0 ? sectionSlides : [fullNode];
+    }
+
+    function startPagedPlayback(payload, gen) {
         const slides = [];
         const headerNode = buildHeaderNode(payload.header);
         if (headerNode) slides.push(headerNode);
 
+        const computedStyle = window.getComputedStyle(pagedEl);
+        const padY = (parseFloat(computedStyle.paddingTop) || 0) + (parseFloat(computedStyle.paddingBottom) || 0);
+        const availableH = Math.max(120, (pagedEl.clientHeight || window.innerHeight || 1080) - padY);
+
         (payload.sections || []).forEach(function (section) {
-            slides.push(buildSectionNode(section, payload.theme || {}));
+            const sectionSlides = buildPagedSectionSlides(section, payload.theme || {}, availableH);
+            sectionSlides.forEach(function (slideNode) {
+                slides.push(slideNode);
+            });
         });
 
         const footerNode = buildFooterNode(payload.footer);
         if (footerNode) slides.push(footerNode);
 
         if (slides.length === 0) {
-            handleEndReached(payload);
+            if ((payload.playback?.endBehavior || 'FadeOutAndHide') === 'Loop') {
+                stopPlayback();
+            } else {
+                handleEndReached(payload, gen);
+            }
             return;
         }
 
@@ -733,9 +812,9 @@
         let idx = 0;
 
         function showSlide(i) {
-            if (!isRunning) return;
+            if (gen !== runGeneration || !isRunning) return;
             if (i >= slides.length) {
-                handleEndReached(payload);
+                handleEndReached(payload, gen);
                 return;
             }
 
@@ -746,29 +825,20 @@
             pagedEl.appendChild(wrapper);
 
             requestAnimationFrame(function () {
+                if (gen !== runGeneration || !isRunning) return;
                 wrapper.classList.add('credits-page-slide--active');
             });
 
             const durationMs = Math.max(1000, baseMs / speedMultiplier);
-            pagedTimerId = setTimeout(function () {
-                if (!isRunning) return;
-                if (isPaused) {
-                    const waitResume = setInterval(function () {
-                        if (!isRunning) { clearInterval(waitResume); return; }
-                        if (!isPaused) {
-                            clearInterval(waitResume);
-                            idx += 1;
-                            showSlide(idx);
-                        }
-                    }, 150);
-                    return;
-                }
+            schedulePagedDeadline(durationMs, function () {
                 wrapper.classList.remove('credits-page-slide--active');
-                setTimeout(function () {
+                pagedTransitionTimerId = setTimeout(function () {
+                    pagedTransitionTimerId = null;
+                    if (gen !== runGeneration || !isRunning) return;
                     idx += 1;
                     showSlide(idx);
                 }, 450);
-            }, durationMs);
+            }, gen);
         }
 
         showSlide(0);
@@ -776,8 +846,13 @@
 
     function startPlayback(payload, skipIntroDelay) {
         if (!payload) return;
+        activeRequestId++;
+        const gen = ++runGeneration;
         clearTimersAndAnimations();
         currentPayload = payload;
+        if (payload.profileName) {
+            resolvedProfileName = String(payload.profileName).trim();
+        }
         isPaused = false;
         isRunning = true;
         completionSent = false;
@@ -794,11 +869,12 @@
         const animMode = payload.playback?.animationMode || payload.theme?.animationMode || 'SmoothScroll';
 
         function beginMotion() {
-            if (!isRunning) return;
+            introTimerId = null;
+            if (gen !== runGeneration || !isRunning) return;
             if (animMode === 'PagedSlideshow') {
-                startPagedPlayback(payload);
+                startPagedPlayback(payload, gen);
             } else {
-                startScrollPlayback(payload);
+                startScrollPlayback(payload, gen);
             }
         }
 
@@ -812,6 +888,8 @@
     }
 
     function stopPlayback() {
+        activeRequestId++;
+        runGeneration++;
         clearTimersAndAnimations();
         isRunning = false;
         isPaused = false;
@@ -820,9 +898,12 @@
     }
 
     async function fetchAndPrepare(startImmediately, overrideSample) {
+        const reqId = ++activeRequestId;
         try {
             const url = new URL('/api/credits/render', window.location.origin);
-            url.searchParams.set('profile', profileParam);
+            if (profileParam) {
+                url.searchParams.set('profile', profileParam);
+            }
             const effSample = overrideSample !== undefined ? overrideSample : sampleParam;
             if (effSample) url.searchParams.set('sample', effSample);
             if (windowModeParam) url.searchParams.set('windowMode', windowModeParam);
@@ -832,7 +913,12 @@
             const resp = await fetch(url.toString(), { cache: 'no-store' });
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const payload = await resp.json();
+            if (reqId !== activeRequestId) return;
+
             currentPayload = payload;
+            if (payload && payload.profileName) {
+                resolvedProfileName = String(payload.profileName).trim();
+            }
 
             const shouldAutoStart = previewMode
                 ? true
@@ -855,7 +941,27 @@
 
     function matchesProfileTarget(targetProfile) {
         if (!targetProfile || targetProfile === '*') return true;
-        return String(targetProfile).trim().toLowerCase() === profileParam.trim().toLowerCase();
+        const normalizedTarget = String(targetProfile).trim().toLowerCase();
+        if (profileParam && normalizedTarget === profileParam.toLowerCase()) return true;
+        if (resolvedProfileName && normalizedTarget === resolvedProfileName.toLowerCase()) return true;
+        return false;
+    }
+
+    function setPausedState(nextPaused) {
+        if (!isRunning || isPaused === nextPaused) return;
+        isPaused = nextPaused;
+        lastFrameTime = performance.now();
+        if (isPaused) {
+            pausePagedTimer();
+            if (audioEl && !audioEl.paused) {
+                audioEl.pause();
+            }
+        } else {
+            resumePagedTimer();
+            if (!previewMode && audioEl && audioEl.src && audioEl.paused && currentPayload?.media?.backgroundAudioUrl) {
+                audioEl.play().catch(function () {});
+            }
+        }
     }
 
     function handleCommand(msg) {
@@ -875,23 +981,16 @@
                 stopPlayback();
                 break;
             case 'credits_pause':
-                isPaused = true;
-                if (audioEl && !audioEl.paused) audioEl.pause();
+                if (!isRunning) return;
+                setPausedState(true);
                 break;
             case 'credits_resume':
-                isPaused = false;
-                lastFrameTime = performance.now();
-                if (!previewMode && audioEl && audioEl.src && audioEl.paused && currentPayload?.media?.backgroundAudioUrl) {
-                    audioEl.play().catch(function () {});
-                }
+                if (!isRunning) return;
+                setPausedState(false);
                 break;
             case 'credits_toggle_pause':
-                isPaused = !isPaused;
-                lastFrameTime = performance.now();
-                if (!previewMode && audioEl && audioEl.src) {
-                    if (isPaused && !audioEl.paused) audioEl.pause();
-                    else if (!isPaused && audioEl.paused && currentPayload?.media?.backgroundAudioUrl) audioEl.play().catch(function () {});
-                }
+                if (!isRunning) return;
+                setPausedState(!isPaused);
                 break;
             case 'credits_restart':
                 if (currentPayload) {
@@ -923,7 +1022,7 @@
             handleCommand(data);
         });
     } else if (typeof createWsSocket === 'function') {
-        const ws = createWsSocket('Credits: ' + profileParam, [window.WS_TOPICS ? window.WS_TOPICS.credits : 'credits']);
+        const ws = createWsSocket('Credits: ' + (profileParam || 'Default'), [window.WS_TOPICS ? window.WS_TOPICS.credits : 'credits']);
         ws.addEventListener('open', function () {
             if (typeof wsStatusShow === 'function') wsStatusShow(true);
         });

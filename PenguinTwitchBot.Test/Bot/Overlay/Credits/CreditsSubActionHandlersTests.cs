@@ -137,5 +137,23 @@ namespace PenguinTwitchBot.Test.Bot.Overlay.Credits
                 "https://cdn.example/guest.png",
                 CreditEventTypes.Manual);
         }
+
+        [Fact]
+        public void CreditsPlayType_Validate_AllowsBlankLookbackUnderRollingLookback_RejectsInvalidNumber()
+        {
+            var playType = new CreditsPlayType();
+
+            Assert.Null(playType.Validate(new Dictionary<string, object?>
+            {
+                [nameof(CreditsPlayType.WindowOverrideMode)] = CreditTimeWindowModes.RollingLookback,
+                [nameof(CreditsPlayType.LookbackMinutes)] = ""
+            }));
+
+            Assert.NotNull(playType.Validate(new Dictionary<string, object?>
+            {
+                [nameof(CreditsPlayType.WindowOverrideMode)] = CreditTimeWindowModes.RollingLookback,
+                [nameof(CreditsPlayType.LookbackMinutes)] = "not-a-number"
+            }));
+        }
     }
 }
