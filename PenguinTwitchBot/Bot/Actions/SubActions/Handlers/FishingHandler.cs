@@ -70,10 +70,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "UserId variable is required for fishing");
             }
 
-            var attemptsText = VariableReplacer.ReplaceVariables(fishingAction.Text, variables);
+            var attemptsText = VariableReplacer.ReplaceVariables(fishingAction.Text, variables)?.Trim();
             var attempts = Math.Clamp(fishingAction.Attempts, 1, 15);
 
-            if (!string.IsNullOrWhiteSpace(attemptsText) && int.TryParse(attemptsText, out var parsedAttempts))
+            if (!string.IsNullOrWhiteSpace(attemptsText) &&
+                int.TryParse(attemptsText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsedAttempts))
             {
                 attempts = Math.Clamp(parsedAttempts, 1, 15);
             }

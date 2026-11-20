@@ -305,5 +305,30 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.Equal(5000, original.DisplayDurationMs);
             Assert.False(original.BoostMode);
         }
+
+        [Fact]
+        public void FishingType_Attempts_SupportsNumbersAndVariables()
+        {
+            var action = new PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingType();
+
+            // Variable expression accepted & persisted via Text
+            var varValues = new Dictionary<string, object?> { ["Attempts"] = "%attempts%" };
+            Assert.Null(action.Validate(varValues));
+            action.SetValues(varValues);
+            Assert.Equal("%attempts%", action.Text);
+            Assert.Equal("%attempts%", action.GetValues()["Attempts"]);
+
+            // Numeric value accepted & clears Text
+            var numValues = new Dictionary<string, object?> { ["Attempts"] = "5" };
+            Assert.Null(action.Validate(numValues));
+            action.SetValues(numValues);
+            Assert.Equal(5, action.Attempts);
+            Assert.Equal(string.Empty, action.Text);
+            Assert.Equal("5", action.GetValues()["Attempts"]);
+
+            // Invalid text rejected
+            Assert.NotNull(action.Validate(new Dictionary<string, object?> { ["Attempts"] = "abc" }));
+            Assert.NotNull(action.Validate(new Dictionary<string, object?> { ["Attempts"] = "99" }));
+        }
     }
 }

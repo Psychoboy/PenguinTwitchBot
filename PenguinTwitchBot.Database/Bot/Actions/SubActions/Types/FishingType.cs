@@ -23,12 +23,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 {
                     PropertyName = nameof(Attempts),
                     Label = "Fishing Attempts",
-                    FieldType = UIFieldType.Number,
+                    FieldType = UIFieldType.Text,
                     Required = false,
-                    Min = 1,
-                    Max = 15,
-                    DefaultValue = 1,
-                    HelperText = "Number of fishing attempts to perform (1-15)"
+                    DefaultValue = "1",
+                    HelperText = "Number of fishing attempts (1-15) or a variable (e.g., %attempts%)."
                 },
                 new()
                 {
@@ -50,7 +48,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         protected override void AddCustomValues(Dictionary<string, object?> values)
         {
-            values[nameof(Attempts)] = Attempts;
+            values[nameof(Attempts)] = !string.IsNullOrWhiteSpace(Text) ? Text : Attempts.ToString();
             values[nameof(WaitForReveal)] = WaitForReveal;
         }
 
@@ -58,12 +56,23 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (values.TryGetValue(nameof(Attempts), out var attempts))
             {
-                if (attempts is int attemptsInt)
-                    Attempts = attemptsInt;
-                else if (attempts is long attemptsLong)
-                    Attempts = (int)attemptsLong;
-                else if (attempts != null && int.TryParse(attempts.ToString(), out var parsed))
-                    Attempts = parsed;
+                var raw = attempts?.ToString()?.Trim();
+                if (string.IsNullOrWhiteSpace(raw))
+                {
+                    Attempts = 1;
+                    Text = string.Empty;
+                }
+                else if (int.TryParse(raw, out var parsed))
+                {
+                    Attempts = Math.Clamp(parsed, 1, 15);
+                    Text = string.Empty;
+                }
+                else
+                {
+                    // Variable expression (e.g. %attempts%) resolved at runtime by FishingHandler
+                    Text = raw;
+                    Attempts = 1;
+                }
             }
             if (values.TryGetValue(nameof(WaitForReveal), out var waitForReveal))
             {
@@ -73,21 +82,25 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         protected override string? ValidateCustom(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(Attempts), out var attempts))
+            if (values.TryGetValue(nameof(Attempts), out var attempts) && attempts != null)
             {
-                if (attempts != null)
+                var raw = attempts.ToString()?.Trim();
+                if (string.IsNullOrWhiteSpace(raw))
                 {
-                    var attemptsValue = 0;
-                    if (attempts is int attemptsInt)
-                        attemptsValue = attemptsInt;
-                    else if (attempts is long attemptsLong)
-                        attemptsValue = (int)attemptsLong;
-                    else if (!int.TryParse(attempts.ToString(), out attemptsValue))
-                        return "Attempts must be a valid number";
-
-                    if (attemptsValue < 1 || attemptsValue > 15)
-                        return "Attempts must be between 1 and 15";
+                    return null;
                 }
+
+                // Allow variable placeholders like %attempts%
+                if (raw.Contains('%'))
+                {
+                    return null;
+                }
+
+                if (!int.TryParse(raw, out var attemptsValue))
+                    return "Attempts must be a number (1-15) or a variable like %attempts%";
+
+                if (attemptsValue < 1 || attemptsValue > 15)
+                    return "Attempts must be between 1 and 15";
             }
             return null;
         }
