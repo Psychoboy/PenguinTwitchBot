@@ -220,5 +220,34 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             svc.Register(id2);
             Assert.False(await svc.WaitForRevealAsync(id2, TimeSpan.FromMilliseconds(30)));
         }
+
+        [Fact]
+        public async Task OverlayDisplaySettings_NormalizesClampsAndBroadcastsOnSave()
+        {
+            var gameSettings = Substitute.For<PenguinTwitchBot.Bot.Commands.Games.IGameSettingsService>();
+            var ws = Substitute.For<IWebSocketMessenger>();
+            var svc = new FishingOverlayDisplaySettingsService(gameSettings, ws);
+
+            var custom = new FishingOverlayDisplaySettings
+            {
+                FrenzyBannerMode = "InvalidMode",
+                TournamentOverlayMode = FishingOverlayDisplaySettings.ModePeriodic,
+                FrenzyReminderIntervalMinutes = 0,
+                FrenzyReminderDurationSeconds = 999,
+                TournamentReminderIntervalMinutes = 10,
+                TournamentReminderDurationSeconds = 20,
+                AutoAlwaysThresholdMinutes = 500
+            };
+
+            await svc.SaveAsync(custom);
+            var loaded = await svc.GetAsync();
+
+            Assert.Equal(FishingOverlayDisplaySettings.ModeAuto, loaded.FrenzyBannerMode);
+            Assert.Equal(FishingOverlayDisplaySettings.ModePeriodic, loaded.TournamentOverlayMode);
+            Assert.Equal(1, loaded.FrenzyReminderIntervalMinutes);
+            Assert.Equal(60, loaded.FrenzyReminderDurationSeconds);
+            Assert.Equal(120, loaded.AutoAlwaysThresholdMinutes);
+            await ws.Received(1).AddToQueue(WsTopics.Fishing, Arg.Is<string>(s => s.Contains("fishingOverlayConfig")));
+        }
     }
 }

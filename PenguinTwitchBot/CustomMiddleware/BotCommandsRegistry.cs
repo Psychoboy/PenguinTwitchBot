@@ -506,6 +506,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IFishingFrenzyService, FishingFrenzyService>();
             services.AddSingleton<IFishingOverlayAckService, FishingOverlayAckService>();
             services.AddSingleton<IFishingMessageSettingsService, FishingMessageSettingsService>();
+            services.AddSingleton<IFishingOverlayDisplaySettingsService, FishingOverlayDisplaySettingsService>();
             services.AddSingleton<FishingChatCommands>();
             services.AddHostedService(sp => sp.GetRequiredService<FishingChatCommands>());
 

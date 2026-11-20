@@ -9,9 +9,18 @@
     // Running combo tracker for multi-cast batches
     let comboState = { username: '', totalGold: 0, catches: 0, batchTotal: 1 };
 
-    // Active Frenzy state
+    // Active Frenzy state & visibility config
+    let frenzyStartedAtMs = 0;
     let frenzyEndsAtMs = 0;
     let frenzyTimerHandle = null;
+    let frenzyFlashUntilMs = 0;
+    let lastFrenzyReminderAtMs = 0;
+    let overlayConfig = {
+        frenzyBannerMode: 'Auto',
+        frenzyReminderIntervalMinutes: 5,
+        frenzyReminderDurationSeconds: 12,
+        autoAlwaysThresholdMinutes: 15
+    };
 
     // Active audio references
     let currentCatchAudio = null;
@@ -110,9 +119,75 @@
     }
 
     // --- Frenzy Banner ---
+    function applyOverlayConfig(cfg) {
+        if (!cfg || typeof cfg !== 'object') return;
+        overlayConfig = {
+            frenzyBannerMode: cfg.frenzyBannerMode || overlayConfig.frenzyBannerMode || 'Auto',
+            frenzyReminderIntervalMinutes: Math.max(1, toFiniteNumber(cfg.frenzyReminderIntervalMinutes, overlayConfig.frenzyReminderIntervalMinutes || 5)),
+            frenzyReminderDurationSeconds: Math.max(5, toFiniteNumber(cfg.frenzyReminderDurationSeconds, overlayConfig.frenzyReminderDurationSeconds || 12)),
+            autoAlwaysThresholdMinutes: Math.max(1, toFiniteNumber(cfg.autoAlwaysThresholdMinutes, overlayConfig.autoAlwaysThresholdMinutes || 15))
+        };
+        evaluateFrenzyBannerVisibility();
+    }
+
+    async function loadOverlayConfig() {
+        try {
+            const res = await fetch('/api/overlay/fishing-overlay-config', { cache: 'no-store' });
+            if (res.ok) {
+                applyOverlayConfig(await res.json());
+            }
+        } catch (_) {}
+    }
+
+    function evaluateFrenzyBannerVisibility() {
+        if (!frenzyPillEl) return;
+        const now = Date.now();
+        if (frenzyEndsAtMs <= now) {
+            frenzyPillEl.classList.remove('show');
+            return;
+        }
+
+        const mode = (overlayConfig.frenzyBannerMode || 'Auto').toLowerCase();
+        if (mode === 'hidden') {
+            frenzyPillEl.classList.remove('show');
+            return;
+        }
+
+        const remSec = Math.max(0, Math.ceil((frenzyEndsAtMs - now) / 1000));
+        const totalDurationMin = frenzyStartedAtMs > 0
+            ? (frenzyEndsAtMs - frenzyStartedAtMs) / 60000
+            : (frenzyEndsAtMs - now) / 60000;
+        const isShortEvent = totalDurationMin <= (overlayConfig.autoAlwaysThresholdMinutes || 15) + 0.25;
+        const isFinalCountdown = remSec <= 120;
+        const isCastingNow = isProcessing || queue.length > 0;
+
+        let shouldShow = false;
+        if (mode === 'always' || (mode === 'auto' && isShortEvent)) {
+            shouldShow = true;
+        } else if (mode === 'oncast') {
+            shouldShow = isCastingNow || isFinalCountdown || now < frenzyFlashUntilMs;
+        } else if (mode === 'periodic' || mode === 'auto') {
+            const intervalMs = (overlayConfig.frenzyReminderIntervalMinutes || 5) * 60000;
+            const durationMs = (overlayConfig.frenzyReminderDurationSeconds || 12) * 1000;
+            if (now - lastFrenzyReminderAtMs >= intervalMs) {
+                lastFrenzyReminderAtMs = now;
+                frenzyFlashUntilMs = Math.max(frenzyFlashUntilMs, now + durationMs);
+            }
+            shouldShow = (mode === 'auto' && isCastingNow) || isFinalCountdown || now < frenzyFlashUntilMs;
+        }
+
+        const wasShown = frenzyPillEl.classList.contains('show');
+        frenzyPillEl.classList.toggle('show', shouldShow);
+        if (wasShown !== shouldShow) {
+            scheduleScaleContainer();
+        }
+    }
+
     function updateFrenzyBanner(data) {
         if (!data || !data.active || !data.endsAtUtc) {
+            frenzyStartedAtMs = 0;
             frenzyEndsAtMs = 0;
+            frenzyFlashUntilMs = 0;
             frenzyPillEl.classList.remove('show');
             if (frenzyTimerHandle) {
                 clearInterval(frenzyTimerHandle);
@@ -128,10 +203,19 @@
             return;
         }
 
+        const parsedStart = data.startedAtUtc ? Date.parse(data.startedAtUtc) : NaN;
+        const isNewFrenzy = Math.abs(endsMs - frenzyEndsAtMs) > 2000;
+        frenzyStartedAtMs = Number.isFinite(parsedStart) ? parsedStart : Date.now();
         frenzyEndsAtMs = endsMs;
+
+        if (isNewFrenzy) {
+            const flashMs = (overlayConfig.frenzyReminderDurationSeconds || 12) * 1000;
+            frenzyFlashUntilMs = Date.now() + flashMs;
+            lastFrenzyReminderAtMs = Date.now();
+        }
+
         const summary = data.bonusSummary ? ` • ${data.bonusSummary}` : '';
         frenzyTitleEl.textContent = `🔥 ${data.name || 'Fishing Frenzy'}${summary}`;
-        frenzyPillEl.classList.add('show');
 
         if (data.soundEnabled && data.soundUrl) {
             playSound(data.soundUrl, true, data.soundVolume);
@@ -146,6 +230,7 @@
             const m = Math.floor(remSec / 60);
             const s = remSec % 60;
             frenzyTimerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+            evaluateFrenzyBannerVisibility();
         };
 
         tick();
@@ -669,6 +754,7 @@
     async function processQueue() {
         if (isProcessing) return;
         isProcessing = true;
+        evaluateFrenzyBannerVisibility();
         try {
             while (queue.length > 0) {
                 const next = queue.shift();
@@ -678,7 +764,11 @@
             console.error('[FishingOverlay] Queue error:', err);
         } finally {
             isProcessing = false;
-            if (queue.length > 0) processQueue();
+            if (queue.length > 0) {
+                processQueue();
+            } else {
+                evaluateFrenzyBannerVisibility();
+            }
         }
     }
 
@@ -730,6 +820,9 @@
                     if (json.fishingFrenzy !== undefined) {
                         updateFrenzyBanner(json.fishingFrenzy);
                     }
+                    if (json.fishingOverlayConfig !== undefined) {
+                        applyOverlayConfig(json.fishingOverlayConfig);
+                    }
                 } catch (err) {
                     logDebug('Parse error:', err);
                 }
@@ -739,6 +832,6 @@
         }
     }
 
-    loadInitialFrenzyState();
+    loadOverlayConfig().then(() => loadInitialFrenzyState());
     connectWS();
 })();

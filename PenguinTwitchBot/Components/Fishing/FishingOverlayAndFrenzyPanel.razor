@@ -5,6 +5,7 @@
 @inject IFishingService FishingService
 @inject IFishingFrenzyService FrenzyService
 @inject IFishingAudioResolver AudioResolver
+@inject IFishingOverlayDisplaySettingsService OverlayDisplaySettingsService
 @inject IWebSocketMessenger WebSocketMessenger
 @inject IJSRuntime JSRuntime
 @inject ISnackbar Snackbar
@@ -121,6 +122,51 @@
                 </MudItem>
             </MudGrid>
 
+            <MudDivider />
+
+            <MudText Typo="Typo.subtitle1"><b>Overlay Banner &amp; Reminder Visibility</b></MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Control whether the Frenzy pill (/fishing.html) and Tournament Standings (/fishing-tournaments.html) stay pinned or only appear on casts / periodic reminders during longer 1–2 hour events. Updates apply live to OBS overlays without refreshing.
+            </MudText>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" @bind-Value="displaySettings.FrenzyBannerMode" Label="Frenzy Banner Mode" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="@FishingOverlayDisplaySettings.ModeAuto">Auto (Always for short, On Cast + Reminder for long)</MudSelectItem>
+                        <MudSelectItem Value="@FishingOverlayDisplaySettings.ModeOnCast">Show on Cast Only (+ start &amp; final 2m)</MudSelectItem>
+                        <MudSelectItem Value="@FishingOverlayDisplaySettings.ModePeriodic">Periodic Reminder (+ start &amp; final 2m)</MudSelectItem>
+                        <MudSelectItem Value="@FishingOverlayDisplaySettings.ModeAlways">Always Visible</MudSelectItem>
+                        <MudSelectItem Value="@FishingOverlayDisplaySettings.ModeHidden">Hidden (Catch Badge Only)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" @bind-Value="displaySettings.TournamentOverlayMode" Label="Tournament Overlay Mode" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="@FishingOverlayDisplaySettings.ModeAuto">Auto (Always for short, On Cast + Reminder for long)</MudSelectItem>
+                        <MudSelectItem Value="@FishingOverlayDisplaySettings.ModeOnCast">Show on Cast / Lead Changes (+ final 2m &amp; podium)</MudSelectItem>
+                        <MudSelectItem Value="@FishingOverlayDisplaySettings.ModePeriodic">Periodic Reminder (+ lead changes, final 2m &amp; podium)</MudSelectItem>
+                        <MudSelectItem Value="@FishingOverlayDisplaySettings.ModeAlways">Always Visible</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="int" @bind-Value="displaySettings.AutoAlwaysThresholdMinutes" Label="Auto Short-Event Threshold (min)" Min="1" Max="120" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Events <= this stay Always Visible in Auto mode" />
+                </MudItem>
+
+                <MudItem xs="6" sm="3">
+                    <MudNumericField T="int" @bind-Value="displaySettings.FrenzyReminderIntervalMinutes" Label="Frenzy Reminder Every (min)" Min="1" Max="60" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudNumericField T="int" @bind-Value="displaySettings.FrenzyReminderDurationSeconds" Label="Frenzy Show Duration (sec)" Min="5" Max="60" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudNumericField T="int" @bind-Value="displaySettings.TournamentReminderIntervalMinutes" Label="Tourney Reminder Every (min)" Min="1" Max="60" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudNumericField T="int" @bind-Value="displaySettings.TournamentReminderDurationSeconds" Label="Tourney Show Duration (sec)" Min="5" Max="60" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider />
+
             <MudGrid Spacing="2">
                 @RenderSoundField("Cast Sound", Settings.CastSoundPath, v => Settings.CastSoundPath = v, FishingAudioResolver.DefaultCastSoundUrl)
                 @RenderSoundField("Bite Alert Sound", Settings.BiteSoundPath, v => Settings.BiteSoundPath = v, FishingAudioResolver.DefaultBiteSoundUrl)
@@ -143,6 +189,7 @@
     [Parameter] public EventCallback OnSettingsSaved { get; set; }
 
     private FishingFrenzyState? activeFrenzy;
+    private FishingOverlayDisplaySettings displaySettings = new();
     private string frenzyName = "Golden Hour Frenzy";
     private int frenzyMinutes = 10;
     private double frenzyMultiplier = 2.0;
@@ -152,6 +199,7 @@
     protected override async Task OnInitializedAsync()
     {
         activeFrenzy = FrenzyService.GetActiveFrenzy();
+        displaySettings = await OverlayDisplaySettingsService.GetAsync();
         var allFish = await FishingService.GetAllFishTypes();
         availableCategories = allFish
             .SelectMany(f => f.Categories)
@@ -197,7 +245,8 @@
         try
         {
             await FishingService.UpdateSettings(Settings);
-            Snackbar.Add("Saved overlay & audio settings!", Severity.Success);
+            await OverlayDisplaySettingsService.SaveAsync(displaySettings);
+            Snackbar.Add("Saved overlay, banner & audio settings!", Severity.Success);
             if (OnSettingsSaved.HasDelegate) await OnSettingsSaved.InvokeAsync();
         }
         catch (Exception ex)

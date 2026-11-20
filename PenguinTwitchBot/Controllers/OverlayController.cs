@@ -293,8 +293,9 @@ namespace PenguinTwitchBot.Controllers
                 response.Add(new FishingTournamentOverlayResponse(
                     tournament.Id,
                     tournament.Name,
-                    tournament.PrimaryScoreCategory.ToString(),
+                    Helpers.FishingFormatHelper.FormatScoreCategory(tournament.PrimaryScoreCategory),
                     tournament.EndsAtUtc,
+                    tournament.RunDurationMinutes,
                     eligibleSummary,
                     standings.Select(s => new FishingTournamentStandingOverlayResponse(
                         s.Rank,
@@ -343,8 +344,21 @@ namespace PenguinTwitchBot.Controllers
                 active = true,
                 name = active.Name,
                 bonusSummary = FishingFrenzyService.BuildBonusSummary(active),
+                startedAtUtc = active.StartedAtUtc,
                 endsAtUtc = active.EndsAtUtc
             });
+        }
+
+        /// <summary>
+        /// Returns configurable overlay banner and reminder visibility settings for Fishing overlays.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("fishing-overlay-config")]
+        public async Task<IActionResult> GetFishingOverlayConfig(
+            [FromServices] IFishingOverlayDisplaySettingsService displaySettingsService)
+        {
+            var config = await displaySettingsService.GetAsync();
+            return Ok(config);
         }
 
         /// <summary>
@@ -425,7 +439,7 @@ namespace PenguinTwitchBot.Controllers
     public record OverlayLayoutSummary(Guid Id, string Name, bool IsDefault);
     public record CreateLayoutRequest(string Name, bool IsDefault);
     public record SaveWidgetRequest(string WidgetType, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex, string? CustomSettings, Guid? WidgetId = null);
-    public record FishingTournamentOverlayResponse(Guid Id, string Name, string ScoreCategory, DateTime? EndsAtUtc, string EligibleSummary, List<FishingTournamentStandingOverlayResponse> Standings);
+    public record FishingTournamentOverlayResponse(Guid Id, string Name, string ScoreCategory, DateTime? EndsAtUtc, int RunDurationMinutes, string EligibleSummary, List<FishingTournamentStandingOverlayResponse> Standings);
     public record FishingTournamentStandingOverlayResponse(int Rank, string Username, double Score, int CatchCount);
     public record FishingRevealAckRequest(Guid RevealId);
 }

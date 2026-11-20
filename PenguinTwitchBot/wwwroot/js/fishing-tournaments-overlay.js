@@ -6,9 +6,90 @@
 
     let cachedTournaments = [];
     let previousRanks = new Map();
+    let knownTournamentIds = new Set();
     let leadBannerTimeout = null;
     let podiumActiveUntil = 0;
     let podiumTimeout = null;
+    let tournamentRevealUntilMs = 0;
+    let lastTournamentReminderAtMs = 0;
+    let overlayConfig = {
+        tournamentOverlayMode: "Auto",
+        tournamentReminderIntervalMinutes: 5,
+        tournamentReminderDurationSeconds: 15,
+        autoAlwaysThresholdMinutes: 15
+    };
+
+    function applyOverlayConfig(cfg) {
+        if (!cfg || typeof cfg !== "object") return;
+        overlayConfig = {
+            tournamentOverlayMode: cfg.tournamentOverlayMode || overlayConfig.tournamentOverlayMode || "Auto",
+            tournamentReminderIntervalMinutes: Math.max(1, Number(cfg.tournamentReminderIntervalMinutes) || overlayConfig.tournamentReminderIntervalMinutes || 5),
+            tournamentReminderDurationSeconds: Math.max(5, Number(cfg.tournamentReminderDurationSeconds) || overlayConfig.tournamentReminderDurationSeconds || 15),
+            autoAlwaysThresholdMinutes: Math.max(1, Number(cfg.autoAlwaysThresholdMinutes) || overlayConfig.autoAlwaysThresholdMinutes || 15)
+        };
+        evaluateTournamentVisibility();
+    }
+
+    async function loadOverlayConfig() {
+        try {
+            const res = await fetch("/api/overlay/fishing-overlay-config", { cache: "no-store" });
+            if (res.ok) {
+                applyOverlayConfig(await res.json());
+            }
+        } catch (_) {}
+    }
+
+    function flashTournamentOverlay() {
+        const durationMs = (overlayConfig.tournamentReminderDurationSeconds || 15) * 1000;
+        tournamentRevealUntilMs = Math.max(tournamentRevealUntilMs, Date.now() + durationMs);
+        evaluateTournamentVisibility();
+    }
+
+    function evaluateTournamentVisibility() {
+        const now = Date.now();
+        if (now < podiumActiveUntil) {
+            setOverlayVisible(true);
+            return;
+        }
+        if (!cachedTournaments || cachedTournaments.length === 0) {
+            setOverlayVisible(false);
+            return;
+        }
+
+        const mode = (overlayConfig.tournamentOverlayMode || "Auto").toLowerCase();
+        const thresholdMin = overlayConfig.autoAlwaysThresholdMinutes || 15;
+        const hasShortTournament = cachedTournaments.some((t) => {
+            const runMin = Number(t.runDurationMinutes || 0);
+            if (runMin > 0 && runMin <= thresholdMin) return true;
+            if (t.endsAtUtc) {
+                const remMin = (Date.parse(t.endsAtUtc) - now) / 60000;
+                return Number.isFinite(remMin) && remMin > 0 && remMin <= 2;
+            }
+            return false;
+        });
+        const inFinalCountdown = cachedTournaments.some((t) => {
+            if (!t.endsAtUtc) return false;
+            const remSec = (Date.parse(t.endsAtUtc) - now) / 1000;
+            return Number.isFinite(remSec) && remSec > 0 && remSec <= 120;
+        });
+
+        let shouldShow = false;
+        if (mode === "always" || (mode === "auto" && hasShortTournament)) {
+            shouldShow = true;
+        } else if (mode === "oncast") {
+            shouldShow = inFinalCountdown || now < tournamentRevealUntilMs;
+        } else if (mode === "periodic" || mode === "auto") {
+            const intervalMs = (overlayConfig.tournamentReminderIntervalMinutes || 5) * 60000;
+            const durationMs = (overlayConfig.tournamentReminderDurationSeconds || 15) * 1000;
+            if (now - lastTournamentReminderAtMs >= intervalMs) {
+                lastTournamentReminderAtMs = now;
+                tournamentRevealUntilMs = Math.max(tournamentRevealUntilMs, now + durationMs);
+            }
+            shouldShow = inFinalCountdown || now < tournamentRevealUntilMs;
+        }
+
+        setOverlayVisible(shouldShow);
+    }
 
     function escapeHtml(str) {
         if (str === null || str === undefined) return "";
@@ -164,9 +245,10 @@
             pill.textContent = cd.text;
             pill.className = `countdown-pill ${cd.cls}`;
         });
+        evaluateTournamentVisibility();
     }
 
-    async function loadStandings() {
+    async function loadStandings(triggerFlash = false) {
         if (Date.now() < podiumActiveUntil) return;
         try {
             const response = await fetch("/api/overlay/fishing-tournaments-standings?top=5", { cache: "no-store" });
@@ -175,13 +257,31 @@
             cachedTournaments = Array.isArray(tournaments) ? tournaments : [];
 
             if (cachedTournaments.length === 0) {
+                knownTournamentIds.clear();
                 setOverlayVisible(false);
                 contentEl.innerHTML = `<div class="empty">No active tournaments</div>`;
                 return;
             }
 
-            setOverlayVisible(true);
+            let hasNewTournament = false;
+            const nextIds = new Set();
+            for (const t of cachedTournaments) {
+                nextIds.add(t.id);
+                if (!knownTournamentIds.has(t.id)) {
+                    hasNewTournament = true;
+                }
+            }
+            knownTournamentIds = nextIds;
+
             contentEl.innerHTML = cachedTournaments.map(renderTournament).join("");
+            if (hasNewTournament) {
+                lastTournamentReminderAtMs = Date.now();
+                flashTournamentOverlay();
+            } else if (triggerFlash) {
+                flashTournamentOverlay();
+            } else {
+                evaluateTournamentVisibility();
+            }
         } catch (error) {
             console.error("Failed to load tournament standings overlay", error);
         }
@@ -198,6 +298,9 @@
                 }
                 try {
                     const data = JSON.parse(msg.data);
+                    if (data.fishingOverlayConfig) {
+                        applyOverlayConfig(data.fishingOverlayConfig);
+                    }
                     if (data.tournamentEnded) {
                         showPodiumCelebration(data.tournamentEnded);
                         return;
@@ -206,7 +309,7 @@
                         showLeadBanner(data.tournamentLeadChange);
                     }
                     if (data.tournamentUpdate || data.tournamentLeadChange || data.fishing) {
-                        loadStandings();
+                        loadStandings(true);
                     }
                 } catch (_) {}
             });
@@ -215,8 +318,8 @@
         }
     }
 
-    loadStandings();
+    loadOverlayConfig().then(() => loadStandings(false));
     connectWS();
     setInterval(updateCountdowns, 1000);
-    setInterval(loadStandings, FALLBACK_POLL_MS);
+    setInterval(() => loadStandings(false), FALLBACK_POLL_MS);
 })();
