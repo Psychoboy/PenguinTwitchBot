@@ -1,5 +1,6 @@
 @page "/fishing/leaderboard"
 @using PenguinTwitchBot.Bot.Commands.Fishing
+@using PenguinTwitchBot.Components.Fishing
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
 @using PenguinTwitchBot.Helpers
 @using PenguinTwitchBot.Models
@@ -14,10 +15,45 @@
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
     <MudStack Spacing="3">
+        <FishingNavBar ActiveTab="leaderboard" />
+
         <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
             <MudIcon Icon="@Icons.Material.Filled.Leaderboard" Size="Size.Large" Class="mr-2" />
             Fishing Leaderboard
         </MudText>
+
+        @if (myDexSummary != null)
+        {
+            <MudPaper Elevation="2" Class="pa-3">
+                <MudGrid Spacing="2" Class="align-center">
+                    <MudItem xs="12" md="5">
+                        <MudStack Spacing="1">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.subtitle2"><b>Your Fish Dex</b></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Primary">
+                                    <b>@myDexSummary.CaughtSpeciesCount / @myDexSummary.TotalSpeciesCount (@myDexSummary.CompletionPercent.ToString("0.#")%)</b>
+                                </MudText>
+                            </MudStack>
+                            <MudProgressLinear Color="Color.Success" Value="@myDexSummary.CompletionPercent" Size="Size.Medium" Rounded="true" />
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="4" md="2">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Total Catches</MudText>
+                        <MudText Typo="Typo.subtitle1"><b>@myDexSummary.TotalCatches.ToString("N0")</b></MudText>
+                    </MudItem>
+                    <MudItem xs="4" md="2">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Fishing Gold</MudText>
+                        <MudText Typo="Typo.subtitle1" Color="Color.Warning"><b>@myDexSummary.TotalGold.ToString("N0")g</b></MudText>
+                    </MudItem>
+                    <MudItem xs="4" md="3">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Best Catch</MudText>
+                        <MudText Typo="Typo.body2">
+                            <b>@(string.IsNullOrWhiteSpace(myDexSummary.BestCatchFishName) ? "None yet" : $"{myDexSummary.BestCatchStars}★ {myDexSummary.BestCatchFishName} ({myDexSummary.BestCatchGold:N0}g)")</b>
+                        </MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
 
         @if (isInitialLoading)
         {
@@ -855,11 +891,20 @@
             }
         </MudStack>;
 
+    private UserFishingDexSummary? myDexSummary;
+
     protected override async Task OnInitializedAsync()
     {
         isInitialLoading = true;
         try
         {
+            var summaryAuthState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var uid = summaryAuthState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrWhiteSpace(uid))
+            {
+                myDexSummary = await fishingService.GetUserDexSummaryAsync(uid);
+            }
+
             var fishTypesTask = fishingService.GetAllFishTypes();
             var leaderboardFishTypesTask = fishingService.GetFishTypesWithCatches();
             await Task.WhenAll(fishTypesTask, leaderboardFishTypesTask);

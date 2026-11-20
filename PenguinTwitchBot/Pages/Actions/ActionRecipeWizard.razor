@@ -468,6 +468,71 @@
                                                    ValueChanged="@(value => OnRewardBooleanChanged("IncludeStarterMessages", value))"
                                                    Label="Include raffle chat messages" Color="Color.Primary" />
                                     }
+                        else if (recipe is FishingQuickTournamentRecipe)
+                        {
+                            <MudSelect T="string" Label="Fish Category / Pool" Variant="Variant.Outlined"
+                                       Value="@GetParameter("Theme")"
+                                       ValueChanged="@(value => OnRecipeParameterChanged("Theme", value))"
+                                       HelperText="Choose Random, All Fish, or one of your configured fish categories.">
+                                <MudSelectItem T="string" Value="@("Random")">🎲 Random (All Fish or Random Category)</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("AllFish")">🐟 All Fish</MudSelectItem>
+                                @foreach (var cat in _fishingCategories)
+                                {
+                                    <MudSelectItem T="string" Value="@cat">🏷️ @cat</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudSelect T="string" Label="Scoring Mode" Variant="Variant.Outlined"
+                                       Value="@GetParameter("ScoreCategory")"
+                                       ValueChanged="@(value => OnRecipeParameterChanged("ScoreCategory", value))"
+                                       HelperText="How tournament winners are scored.">
+                                <MudSelectItem T="string" Value="@("Random")">🎲 Random Scoring Mode</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Largest")">Largest Weight</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Smallest")">Smallest Weight</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("MostValuable")">Most Valuable (Gold)</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("MostCatches")">Most Catches</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("TotalWeight")">Total Weight</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Average")">Best Average</MudSelectItem>
+                            </MudSelect>
+                            <MudTextField T="string" Label="Duration (minutes)" Variant="Variant.Outlined"
+                                          Value="@GetParameter("DurationMinutes")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("DurationMinutes", value))"
+                                          HelperText="Short downtime blitz duration (e.g. 5, 10, 15)." Required="true" />
+                            <MudTextField T="string" Label="Chat command (optional)" Variant="Variant.Outlined"
+                                          Value="@GetParameter("CommandName")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("CommandName", value))"
+                                          HelperText="Enter a command without ! (e.g. blitz), or leave blank for a channel point redeem." />
+                        }
+                        else if (recipe is FishingFrenzyRecipe)
+                        {
+                            <MudTextField T="string" Label="Event name" Variant="Variant.Outlined"
+                                          Value="@GetParameter("FrenzyName")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("FrenzyName", value))"
+                                          HelperText="Banner title shown on overlay & chat." Required="true" />
+                            <MudSelect T="string" Label="Target Category" Variant="Variant.Outlined"
+                                       Value="@GetParameter("TargetCategory")"
+                                       ValueChanged="@(value => OnRecipeParameterChanged("TargetCategory", value))"
+                                       HelperText="Choose None (All Fish) or a specific fish category for a Category Hotspot.">
+                                <MudSelectItem T="string" Value="@("")">None (All Fish)</MudSelectItem>
+                                @foreach (var cat in _fishingCategories)
+                                {
+                                    <MudSelectItem T="string" Value="@cat">🏷️ @cat</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                                <MudTextField T="string" Label="Duration (minutes)" Variant="Variant.Outlined"
+                                              Value="@GetParameter("DurationMinutes")"
+                                              ValueChanged="@(value => OnRecipeParameterChanged("DurationMinutes", value))"
+                                              HelperText="Length of the Frenzy event (1-180)." Required="true" />
+                                <MudTextField T="string" Label="Rarity multiplier" Variant="Variant.Outlined"
+                                              Value="@GetParameter("RarityMultiplier")"
+                                              ValueChanged="@(value => OnRecipeParameterChanged("RarityMultiplier", value))"
+                                              HelperText="Multiplier applied to non-Common rarities (e.g. 2.0)." Required="true" />
+                            </MudStack>
+                            <MudTextField T="string" Label="Chat command (optional)" Variant="Variant.Outlined"
+                                          Value="@GetParameter("CommandName")"
+                                          ValueChanged="@(value => OnRecipeParameterChanged("CommandName", value))"
+                                          HelperText="Optional command without !, or attach a channel point redeem / cheer trigger." />
+                        }
                         else
                         {
                             @foreach (var parameter in recipe.Parameters)
@@ -787,9 +852,30 @@
         _ => SelectedRecipe != null && ValidateConfiguration(out _)
     };
 
+    private List<string> _fishingCategories = [];
+
     protected override async Task OnInitializedAsync()
     {
         _recipes = RecipeRegistry.GetAll();
+        try
+        {
+            await using var fishScope = ScopeFactory.CreateAsyncScope();
+            var fishingService = fishScope.ServiceProvider.GetService<PenguinTwitchBot.Bot.Commands.Fishing.IFishingService>();
+            if (fishingService != null)
+            {
+                var allFish = await fishingService.GetAllFishTypes();
+                _fishingCategories = allFish
+                    .Where(f => f.Enabled)
+                    .SelectMany(f => f.Categories)
+                    .Select(c => c.Category?.Trim())
+                    .Where(c => !string.IsNullOrWhiteSpace(c))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+                    .Cast<string>()
+                    .ToList();
+            }
+        }
+        catch { }
         _queues = await QueueManager.GetAllQueuesAsync();
         _groups = (await ActionService.GetActionSummariesAsync())
             .Select(action => action.Group?.Trim())

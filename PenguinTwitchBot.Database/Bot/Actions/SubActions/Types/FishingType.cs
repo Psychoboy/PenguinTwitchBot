@@ -13,6 +13,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         public FishingType() { SubActionTypes = SubActionTypes.Fishing; }
 
         public int Attempts { get; set; } = 1;
+        public bool WaitForReveal { get; set; } = false;
 
         public override List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
@@ -25,9 +26,17 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     FieldType = UIFieldType.Number,
                     Required = false,
                     Min = 1,
-                    Max = 10,
+                    Max = 15,
                     DefaultValue = 1,
-                    HelperText = "Number of fishing attempts to perform (1-10)"
+                    HelperText = "Number of fishing attempts to perform (1-15)"
+                },
+                new()
+                {
+                    PropertyName = nameof(WaitForReveal),
+                    Label = "Wait for Cast Reveal",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Info",
+                    HelperText = "Pause briefly (~1.6s) for the cast/bite animation so chat & awards land right as the fish splashes onto the overlay."
                 },
                 new()
                 {
@@ -42,6 +51,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         protected override void AddCustomValues(Dictionary<string, object?> values)
         {
             values[nameof(Attempts)] = Attempts;
+            values[nameof(WaitForReveal)] = WaitForReveal;
         }
 
         protected override void SetCustomValues(Dictionary<string, object?> values)
@@ -54,6 +64,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     Attempts = (int)attemptsLong;
                 else if (attempts != null && int.TryParse(attempts.ToString(), out var parsed))
                     Attempts = parsed;
+            }
+            if (values.TryGetValue(nameof(WaitForReveal), out var waitForReveal))
+            {
+                WaitForReveal = waitForReveal as bool? ?? false;
             }
         }
 
@@ -71,8 +85,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     else if (!int.TryParse(attempts.ToString(), out attemptsValue))
                         return "Attempts must be a valid number";
 
-                    if (attemptsValue < 1 || attemptsValue > 10)
-                        return "Attempts must be between 1 and 10";
+                    if (attemptsValue < 1 || attemptsValue > 15)
+                        return "Attempts must be between 1 and 15";
                 }
             }
             return null;

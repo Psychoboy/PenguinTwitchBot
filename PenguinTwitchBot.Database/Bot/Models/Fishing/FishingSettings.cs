@@ -30,5 +30,28 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public int RarityEpicThreshold { get; set; } = 110;
         public int RarityLegendaryThreshold { get; set; } = 201;
         public int RarityMythicalThreshold { get; set; } = 300;
+
+        // Overlay animation & audio settings
+        public bool EnableCastAnimation { get; set; } = true;
+        public int CastAnimationMs { get; set; } = 1600;
+        public bool SoundEnabled { get; set; } = true;
+        public double SoundVolume { get; set; } = 0.8;
+
+        // Optional global SFX override URLs/paths (empty = bundled default MP3; per-fish files still take top priority)
+        public string? CastSoundPath { get; set; }
+        public string? BiteSoundPath { get; set; }
+        public string? CatchCommonSoundPath { get; set; }
+        public string? CatchRareSoundPath { get; set; }
+        public string? CatchLegendarySoundPath { get; set; }
+        public string? AccidentSoundPath { get; set; }
+        public string? FrenzySoundPath { get; set; }
+
+        // Built-in multi-point catch rewards & Quick Tournament defaults (JSON-serialized)
+        public string? CatchRewardsJson { get; set; }
+        public string? QuickTournamentRewardsJson { get; set; }
+
+        // Tournament chat hype settings
+        public bool AnnounceTournamentLeadChanges { get; set; } = true;
+        public bool AnnounceTournamentCountdown { get; set; } = true;
     }
 }

@@ -62,6 +62,16 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return rarityWeights;
         }
 
+        private static readonly IReadOnlyDictionary<FishRarity, double> ProgressiveBoostScales =
+            new Dictionary<FishRarity, double>
+            {
+                { FishRarity.Uncommon, 0.5 },
+                { FishRarity.Rare, 1.0 },
+                { FishRarity.Epic, 1.5 },
+                { FishRarity.Legendary, 2.0 },
+                { FishRarity.Mythical, 2.5 }
+            };
+
         public static void ApplyGlobalRarityMultiplier(Dictionary<FishRarity, double> rarityWeights, double multiplier)
         {
             foreach (var rarity in BoostableRarities)
@@ -69,6 +79,28 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 if (rarityWeights.ContainsKey(rarity))
                 {
                     rarityWeights[rarity] *= multiplier;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Applies a GeneralRarityBoost amount using progressive tier scaling so higher rarities
+        /// (Rare/Epic/Legendary/Mythical) scale meaningfully instead of Uncommon absorbing the entire boost.
+        /// </summary>
+        public static void ApplyProgressiveGeneralRarityBoost(Dictionary<FishRarity, double> rarityWeights, double boostAmount)
+        {
+            if (Math.Abs(boostAmount) < 1e-9)
+            {
+                return;
+            }
+
+            foreach (var rarity in BoostableRarities)
+            {
+                if (rarityWeights.ContainsKey(rarity))
+                {
+                    var scale = ProgressiveBoostScales.GetValueOrDefault(rarity, 1.0);
+                    var factor = Math.Max(0.05, 1.0 + (boostAmount * scale));
+                    rarityWeights[rarity] *= factor;
                 }
             }
         }

@@ -30,6 +30,13 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         }
     }
 
+    public class UserFishingLoadoutRepository : GenericRepository<UserFishingLoadout>, IUserFishingLoadoutRepository
+    {
+        public UserFishingLoadoutRepository(ApplicationDbContext context) : base(context)
+        {
+        }
+    }
+
     public class FishingGoldRepository : GenericRepository<FishingGold>, IFishingGoldRepository
     {
         public FishingGoldRepository(ApplicationDbContext context) : base(context)

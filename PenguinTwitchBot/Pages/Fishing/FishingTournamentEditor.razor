@@ -1,4 +1,5 @@
 @using PenguinTwitchBot.Bot.Commands.Fishing
+@using PenguinTwitchBot.Components.Fishing
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
 @using PenguinTwitchBot.Database.Bot.Models.Points
@@ -29,6 +30,8 @@
         {
             <MudAlert Severity="Severity.Info" Dense="true">@statusMessage</MudAlert>
         }
+
+        <FishingQuickTournamentLauncher OnTournamentLaunched="ReloadAsync" />
 
         <MudPaper Elevation="3" Class="pa-4">
             <MudStack Spacing="3">
@@ -269,6 +272,9 @@
                         <MudTd DataLabel="Rewards">@context.RewardRules.Count</MudTd>
                         <MudTd DataLabel="Actions">
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => BeginEditTournament(context)" />
+                            <MudTooltip Text="Clone and launch immediately as a 10-minute Quick Blitz">
+                                <MudIconButton Icon="@Icons.Material.Filled.Bolt" Color="Color.Warning" OnClick="() => CloneAndStartQuickBlitzAsync(context)" />
+                            </MudTooltip>
                             <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Info" OnClick="() => ConfirmDuplicateTournament(context)" />
                             @if (context.Status == FishingTournamentStatus.Draft || context.Status == FishingTournamentStatus.Scheduled)
                             {
@@ -862,6 +868,23 @@
         }
 
         await DuplicateTournament(tournament);
+    }
+
+    private async Task CloneAndStartQuickBlitzAsync(FishingTournament source)
+    {
+        try
+        {
+            var cloned = await FishingService.CloneAndStartFishingTournament(source.Id, durationOverrideMinutes: 10);
+            if (cloned != null)
+            {
+                Snackbar.Add($"Launched 10m Quick Blitz '{cloned.Name}'!", Severity.Success);
+                await ReloadAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to launch Quick Blitz: {ex.Message}", Severity.Error);
+        }
     }
 
     private string GetPointTypeName(Guid pointTypeId)

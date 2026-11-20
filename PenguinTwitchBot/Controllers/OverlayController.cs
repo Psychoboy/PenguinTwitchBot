@@ -286,10 +286,16 @@ namespace PenguinTwitchBot.Controllers
             foreach (var tournament in activeTournaments)
             {
                 var standings = await _fishingService.GetFishingTournamentStandings(tournament.Id, safeTop);
+                var eligibleSummary = tournament.EligibleCategories.Count > 0
+                    ? string.Join(", ", tournament.EligibleCategories.Select(c => c.Category))
+                    : (tournament.EligibleFish.Count > 0 ? $"{tournament.EligibleFish.Count} specific fish" : "All Fish");
+
                 response.Add(new FishingTournamentOverlayResponse(
                     tournament.Id,
                     tournament.Name,
                     tournament.PrimaryScoreCategory.ToString(),
+                    tournament.EndsAtUtc,
+                    eligibleSummary,
                     standings.Select(s => new FishingTournamentStandingOverlayResponse(
                         s.Rank,
                         s.Username,
@@ -298,6 +304,47 @@ namespace PenguinTwitchBot.Controllers
             }
 
             return Ok(response);
+        }
+
+        /// <summary>
+        /// Two-way overlay ack called by fishing.js at the exact moment a fish splashes onto screen,
+        /// allowing Waiting Fishing actions to post chat messages in sync with the overlay queue.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("fishing-revealed")]
+        public IActionResult NotifyFishingRevealed(
+            [FromBody] FishingRevealAckRequest request,
+            [FromServices] IFishingOverlayAckService ackService)
+        {
+            if (request == null || request.RevealId == Guid.Empty)
+            {
+                return BadRequest();
+            }
+
+            ackService.NotifyRevealed(request.RevealId);
+            return Ok();
+        }
+
+        /// <summary>
+        /// Returns active Fishing Frenzy / Hotspot status for the fishing overlay on initial page load.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("fishing-frenzy-state")]
+        public IActionResult GetFishingFrenzyState([FromServices] IFishingFrenzyService frenzyService)
+        {
+            var active = frenzyService.GetActiveFrenzy();
+            if (active == null)
+            {
+                return Ok(new { active = false });
+            }
+
+            return Ok(new
+            {
+                active = true,
+                name = active.Name,
+                bonusSummary = FishingFrenzyService.BuildBonusSummary(active),
+                endsAtUtc = active.EndsAtUtc
+            });
         }
 
         /// <summary>
@@ -378,6 +425,7 @@ namespace PenguinTwitchBot.Controllers
     public record OverlayLayoutSummary(Guid Id, string Name, bool IsDefault);
     public record CreateLayoutRequest(string Name, bool IsDefault);
     public record SaveWidgetRequest(string WidgetType, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex, string? CustomSettings, Guid? WidgetId = null);
-    public record FishingTournamentOverlayResponse(Guid Id, string Name, string ScoreCategory, List<FishingTournamentStandingOverlayResponse> Standings);
+    public record FishingTournamentOverlayResponse(Guid Id, string Name, string ScoreCategory, DateTime? EndsAtUtc, string EligibleSummary, List<FishingTournamentStandingOverlayResponse> Standings);
     public record FishingTournamentStandingOverlayResponse(int Rank, string Username, double Score, int CatchCount);
+    public record FishingRevealAckRequest(Guid RevealId);
 }

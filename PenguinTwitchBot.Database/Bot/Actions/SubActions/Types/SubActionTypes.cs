@@ -104,6 +104,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         CreditsStop,
         CreditsPauseResume,
         CreditsMarkStart,
-        CreditsAddEntry
+        CreditsAddEntry,
+        FishingFrenzy,
+        FishingQuickTournament
     }
 }

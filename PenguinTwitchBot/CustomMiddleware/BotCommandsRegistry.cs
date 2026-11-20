@@ -158,6 +158,9 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.SendMessageRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.SoundCommandRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.FireworksShowRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.FishingCommandRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.FishingQuickTournamentRecipe>();
+            services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.FishingFrenzyRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.AlertRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.ObsSourceVisibilityRecipe>();
             services.AddSingleton<Bot.Actions.Recipes.IActionRecipe, Bot.Actions.Recipes.TwitchEventReactionRecipe>();
@@ -499,6 +502,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IFishingAnalyticsService, FishingAnalyticsService>();
             services.AddSingleton<IFishingLeaderboardService, FishingLeaderboardService>();
             services.AddSingleton<IFishingHelpDataService, FishingHelpDataService>();
+            services.AddSingleton<IFishingAudioResolver, FishingAudioResolver>();
+            services.AddSingleton<IFishingFrenzyService, FishingFrenzyService>();
+            services.AddSingleton<IFishingOverlayAckService, FishingOverlayAckService>();
+            services.AddSingleton<IFishingMessageSettingsService, FishingMessageSettingsService>();
+            services.AddSingleton<FishingChatCommands>();
+            services.AddHostedService(sp => sp.GetRequiredService<FishingChatCommands>());
 
             services.AddRuntimeFeatureRegistration<IFishingService>(
                 FeatureKeys.Fishing,

@@ -68,6 +68,8 @@ public static class GameDescriptorRegistry
             Icons.Material.Filled.PrecisionManufacturing, Color.Info, "Configure the claw machine and prize queue.", displayCommand: "!claw", helpTopic: "ufoclaw"),
         Create("wheelspin", "Wheel Spin", GameKind.Overlay, "/wheelspin", "spinwheel", FeatureKeys.WheeledGame,
             Icons.Material.Filled.Casino, Color.Success, "Configure the prize wheel and spin automations.", helpTopic: "wheelspin"),
+        Create("fishing", "Fishing", GameKind.Overlay, "/fishing/admin", "fish", FeatureKeys.Fishing,
+            Icons.Material.Filled.Phishing, Color.Info, "Manage fish species, shop gear, catch rewards, frenzies, and blitz tournaments.", additionalCommands: ["fishstats", "fishgear", "fishrepair", "fishdex", "fishfrenzy", "fishtourney"], helpTopic: "fishing-admin"),
         Create("defuse", "Defuse", GameKind.Chat, "/games/chat-settings?game=defuse", "defuse", FeatureKeys.Defuse,
             Icons.Material.Filled.Warning, Color.Error, "Choose a wire and try to defuse the bomb.", helpTopic: "game-settings", triggerGroupTitle: "Bomb Defuse", settingsProviderType: typeof(DefuseSettingsProvider)),
         Create("heist", "Heist", GameKind.Chat, "/games/chat-settings?game=heist", "heist", FeatureKeys.Heist,

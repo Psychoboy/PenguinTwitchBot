@@ -126,9 +126,9 @@ public class FishingTournamentModelTests : IDisposable
         Assert.NotNull(rewardEntity);
         Assert.NotNull(eligibleFishEntity);
 
-        var rewardIndex = rewardEntity!.GetIndexes().Single(i => i.GetDatabaseName() == "IX_FishingTournamentRewardRules_Tournament_Category_Placement");
+        var rewardIndex = rewardEntity!.GetIndexes().Single(i => i.GetDatabaseName() == "IX_FishingTournamentRewardRules_Tournament_Category_Placement_PointType");
         Assert.True(rewardIndex.IsUnique);
-        Assert.Equal(4, rewardIndex.Properties.Count);
+        Assert.Equal(5, rewardIndex.Properties.Count);
 
         var fishIndex = eligibleFishEntity!.GetIndexes().Single(i => i.GetDatabaseName() == "IX_FishingTournamentFishTypes_Tournament_Fish");
         Assert.True(fishIndex.IsUnique);

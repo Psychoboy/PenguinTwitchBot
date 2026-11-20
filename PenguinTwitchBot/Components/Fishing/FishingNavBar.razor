@@ -1,0 +1,163 @@
+@using PenguinTwitchBot.Bot.Commands.Fishing
+@using PenguinTwitchBot.Database.Bot.Models.Fishing
+@using System.Security.Claims
+@inject IFishingService FishingService
+@inject IFishingInventoryService InventoryService
+@inject IFishingFrenzyService FrenzyService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+
+<MudPaper Elevation="2" Class="pa-2 mb-2">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="1">
+            <MudButton Variant="@(ActiveTab == "shop" ? Variant.Filled : Variant.Text)"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.ShoppingCart"
+                       Href="/fishing/shop">
+                Shop
+            </MudButton>
+            <MudButton Variant="@(ActiveTab == "inventory" ? Variant.Filled : Variant.Text)"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Inventory"
+                       Href="/fishing/inventory">
+                Inventory
+            </MudButton>
+            <MudButton Variant="@(ActiveTab == "leaderboard" ? Variant.Filled : Variant.Text)"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Leaderboard"
+                       Href="/fishing/leaderboard">
+                Leaderboard &amp; Dex
+            </MudButton>
+            <MudButton Variant="@(ActiveTab == "tournaments" ? Variant.Filled : Variant.Text)"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.EmojiEvents"
+                       Href="/fishing/tournaments">
+                Tournaments
+            </MudButton>
+            <MudButton Variant="@(ActiveTab == "help" ? Variant.Filled : Variant.Text)"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Help"
+                       Href="/fishing/help">
+                Help
+            </MudButton>
+        </MudStack>
+
+        <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="1">
+            @if (activeFrenzy != null)
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled" Icon="@Icons.Material.Filled.LocalFireDepartment">
+                    @activeFrenzy.Name (@FishingFrenzyService.BuildBonusSummary(activeFrenzy))
+                </MudChip>
+            }
+
+            @if (activeTournamentCount > 0)
+            {
+                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.EmojiEvents" Href="/fishing/tournaments">
+                    @activeTournamentCount Active @(activeTournamentCount == 1 ? "Tournament" : "Tournaments")
+                </MudChip>
+            }
+
+            @if (isAuthenticated)
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.AttachMoney">
+                    @userGold.ToString("N0") g
+                </MudChip>
+
+                @if (repairCost > 0)
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Color="@(hasBrokenGear ? Color.Error : Color.Warning)"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Build"
+                               Disabled="@(isRepairing || userGold < repairCost)"
+                               OnClick="QuickRepairAllAsync">
+                        @(hasBrokenGear ? "Fix Broken" : "Repair All") (@repairCost.ToString("N0")g)
+                    </MudButton>
+                }
+            }
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter] public string ActiveTab { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private bool isAuthenticated;
+    private string? userId;
+    private string? username;
+    private int userGold;
+    private int repairCost;
+    private bool hasBrokenGear;
+    private bool isRepairing;
+    private int activeTournamentCount;
+    private FishingFrenzyState? activeFrenzy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshStatusAsync();
+    }
+
+    public async Task RefreshStatusAsync()
+    {
+        activeFrenzy = FrenzyService.GetActiveFrenzy();
+
+        var tournaments = await FishingService.GetCurrentFishingTournaments();
+        activeTournamentCount = tournaments.Count(t => t.Status == FishingTournamentStatus.Active);
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAuthenticated = user.Identity?.IsAuthenticated == true;
+        userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        username = user.Identity?.Name;
+
+        if (isAuthenticated && !string.IsNullOrWhiteSpace(userId))
+        {
+            var goldTask = FishingService.GetUserGold(userId);
+            var settingsTask = FishingService.GetSettings();
+            var equippedTask = InventoryService.GetUserEquippedItems(userId);
+            await Task.WhenAll(goldTask, settingsTask, equippedTask);
+
+            userGold = goldTask.Result?.TotalGold ?? 0;
+            var multiplier = settingsTask.Result?.RepairCostMultiplier ?? 0.0;
+            var equipped = equippedTask.Result;
+
+            hasBrokenGear = equipped.Any(e => e.IsBroken);
+            repairCost = multiplier > 0
+                ? equipped
+                    .Where(e => e.ShopItem?.MaxDurability.HasValue == true && (e.CurrentDurability ?? e.ShopItem.MaxDurability.Value) < e.ShopItem.MaxDurability.Value)
+                    .Sum(e => InventoryService.CalculateRepairCost(e.ShopItem!, e.CurrentDurability ?? e.ShopItem!.MaxDurability!.Value, multiplier))
+                : 0;
+        }
+    }
+
+    private async Task QuickRepairAllAsync()
+    {
+        if (string.IsNullOrWhiteSpace(userId) || isRepairing) return;
+        isRepairing = true;
+        try
+        {
+            var settings = await FishingService.GetSettings();
+            var cost = await InventoryService.RepairAllEquippedItems(userId, settings?.RepairCostMultiplier, username);
+            Snackbar.Add($"Repaired all equipped gear for {cost:N0}g!", Severity.Success);
+            await RefreshStatusAsync();
+            if (OnDataChanged.HasDelegate)
+            {
+                await OnDataChanged.InvokeAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Repair failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isRepairing = false;
+        }
+    }
+}

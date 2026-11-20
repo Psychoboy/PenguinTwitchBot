@@ -1230,23 +1230,62 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AccidentSoundPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AnnounceTournamentCountdown")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AnnounceTournamentLeadChanges")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BiteSoundPath")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("BoostMode")
                         .HasColumnType("INTEGER");
 
                     b.Property<double>("BoostModeRarityMultiplier")
                         .HasColumnType("REAL");
 
+                    b.Property<int>("CastAnimationMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CastSoundPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatchCommonSoundPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatchLegendarySoundPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatchRareSoundPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatchRewardsJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("DisplayDurationMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EnableCastAnimation")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("FrenzySoundPath")
+                        .HasColumnType("TEXT");
 
                     b.Property<double>("LineSnapChance")
                         .HasColumnType("REAL");
 
                     b.Property<double>("NetBreakChance")
                         .HasColumnType("REAL");
+
+                    b.Property<string>("QuickTournamentRewardsJson")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("RarityEpicThreshold")
                         .HasColumnType("INTEGER");
@@ -1270,6 +1309,12 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("REAL");
 
                     b.Property<double>("RodSnapChance")
+                        .HasColumnType("REAL");
+
+                    b.Property<bool>("SoundEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("SoundVolume")
                         .HasColumnType("REAL");
 
                     b.Property<double>("TackleBoxLostChance")
@@ -1590,14 +1635,14 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
                     b.HasIndex("TargetFishTypeId");
 
-                    b.HasIndex("FishingTournamentId", "ScoreCategory", "Placement")
+                    b.HasIndex("FishingTournamentId", "ScoreCategory", "Placement", "PointTypeId")
                         .IsUnique()
-                        .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement_General")
+                        .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement_General_PointType")
                         .HasFilter("\"TargetFishTypeId\" IS NULL");
 
-                    b.HasIndex("FishingTournamentId", "ScoreCategory", "TargetFishTypeId", "Placement")
+                    b.HasIndex("FishingTournamentId", "ScoreCategory", "TargetFishTypeId", "Placement", "PointTypeId")
                         .IsUnique()
-                        .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement");
+                        .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement_PointType");
 
                     b.ToTable("FishingTournamentRewardRules");
                 });
@@ -1635,6 +1680,39 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasDatabaseName("IX_UserFishingBoosts_UserId_IsEquipped");
 
                     b.ToTable("UserFishingBoosts");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.UserFishingLoadout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SlotItemsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_UserFishingLoadouts_UserId");
+
+                    b.ToTable("UserFishingLoadouts");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Games.GameSetting", b =>
@@ -3387,6 +3465,37 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("subactions_fireworks", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingFrenzyType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("AnnounceInChat")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("CategoryBoost")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FrenzyName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("RarityMultiplier")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("TargetCategory")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_fishing_frenzy", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingGiveItemToPlayerType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3495,6 +3604,29 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("subactions_fishingmodify", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingQuickTournamentType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("AnnounceInChat")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("FrenzyRarityMultiplier")
+                        .HasColumnType("REAL");
+
+                    b.Property<bool>("PairWithFrenzy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_fishing_quick_tournament", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingTournamentEligibleCatchType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3536,6 +3668,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
                     b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("WaitForReveal")
                         .HasColumnType("INTEGER");
 
                     b.ToTable("subactions_fishing", (string)null);

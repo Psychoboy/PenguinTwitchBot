@@ -1,5 +1,6 @@
 @page "/fishing/admin"
 @using PenguinTwitchBot.Bot.Commands.Fishing
+@using PenguinTwitchBot.Components.Fishing
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
 @using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.Components.Forms
@@ -348,6 +349,14 @@
                 </MudTable>
             </MudStack>
         </MudPaper>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Overlay & Frenzy" Icon="@Icons.Material.Filled.LiveTv">
+        <FishingOverlayAndFrenzyPanel Settings="@settings" />
+    </MudTabPanel>
+
+    <MudTabPanel Text="Rewards & Automation" Icon="@Icons.Material.Filled.AutoAwesome">
+        <FishingRewardsAndAutomationPanel Settings="@settings" />
     </MudTabPanel>
 
     <MudTabPanel Text="Settings" Icon="@Icons.Material.Filled.Settings">

@@ -1,0 +1,255 @@
+@using PenguinTwitchBot.Bot.Commands.Fishing
+@using PenguinTwitchBot.Bot.Core
+@using PenguinTwitchBot.Bot.Core.Points
+@using PenguinTwitchBot.Database.Bot.Models.Fishing
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@using PenguinTwitchBot.Helpers
+@inject IFishingService FishingService
+@inject IFishingFrenzyService FrenzyService
+@inject IPointsSystem PointsSystem
+@inject IServiceBackbone ServiceBackbone
+@inject IFishingMessageSettingsService MessageSettingsService
+@inject ISnackbar Snackbar
+
+<MudPaper Elevation="3" Class="pa-4">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h6">
+                    <MudIcon Icon="@Icons.Material.Filled.Bolt" Color="Color.Warning" Class="mr-1" />
+                    Quick / Blitz Downtime Tournament Launcher
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Launch an instant short-form tournament during stream downtime with multi-point payouts &amp; optional Fishing Frenzy!
+                </MudText>
+            </MudStack>
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Info"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.OpenInNew"
+                           Href="/fishing-tournaments.html"
+                           Target="_blank">
+                    Open Overlay
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Warning"
+                           Size="Size.Medium"
+                           StartIcon="@Icons.Material.Filled.RocketLaunch"
+                           Disabled="@isLaunching"
+                           OnClick="LaunchQuickTournamentAsync">
+                    @(isLaunching ? "Launching..." : $"Launch {durationMinutes}m Blitz")
+                </MudButton>
+            </MudStack>
+        </MudStack>
+
+        <MudGrid Spacing="2" Class="align-center">
+            <MudItem xs="12" md="3">
+                <MudSelect T="string" @bind-Value="selectedTheme" Label="Category / Pool" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem Value="@("Random")">🎲 Random Mystery</MudSelectItem>
+                    <MudSelectItem Value="@("AllFish")">🐟 All Fish</MudSelectItem>
+                    @foreach (var cat in availableCategories)
+                    {
+                        <MudSelectItem Value="@cat">🏷️ @cat</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="FishingTournamentScoreCategory?" @bind-Value="selectedScoreCategory" Label="Scoring Mode" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem T="FishingTournamentScoreCategory?" Value="@((FishingTournamentScoreCategory?)null)">🎲 Auto / Random</MudSelectItem>
+                    <MudSelectItem T="FishingTournamentScoreCategory?" Value="@FishingTournamentScoreCategory.Largest">Largest Weight</MudSelectItem>
+                    <MudSelectItem T="FishingTournamentScoreCategory?" Value="@FishingTournamentScoreCategory.Smallest">Smallest Weight</MudSelectItem>
+                    <MudSelectItem T="FishingTournamentScoreCategory?" Value="@FishingTournamentScoreCategory.MostValuable">Most Valuable (Gold)</MudSelectItem>
+                    <MudSelectItem T="FishingTournamentScoreCategory?" Value="@FishingTournamentScoreCategory.MostCatches">Most Catches</MudSelectItem>
+                    <MudSelectItem T="FishingTournamentScoreCategory?" Value="@FishingTournamentScoreCategory.TotalWeight">Total Weight</MudSelectItem>
+                    <MudSelectItem T="FishingTournamentScoreCategory?" Value="@FishingTournamentScoreCategory.Average">Best Average</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                    @foreach (var mins in new[] { 5, 10, 15, 30 })
+                    {
+                        <MudButton Variant="@(durationMinutes == mins ? Variant.Filled : Variant.Outlined)"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   OnClick="@(() => durationMinutes = mins)">
+                            @(mins)m
+                        </MudButton>
+                    }
+                    <MudNumericField T="int" @bind-Value="durationMinutes" Min="1" Max="240" Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 78px;" Label="Min" />
+                </MudStack>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudSwitch T="bool" @bind-Value="pairWithFrenzy" Color="Color.Warning" Label="Frenzy" />
+                    @if (pairWithFrenzy)
+                    {
+                        <MudNumericField T="double" @bind-Value="frenzyMultiplier" Min="1.1" Max="10.0" Step="0.25" Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 86px;" Label="Mult" Adornment="Adornment.End" AdornmentText="x" />
+                    }
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+
+        <MudExpansionPanels Elevation="0" Outlined="true">
+            <MudExpansionPanel Text="@($"Default Multi-Point Payout Template ({payoutTemplate.Count} rules)")" Icon="@Icons.Material.Filled.Payments">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Add multiple point types per placement (e.g., 1st place: Pasties + Tickets + Bonus Gold). Saved for both UI &amp; !fishtourney quick.
+                    </MudText>
+                    @foreach (var entry in payoutTemplate)
+                    {
+                        <MudGrid Spacing="2" Class="align-center" @key="entry">
+                            <MudItem xs="6" sm="2">
+                                <MudSelect T="int" @bind-Value="entry.Placement" Label="Place" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                    <MudSelectItem Value="1">1st</MudSelectItem>
+                                    <MudSelectItem Value="2">2nd</MudSelectItem>
+                                    <MudSelectItem Value="3">3rd</MudSelectItem>
+                                    <MudSelectItem Value="4">4th</MudSelectItem>
+                                    <MudSelectItem Value="5">5th</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudSelect T="Guid" @bind-Value="entry.PointTypeId" Label="Point Type" Variant="Variant.Outlined" Margin="Margin.Dense" ToStringFunc="GetPointTypeName">
+                                    @foreach (var pt in pointTypes)
+                                    {
+                                        <MudSelectItem T="Guid" Value="@pt.Id">@pt.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="5" sm="3">
+                                <MudNumericField T="long" @bind-Value="entry.Points" Label="Points" Min="0" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="@(entry.Points >= 10000 ? $"Overlay: {FishingFormatHelper.FormatCompactNumber(entry.Points)}" : null)" />
+                            </MudItem>
+                            <MudItem xs="5" sm="3">
+                                <MudNumericField T="int?" @bind-Value="entry.GoldAmount" Label="Bonus Gold" Min="0" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="2" sm="1">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => payoutTemplate.Remove(entry))" />
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" Disabled="@(pointTypes.Count == 0)" OnClick="AddPayoutRow">
+                            Add Point Payout
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save" OnClick="SavePayoutTemplateAsync">
+                            Save Default Template
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter] public EventCallback OnTournamentLaunched { get; set; }
+
+    private string selectedTheme = "Random";
+    private FishingTournamentScoreCategory? selectedScoreCategory;
+    private int durationMinutes = 10;
+    private bool pairWithFrenzy = true;
+    private double frenzyMultiplier = 1.75;
+    private bool isLaunching;
+
+    private List<PointType> pointTypes = new();
+    private List<QuickTournamentRewardEntry> payoutTemplate = new();
+    private List<string> availableCategories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        pointTypes = (await PointsSystem.GetPointTypes()).ToList();
+        var settings = await FishingService.GetSettings();
+        payoutTemplate = FishingCatchRewardCalculator.ParseQuickTournamentRewards(settings?.QuickTournamentRewardsJson);
+        var allFish = await FishingService.GetAllFishTypes();
+        availableCategories = allFish
+            .Where(f => f.Enabled)
+            .SelectMany(f => f.Categories)
+            .Select(c => c.Category?.Trim())
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+    }
+
+    private string GetPointTypeName(Guid id) =>
+        pointTypes.FirstOrDefault(p => p.Id == id)?.Name ?? "Select point type";
+
+    private void AddPayoutRow()
+    {
+        if (pointTypes.Count == 0) return;
+        var nextPlace = payoutTemplate.Count == 0 ? 1 : Math.Min(3, payoutTemplate.Max(p => p.Placement));
+        payoutTemplate.Add(new QuickTournamentRewardEntry
+        {
+            Placement = nextPlace,
+            PointTypeId = pointTypes[0].Id,
+            Points = 1000
+        });
+    }
+
+    private async Task SavePayoutTemplateAsync()
+    {
+        try
+        {
+            var settings = await FishingService.GetSettings() ?? new FishingSettings();
+            settings.QuickTournamentRewardsJson = FishingCatchRewardCalculator.SerializeQuickTournamentRewards(payoutTemplate);
+            await FishingService.UpdateSettings(settings);
+            Snackbar.Add("Saved Quick Tournament multi-point payout template!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save template: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LaunchQuickTournamentAsync()
+    {
+        isLaunching = true;
+        try
+        {
+            var tournament = await FishingService.StartQuickTournamentAsync(new QuickTournamentRequest(
+                Theme: selectedTheme,
+                DurationMinutes: durationMinutes,
+                RewardOverrides: payoutTemplate,
+                ScoreCategoryOverride: selectedScoreCategory));
+
+            if (pairWithFrenzy)
+            {
+                var targetCat = tournament.EligibleCategories.FirstOrDefault()?.Category;
+                await FrenzyService.StartFrenzyAsync(
+                    $"{tournament.Name} Frenzy",
+                    durationMinutes,
+                    frenzyMultiplier,
+                    targetCat,
+                    string.IsNullOrWhiteSpace(targetCat) ? 0.0 : 0.45,
+                    announceInChat: false);
+            }
+
+            var msgs = await MessageSettingsService.GetAsync();
+            var frenzyNote = pairWithFrenzy ? $" 🔥 {frenzyMultiplier:0.##}x Frenzy ACTIVE!" : "";
+            var announceMsg = FishingMessageSettings.Format(msgs.QuickTournamentStart,
+                ("name", tournament.Name),
+                ("minutes", durationMinutes.ToString()),
+                ("category", FishingFormatHelper.FormatScoreCategory(tournament.PrimaryScoreCategory)),
+                ("frenzyNote", frenzyNote));
+            if (!string.IsNullOrWhiteSpace(announceMsg))
+            {
+                await ServiceBackbone.SendChatMessage(announceMsg);
+            }
+
+            Snackbar.Add($"Launched '{tournament.Name}'!", Severity.Success);
+            if (OnTournamentLaunched.HasDelegate)
+            {
+                await OnTournamentLaunched.InvokeAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to launch Quick Tournament: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLaunching = false;
+        }
+    }
+}

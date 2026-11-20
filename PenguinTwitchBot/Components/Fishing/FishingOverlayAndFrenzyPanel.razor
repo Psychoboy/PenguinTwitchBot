@@ -1,0 +1,344 @@
+@using PenguinTwitchBot.Bot.Commands.Fishing
+@using PenguinTwitchBot.Bot.Notifications
+@using PenguinTwitchBot.Database.Bot.Models.Fishing
+@using System.Text.Json
+@inject IFishingService FishingService
+@inject IFishingFrenzyService FrenzyService
+@inject IFishingAudioResolver AudioResolver
+@inject IWebSocketMessenger WebSocketMessenger
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4" Class="pa-2">
+    <!-- 1. Overlay Live Preview & Frenzy Control -->
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Spacing="3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+                <MudText Typo="Typo.h6">
+                    <MudIcon Icon="@Icons.Material.Filled.Preview" Color="Color.Info" Class="mr-1" />
+                    Overlay Live Preview &amp; Frenzy Control
+                </MudText>
+                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Info"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.OpenInNew"
+                               Href="/fishing.html"
+                               Target="_blank">
+                        Open Fishing Overlay
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Secondary"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.OpenInNew"
+                               Href="/fishing-tournaments.html"
+                               Target="_blank">
+                        Open Tournament Overlay
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Fire simulated catches/events directly to your OBS fishing overlay without modifying player stats or DB records.
+            </MudText>
+            <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" StartIcon="@Icons.Material.Filled.Phishing" OnClick="SendTestCommonAsync">Test Common Catch</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" StartIcon="@Icons.Material.Filled.AutoAwesome" OnClick="SendTestLegendaryAsync">Test Legendary + New Dex + PB</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Filter3" OnClick="SendTestComboAsync">Test 3x Multi-Cast Combo</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" StartIcon="@Icons.Material.Filled.Warning" OnClick="SendTestAccidentAsync">Test Rod Snap Accident</MudButton>
+            </MudStack>
+
+            <MudDivider />
+
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+                <MudText Typo="Typo.subtitle1"><b>🔥 Fishing Frenzy / Hotspot</b></MudText>
+                @if (activeFrenzy != null)
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">
+                            ACTIVE: @activeFrenzy.Name (@FishingFrenzyService.BuildBonusSummary(activeFrenzy))
+                        </MudChip>
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small" OnClick="StopFrenzyAsync">Stop Frenzy</MudButton>
+                    </MudStack>
+                }
+            </MudStack>
+
+            <MudGrid Spacing="2" Class="align-center">
+                <MudItem xs="12" sm="3">
+                    <MudTextField @bind-Value="frenzyName" Label="Event Name" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6" sm="2">
+                    <MudNumericField T="int" @bind-Value="frenzyMinutes" Label="Minutes" Min="1" Max="180" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6" sm="2">
+                    <MudNumericField T="double" @bind-Value="frenzyMultiplier" Label="Rarity Mult" Min="1.0" Max="10.0" Step="0.25" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.End" AdornmentText="x" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="string?" @bind-Value="frenzyCategory" Label="Category" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                        <MudSelectItem T="string?" Value="@((string?)null)">None (All Fish)</MudSelectItem>
+                        @foreach (var cat in availableCategories)
+                        {
+                            <MudSelectItem T="string?" Value="@cat">@cat</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" FullWidth="true" StartIcon="@Icons.Material.Filled.LocalFireDepartment" OnClick="StartFrenzyAsync">Start</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudStack>
+    </MudPaper>
+
+    <!-- 2. Overlay Animation & Global Audio Overrides -->
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Color="Color.Primary" Class="mr-1" />
+                Overlay Animation, Tournament Hype &amp; Global Audio Overrides
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Leave any audio field blank to use the bundled default MP3 in /media/. Per-fish audio files in /fishes/ still override global catch sounds automatically.
+            </MudText>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="4">
+                    <MudSwitch T="bool" @bind-Value="Settings.EnableCastAnimation" Color="Color.Primary" Label="Enable LurkBait Cast Animation" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="int" @bind-Value="Settings.CastAnimationMs" Label="Cast Animation (ms)" Min="500" Max="5000" Step="100" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSwitch T="bool" @bind-Value="Settings.SoundEnabled" Color="Color.Success" Label="Enable Overlay Sound Effects" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption">Sound Volume: @((int)Math.Round(Settings.SoundVolume * 100))%</MudText>
+                    <MudSlider T="double" @bind-Value="Settings.SoundVolume" Min="0.0" Max="1.0" Step="0.05" Color="Color.Primary" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudSwitch T="bool" @bind-Value="Settings.AnnounceTournamentLeadChanges" Color="Color.Info" Label="Announce Lead Changes" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudSwitch T="bool" @bind-Value="Settings.AnnounceTournamentCountdown" Color="Color.Info" Label="Announce Final Countdowns" />
+                </MudItem>
+            </MudGrid>
+
+            <MudGrid Spacing="2">
+                @RenderSoundField("Cast Sound", Settings.CastSoundPath, v => Settings.CastSoundPath = v, FishingAudioResolver.DefaultCastSoundUrl)
+                @RenderSoundField("Bite Alert Sound", Settings.BiteSoundPath, v => Settings.BiteSoundPath = v, FishingAudioResolver.DefaultBiteSoundUrl)
+                @RenderSoundField("Common / Uncommon Catch", Settings.CatchCommonSoundPath, v => Settings.CatchCommonSoundPath = v, FishingAudioResolver.DefaultCatchCommonSoundUrl)
+                @RenderSoundField("Rare / Epic Catch", Settings.CatchRareSoundPath, v => Settings.CatchRareSoundPath = v, FishingAudioResolver.DefaultCatchRareSoundUrl)
+                @RenderSoundField("Legendary / Mythical Catch", Settings.CatchLegendarySoundPath, v => Settings.CatchLegendarySoundPath = v, FishingAudioResolver.DefaultCatchLegendarySoundUrl)
+                @RenderSoundField("Accident / Snap Sound", Settings.AccidentSoundPath, v => Settings.AccidentSoundPath = v, FishingAudioResolver.DefaultAccidentSoundUrl)
+                @RenderSoundField("Frenzy / Podium Sound", Settings.FrenzySoundPath, v => Settings.FrenzySoundPath = v, FishingAudioResolver.DefaultFrenzySoundUrl)
+            </MudGrid>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveSettingsAsync">
+                Save Overlay &amp; Audio Settings
+            </MudButton>
+        </MudStack>
+    </MudPaper>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public FishingSettings Settings { get; set; } = new();
+    [Parameter] public EventCallback OnSettingsSaved { get; set; }
+
+    private FishingFrenzyState? activeFrenzy;
+    private string frenzyName = "Golden Hour Frenzy";
+    private int frenzyMinutes = 10;
+    private double frenzyMultiplier = 2.0;
+    private string? frenzyCategory;
+    private List<string> availableCategories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        activeFrenzy = FrenzyService.GetActiveFrenzy();
+        var allFish = await FishingService.GetAllFishTypes();
+        availableCategories = allFish
+            .SelectMany(f => f.Categories)
+            .Select(c => c.Category?.Trim())
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+    }
+
+    private RenderFragment RenderSoundField(string label, string? value, Action<string?> setter, string defaultPath) => @<MudItem xs="12" sm="6">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <div style="flex: 1 1 auto; min-width: 0;">
+                <MediaUrlPicker Value="@value"
+                                ValueChanged="@(v => setter(string.IsNullOrWhiteSpace(v) ? null : v.Trim()))"
+                                Label="@label"
+                                Placeholder="@($"Default: {defaultPath}")"
+                                Accept=".mp3,.wav,.ogg,.webm"
+                                AllowBrowse="true"
+                                ShowPreview="false" />
+            </div>
+            <MudTooltip Text="Preview sound">
+                <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               OnClick="@(() => PreviewSoundAsync(string.IsNullOrWhiteSpace(value) ? defaultPath : value))" />
+            </MudTooltip>
+        </MudStack>
+    </MudItem>;
+
+    private async Task PreviewSoundAsync(string url)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval", $"(() => {{ const a = new Audio({JsonSerializer.Serialize(url)}); a.volume = {Settings.SoundVolume.ToString(System.Globalization.CultureInfo.InvariantCulture)}; a.play().catch(() => {{}}); }})()");
+        }
+        catch { }
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        try
+        {
+            await FishingService.UpdateSettings(Settings);
+            Snackbar.Add("Saved overlay & audio settings!", Severity.Success);
+            if (OnSettingsSaved.HasDelegate) await OnSettingsSaved.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save settings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task StartFrenzyAsync()
+    {
+        activeFrenzy = await FrenzyService.StartFrenzyAsync(
+            frenzyName, frenzyMinutes, frenzyMultiplier, frenzyCategory,
+            string.IsNullOrWhiteSpace(frenzyCategory) ? 0.0 : 0.5, announceInChat: true);
+        Snackbar.Add($"Started '{activeFrenzy.Name}'!", Severity.Success);
+    }
+
+    private async Task StopFrenzyAsync()
+    {
+        await FrenzyService.StopFrenzyAsync(announceInChat: true);
+        activeFrenzy = null;
+        Snackbar.Add("Stopped active Fishing Frenzy.", Severity.Info);
+    }
+
+    private async Task SendTestCommonAsync()
+    {
+        var audio = AudioResolver.ResolveForCatch(Settings, FishRarity.Common, null);
+        await SendTestPayloadAsync(new
+        {
+            username = "TestAngler",
+            fishName = "Clownfish",
+            rarity = "Common",
+            stars = 2,
+            weight = 1.45,
+            gold = 28,
+            imageFileName = "clownfish_medium.webp",
+            enableCastAnimation = Settings.EnableCastAnimation,
+            castAnimationMs = Settings.CastAnimationMs,
+            soundEnabled = audio.SoundEnabled,
+            soundVolume = audio.SoundVolume,
+            castSoundUrl = audio.CastSoundUrl,
+            biteSoundUrl = audio.BiteSoundUrl,
+            catchSoundUrl = audio.CatchSoundUrl,
+            duration = Settings.DisplayDurationMs
+        });
+        Snackbar.Add("Sent Test Common Catch to overlay!", Severity.Info);
+    }
+
+    private async Task SendTestLegendaryAsync()
+    {
+        var audio = AudioResolver.ResolveForCatch(Settings, FishRarity.Legendary, null);
+        await SendTestPayloadAsync(new
+        {
+            username = "TestAngler",
+            fishName = "Sailfish",
+            rarity = "Legendary",
+            stars = 3,
+            weight = 142.8,
+            gold = 650,
+            imageFileName = "sailfish_medium.webp",
+            isNewSpecies = true,
+            isPersonalBest = true,
+            isFrenzyBonus = true,
+            triggeredBoosts = new[] { new { itemName = "Golden Bait", reason = "Upgraded Rarity!", remainingUses = 4, maxUses = 5 } },
+            tournamentMatches = new[] { new { tournamentName = "Blitz Tournament", rank = 1, isLeader = true, tookLead = true } },
+            pointRewards = new[] { new { pointTypeName = "Points", amount = 500000000L, formatted = "+500M Points" }, new { pointTypeName = "Bonus", amount = 50L, formatted = "+50 Bonus" } },
+            enableCastAnimation = Settings.EnableCastAnimation,
+            castAnimationMs = Settings.CastAnimationMs,
+            soundEnabled = audio.SoundEnabled,
+            soundVolume = audio.SoundVolume,
+            castSoundUrl = audio.CastSoundUrl,
+            biteSoundUrl = audio.BiteSoundUrl,
+            catchSoundUrl = audio.CatchSoundUrl,
+            duration = Settings.DisplayDurationMs
+        });
+        Snackbar.Add("Sent Test Legendary Catch to overlay!", Severity.Success);
+    }
+
+    private async Task SendTestComboAsync()
+    {
+        var samples = new[]
+        {
+            ("Starfish", "Common", FishRarity.Common, 1, 0.8, 18, "starfish_medium.webp"),
+            ("Swordfish", "Rare", FishRarity.Rare, 2, 42.5, 115, "swordfish_medium.webp"),
+            ("Thunderfin Catfish", "Epic", FishRarity.Epic, 3, 88.2, 240, "thunderfin_catfish_medium.webp")
+        };
+
+        for (int i = 0; i < samples.Length; i++)
+        {
+            var s = samples[i];
+            var audio = AudioResolver.ResolveForCatch(Settings, s.Item3, s.Item7);
+            await SendTestPayloadAsync(new
+            {
+                username = "TestAngler",
+                fishName = s.Item1,
+                rarity = s.Item2,
+                stars = s.Item4,
+                weight = s.Item5,
+                gold = s.Item6,
+                imageFileName = s.Item7,
+                batchIndex = i + 1,
+                batchTotal = samples.Length,
+                enableCastAnimation = Settings.EnableCastAnimation,
+                castAnimationMs = Settings.CastAnimationMs,
+                soundEnabled = audio.SoundEnabled,
+                soundVolume = audio.SoundVolume,
+                castSoundUrl = audio.CastSoundUrl,
+                biteSoundUrl = audio.BiteSoundUrl,
+                catchSoundUrl = audio.CatchSoundUrl,
+                duration = Settings.DisplayDurationMs
+            });
+        }
+        Snackbar.Add("Sent 3x Multi-Cast Combo test to overlay!", Severity.Info);
+    }
+
+    private async Task SendTestAccidentAsync()
+    {
+        var audio = AudioResolver.ResolveForCatch(Settings, FishRarity.Common, null);
+        await SendTestPayloadAsync(new
+        {
+            username = "TestAngler",
+            fishName = "ROD SNAPPED",
+            rarity = "Accident",
+            isAccident = true,
+            rodSnapped = true,
+            accidentReason = "ROD SNAPPED",
+            lostItems = "Carbon Fiber Rod, Braided Line",
+            totalGoldLost = 1400,
+            enableCastAnimation = Settings.EnableCastAnimation,
+            castAnimationMs = Settings.CastAnimationMs,
+            soundEnabled = audio.SoundEnabled,
+            soundVolume = audio.SoundVolume,
+            castSoundUrl = audio.CastSoundUrl,
+            biteSoundUrl = audio.BiteSoundUrl,
+            accidentSoundUrl = audio.AccidentSoundUrl,
+            duration = Settings.DisplayDurationMs
+        });
+        Snackbar.Add("Sent Test Rod Snap Accident to overlay!", Severity.Warning);
+    }
+
+    private async Task SendTestPayloadAsync(object fishingPayload)
+    {
+        await WebSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(new { fishing = fishingPayload }));
+    }
+}

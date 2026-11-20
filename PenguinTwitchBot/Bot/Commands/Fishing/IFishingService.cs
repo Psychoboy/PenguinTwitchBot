@@ -2,6 +2,13 @@ using PenguinTwitchBot.Database.Bot.Models.Fishing;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
 {
+    public sealed record QuickTournamentRequest(
+        string Theme = "Random",
+        int DurationMinutes = 10,
+        string? CustomName = null,
+        List<QuickTournamentRewardEntry>? RewardOverrides = null,
+        FishingTournamentScoreCategory? ScoreCategoryOverride = null);
+
     /// <summary>
     /// Core fishing service for fish types, catches, gold, and settings management.
     /// Use specialized services for shop, inventory, gameplay, analytics, and leaderboards.
@@ -37,10 +44,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         Task<Dictionary<Guid, FishingTournamentRewardStanding>> GetFishingTournamentRewardStandings(Guid tournamentId);
         Task<FishingTournament?> StartFishingTournament(Guid id);
         Task<FishingTournament?> CloneAndStartFishingTournament(Guid templateTournamentId);
+        Task<FishingTournament?> CloneAndStartFishingTournament(Guid templateTournamentId, int? durationOverrideMinutes);
+        Task<FishingTournament> StartQuickTournamentAsync(QuickTournamentRequest request);
         Task<FishingTournament?> ReopenFishingTournament(Guid id);
         Task<FishingTournament> SaveFishingTournament(FishingTournament tournament);
         Task<FishingTournament?> EndFishingTournament(Guid id);
         Task DeleteFishingTournament(Guid id);
+        Task<UserFishingDexSummary> GetUserDexSummaryAsync(string userId);
+        void InvalidateCache();
 
         // Gold Management
         Task<FishingGold?> GetUserGold(string userId);

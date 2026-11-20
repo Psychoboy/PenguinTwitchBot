@@ -218,21 +218,18 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid> { rod.Id });
 
-            // With +50% boost: Uncommon=30*1.5=45, Rare=15*1.5=22.5, Epic=4*1.5=6, Legendary=1*1.5=1.5
-            // Common stays 50
-            // Total = 50 + 45 + 22.5 + 6 + 1.5 = 125
-            // Percentages: Common=40%, Uncommon=36%, Rare=18%, Epic=4.8%, Legendary=1.2%
+            // With progressive scaling (+50% boost):
+            // Common=50, Uncommon=30*1.25=37.5, Rare=15*1.5=22.5, Epic=4*1.75=7.0, Legendary=1*2.0=2.0 -> Total=119
             Assert.True(result.Probabilities[FishRarity.Common] < 50.0, "Common should decrease as percentage");
             Assert.True(result.Probabilities[FishRarity.Uncommon] > 30.0, "Uncommon should increase");
             Assert.True(result.Probabilities[FishRarity.Rare] > 15.0, "Rare should increase");
             Assert.True(result.Probabilities[FishRarity.Legendary] > 1.0, "Legendary should increase");
 
-            // Verify exact calculations
-            Assert.Equal(40.0, result.Probabilities[FishRarity.Common], 1);
-            Assert.Equal(36.0, result.Probabilities[FishRarity.Uncommon], 1);
-            Assert.Equal(18.0, result.Probabilities[FishRarity.Rare], 1);
-            Assert.Equal(4.8, result.Probabilities[FishRarity.Epic], 1);
-            Assert.Equal(1.2, result.Probabilities[FishRarity.Legendary], 1);
+            Assert.Equal(50.0 / 119.0 * 100.0, result.Probabilities[FishRarity.Common], 1);
+            Assert.Equal(37.5 / 119.0 * 100.0, result.Probabilities[FishRarity.Uncommon], 1);
+            Assert.Equal(22.5 / 119.0 * 100.0, result.Probabilities[FishRarity.Rare], 1);
+            Assert.Equal(7.0 / 119.0 * 100.0, result.Probabilities[FishRarity.Epic], 1);
+            Assert.Equal(2.0 / 119.0 * 100.0, result.Probabilities[FishRarity.Legendary], 1);
         }
 
         #endregion
@@ -264,15 +261,13 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid> { tackleBox.Id });
 
-            // With +30% boost: Uncommon=30*1.3=39, Rare=15*1.3=19.5, Epic=4*1.3=5.2, Legendary=1*1.3=1.3
-            // Common stays 50
-            // Total = 50 + 39 + 19.5 + 5.2 + 1.3 = 115
-            // Percentages: Common=43.48%, Uncommon=33.91%, Rare=16.96%, Epic=4.52%, Legendary=1.13%
-            Assert.Equal(43.48, result.Probabilities[FishRarity.Common], 1);
-            Assert.Equal(33.91, result.Probabilities[FishRarity.Uncommon], 1);
-            Assert.Equal(16.96, result.Probabilities[FishRarity.Rare], 1);
-            Assert.Equal(4.52, result.Probabilities[FishRarity.Epic], 1);
-            Assert.Equal(1.13, result.Probabilities[FishRarity.Legendary], 1);
+            // With progressive scaling (+30% boost):
+            // Common=50, Uncommon=30*1.15=34.5, Rare=15*1.3=19.5, Epic=4*1.45=5.8, Legendary=1*1.6=1.6 -> Total=111.4
+            Assert.Equal(50.0 / 111.4 * 100.0, result.Probabilities[FishRarity.Common], 1);
+            Assert.Equal(34.5 / 111.4 * 100.0, result.Probabilities[FishRarity.Uncommon], 1);
+            Assert.Equal(19.5 / 111.4 * 100.0, result.Probabilities[FishRarity.Rare], 1);
+            Assert.Equal(5.8 / 111.4 * 100.0, result.Probabilities[FishRarity.Epic], 1);
+            Assert.Equal(1.6 / 111.4 * 100.0, result.Probabilities[FishRarity.Legendary], 1);
         }
 
         [Fact]
@@ -301,16 +296,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid> { ultimateBox.Id });
 
-            // Boosts stack multiplicatively: 1.4 * 1.2 = 1.68
-            // Uncommon=30*1.68=50.4, Rare=15*1.68=25.2, Epic=4*1.68=6.72, Legendary=1*1.68=1.68
-            // Common stays 50
-            // Total = 50 + 50.4 + 25.2 + 6.72 + 1.68 = 134
-            // Percentages: Common=37.31%, Uncommon=37.61%, Rare=18.81%, Epic=5.01%, Legendary=1.2537%
-            Assert.Equal(37.31, result.Probabilities[FishRarity.Common], 1);
-            Assert.Equal(37.61, result.Probabilities[FishRarity.Uncommon], 1);
-            Assert.Equal(18.81, result.Probabilities[FishRarity.Rare], 1);
-            Assert.Equal(5.01, result.Probabilities[FishRarity.Epic], 1);
-            Assert.Equal(1.25, result.Probabilities[FishRarity.Legendary], 0);
+            // Progressive multiplicative stacking (+40% and +20%):
+            // Uncommon: 30 * 1.2 * 1.1 = 39.6, Rare: 15 * 1.4 * 1.2 = 25.2, Epic: 4 * 1.6 * 1.3 = 8.32, Legendary: 1 * 1.8 * 1.4 = 2.52
+            // Total = 50 + 39.6 + 25.2 + 8.32 + 2.52 = 125.64
+            Assert.Equal(50.0 / 125.64 * 100.0, result.Probabilities[FishRarity.Common], 1);
+            Assert.Equal(39.6 / 125.64 * 100.0, result.Probabilities[FishRarity.Uncommon], 1);
+            Assert.Equal(25.2 / 125.64 * 100.0, result.Probabilities[FishRarity.Rare], 1);
+            Assert.Equal(8.32 / 125.64 * 100.0, result.Probabilities[FishRarity.Epic], 1);
+            Assert.Equal(2.52 / 125.64 * 100.0, result.Probabilities[FishRarity.Legendary], 1);
         }
 
         #endregion
@@ -351,18 +344,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<Guid> { rod.Id, reel.Id });
 
-            // Rod: +30% -> *1.3
-            // Reel BoostType2: +10% -> *1.1
-            // Combined: 1.3 * 1.1 = 1.43
-            // Uncommon=30*1.43=42.9, Rare=15*1.43=21.45, Epic=4*1.43=5.72, Legendary=1*1.43=1.43
-            // Common stays 50
-            // Total = 50 + 42.9 + 21.45 + 5.72 + 1.43 = 121.5
-            // Percentages: Common=41.15%, Uncommon=35.31%, Rare=17.654%, Epic=4.71%, Legendary=1.18%
-            Assert.Equal(41.15, result.Probabilities[FishRarity.Common], 1);
-            Assert.Equal(35.31, result.Probabilities[FishRarity.Uncommon], 1);
-            Assert.Equal(17.65, result.Probabilities[FishRarity.Rare], 0);
-            Assert.Equal(4.71, result.Probabilities[FishRarity.Epic], 1);
-            Assert.Equal(1.18, result.Probabilities[FishRarity.Legendary], 1);
+            // Progressive multiplicative stacking (+30% and +10%):
+            // Uncommon: 30 * 1.15 * 1.05 = 36.225, Rare: 15 * 1.3 * 1.1 = 21.45, Epic: 4 * 1.45 * 1.15 = 6.67, Legendary: 1 * 1.6 * 1.2 = 1.92
+            // Total = 50 + 36.225 + 21.45 + 6.67 + 1.92 = 116.265
+            Assert.Equal(50.0 / 116.265 * 100.0, result.Probabilities[FishRarity.Common], 1);
+            Assert.Equal(36.225 / 116.265 * 100.0, result.Probabilities[FishRarity.Uncommon], 1);
+            Assert.Equal(21.45 / 116.265 * 100.0, result.Probabilities[FishRarity.Rare], 1);
+            Assert.Equal(6.67 / 116.265 * 100.0, result.Probabilities[FishRarity.Epic], 1);
+            Assert.Equal(1.92 / 116.265 * 100.0, result.Probabilities[FishRarity.Legendary], 1);
         }
 
         #endregion
@@ -407,16 +396,13 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var result = await _analyticsService.CalculateRarityProbabilities(true, 3.0, new List<Guid> { rod.Id });
 
-            // Global boost applies first: Uncommon=30*3=90, Rare=15*3=45, Epic=4*3=12, Legendary=1*3=3
-            // Then equipment boost: Uncommon=90*1.5=135, Rare=45*1.5=67.5, Epic=12*1.5=18, Legendary=3*1.5=4.5
-            // Common stays 50
-            // Total = 50 + 135 + 67.5 + 18 + 4.5 = 275
-            // Percentages: Common=18.18%, Uncommon=49.09%, Rare=24.545%, Epic=6.55%, Legendary=1.64%
-            Assert.Equal(18.18, result.Probabilities[FishRarity.Common], 1);
-            Assert.Equal(49.09, result.Probabilities[FishRarity.Uncommon], 1);
-            Assert.Equal(24.55, result.Probabilities[FishRarity.Rare], 0);
-            Assert.Equal(6.55, result.Probabilities[FishRarity.Epic], 0);
-            Assert.Equal(1.64, result.Probabilities[FishRarity.Legendary], 1);
+            // Global 3x + Progressive +50%:
+            // Uncommon=90*1.25=112.5, Rare=45*1.5=67.5, Epic=12*1.75=21, Legendary=3*2.0=6, Common=50 -> Total=257
+            Assert.Equal(50.0 / 257.0 * 100.0, result.Probabilities[FishRarity.Common], 1);
+            Assert.Equal(112.5 / 257.0 * 100.0, result.Probabilities[FishRarity.Uncommon], 1);
+            Assert.Equal(67.5 / 257.0 * 100.0, result.Probabilities[FishRarity.Rare], 1);
+            Assert.Equal(21.0 / 257.0 * 100.0, result.Probabilities[FishRarity.Epic], 1);
+            Assert.Equal(6.0 / 257.0 * 100.0, result.Probabilities[FishRarity.Legendary], 1);
         }
 
         #endregion
@@ -524,14 +510,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var rareSalmon = result.Values.FirstOrDefault(f => f.FishName == "Rare Salmon");
             Assert.NotNull(rareSalmon);
 
-            // SpecificFishBoost no longer changes rarity-tier weights.
-            // Rare tier stays at its baseline 15%.
-            Assert.Equal(15.0, rareSalmon.RarityChance, 1);
-
-            // The boost weights salmon 2x within the rare tier.
-            // If rare has 1 fish (Rare Salmon), within-rarity is 100% with or without boost
-            // (only fish in that tier). Overall chance = rarity * within = 15% * 100% = 15%.
-            Assert.Equal(15.0, rareSalmon.OverallChance, 1);
+            // Single-fish cross-rarity SpecificFishBoost (+100% = 2x on Rare Salmon only):
+            // Rare Salmon weight doubles from 15 to 30 out of 115 total -> 30 / 115 = 26.087%
+            Assert.Equal(30.0 / 115.0 * 100.0, rareSalmon.RarityChance, 1);
+            Assert.Equal(30.0 / 115.0 * 100.0, rareSalmon.OverallChance, 1);
         }
 
         [Fact]
@@ -642,12 +624,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var bassSingle = resultSingle.Values.First(f => f.FishId == commonBassFish.Id);
             var bassStacked = resultStacked.Values.First(f => f.FishId == commonBassFish.Id);
 
-            // Stacking two boosts should increase within-rarity chance further
+            // Stacking two boosts should increase overall and within-rarity chance further
             Assert.True(bassStacked.WithinRarityChance > bassSingle.WithinRarityChance,
                 $"Stacked boosts should give higher within-rarity chance. Single: {bassSingle.WithinRarityChance:F2}%, Stacked: {bassStacked.WithinRarityChance:F2}%");
-
-            // Rarity chance is unaffected by either
-            Assert.Equal(bassSingle.RarityChance, bassStacked.RarityChance, 1);
+            Assert.True(bassStacked.OverallChance > bassSingle.OverallChance,
+                $"Stacked boosts should give higher overall chance. Single: {bassSingle.OverallChance:F2}%, Stacked: {bassStacked.OverallChance:F2}%");
         }
 
         #endregion
@@ -721,16 +702,17 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var itemIds = items.Select(i => i.Id).ToList();
             var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, itemIds);
 
-            // Combined rarity multipliers: 1.35 * 1.15 * 1.3 * 1.1 = 2.22525
-            // Uncommon=30*2.22525=66.76, Rare=15*2.22525=33.38, Epic=4*2.22525=8.90, Legendary=1*2.22525=2.23
-            // Common=50
-            // Total=161.27
-            // Common=31.055%, Uncommon=41.40%, Rare=20.70%, Epic=5.52%, Legendary=1.38%
-            Assert.Equal(31.06, result.Probabilities[FishRarity.Common], 1);
-            Assert.Equal(41.40, result.Probabilities[FishRarity.Uncommon], 1);
-            Assert.Equal(20.70, result.Probabilities[FishRarity.Rare], 1);
-            Assert.Equal(5.52, result.Probabilities[FishRarity.Epic], 1);
-            Assert.Equal(1.38, result.Probabilities[FishRarity.Legendary], 1);
+            // Progressive multiplicative stacking (+35%, +15%, +30%, +10%):
+            var uW = 30.0 * 1.175 * 1.075 * 1.15 * 1.05;
+            var rW = 15.0 * 1.35 * 1.15 * 1.30 * 1.10;
+            var eW = 4.0 * 1.525 * 1.225 * 1.45 * 1.15;
+            var lW = 1.0 * 1.70 * 1.30 * 1.60 * 1.20;
+            var tot = 50.0 + uW + rW + eW + lW;
+            Assert.Equal(50.0 / tot * 100.0, result.Probabilities[FishRarity.Common], 1);
+            Assert.Equal(uW / tot * 100.0, result.Probabilities[FishRarity.Uncommon], 1);
+            Assert.Equal(rW / tot * 100.0, result.Probabilities[FishRarity.Rare], 1);
+            Assert.Equal(eW / tot * 100.0, result.Probabilities[FishRarity.Epic], 1);
+            Assert.Equal(lW / tot * 100.0, result.Probabilities[FishRarity.Legendary], 1);
         }
 
         [Fact]
@@ -769,18 +751,17 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var result = await _analyticsService.CalculateRarityProbabilities(true, 10.0, new List<Guid> { rod.Id, tackleBox.Id });
 
-            // Global boost: 10x
-            // Equipment: 1.5 * 1.4 * 1.25 = 2.625
-            // Total multiplier: 10 * 2.625 = 26.25
-            // Uncommon=30*26.25=787.5, Rare=15*26.25=393.75, Epic=4*26.25=105, Legendary=1*26.25=26.25
-            // Common=50
-            // Total=1362.5
-            // Common=3.67%, Uncommon=57.80%, Rare=28.90%, Epic=7.71%, Legendary=1.93%
-            Assert.Equal(3.67, result.Probabilities[FishRarity.Common], 1);
-            Assert.Equal(57.80, result.Probabilities[FishRarity.Uncommon], 1);
-            Assert.Equal(28.90, result.Probabilities[FishRarity.Rare], 1);
-            Assert.Equal(7.71, result.Probabilities[FishRarity.Epic], 1);
-            Assert.Equal(1.93, result.Probabilities[FishRarity.Legendary], 1);
+            // Global 10x + Progressive (+50%, +40%, +25%):
+            var uW = 30.0 * 10.0 * 1.25 * 1.20 * 1.125;
+            var rW = 15.0 * 10.0 * 1.50 * 1.40 * 1.25;
+            var eW = 4.0 * 10.0 * 1.75 * 1.60 * 1.375;
+            var lW = 1.0 * 10.0 * 2.00 * 1.80 * 1.50;
+            var tot = 50.0 + uW + rW + eW + lW;
+            Assert.Equal(50.0 / tot * 100.0, result.Probabilities[FishRarity.Common], 1);
+            Assert.Equal(uW / tot * 100.0, result.Probabilities[FishRarity.Uncommon], 1);
+            Assert.Equal(rW / tot * 100.0, result.Probabilities[FishRarity.Rare], 1);
+            Assert.Equal(eW / tot * 100.0, result.Probabilities[FishRarity.Epic], 1);
+            Assert.Equal(lW / tot * 100.0, result.Probabilities[FishRarity.Legendary], 1);
         }
 
         #endregion

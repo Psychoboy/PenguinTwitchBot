@@ -1,0 +1,191 @@
+@using PenguinTwitchBot.Bot.Commands.Fishing
+@inject IFishingMessageSettingsService MessageSettingsService
+@inject ISnackbar Snackbar
+
+<MudPaper Elevation="3" Class="pa-4">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+            <div>
+                <MudText Typo="Typo.h6">
+                    <MudIcon Icon="@Icons.Material.Filled.Chat" Color="Color.Info" Class="mr-1" />
+                    Fishing Chat Messages
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Customize every message Fishing sends to Twitch chat. Clear a field to disable that message, or click the restore icon to reset it to default.
+                </MudText>
+            </div>
+            <MudStack Row="true" Spacing="1">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" StartIcon="@Icons.Material.Filled.Restore" OnClick="ResetAllDefaults">
+                    Reset All
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync">
+                    Save Messages
+                </MudButton>
+            </MudStack>
+        </MudStack>
+
+        <MudExpansionPanels MultiExpansion="true">
+            <MudExpansionPanel Text="🔥 Frenzy &amp; Hotspot Messages" Expanded="true">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Frenzy Started" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.FrenzyStart"
+                                      HelperText="Placeholders: {name}, {minutes}, {bonus}, {multiplier}, {category}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.FrenzyStart = FishingMessageSettings.DefaultFrenzyStart)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Frenzy Ended" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.FrenzyEnd"
+                                      HelperText="Placeholders: {name}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.FrenzyEnd = FishingMessageSettings.DefaultFrenzyEnd)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishfrenzy Active Status" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.FrenzyStatusActive"
+                                      HelperText="Placeholders: {name}, {bonus}, {remaining}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.FrenzyStatusActive = FishingMessageSettings.DefaultFrenzyStatusActive)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishfrenzy None Active" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.FrenzyStatusNone"
+                                      HelperText="Placeholders: {modHint}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.FrenzyStatusNone = FishingMessageSettings.DefaultFrenzyStatusNone)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+
+            <MudExpansionPanel Text="🏆 Quick Tournament &amp; Hype Announcements">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Quick Tournament Started" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.QuickTournamentStart"
+                                      HelperText="Placeholders: {name}, {minutes}, {category}, {frenzyNote}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.QuickTournamentStart = FishingMessageSettings.DefaultQuickTournamentStart)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="First Leader Taken" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.TournamentFirstLeader"
+                                      HelperText="Placeholders: {leader}, {tournament}, {score}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.TournamentFirstLeader = FishingMessageSettings.DefaultTournamentFirstLeader)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Lead Stolen from Previous Leader" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.TournamentLeadChange"
+                                      HelperText="Placeholders: {leader}, {previousLeader}, {tournament}, {score}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.TournamentLeadChange = FishingMessageSettings.DefaultTournamentLeadChange)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="2-Minute Warning (Blitz)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.TournamentTwoMinuteWarning"
+                                      HelperText="Placeholders: {tournament}, {leaderNote}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.TournamentTwoMinuteWarning = FishingMessageSettings.DefaultTournamentTwoMinuteWarning)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="30-Second Final Sprint Warning (Blitz)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.TournamentThirtySecondWarning"
+                                      HelperText="Placeholders: {tournament}, {leaderNote}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.TournamentThirtySecondWarning = FishingMessageSettings.DefaultTournamentThirtySecondWarning)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+
+            <MudExpansionPanel Text="💬 Chat Command Responses (!fishstats, !fishgear, !fishrepair, !fishdex)">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishstats Response" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.StatsResponse"
+                                      HelperText="Placeholders: {user}, {gold}, {catches}, {caughtSpecies}, {totalSpecies}, {percent}, {bestPart}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.StatsResponse = FishingMessageSettings.DefaultStatsResponse)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishgear Equipped Response" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.GearResponse"
+                                      HelperText="Placeholders: {user}, {gear}, {repairHint}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.GearResponse = FishingMessageSettings.DefaultGearResponse)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishgear Empty Response" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.GearEmptyResponse"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.GearEmptyResponse = FishingMessageSettings.DefaultGearEmptyResponse)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishrepair Success" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.RepairSuccessResponse"
+                                      HelperText="Placeholders: {user}, {cost}, {gold}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.RepairSuccessResponse = FishingMessageSettings.DefaultRepairSuccessResponse)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishrepair Full Durability" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.RepairNoneNeededResponse"
+                                      HelperText="Placeholders: {user}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.RepairNoneNeededResponse = FishingMessageSettings.DefaultRepairNoneNeededResponse)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishdex Summary" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.DexSummaryResponse"
+                                      HelperText="Placeholders: {user}, {caughtSpecies}, {totalSpecies}, {percent}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.DexSummaryResponse = FishingMessageSettings.DefaultDexSummaryResponse)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishdex Specific Fish (Caught)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.DexFishCaughtResponse"
+                                      HelperText="Placeholders: {user}, {fish}, {rarity}, {count}, {stars}, {weight}, {gold}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.DexFishCaughtResponse = FishingMessageSettings.DefaultDexFishCaughtResponse)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="!fishdex Specific Fish (Uncaught)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.DexFishUncaughtResponse"
+                                      HelperText="Placeholders: {fish}, {rarity}, {categories}, {weight}, {gold}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.DexFishUncaughtResponse = FishingMessageSettings.DefaultDexFishUncaughtResponse)" />
+                    </MudItem>
+                </MudGrid>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private FishingMessageSettings messages = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        messages = await MessageSettingsService.GetAsync();
+    }
+
+    private void ResetAllDefaults()
+    {
+        messages = new FishingMessageSettings();
+        Snackbar.Add("Reset all Fishing chat messages to defaults. Click Save Messages to persist.", Severity.Info);
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            await MessageSettingsService.SaveAsync(messages);
+            Snackbar.Add("Saved Fishing chat messages!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save messages: {ex.Message}", Severity.Error);
+        }
+    }
+}
