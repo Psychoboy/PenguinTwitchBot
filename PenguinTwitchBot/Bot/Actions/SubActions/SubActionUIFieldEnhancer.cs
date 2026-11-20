@@ -48,6 +48,8 @@ public static class SubActionUIFieldEnhancer
             FishingModifyType fishingModify => EnhanceFishingModify(fields, fishingModify, scope.ServiceProvider),
             FishingTournamentStartType fishStart => EnhanceFishingTournamentStart(fields, scope.ServiceProvider),
             FishingTournamentEndType fishEnd => EnhanceFishingTournamentEnd(fields, scope.ServiceProvider),
+            FishingFrenzyType fishFrenzy => EnhanceFishingFrenzy(fields, fishFrenzy, scope.ServiceProvider),
+            FishingQuickTournamentType fishQuickTourney => EnhanceFishingQuickTournament(fields, fishQuickTourney, scope.ServiceProvider),
             TimerGroupSetEnabledStateType timer => EnhanceTimerGroupSetEnabledState(fields, timer, scope.ServiceProvider),
             ToggleCommandDisabledType toggle => EnhanceToggleCommandDisabled(fields, toggle, scope.ServiceProvider),
             PointCommandType point => EnhancePointCommand(fields, point, scope.ServiceProvider),
@@ -599,6 +601,124 @@ public static class SubActionUIFieldEnhancer
             SelectOptions = options,
             HelperText = "Select an existing tournament to start, or a template to clone and start."
         });
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceFishingFrenzy(List<SubActionUIField> fields, FishingFrenzyType frenzy, IServiceProvider serviceProvider)
+    {
+        var fishingService = serviceProvider.GetRequiredService<IFishingService>();
+        var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
+
+        var categoryOptions = new List<SelectOption>
+        {
+            new() { Name = "None (All Fish)", Value = "" }
+        };
+
+        var distinctCategories = fishTypes
+            .SelectMany(f => f.Categories)
+            .Select(c => c.Category?.Trim())
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var cat in distinctCategories)
+        {
+            categoryOptions.Add(new SelectOption { Name = cat!, Value = cat! });
+        }
+
+        if (!string.IsNullOrWhiteSpace(frenzy.TargetCategory) &&
+            !categoryOptions.Any(o => string.Equals(o.Value, frenzy.TargetCategory, StringComparison.OrdinalIgnoreCase)))
+        {
+            categoryOptions.Add(new SelectOption { Name = frenzy.TargetCategory, Value = frenzy.TargetCategory });
+        }
+
+        var idx = fields.FindIndex(f => f.PropertyName == nameof(FishingFrenzyType.TargetCategory));
+        if (idx >= 0)
+        {
+            fields[idx] = new SubActionUIField
+            {
+                PropertyName = nameof(FishingFrenzyType.TargetCategory),
+                Label = "Target Category",
+                FieldType = UIFieldType.Select,
+                Required = false,
+                DefaultValue = "",
+                SelectOptions = categoryOptions,
+                HelperText = "Select None (All Fish) or a specific fish category for a Category Hotspot."
+            };
+        }
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceFishingQuickTournament(List<SubActionUIField> fields, FishingQuickTournamentType quickTourney, IServiceProvider serviceProvider)
+    {
+        var fishingService = serviceProvider.GetRequiredService<IFishingService>();
+        var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
+
+        var categoryOptions = new List<SelectOption>
+        {
+            new() { Name = "Random (All Fish or Random Category)", Value = "Random" },
+            new() { Name = "All Fish", Value = "AllFish" }
+        };
+
+        var dbCategories = fishTypes
+            .Where(f => f.Enabled)
+            .SelectMany(f => f.Categories)
+            .Select(c => c.Category?.Trim())
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var cat in dbCategories)
+        {
+            categoryOptions.Add(new SelectOption { Name = cat!, Value = cat! });
+        }
+
+        if (!string.IsNullOrWhiteSpace(quickTourney.Theme) &&
+            !categoryOptions.Any(o => string.Equals(o.Value, quickTourney.Theme, StringComparison.OrdinalIgnoreCase)))
+        {
+            categoryOptions.Add(new SelectOption { Name = quickTourney.Theme, Value = quickTourney.Theme });
+        }
+
+        var idx = fields.FindIndex(f => f.PropertyName == nameof(FishingQuickTournamentType.Theme));
+        if (idx >= 0)
+        {
+            fields[idx] = new SubActionUIField
+            {
+                PropertyName = nameof(FishingQuickTournamentType.Theme),
+                Label = "Fish Category / Pool",
+                FieldType = UIFieldType.Select,
+                Required = true,
+                DefaultValue = "Random",
+                SelectOptions = categoryOptions,
+                HelperText = "Choose Random, All Fish, or one of your existing fish categories."
+            };
+        }
+
+        var scoreIdx = fields.FindIndex(f => f.PropertyName == nameof(FishingQuickTournamentType.ScoreCategory));
+        if (scoreIdx >= 0)
+        {
+            fields[scoreIdx] = new SubActionUIField
+            {
+                PropertyName = nameof(FishingQuickTournamentType.ScoreCategory),
+                Label = "Scoring Mode",
+                FieldType = UIFieldType.Select,
+                Required = true,
+                DefaultValue = "Random",
+                SelectOptions =
+                [
+                    new() { Name = "Random Scoring Mode", Value = "Random" },
+                    new() { Name = "Largest Weight", Value = "Largest" },
+                    new() { Name = "Smallest Weight", Value = "Smallest" },
+                    new() { Name = "Most Valuable (Gold)", Value = "MostValuable" },
+                    new() { Name = "Most Catches", Value = "MostCatches" },
+                    new() { Name = "Total Weight", Value = "TotalWeight" },
+                    new() { Name = "Best Average", Value = "Average" }
+                ],
+                HelperText = "How tournament winners are scored."
+            };
+        }
 
         return fields;
     }

@@ -1,10 +1,13 @@
 @page "/fishing/help"
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
+@using PenguinTwitchBot.Components.Fishing
 @using PenguinTwitchBot.Bot.Commands.Fishing
 
 <PageTitle>Fishing Help</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+    <FishingNavBar ActiveTab="help" />
+
     <MudText Typo="Typo.h3" Color="Color.Primary" Class="mb-4">
         <MudIcon Icon="@Icons.Material.Filled.Help" Size="Size.Large" />
         Fishing Guide

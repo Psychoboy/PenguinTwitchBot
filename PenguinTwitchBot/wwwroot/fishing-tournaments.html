@@ -6,23 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
         :root {
-            --panel-bg: rgba(8, 14, 22, 0.44);
-            --panel-border: rgba(131, 193, 255, 0.18);
-            --text-primary: rgba(244, 248, 255, 0.92);
-            --text-muted: rgba(173, 190, 216, 0.82);
-            --accent: rgba(127, 210, 255, 0.9);
-            --row-bg: rgba(255, 255, 255, 0.03);
-            --row-bg-alt: rgba(255, 255, 255, 0.055);
+            --panel-bg: rgba(8, 16, 28, 0.72);
+            --panel-border: rgba(131, 193, 255, 0.28);
+            --text-primary: rgba(244, 248, 255, 0.96);
+            --text-muted: rgba(173, 190, 216, 0.85);
+            --accent: #7fd2ff;
+            --row-bg: rgba(255, 255, 255, 0.035);
+            --row-bg-alt: rgba(255, 255, 255, 0.065);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        html,
-        body {
+        html, body {
             width: 100%;
             height: 100%;
             overflow: hidden;
@@ -31,40 +26,49 @@
             color: var(--text-primary);
         }
 
-        body {
-            padding: 4px;
-        }
+        body { padding: 4px; }
 
         .overlay-card {
             width: 100%;
             height: 100%;
-            border-radius: 10px;
+            border-radius: 12px;
             border: 1px solid var(--panel-border);
             background: var(--panel-bg);
-            backdrop-filter: blur(3px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-            display: flex;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            display: none;
             flex-direction: column;
             overflow: hidden;
         }
 
         .overlay-header {
             padding: 7px 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.09);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background: linear-gradient(90deg, rgba(25, 118, 210, 0.24), rgba(0, 176, 255, 0.1));
         }
 
-        .overlay-title {
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.2px;
+        .overlay-title { font-size: 13px; font-weight: 700; letter-spacing: 0.2px; }
+        .overlay-subtitle { font-size: 10px; color: var(--text-muted); }
+
+        #lead-banner {
+            display: none;
+            padding: 5px 10px;
+            background: linear-gradient(90deg, #ff8f00, #ffd740);
+            color: #1a1000;
+            font-size: 11px;
+            font-weight: 800;
+            text-align: center;
+            animation: banner-pop 0.3s ease;
         }
 
-        .overlay-subtitle {
-            font-size: 10px;
-            color: var(--text-muted);
+        #lead-banner.show { display: block; }
+
+        @keyframes banner-pop {
+            from { transform: translateY(-6px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
         .content {
@@ -72,12 +76,13 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 7px;
+            gap: 8px;
+            flex: 1;
         }
 
         .tournament {
-            border: 1px solid rgba(127, 210, 255, 0.28);
-            border-radius: 8px;
+            border: 1px solid rgba(127, 210, 255, 0.3);
+            border-radius: 9px;
             overflow: hidden;
             background: rgba(255, 255, 255, 0.03);
         }
@@ -87,39 +92,60 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-            background: rgba(127, 210, 255, 0.08);
+            gap: 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(127, 210, 255, 0.1);
         }
+
+        .tournament-meta { min-width: 0; flex: 1; }
 
         .tournament-name {
             font-size: 12px;
-            font-weight: 600;
-            line-height: 1.2;
-            max-width: 75%;
+            font-weight: 700;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .tournament-category {
+        .tournament-sub {
             font-size: 9px;
-            color: var(--accent);
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.45px;
+            letter-spacing: 0.35px;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
+        .countdown-pill {
+            flex-shrink: 0;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            background: rgba(0, 0, 0, 0.35);
+            color: #90caf9;
+            border: 1px solid rgba(144, 202, 249, 0.35);
         }
 
-        th,
-        td {
-            padding: 5px 7px;
-            text-align: left;
+        .countdown-pill.warning {
+            background: rgba(255, 152, 0, 0.28);
+            color: #ffd54f;
+            border-color: rgba(255, 213, 79, 0.65);
         }
 
+        .countdown-pill.urgent {
+            background: rgba(244, 67, 54, 0.38);
+            color: #ff8a80;
+            border-color: rgba(255, 82, 82, 0.85);
+            animation: urgent-pulse 0.85s ease-in-out infinite;
+        }
+
+        @keyframes urgent-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th, td { padding: 5px 7px; text-align: left; }
         th {
             font-size: 9px;
             color: var(--text-muted);
@@ -127,41 +153,67 @@
             letter-spacing: 0.3px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
+        tr:nth-child(odd) { background: var(--row-bg); }
+        tr:nth-child(even) { background: var(--row-bg-alt); }
+        tr.rank-up { animation: row-flash 1.4s ease; }
 
-        tr:nth-child(odd) {
-            background: var(--row-bg);
+        @keyframes row-flash {
+            0% { background: rgba(255, 215, 64, 0.38); }
+            100% { background: transparent; }
         }
 
-        tr:nth-child(even) {
-            background: var(--row-bg-alt);
-        }
+        .rank { width: 34px; font-weight: 700; color: var(--accent); }
+        .rank-1 { color: #ffd700; }
+        .rank-2 { color: #e0e0e0; }
+        .rank-3 { color: #ffab91; }
+        .score, .catches { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .empty { color: var(--text-muted); font-size: 11px; text-align: center; padding: 14px 8px; }
+        .error { color: #ffd4d4; background: rgba(180, 40, 40, 0.26); border: 1px solid rgba(255, 120, 120, 0.4); border-radius: 8px; padding: 10px; font-size: 12px; }
 
-        .rank {
-            width: 36px;
-            font-weight: 600;
-            color: var(--accent);
-        }
-
-        .score,
-        .catches {
-            text-align: right;
-            white-space: nowrap;
-        }
-
-        .empty {
-            color: var(--text-muted);
-            font-size: 12px;
-            text-align: center;
-            padding: 18px 10px;
-        }
-
-        .error {
-            color: #ffd4d4;
-            background: rgba(180, 40, 40, 0.26);
-            border: 1px solid rgba(255, 120, 120, 0.4);
-            border-radius: 8px;
+        /* Animated Podium Celebration Card */
+        .podium-card {
+            border-radius: 10px;
             padding: 10px;
-            font-size: 12px;
+            background: linear-gradient(180deg, rgba(255, 193, 7, 0.22), rgba(13, 25, 42, 0.92));
+            border: 1px solid rgba(255, 215, 64, 0.65);
+            text-align: center;
+            animation: banner-pop 0.4s ease;
+        }
+
+        .podium-title { font-size: 13px; font-weight: 800; color: #ffd740; margin-bottom: 2px; }
+        .podium-sub { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; }
+
+        .podium-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            padding: 6px 8px;
+            margin-bottom: 5px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.06);
+            font-size: 11px;
+        }
+
+        .podium-row.place-1 {
+            background: rgba(255, 215, 0, 0.18);
+            border: 1px solid rgba(255, 215, 0, 0.45);
+        }
+
+        .podium-rewards {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 3px;
+        }
+
+        .podium-pill {
+            background: rgba(255, 215, 64, 0.2);
+            color: #ffe57f;
+            padding: 1px 6px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
         }
     </style>
 </head>
@@ -169,13 +221,16 @@
     <div class="overlay-card">
         <div class="overlay-header">
             <div>
-                <div class="overlay-title">Fishing Tournament Standings</div>
-                <div class="overlay-subtitle">Live active leaderboard</div>
+                <div class="overlay-title">🏆 Fishing Tournament</div>
+                <div class="overlay-subtitle">Live standings</div>
             </div>
         </div>
+        <div id="lead-banner"></div>
         <div id="content" class="content"></div>
     </div>
 
+    <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="/js/ws-client.js"></script>
     <script>
         const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
         const script = document.createElement('script');

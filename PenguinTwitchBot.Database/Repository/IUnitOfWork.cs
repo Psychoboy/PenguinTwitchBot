@@ -72,6 +72,7 @@ namespace PenguinTwitchBot.Database.Repository
         IFishingGoldRepository FishingGolds { get; }
         IFishingShopItemRepository FishingShopItems { get; }
         IUserFishingBoostRepository UserFishingBoosts { get; }
+        IUserFishingLoadoutRepository UserFishingLoadouts { get; }
         IFishingSettingsRepository FishingSettings { get; }
         IFishingSnapEventRepository FishingSnapEvents { get; }
         IFishingRepairEventRepository FishingRepairEvents { get; }

@@ -8,10 +8,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         Task<List<UserFishingBoost>> GetUserEquippedItems(string userId);
         Task<Dictionary<EquipmentSlot, UserFishingBoost>> GetUserEquipmentBySlot(string userId);
         Task PurchaseBoost(string userId, Guid shopItemId, int quantity = 1);
+        Task PurchaseAndEquipBoost(string userId, Guid shopItemId, int quantity = 1);
         Task GiveItemToUser(string userId, Guid shopItemId);
         Task SellItem(string userId, Guid userBoostId);
         Task EquipItem(string userId, Guid userBoostId);
         Task UnequipItem(string userId, Guid userBoostId);
+        Task<List<UserFishingLoadout>> GetUserLoadouts(string userId);
+        Task<UserFishingLoadout> SaveCurrentLoadout(string userId, string name);
+        Task<FishingLoadoutApplyResult> ApplyLoadout(string userId, Guid loadoutId);
+        Task DeleteLoadout(string userId, Guid loadoutId);
         Task ConsumeItemUse(string userId, Guid userBoostId);
         Task ConsumeItemUses(string userId, IEnumerable<Guid> userBoostIds);
         Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username);

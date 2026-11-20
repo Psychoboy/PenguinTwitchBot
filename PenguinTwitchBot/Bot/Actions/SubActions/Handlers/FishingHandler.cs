@@ -6,6 +6,7 @@ using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Bot.Queues;
+using PenguinTwitchBot.Helpers;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -18,6 +19,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         private readonly IFishingGameplayService _fishingGameplayService;
         private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IFishingAudioResolver? _audioResolver;
+        private readonly IFishingOverlayAckService? _overlayAckService;
         public const string FishingTournamentCatchTriggerName = "FishingTournament.EligibleCatch";
         public const string FishCatchTriggerName = "Fishing.FishCaught";
         public const string FishingItemBrokenTriggerName = "Fishing.ItemBroken";
@@ -30,13 +33,17 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             IFishingService fishingService,
             IFishingGameplayService fishingGameplayService,
             IWebSocketMessenger webSocketMessenger,
-            IServiceScopeFactory serviceScopeFactory)
+            IServiceScopeFactory serviceScopeFactory,
+            IFishingAudioResolver? audioResolver = null,
+            IFishingOverlayAckService? overlayAckService = null)
         {
             _logger = logger;
             _fishingService = fishingService;
             _fishingGameplayService = fishingGameplayService;
             _webSocketMessenger = webSocketMessenger;
             _serviceScopeFactory = serviceScopeFactory;
+            _audioResolver = audioResolver;
+            _overlayAckService = overlayAckService;
         }
 
         public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
@@ -64,14 +71,31 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var attemptsText = VariableReplacer.ReplaceVariables(fishingAction.Text, variables);
-            var attempts = fishingAction.Attempts;
+            var attempts = Math.Clamp(fishingAction.Attempts, 1, 15);
 
             if (!string.IsNullOrWhiteSpace(attemptsText) && int.TryParse(attemptsText, out var parsedAttempts))
             {
-                attempts = Math.Clamp(parsedAttempts, 1, 10);
+                attempts = Math.Clamp(parsedAttempts, 1, 15);
             }
 
-            for (int i = 0; i < attempts; i++)
+            var totalGold = 0;
+            var totalWeight = 0.0;
+            var catchCount = 0;
+            var accidentCount = 0;
+            FishCatch? bestCatch = null;
+            var summaryParts = new List<string>();
+            var aggregatePoints = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+            var shouldWaitForOverlay = fishingAction.WaitForReveal && _overlayAckService != null;
+            var batchRevealId = shouldWaitForOverlay ? Guid.CreateVersion7() : Guid.Empty;
+            if (shouldWaitForOverlay)
+            {
+                _overlayAckService!.Register(batchRevealId);
+            }
+
+            try
+            {
+                for (int i = 0; i < attempts; i++)
             {
                 try
                 {
@@ -79,6 +103,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
                     if (attemptResult.Outcome != FishingAttemptOutcome.CaughtFish)
                     {
+                        accidentCount++;
                         var (failText, isRodSnap, isLineSnap, isReelJam, isTackleBoxLost, isNetBreak, logItem) = attemptResult.Outcome switch
                         {
                             FishingAttemptOutcome.RodSnapped => ("ROD SNAPPED", true, false, false, false, false, "rod"),
@@ -87,6 +112,12 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                             FishingAttemptOutcome.NetBroken => ("NET BROKEN", false, false, false, false, true, "net"),
                             _ => ("LINE SNAPPED", false, true, false, false, false, "line")
                         };
+
+                        var lostItemNames = attemptResult.SnapEvent?.LostItemsJson != null
+                            ? DeserializeLostItemNames(attemptResult.SnapEvent.LostItemsJson)
+                            : string.Empty;
+
+                        var audio = _audioResolver?.ResolveForCatch(settings, FishRarity.Common, null);
 
                         var snappedMessage = new
                         {
@@ -106,16 +137,24 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                                 netBroken = isNetBreak,
                                 isAccident = true,
                                 accidentReason = failText,
+                                lostItems = lostItemNames,
+                                totalGoldLost = attemptResult.SnapEvent?.TotalGoldLost ?? 0,
+                                batchIndex = i + 1,
+                                batchTotal = attempts,
+                                revealId = i == attempts - 1 && batchRevealId != Guid.Empty ? batchRevealId.ToString() : "",
+                                enableCastAnimation = settings.EnableCastAnimation,
+                                castAnimationMs = settings.CastAnimationMs,
+                                soundEnabled = audio?.SoundEnabled ?? settings.SoundEnabled,
+                                soundVolume = audio?.SoundVolume ?? settings.SoundVolume,
+                                castSoundUrl = audio?.CastSoundUrl ?? FishingAudioResolver.DefaultCastSoundUrl,
+                                biteSoundUrl = audio?.BiteSoundUrl ?? FishingAudioResolver.DefaultBiteSoundUrl,
+                                catchSoundUrl = audio?.AccidentSoundUrl ?? FishingAudioResolver.DefaultAccidentSoundUrl,
+                                accidentSoundUrl = audio?.AccidentSoundUrl ?? FishingAudioResolver.DefaultAccidentSoundUrl,
                                 duration = settings.DisplayDurationMs
                             }
                         };
 
                         await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(snappedMessage));
-
-                        if (attempts > 1 && i < attempts - 1)
-                        {
-                            await Task.Delay(settings.DisplayDurationMs + 500);
-                        }
 
                         _logger.LogInformation("User {Username} had an accident ({Accident}) and caught nothing", username, logItem);
                         variables["fish_type"] = failText;
@@ -124,12 +163,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                         variables["fish_stars"] = "0";
                         variables["fish_weight"] = "0";
                         variables["fish_gold"] = "0";
+                        variables["fish_points_awarded"] = string.Empty;
+                        variables["fish_is_new_species"] = "false";
+                        variables["fish_is_pb"] = "false";
+                        variables["fish_is_server_record"] = "false";
+                        summaryParts.Add(failText);
 
                         var accidentVariables = new ConcurrentDictionary<string, string>(variables);
-                        var lostItemNames = attemptResult.SnapEvent?.LostItemsJson != null
-                            ? DeserializeLostItemNames(attemptResult.SnapEvent.LostItemsJson)
-                            : string.Empty;
-
                         accidentVariables["accident_type"] = attemptResult.Outcome.ToString();
                         accidentVariables["accident_name"] = failText;
                         accidentVariables["accident_reason"] = failText;
@@ -147,36 +187,92 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                         throw new InvalidOperationException("Fishing attempt completed without catch data.");
                     }
 
+                    catchCount++;
+                    totalGold += fishCatch.GoldEarned;
+                    totalWeight += fishCatch.Weight;
+                    if (bestCatch == null || fishCatch.GoldEarned > bestCatch.GoldEarned)
+                    {
+                        bestCatch = fishCatch;
+                    }
+
+                    var rarity = fishCatch.FishType?.Rarity ?? FishRarity.Common;
+                    var audioUrls = _audioResolver?.ResolveForCatch(settings, rarity, fishCatch.FishType?.ImageFileName);
+
+                    var pointRewardsPayload = attemptResult.PointRewardsAwarded.Select(r => new
+                    {
+                        pointTypeName = r.PointTypeName,
+                        amount = r.Amount,
+                        formatted = $"+{FishingFormatHelper.FormatCompactNumber(r.Amount)} {r.PointTypeName}"
+                    }).ToList();
+
+                    foreach (var r in attemptResult.PointRewardsAwarded)
+                    {
+                        aggregatePoints[r.PointTypeName] = aggregatePoints.GetValueOrDefault(r.PointTypeName) + r.Amount;
+                    }
+
                     var message = new
                     {
                         fishing = new
                         {
                             username = username,
                             fishName = fishCatch.FishType?.Name ?? "Unknown",
-                            rarity = fishCatch.FishType?.Rarity.ToString() ?? "Common",
+                            rarity = rarity.ToString(),
                             stars = fishCatch.Stars,
                             weight = fishCatch.Weight,
                             gold = fishCatch.GoldEarned,
                             imageFileName = fishCatch.FishType?.ImageFileName ?? "",
+                            isNewSpecies = attemptResult.IsNewSpecies,
+                            isPersonalBest = attemptResult.IsPersonalBest,
+                            previousBestWeight = attemptResult.PreviousBestWeight,
+                            isServerRecord = attemptResult.IsServerRecord,
+                            isFrenzyBonus = attemptResult.IsFrenzyBonus,
+                            frenzyName = attemptResult.ActiveFrenzyName ?? "",
+                            triggeredBoosts = attemptResult.TriggeredBoosts.Select(b => new
+                            {
+                                itemName = b.ItemName,
+                                reason = b.Reason,
+                                remainingUses = b.RemainingUses,
+                                maxUses = b.MaxUses
+                            }).ToList(),
+                            tournamentMatches = attemptResult.MatchedTournaments.Select(t => new
+                            {
+                                tournamentName = t.TournamentName,
+                                rank = t.NewRank,
+                                isLeader = t.IsLeader,
+                                tookLead = t.TookLead
+                            }).ToList(),
+                            pointRewards = pointRewardsPayload,
+                            brokenItems = attemptResult.BrokenItems.Select(b => b.ItemName).ToList(),
+                            batchIndex = i + 1,
+                            batchTotal = attempts,
+                            revealId = i == attempts - 1 && batchRevealId != Guid.Empty ? batchRevealId.ToString() : "",
+                            enableCastAnimation = settings.EnableCastAnimation,
+                            castAnimationMs = settings.CastAnimationMs,
+                            soundEnabled = audioUrls?.SoundEnabled ?? settings.SoundEnabled,
+                            soundVolume = audioUrls?.SoundVolume ?? settings.SoundVolume,
+                            castSoundUrl = audioUrls?.CastSoundUrl ?? FishingAudioResolver.DefaultCastSoundUrl,
+                            biteSoundUrl = audioUrls?.BiteSoundUrl ?? FishingAudioResolver.DefaultBiteSoundUrl,
+                            catchSoundUrl = audioUrls?.CatchSoundUrl ?? FishingAudioResolver.DefaultCatchCommonSoundUrl,
+                            accidentSoundUrl = audioUrls?.AccidentSoundUrl ?? FishingAudioResolver.DefaultAccidentSoundUrl,
                             duration = settings.DisplayDurationMs
                         }
                     };
 
                     await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(message));
 
-                    if (attempts > 1 && i < attempts - 1)
-                    {
-                        await Task.Delay(settings.DisplayDurationMs + 500);
-                    }
-
                     _logger.LogInformation("User {Username} caught a {Stars} star {FishName} weighing {Weight}kg for {Gold} gold",
                         username, fishCatch.Stars, fishCatch.FishType?.Name, fishCatch.Weight, fishCatch.GoldEarned);
                     variables["fish_type"] = fishCatch.FishType?.Name ?? "Unknown";
                     variables["fish_type_id"] = fishCatch.FishTypeId.ToString();
-                    variables["fish_rarity"] = fishCatch.FishType?.Rarity.ToString() ?? "Common";
+                    variables["fish_rarity"] = rarity.ToString();
                     variables["fish_stars"] = fishCatch.Stars.ToString();
                     variables["fish_weight"] = fishCatch.Weight.ToString();
                     variables["fish_gold"] = fishCatch.GoldEarned.ToString();
+                    variables["fish_is_new_species"] = attemptResult.IsNewSpecies ? "true" : "false";
+                    variables["fish_is_pb"] = attemptResult.IsPersonalBest ? "true" : "false";
+                    variables["fish_is_server_record"] = attemptResult.IsServerRecord ? "true" : "false";
+                    variables["fish_points_awarded"] = string.Join(", ", pointRewardsPayload.Select(p => p.formatted));
+                    summaryParts.Add($"{fishCatch.Stars}★ {fishCatch.FishType?.Name} ({fishCatch.GoldEarned}g)");
 
                     var fishCategoryNames = fishCatch.FishType?.Categories?.Select(c => c.Category).ToList() ?? [];
                     variables["fish_categories"] = string.Join(", ", fishCategoryNames);
@@ -194,6 +290,56 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     _logger.LogError(ex, "Error performing fishing attempt for user {Username}", username);
                     throw new SubActionHandlerException(subAction, $"Failed to perform fishing attempt: {ex.Message}");
                 }
+            }
+
+            // Populate aggregate summary variables for multi-cast (and single-cast) recipes
+            variables["fish_total_gold"] = totalGold.ToString();
+            variables["fish_total_weight"] = Math.Round(totalWeight, 2).ToString("0.##");
+            variables["fish_catch_count"] = catchCount.ToString();
+            variables["fish_accident_count"] = accidentCount.ToString();
+            variables["fish_best_name"] = bestCatch?.FishType?.Name ?? string.Empty;
+            variables["fish_best_rarity"] = bestCatch?.FishType?.Rarity.ToString() ?? string.Empty;
+            variables["fish_best_stars"] = (bestCatch?.Stars ?? 0).ToString();
+            variables["fish_best_gold"] = (bestCatch?.GoldEarned ?? 0).ToString();
+            variables["fish_summary"] = string.Join(", ", summaryParts);
+            variables["fish_total_points_awarded"] = string.Join(", ", aggregatePoints.Select(kvp => $"+{FishingFormatHelper.FormatCompactNumber(kvp.Value)} {kvp.Key}"));
+
+            // Two-way overlay sync: wait until the fishing overlay actually reveals this viewer's catch
+            // (so when 5 viewers cast at once, chat announcements fire in sync with each viewer's splash!).
+            if (fishingAction.WaitForReveal)
+            {
+                if (_overlayAckService != null && batchRevealId != Guid.Empty && await HasConnectedFishingOverlayAsync())
+                {
+                    await _overlayAckService.WaitForRevealAsync(batchRevealId, TimeSpan.FromSeconds(120));
+                }
+                else if (settings.EnableCastAnimation && _overlayAckService == null)
+                {
+                    var delayMs = Math.Clamp(settings.CastAnimationMs, 300, 5000);
+                    await Task.Delay(delayMs);
+                }
+            }
+            }
+            finally
+            {
+                if (shouldWaitForOverlay)
+                {
+                    _overlayAckService!.Unregister(batchRevealId);
+                }
+            }
+        }
+
+        private async Task<bool> HasConnectedFishingOverlayAsync()
+        {
+            try
+            {
+                var status = await _webSocketMessenger.GetStatusAsync();
+                return status?.Connections?.Any(c =>
+                    c.State == System.Net.WebSockets.WebSocketState.Open &&
+                    c.Topics.Any(t => string.Equals(t, WsTopics.Fishing, StringComparison.OrdinalIgnoreCase))) == true;
+            }
+            catch
+            {
+                return false;
             }
         }
 

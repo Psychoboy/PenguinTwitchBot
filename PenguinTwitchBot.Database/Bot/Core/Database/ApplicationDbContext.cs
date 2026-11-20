@@ -79,6 +79,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<FishingGold> FishingGolds { get; set; } = null!;
         public DbSet<FishingShopItem> FishingShopItems { get; set; } = null!;
         public DbSet<UserFishingBoost> UserFishingBoosts { get; set; } = null!;
+        public DbSet<UserFishingLoadout> UserFishingLoadouts { get; set; } = null!;
         public DbSet<FishingSettings> FishingSettings { get; set; } = null!;
         public DbSet<FishingTournament> FishingTournaments { get; set; } = null!;
         public DbSet<FishingTournamentFishType> FishingTournamentFishTypes { get; set; } = null!;
@@ -249,6 +250,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasIndex(e => new { e.UserId, e.IsEquipped })
                 .HasDatabaseName("IX_UserFishingBoosts_UserId_IsEquipped");
 
+            modelBuilder.Entity<UserFishingLoadout>()
+                .HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_UserFishingLoadouts_UserId");
+
             // FishingGolds is looked up by UserId on nearly every catch/purchase and previously had no index at all (full table scan).
             modelBuilder.Entity<FishingGold>()
                 .HasIndex(e => e.UserId)
@@ -337,14 +342,14 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<FishingTournamentRewardRule>()
-                .HasIndex(e => new { e.FishingTournamentId, e.ScoreCategory, e.TargetFishTypeId, e.Placement })
+                .HasIndex(e => new { e.FishingTournamentId, e.ScoreCategory, e.TargetFishTypeId, e.Placement, e.PointTypeId })
                 .IsUnique()
-                .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement");
+                .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement_PointType");
 
             modelBuilder.Entity<FishingTournamentRewardRule>()
-                .HasIndex(e => new { e.FishingTournamentId, e.ScoreCategory, e.Placement })
+                .HasIndex(e => new { e.FishingTournamentId, e.ScoreCategory, e.Placement, e.PointTypeId })
                 .IsUnique()
-                .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement_General")
+                .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement_General_PointType")
                 .HasFilter("\"TargetFishTypeId\" IS NULL");
 
             modelBuilder.Entity<FishingTournamentRewardRule>()

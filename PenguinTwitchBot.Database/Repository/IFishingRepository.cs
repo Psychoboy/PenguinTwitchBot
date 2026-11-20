@@ -24,6 +24,10 @@ namespace PenguinTwitchBot.Database.Repository
     {
     }
 
+    public interface IUserFishingLoadoutRepository : IGenericRepository<UserFishingLoadout>
+    {
+    }
+
     public interface IFishingSettingsRepository : IGenericRepository<FishingSettings>
     {
     }

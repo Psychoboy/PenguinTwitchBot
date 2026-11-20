@@ -4,8 +4,8 @@ using PenguinTwitchBot.Database.Bot.DatabaseTools;
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
-        displayName: "Fishing Tournament End",
-        description: "End a fishing tournament and settle rewards",
+        displayName: "Fishing Tournament End (Deprecated)",
+        description: "[Deprecated — planned for removal] End a legacy manual fishing tournament and settle rewards.",
         icon: "mdi-trophy-award",
         color: "Warning",
         tableName: "subactions_fishingtournamentend")]

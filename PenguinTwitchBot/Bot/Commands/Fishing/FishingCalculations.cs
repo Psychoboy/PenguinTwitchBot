@@ -1,90 +1,240 @@
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using System.Security.Cryptography;
-using PenguinTwitchBot.Extensions;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
 {
+    internal sealed class FishingSelectionResult
+    {
+        public required FishType Fish { get; init; }
+        public List<FishingTriggeredBoostInfo> TriggeredBoosts { get; init; } = new();
+        public bool WasFrenzyInfluenced { get; init; }
+    }
+
     /// <summary>
     /// Shared calculation logic for fishing mechanics (rarity selection, stars, weight, gold)
     /// </summary>
     internal static class FishingCalculations
     {
-        public static FishType SelectRandomFish(List<FishType> fishTypes, FishingSettings? settings, List<UserFishingBoost> boosts)
+        public static FishType SelectRandomFish(
+            List<FishType> fishTypes,
+            FishingSettings? settings,
+            List<UserFishingBoost> boosts,
+            FishingFrenzyState? activeFrenzy = null)
         {
-            var rarityWeights = FishingRarityWeightProfiles.CreateAvailableWeights(fishTypes, normalizeToBaseTotal: true);
+            return SelectRandomFishWithDetails(fishTypes, settings, boosts, activeFrenzy).Fish;
+        }
+
+        public static FishingSelectionResult SelectRandomFishWithDetails(
+            List<FishType> fishTypes,
+            FishingSettings? settings,
+            List<UserFishingBoost> boosts,
+            FishingFrenzyState? activeFrenzy = null)
+        {
+            var triggeredBoosts = new List<FishingTriggeredBoostInfo>();
+            var pool = fishTypes;
+            var wasFrenzyInfluenced = activeFrenzy != null && (activeFrenzy.RarityMultiplier > 1.0 || activeFrenzy.CategoryBoost > 0);
+
+            // 1. Rarity-neutral category attraction for SpecificCategoryBoost items (and Frenzy hotspot category)
+            var categoryBoostItems = GetCategoryBoostEntries(boosts);
+            string? attractedCategory = null;
+            UserFishingBoost? attractingBoostItem = null;
+
+            if (categoryBoostItems.Count > 0)
+            {
+                // Sum positive category boosts per category and roll attraction
+                var byCategory = categoryBoostItems
+                    .GroupBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => new
+                    {
+                        Category = g.Key,
+                        TotalBoost = g.Sum(x => x.Amount),
+                        PrimaryBoost = g.OrderByDescending(x => x.Amount).First().Boost
+                    })
+                    .OrderByDescending(x => x.TotalBoost)
+                    .ToList();
+
+                foreach (var entry in byCategory)
+                {
+                    if (entry.TotalBoost <= 0) continue;
+                    var matchingFish = fishTypes.Where(f => FishHasCategory(f, entry.Category)).ToList();
+                    if (matchingFish.Count == 0) continue;
+
+                    var attractChance = Math.Clamp(entry.TotalBoost, 0.0, 0.85);
+                    if (NextUnitDouble() < attractChance)
+                    {
+                        pool = matchingFish;
+                        attractedCategory = entry.Category;
+                        attractingBoostItem = entry.PrimaryBoost;
+                        break;
+                    }
+                }
+            }
+
+            // Frenzy hotspot category attraction if player didn't already lock a category via bait
+            if (attractedCategory == null &&
+                activeFrenzy != null &&
+                !string.IsNullOrWhiteSpace(activeFrenzy.TargetCategory) &&
+                activeFrenzy.CategoryBoost > 0)
+            {
+                var frenzyMatching = fishTypes.Where(f => FishHasCategory(f, activeFrenzy.TargetCategory)).ToList();
+                if (frenzyMatching.Count > 0 && NextUnitDouble() < Math.Clamp(activeFrenzy.CategoryBoost, 0.0, 0.85))
+                {
+                    pool = frenzyMatching;
+                    attractedCategory = activeFrenzy.TargetCategory;
+                }
+            }
+
+            // 2. Roll fish using unified single-fish-safe weighting (supports Consumable GeneralRarityBoost Advantage)
+            var consumableRarityBoost = GetConsumableGeneralRarityBoost(boosts, out var primaryConsumableRarityItem);
+            var primaryFish = RollFishFromPool(pool, settings, boosts, activeFrenzy);
+            var selectedFish = primaryFish;
+            var advantageUpgraded = false;
+
+            if (consumableRarityBoost >= 0.25)
+            {
+                var advantageChance = Math.Min(0.75, consumableRarityBoost);
+                if (NextUnitDouble() < advantageChance)
+                {
+                    var secondRoll = RollFishFromPool(pool, settings, boosts, activeFrenzy);
+                    if (secondRoll.Rarity > selectedFish.Rarity ||
+                        (secondRoll.Rarity == selectedFish.Rarity && secondRoll.BaseGold > selectedFish.BaseGold))
+                    {
+                        selectedFish = secondRoll;
+                        advantageUpgraded = true;
+                    }
+                }
+            }
+
+            // 3. Record visible boost attributions for overlay & player feedback
+            if (attractingBoostItem?.ShopItem != null && attractedCategory != null)
+            {
+                triggeredBoosts.Add(CreateTriggeredInfo(attractingBoostItem, $"Attracted {attractedCategory}"));
+            }
+
+            foreach (var boost in boosts)
+            {
+                if (boost.ShopItem == null) continue;
+                var hasSpecificFishMatch =
+                    (boost.ShopItem.BoostType == FishingBoostType.SpecificFishBoost ||
+                     boost.ShopItem.BoostType2 == FishingBoostType.SpecificFishBoost ||
+                     boost.ShopItem.BoostType3 == FishingBoostType.SpecificFishBoost) &&
+                    boost.ShopItem.TargetFishTypeId == selectedFish.Id;
+
+                if (hasSpecificFishMatch)
+                {
+                    triggeredBoosts.Add(CreateTriggeredInfo(boost, $"Targeted {selectedFish.Name}"));
+                }
+            }
+
+            if (advantageUpgraded && primaryConsumableRarityItem?.ShopItem != null)
+            {
+                triggeredBoosts.Add(CreateTriggeredInfo(primaryConsumableRarityItem, "Upgraded Rarity!"));
+            }
+            else if (selectedFish.Rarity >= FishRarity.Rare && primaryConsumableRarityItem?.ShopItem != null)
+            {
+                triggeredBoosts.Add(CreateTriggeredInfo(primaryConsumableRarityItem, "Rarity Boost"));
+            }
+
+            return new FishingSelectionResult
+            {
+                Fish = selectedFish,
+                TriggeredBoosts = triggeredBoosts,
+                WasFrenzyInfluenced = wasFrenzyInfluenced
+            };
+        }
+
+        /// <summary>
+        /// Computes each fish's effective weight across the pool:
+        /// - GeneralRarityBoost uses Progressive Rarity Scaling (higher rarities scale stronger).
+        /// - SpecificFishBoost ONLY multiplies that single target fish's individual weight (never inflating other fish in that rarity).
+        /// </summary>
+        internal static List<(FishType Fish, double Weight)> ComputeEffectiveFishWeights(
+            List<FishType> pool,
+            FishingSettings? settings,
+            List<UserFishingBoost> boosts,
+            FishingFrenzyState? activeFrenzy = null)
+        {
+            var rarityWeights = FishingRarityWeightProfiles.CreateAvailableWeights(pool, normalizeToBaseTotal: true);
 
             if (settings?.BoostMode == true)
             {
                 FishingRarityWeightProfiles.ApplyGlobalRarityMultiplier(rarityWeights, settings.BoostModeRarityMultiplier);
             }
 
+            if (activeFrenzy != null && activeFrenzy.RarityMultiplier > 1.0)
+            {
+                FishingRarityWeightProfiles.ApplyGlobalRarityMultiplier(rarityWeights, activeFrenzy.RarityMultiplier);
+            }
+
             foreach (var boost in boosts)
             {
-                ApplyBoostToRarityWeights(rarityWeights, fishTypes, boost, boost.ShopItem?.BoostType, boost.ShopItem?.BoostAmount ?? 0, boost.ShopItem?.TargetFishTypeId);
-                ApplyBoostToRarityWeights(rarityWeights, fishTypes, boost, boost.ShopItem?.BoostType2, boost.ShopItem?.BoostAmount2 ?? 0, boost.ShopItem?.TargetFishTypeId);
-                ApplyBoostToRarityWeights(rarityWeights, fishTypes, boost, boost.ShopItem?.BoostType3, boost.ShopItem?.BoostAmount3 ?? 0, boost.ShopItem?.TargetFishTypeId);
+                ApplyBoostToRarityWeights(rarityWeights, boost.ShopItem?.BoostType, boost.ShopItem?.BoostAmount ?? 0);
+                ApplyBoostToRarityWeights(rarityWeights, boost.ShopItem?.BoostType2, boost.ShopItem?.BoostAmount2 ?? 0);
+                ApplyBoostToRarityWeights(rarityWeights, boost.ShopItem?.BoostType3, boost.ShopItem?.BoostAmount3 ?? 0);
             }
 
-            var totalWeight = rarityWeights.Values.Sum();
-            var randomValue = RandomNumberGenerator.GetInt32(0, (int)(totalWeight * 1000)) / 1000.0;
-            var currentWeight = 0.0;
-            var selectedRarity = FishRarity.Common;
+            var countByRarity = pool
+                .GroupBy(f => f.Rarity)
+                .ToDictionary(g => g.Key, g => g.Count());
 
-            foreach (var kvp in rarityWeights.OrderBy(k => (int)k.Key))
+            var specificFishBoosts = boosts.Where(b =>
+                b.ShopItem != null &&
+                b.ShopItem.TargetFishTypeId.HasValue &&
+                (b.ShopItem.BoostType == FishingBoostType.SpecificFishBoost ||
+                 b.ShopItem.BoostType2 == FishingBoostType.SpecificFishBoost ||
+                 b.ShopItem.BoostType3 == FishingBoostType.SpecificFishBoost)).ToList();
+
+            var result = new List<(FishType Fish, double Weight)>(pool.Count);
+            foreach (var fish in pool)
             {
-                currentWeight += kvp.Value;
-                if (randomValue < currentWeight)
+                if (!rarityWeights.TryGetValue(fish.Rarity, out var tierWeight) || tierWeight <= 0)
                 {
-                    selectedRarity = kvp.Key;
-                    break;
-                }
-            }
-
-            var fishOfRarity = fishTypes.Where(f => f.Rarity == selectedRarity).ToList();
-            if (fishOfRarity.Count == 0)
-            {
-                fishOfRarity = fishTypes;
-            }
-
-            // Get all specific fish/category boosts from all boost type slots
-            var targetedBoosts = boosts.Where(b =>
-                (b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost ||
-                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost ||
-                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost) &&
-                b.ShopItem.TargetFishTypeId != null ||
-                (b.ShopItem?.BoostType == FishingBoostType.SpecificCategoryBoost ||
-                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
-                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificCategoryBoost) &&
-                !string.IsNullOrWhiteSpace(b.ShopItem?.TargetCategory)).ToList();
-
-            if (targetedBoosts.Any())
-            {
-                var weightedFish = new List<(FishType fish, double weight)>();
-                foreach (var fish in fishOfRarity)
-                {
-                    var weight = 1.0;
-                    foreach (var boost in targetedBoosts)
-                    {
-                        weight *= GetTargetedBoostMultiplier(boost.ShopItem, fish);
-                    }
-                    weightedFish.Add((fish, weight));
+                    continue;
                 }
 
-                var totalFishWeight = weightedFish.Sum(w => w.weight);
-                var randomFishValue = RandomNumberGenerator.GetInt32(0, (int)(totalFishWeight * 1000)) / 1000.0;
-                var currentFishWeight = 0.0;
+                var countInTier = Math.Max(1, countByRarity.GetValueOrDefault(fish.Rarity, 1));
+                var individualWeight = tierWeight / countInTier;
 
-                foreach (var (fish, weight) in weightedFish)
+                // Single-fish-only cross-rarity boost (does NOT inflate other fish in the same rarity!)
+                foreach (var boost in specificFishBoosts)
                 {
-                    currentFishWeight += weight;
-                    if (randomFishValue < currentFishWeight)
+                    if (boost.ShopItem!.TargetFishTypeId == fish.Id)
                     {
-                        return fish;
+                        individualWeight *= GetSpecificFishOnlyMultiplier(boost.ShopItem);
                     }
                 }
+
+                result.Add((fish, Math.Max(0.0001, individualWeight)));
             }
 
-            return fishOfRarity.RandomElement();
+            return result;
+        }
+
+        private static FishType RollFishFromPool(
+            List<FishType> pool,
+            FishingSettings? settings,
+            List<UserFishingBoost> boosts,
+            FishingFrenzyState? activeFrenzy)
+        {
+            var weightedFish = ComputeEffectiveFishWeights(pool, settings, boosts, activeFrenzy);
+            var totalWeight = weightedFish.Sum(w => w.Weight);
+            if (totalWeight <= 0 || weightedFish.Count == 0)
+            {
+                return pool[RandomNumberGenerator.GetInt32(pool.Count)];
+            }
+
+            var roll = NextUnitDouble() * totalWeight;
+            var running = 0.0;
+            foreach (var (fish, weight) in weightedFish)
+            {
+                running += weight;
+                if (roll < running)
+                {
+                    return fish;
+                }
+            }
+
+            return weightedFish[^1].Fish;
         }
 
         internal static double GetTargetedBoostMultiplier(FishingShopItem? shopItem, FishType fish)
@@ -95,14 +245,25 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 FishHasCategory(fish, shopItem.TargetCategory);
 
             return ApplyTargetedBoosts(
-                new[]
-                {
+                [
                     (shopItem.BoostType, shopItem.BoostAmount),
                     (shopItem.BoostType2, shopItem.BoostAmount2 ?? 0),
                     (shopItem.BoostType3, shopItem.BoostAmount3 ?? 0)
-                },
+                ],
                 shopItem.TargetFishTypeId == fish.Id,
                 categoryMatchesTarget);
+        }
+
+        private static double GetSpecificFishOnlyMultiplier(FishingShopItem shopItem)
+        {
+            var mult = 1.0;
+            if (shopItem.BoostType == FishingBoostType.SpecificFishBoost)
+                mult *= Math.Max(0.1, 1.0 + shopItem.BoostAmount);
+            if (shopItem.BoostType2 == FishingBoostType.SpecificFishBoost && shopItem.BoostAmount2.HasValue)
+                mult *= Math.Max(0.1, 1.0 + shopItem.BoostAmount2.Value);
+            if (shopItem.BoostType3 == FishingBoostType.SpecificFishBoost && shopItem.BoostAmount3.HasValue)
+                mult *= Math.Max(0.1, 1.0 + shopItem.BoostAmount3.Value);
+            return mult;
         }
 
         private static double ApplyTargetedBoosts(
@@ -117,11 +278,84 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var matchesCategory = boost.Type == FishingBoostType.SpecificCategoryBoost && categoryMatchesTarget;
                 if (matchesFish || matchesCategory)
                 {
-                    multiplier *= 1.0 + boost.Amount;
+                    multiplier *= Math.Max(0.1, 1.0 + boost.Amount);
                 }
             }
 
             return multiplier;
+        }
+
+        private static List<(UserFishingBoost Boost, string Category, double Amount)> GetCategoryBoostEntries(List<UserFishingBoost> boosts)
+        {
+            var entries = new List<(UserFishingBoost, string, double)>();
+            foreach (var boost in boosts)
+            {
+                var item = boost.ShopItem;
+                if (item == null || string.IsNullOrWhiteSpace(item.TargetCategory)) continue;
+
+                var totalForBoost = 0.0;
+                if (item.BoostType == FishingBoostType.SpecificCategoryBoost)
+                    totalForBoost += item.BoostAmount;
+                if (item.BoostType2 == FishingBoostType.SpecificCategoryBoost)
+                    totalForBoost += item.BoostAmount2 ?? 0;
+                if (item.BoostType3 == FishingBoostType.SpecificCategoryBoost)
+                    totalForBoost += item.BoostAmount3 ?? 0;
+
+                if (totalForBoost > 0)
+                {
+                    entries.Add((boost, item.TargetCategory.Trim(), totalForBoost));
+                }
+            }
+            return entries;
+        }
+
+        private static double GetConsumableGeneralRarityBoost(List<UserFishingBoost> boosts, out UserFishingBoost? primaryItem)
+        {
+            primaryItem = null;
+            var bestSingle = 0.0;
+            var total = 0.0;
+
+            foreach (var boost in boosts)
+            {
+                var item = boost.ShopItem;
+                if (item == null || !item.MaxUses.HasValue) continue;
+
+                var itemAmount = 0.0;
+                if (item.BoostType == FishingBoostType.GeneralRarityBoost && item.BoostAmount > 0)
+                    itemAmount += item.BoostAmount;
+                if (item.BoostType2 == FishingBoostType.GeneralRarityBoost && (item.BoostAmount2 ?? 0) > 0)
+                    itemAmount += item.BoostAmount2!.Value;
+                if (item.BoostType3 == FishingBoostType.GeneralRarityBoost && (item.BoostAmount3 ?? 0) > 0)
+                    itemAmount += item.BoostAmount3!.Value;
+
+                if (itemAmount > 0)
+                {
+                    total += itemAmount;
+                    if (itemAmount > bestSingle)
+                    {
+                        bestSingle = itemAmount;
+                        primaryItem = boost;
+                    }
+                }
+            }
+
+            return total;
+        }
+
+        private static FishingTriggeredBoostInfo CreateTriggeredInfo(UserFishingBoost boost, string reason)
+        {
+            var item = boost.ShopItem!;
+            int? remainingAfterUse = item.MaxUses.HasValue && boost.RemainingUses > 0
+                ? Math.Max(0, boost.RemainingUses - 1)
+                : (item.MaxUses.HasValue ? 0 : null);
+
+            return new FishingTriggeredBoostInfo
+            {
+                ItemName = item.Name,
+                Reason = reason,
+                RemainingUses = remainingAfterUse,
+                MaxUses = item.MaxUses
+            };
         }
 
         private static bool FishHasCategory(FishType fish, string category)
@@ -130,22 +364,13 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         }
 
         private static void ApplyBoostToRarityWeights(
-            Dictionary<FishRarity, double> rarityWeights, 
-            List<FishType> fishTypes, 
-            UserFishingBoost boost, 
-            FishingBoostType? boostType, 
-            double boostAmount,
-            Guid? targetFishTypeId)
+            Dictionary<FishRarity, double> rarityWeights,
+            FishingBoostType? boostType,
+            double boostAmount)
         {
             if (boostType == FishingBoostType.GeneralRarityBoost)
             {
-                foreach (var rarity in rarityWeights.Keys.ToList())
-                {
-                    if (rarity != FishRarity.Common)
-                    {
-                        rarityWeights[rarity] *= (1.0 + boostAmount);
-                    }
-                }
+                FishingRarityWeightProfiles.ApplyProgressiveGeneralRarityBoost(rarityWeights, boostAmount);
             }
         }
 
@@ -208,10 +433,33 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return Math.Max(1, (int)(fishType.BaseGold * randomValue * weightMultiplier));
         }
 
+        public static List<FishingTriggeredBoostInfo> GetWeightBoostAttributions(List<UserFishingBoost> boosts)
+        {
+            var results = new List<FishingTriggeredBoostInfo>();
+            foreach (var boost in boosts)
+            {
+                var item = boost.ShopItem;
+                if (item == null || !item.MaxUses.HasValue) continue;
+
+                var weightAmount = 0.0;
+                if (item.BoostType == FishingBoostType.WeightBoost) weightAmount += item.BoostAmount;
+                if (item.BoostType2 == FishingBoostType.WeightBoost) weightAmount += item.BoostAmount2 ?? 0;
+                if (item.BoostType3 == FishingBoostType.WeightBoost) weightAmount += item.BoostAmount3 ?? 0;
+
+                if (Math.Abs(weightAmount) >= 0.01)
+                {
+                    var pct = (int)Math.Round(weightAmount * 100);
+                    var label = pct > 0 ? $"+{pct}% Weight" : $"{pct}% Weight";
+                    results.Add(CreateTriggeredInfo(boost, label));
+                }
+            }
+            return results;
+        }
+
         private static double GetTotalBoostAmount(List<UserFishingBoost> boosts, FishingBoostType targetType)
         {
             var amount = 0.0;
-            
+
             foreach (var boost in boosts)
             {
                 if (boost.ShopItem?.BoostType == targetType)
@@ -221,9 +469,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 if (boost.ShopItem?.BoostType3 == targetType)
                     amount += boost.ShopItem.BoostAmount3 ?? 0;
             }
-            
+
             return amount;
         }
+
+        private static double NextUnitDouble() =>
+            RandomNumberGenerator.GetInt32(0, 1_000_000) / 1_000_000.0;
 
         /// <summary>
         /// Determines whether a fish is eligible for a tournament based on its explicitly selected fish types,

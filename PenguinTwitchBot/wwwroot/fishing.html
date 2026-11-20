@@ -1,12 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <title>Fishing</title>
     <style>
         :root {
-            --text-color: #fff;
-            --background-color: #000;
+            --text-color: #f8fbff;
+            --card-bg: rgba(10, 18, 30, 0.86);
+            --card-border: rgba(255, 255, 255, 0.16);
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         html,
@@ -15,163 +20,451 @@
             width: 100%;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            background: transparent;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: transparent;
             display: flex;
             align-items: flex-start;
             justify-content: flex-start;
-            overflow: hidden;
-            padding: 0;
-            box-sizing: border-box;
         }
 
         .container {
             position: relative;
+            width: 300px;
             transform-origin: top left;
+            padding: 6px;
         }
 
-        #fishing-alert {
-            text-align: center;
-            color: var(--text-color);
+        /* Slim Frenzy Pill (only visible while Frenzy is active) */
+        #frenzy-pill {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            padding: 5px 10px;
+            margin-bottom: 6px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(255, 111, 0, 0.92), rgba(230, 46, 92, 0.92));
+            border: 1px solid rgba(255, 224, 130, 0.65);
+            box-shadow: 0 4px 16px rgba(255, 111, 0, 0.45);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+            animation: frenzy-pulse 2.4s ease-in-out infinite;
+        }
+
+        #frenzy-pill.show {
+            display: flex;
+        }
+
+        .frenzy-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .frenzy-timer {
+            flex-shrink: 0;
+            background: rgba(0, 0, 0, 0.28);
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        @keyframes frenzy-pulse {
+            0%, 100% { box-shadow: 0 4px 14px rgba(255, 111, 0, 0.4); }
+            50% { box-shadow: 0 4px 22px rgba(255, 215, 64, 0.72); }
+        }
+
+        /* LurkBait-style compact animated cast/waterline stage */
+        #cast-stage {
+            display: none;
             position: relative;
+            width: 288px;
+            height: 175px;
+            border-radius: 14px;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(13, 30, 52, 0.72) 0%, rgba(16, 46, 78, 0.84) 55%, rgba(8, 28, 52, 0.92) 100%);
+            border: 1px solid rgba(130, 210, 255, 0.35);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
             opacity: 0;
-            transition: opacity 0.3s ease-in-out;
+            transform: scale(0.92);
+            transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        #cast-stage.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        #cast-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .cast-caption {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 700;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+            pointer-events: none;
+        }
+
+        .cast-combo-tag {
+            background: rgba(255, 193, 7, 0.9);
+            color: #111;
+            padding: 1px 7px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            text-shadow: none;
+        }
+
+        /* Catch / Accident Reveal Card */
+        #fishing-alert {
+            display: none;
+            position: relative;
+            width: 288px;
+            opacity: 0;
+            transform: translateY(14px) scale(0.88);
+            transition: opacity 0.25s ease, transform 0.36s cubic-bezier(0.22, 1.32, 0.36, 1);
         }
 
         #fishing-alert.show {
             opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        #fx-canvas {
+            position: absolute;
+            inset: -14px;
+            width: calc(100% + 28px);
+            height: calc(100% + 28px);
+            pointer-events: none;
+            z-index: 4;
         }
 
         .content {
             position: relative;
+            z-index: 2;
+            width: 100%;
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 14px;
+            padding: 10px 12px 11px;
+            text-align: center;
+            overflow: hidden;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.52);
+            backdrop-filter: blur(4px);
+        }
+
+        /* Rarity card frames */
+        .content.rarity-common { border-color: rgba(160, 174, 192, 0.55); }
+        .content.rarity-uncommon { border-color: rgba(76, 175, 80, 0.82); box-shadow: 0 10px 26px rgba(76, 175, 80, 0.28); }
+        .content.rarity-rare { border-color: rgba(33, 150, 243, 0.88); box-shadow: 0 10px 30px rgba(33, 150, 243, 0.36); }
+        .content.rarity-epic { border-color: rgba(186, 104, 200, 0.92); box-shadow: 0 10px 34px rgba(156, 39, 176, 0.45); }
+        .content.rarity-legendary {
+            border-color: #ffd740;
+            box-shadow: 0 0 26px rgba(255, 215, 0, 0.55), 0 12px 30px rgba(0, 0, 0, 0.5);
+        }
+        .content.rarity-mythical {
+            border-color: #ff4081;
+            box-shadow: 0 0 30px rgba(255, 45, 85, 0.65), 0 12px 32px rgba(0, 0, 0, 0.55);
+        }
+        .content.rarity-accident {
+            border-color: #ff5252;
+            background: linear-gradient(180deg, rgba(66, 14, 18, 0.92), rgba(26, 10, 14, 0.94));
+            box-shadow: 0 0 26px rgba(255, 61, 0, 0.45);
+            animation: card-shake 0.45s ease-in-out 2;
+        }
+
+        @keyframes card-shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px) rotate(-1deg); }
+            40% { transform: translateX(6px) rotate(1deg); }
+            60% { transform: translateX(-4px) rotate(-0.5deg); }
+            80% { transform: translateX(4px) rotate(0.5deg); }
+        }
+
+        /* Rotating sunburst rays for Epic / Legendary / Mythical */
+        .sunburst {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 360px;
+            height: 360px;
+            margin: -180px 0 0 -180px;
+            background: repeating-conic-gradient(
+                from 0deg,
+                rgba(255, 255, 255, 0.12) 0deg 12deg,
+                transparent 12deg 24deg
+            );
+            pointer-events: none;
+            z-index: 0;
+            animation: spin-rays 14s linear infinite;
+        }
+
+        .content.rarity-epic .sunburst { display: block; opacity: 0.45; }
+        .content.rarity-legendary .sunburst {
+            display: block;
+            background: repeating-conic-gradient(from 0deg, rgba(255, 215, 64, 0.22) 0deg 12deg, transparent 12deg 24deg);
+        }
+        .content.rarity-mythical .sunburst {
+            display: block;
+            background: repeating-conic-gradient(from 0deg, rgba(255, 64, 129, 0.25) 0deg 10deg, transparent 10deg 20deg);
+        }
+
+        @keyframes spin-rays {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .card-inner {
+            position: relative;
             z-index: 1;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            padding: 12px;
-            display: inline-block;
         }
 
-        .username {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 6px;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-        }
-
-        .fish-image {
-            width: 120px;
-            height: 120px;
-            object-fit: contain;
-            margin: 6px auto 2px;
-            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
-        }
-
-        .fish-name {
-            font-size: 1.8em;
-            font-weight: bold;
-            margin: 0 0 4px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-        }
-
-        .info-row {
+        .card-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 15px;
-            margin-top: 4px;
+            gap: 6px;
+            margin-bottom: 4px;
         }
 
-        .middle-section {
+        .username {
+            font-size: 13px;
+            font-weight: 700;
+            color: #d8ecff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .combo-pill {
+            display: none;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, #ffd740, #ff9100);
+            color: #1a1200;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 999px;
+            letter-spacing: 0.3px;
+        }
+
+        .combo-pill.show {
+            display: inline-block;
+        }
+
+        .badges-row {
             display: flex;
-            flex-direction: column;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 4px;
+            margin-bottom: 4px;
+        }
+
+        .badge {
+            display: inline-flex;
             align-items: center;
             gap: 3px;
-            width: 100%;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.25px;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+        }
+
+        .badge-dex { background: linear-gradient(135deg, #00c853, #00bfa5); }
+        .badge-record { background: linear-gradient(135deg, #ff6d00, #ff1744); }
+        .badge-pb { background: linear-gradient(135deg, #ffab00, #ff6d00); }
+        .badge-tourney { background: linear-gradient(135deg, #2979ff, #00b0ff); }
+        .badge-frenzy { background: linear-gradient(135deg, #ff6f00, #e91e63); }
+        .badge-bait { background: rgba(46, 184, 114, 0.88); border: 1px solid rgba(165, 245, 200, 0.5); text-transform: none; }
+        .badge-broken { background: rgba(211, 47, 47, 0.92); }
+
+        .fish-visual {
+            position: relative;
+            height: 112px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 2px auto 4px;
+        }
+
+        .fish-image {
+            max-width: 112px;
+            max-height: 112px;
+            object-fit: contain;
+            filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.55));
+            animation: fish-pop 0.45s cubic-bezier(0.22, 1.4, 0.36, 1);
+        }
+
+        @keyframes fish-pop {
+            0% { transform: translateY(22px) scale(0.45) rotate(-8deg); opacity: 0; }
+            70% { transform: translateY(-4px) scale(1.08) rotate(2deg); opacity: 1; }
+            100% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .accident-icon {
+            font-size: 62px;
+            line-height: 1;
+            animation: accident-shake 0.5s ease-in-out infinite alternate;
+            user-select: none;
+        }
+
+        @keyframes accident-shake {
+            0% { transform: rotate(-9deg) scale(0.95); }
+            100% { transform: rotate(9deg) scale(1.06); }
+        }
+
+        .fish-name {
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.15;
+            margin: 0 0 5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
+        }
+
+        .rarity-stars-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .rarity {
+            display: inline-block;
+            padding: 3px 11px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .rarity.common { background: #607d8b; }
+        .rarity.uncommon { background: #2e7d32; }
+        .rarity.rare { background: #1976d2; }
+        .rarity.epic { background: #7b1fa2; }
+        .rarity.legendary { background: linear-gradient(45deg, #ffd700, #ff8f00); color: #1b1100; }
+        .rarity.mythical { background: linear-gradient(45deg, #ff2d55, #d500f9); }
+        .rarity.accident { background: linear-gradient(135deg, #b71c1c, #e65100); }
+
+        .stars {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 16px;
+        }
+
+        .star {
+            color: #ffd700;
+            text-shadow: 0 0 6px rgba(255, 165, 0, 0.9);
+            display: inline-block;
+            animation: star-pop 0.35s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+        }
+
+        @keyframes star-pop {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
         }
 
         .stats-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 10px;
+            justify-content: center;
+            gap: 8px;
             margin-top: 2px;
-            width: 100%;
-        }
-
-        .rarity {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .rarity.common { background: #808080; }
-        .rarity.uncommon { background: #4CAF50; }
-        .rarity.rare { background: #2196F3; }
-        .rarity.epic { background: #9C27B0; }
-        .rarity.legendary { background: linear-gradient(45deg, #FFD700, #FFA500); animation: legendary-glow 2s infinite; }
-        .rarity.mythical { background: linear-gradient(45deg, #ff2d55, #c2185b); animation: mythical-glow 2s infinite; }
-        .rarity.accident {
-            background: linear-gradient(135deg, #8b1e1e, #d35400);
-            box-shadow: 0 0 18px rgba(211, 84, 0, 0.45);
-        }
-
-        .accident-icon {
-            font-size: 72px;
-            line-height: 120px;
-            text-align: center;
-            margin: 6px auto 2px;
-            animation: accident-shake 0.6s ease-in-out infinite alternate;
-            user-select: none;
-        }
-
-        @keyframes accident-shake {
-            0% { transform: rotate(-8deg) scale(0.95); }
-            100% { transform: rotate(8deg) scale(1.05); }
-        }
-
-        @keyframes legendary-glow {
-            0%, 100% { box-shadow: 0 0 20px #FFD700; }
-            50% { box-shadow: 0 0 40px #FFA500; }
-        }
-
-        @keyframes mythical-glow {
-            0%, 100% { box-shadow: 0 0 20px #ff2d55; }
-            50% { box-shadow: 0 0 40px #c2185b; }
-        }
-
-        .stars {
-            font-size: 1.2em;
-            text-align: center;
-            width: 100%;
-        }
-
-        .star {
-            color: #FFD700;
-            text-shadow: 0 0 5px #FFA500;
-            margin: 0 3px;
         }
 
         .stat-item {
-            background: rgba(0, 0, 0, 0.4);
-            padding: 6px 12px;
+            flex: 1 1 0;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            padding: 5px 8px;
             border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            font-size: 0.95em;
-            font-weight: bold;
+            font-size: 13px;
+            font-weight: 700;
             white-space: nowrap;
-            text-align: center;
         }
 
-        .gold {
-            color: #FFD700;
-            margin-left: auto;
+        .stat-item.gold {
+            color: #ffd740;
+            border-color: rgba(255, 215, 64, 0.32);
+        }
+
+        .rewards-row {
+            display: none;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .rewards-row.show {
+            display: flex;
+        }
+
+        .reward-pill {
+            background: rgba(255, 215, 64, 0.16);
+            border: 1px solid rgba(255, 215, 64, 0.45);
+            color: #ffe57f;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .accident-details {
+            display: none;
+            margin-top: 6px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid rgba(255, 138, 128, 0.35);
+            font-size: 11px;
+            color: #ffcdd2;
+            line-height: 1.35;
+        }
+
+        .accident-details.show {
+            display: block;
+        }
+
+        .combo-footer {
+            display: none;
+            margin-top: 6px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 11px;
+            font-weight: 700;
+            color: #ffe082;
+        }
+
+        .combo-footer.show {
+            display: block;
         }
 
         #ws-status {
@@ -191,13 +484,8 @@
             z-index: 9999;
         }
 
-        #ws-status.connected {
-            background: #27ae60;
-        }
-
-        #ws-status.hidden {
-            opacity: 0;
-        }
+        #ws-status.connected { background: #27ae60; }
+        #ws-status.hidden { opacity: 0; }
     </style>
     <script>
         try {
@@ -212,26 +500,50 @@
 <body>
     <div id="ws-status" data-overlay="🎣 Fishing">Disconnected</div>
     <div class="container">
-        <div id="fishing-alert" style="display: none;">
-            <div class="content">
-                <div class="username" id="username"></div>
-                <div class="accident-icon" id="accident-icon" style="display: none;">💥</div>
-                <img class="fish-image" id="fish-image" alt="Fish" style="display: none;" />
-                <div class="fish-name" id="fish-name"></div>
-                <div class="info-row">
-                    <div class="middle-section">
+        <div id="frenzy-pill">
+            <span class="frenzy-title" id="frenzy-title">🔥 Fishing Frenzy</span>
+            <span class="frenzy-timer" id="frenzy-timer">00:00</span>
+        </div>
+
+        <div id="cast-stage">
+            <canvas id="cast-canvas" width="288" height="175"></canvas>
+            <div class="cast-caption">
+                <span id="cast-username"></span>
+                <span class="cast-combo-tag" id="cast-combo-tag" style="display: none;"></span>
+            </div>
+        </div>
+
+        <div id="fishing-alert">
+            <canvas id="fx-canvas" width="316" height="360"></canvas>
+            <div class="content" id="card-content">
+                <div class="sunburst"></div>
+                <div class="card-inner">
+                    <div class="card-header">
+                        <div class="username" id="username"></div>
+                        <div class="combo-pill" id="combo-pill"></div>
+                    </div>
+                    <div class="badges-row" id="badges-row"></div>
+                    <div class="fish-visual">
+                        <div class="accident-icon" id="accident-icon" style="display: none;">💥</div>
+                        <img class="fish-image" id="fish-image" alt="Fish" style="display: none;" />
+                    </div>
+                    <div class="fish-name" id="fish-name"></div>
+                    <div class="rarity-stars-row">
                         <div class="rarity" id="rarity"></div>
                         <div class="stars" id="stars"></div>
-                        <div class="stats-row" id="stats-row">
-                            <div class="stat-item" id="weight"></div>
-                            <div class="stat-item gold" id="gold"></div>
-                        </div>
                     </div>
+                    <div class="stats-row" id="stats-row">
+                        <div class="stat-item" id="weight"></div>
+                        <div class="stat-item gold" id="gold"></div>
+                    </div>
+                    <div class="rewards-row" id="rewards-row"></div>
+                    <div class="accident-details" id="accident-details"></div>
+                    <div class="combo-footer" id="combo-footer"></div>
                 </div>
             </div>
         </div>
     </div>
-    <script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha384-i61gTtaoovXtAbKjo903+O55Jkn2+RtzHtvNez+yI49HAASvznhe9sZyjaSHTau9" crossorigin="anonymous"></script>
+
     <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="js/ws-client.js"></script>
     <script src="js/ws-status.js"></script>

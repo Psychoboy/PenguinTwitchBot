@@ -1,8 +1,13 @@
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Hubs;
+using PenguinTwitchBot.Bot.Notifications;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
+using System.Text.Json;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
 {
@@ -13,19 +18,36 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private readonly IHubContext<MainHub> _hubContext;
         private readonly IFishingService _fishingService;
         private readonly IFishingInventoryService _inventoryService;
+        private readonly IFishingFrenzyService? _frenzyService;
+        private readonly IPointsSystem? _pointsSystem;
+        private readonly IWebSocketMessenger? _webSocketMessenger;
+        private readonly IServiceBackbone? _serviceBackbone;
+        private readonly IFishingMessageSettingsService? _messageSettingsService;
+
+        private readonly ConcurrentDictionary<Guid, DateTime> _lastLeadAnnouncementByTournament = new();
 
         public FishingGameplayService(
-            IServiceScopeFactory scopeFactory, 
+            IServiceScopeFactory scopeFactory,
             ILogger<FishingGameplayService> logger,
             IHubContext<MainHub> hubContext,
             IFishingService fishingService,
-            IFishingInventoryService inventoryService)
+            IFishingInventoryService inventoryService,
+            IFishingFrenzyService? frenzyService = null,
+            IPointsSystem? pointsSystem = null,
+            IWebSocketMessenger? webSocketMessenger = null,
+            IServiceBackbone? serviceBackbone = null,
+            IFishingMessageSettingsService? messageSettingsService = null)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
             _hubContext = hubContext;
             _fishingService = fishingService;
             _inventoryService = inventoryService;
+            _frenzyService = frenzyService;
+            _pointsSystem = pointsSystem;
+            _webSocketMessenger = webSocketMessenger;
+            _serviceBackbone = serviceBackbone;
+            _messageSettingsService = messageSettingsService;
         }
 
         public async Task<FishingAttemptResult> PerformFishingAttempt(string userId, string username)
@@ -262,13 +284,36 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             var activeBoosts = userBoosts.Where(b => !b.IsBroken).ToList();
-            var fishType = FishingCalculations.SelectRandomFish(fishTypes, settings, activeBoosts);
+            var activeFrenzy = _frenzyService?.GetActiveFrenzy();
+            var selection = FishingCalculations.SelectRandomFishWithDetails(fishTypes, settings, activeBoosts, activeFrenzy);
+            var fishType = selection.Fish;
             var stars = FishingCalculations.CalculateStars(fishType, activeBoosts);
             var weight = FishingCalculations.CalculateWeight(fishType, stars, activeBoosts);
             var gold = FishingCalculations.CalculateGold(fishType, stars, weight);
 
+            var triggeredBoosts = selection.TriggeredBoosts;
+            triggeredBoosts.AddRange(FishingCalculations.GetWeightBoostAttributions(activeBoosts));
+
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            // Lightweight prior-record checks for New Dex, Personal Best, and Server Record callouts
+            var priorUserStats = await db.FishCatches
+                .Find(c => c.UserId == userId && c.FishTypeId == fishType.Id)
+                .GroupBy(_ => 1)
+                .Select(g => new { Count = g.Count(), MaxWeight = g.Max(c => c.Weight) })
+                .FirstOrDefaultAsync();
+
+            var isNewSpecies = priorUserStats == null || priorUserStats.Count == 0;
+            var previousBestWeight = priorUserStats?.MaxWeight;
+            var isPersonalBest = !isNewSpecies && previousBestWeight.HasValue && weight > previousBestWeight.Value;
+
+            var priorServerMaxWeight = await db.FishCatches
+                .Find(c => c.FishTypeId == fishType.Id)
+                .Select(c => (double?)c.Weight)
+                .MaxAsync();
+
+            var isServerRecord = priorServerMaxWeight.HasValue && weight > priorServerMaxWeight.Value;
 
             var fishCatch = new FishCatch
             {
@@ -296,13 +341,35 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Where(t => t.EndsAtUtc == null || t.EndsAtUtc >= fishCatch.CaughtAt)
                 .ToListAsync();
 
-            var activeTournamentIds = activeTournaments.Select(t => t.Id).ToList();
-            if(activeTournamentIds.Count > 0)
+            var matchedTournaments = new List<FishingTournamentCatchSummary>();
+            var fishCategoryNames = fishType.Categories.Select(c => c.Category).ToList();
+
+            if (activeTournaments.Count > 0)
             {
-                var fishCategoryNames = fishType.Categories.Select(c => c.Category).ToList();
-                foreach(var tournament in activeTournaments)
+                var eligibleTournaments = activeTournaments
+                    .Where(t => FishingCalculations.IsFishEligible(t, fishType.Id, fishCategoryNames))
+                    .ToList();
+
+                if (eligibleTournaments.Count > 0)
                 {
-                    if (FishingCalculations.IsFishEligible(tournament, fishType.Id, fishCategoryNames))
+                    // Snapshot previous #1 leader per eligible tournament before recording this catch
+                    var previousLeaderByTournament = new Dictionary<Guid, (string UserId, string Username)?>();
+                    foreach (var tournament in eligibleTournaments)
+                    {
+                        try
+                        {
+                            var prevTop = (await _fishingService.GetFishingTournamentStandings(tournament.Id, 1)).FirstOrDefault();
+                            previousLeaderByTournament[tournament.Id] = prevTop != null
+                                ? (prevTop.UserId, prevTop.Username)
+                                : null;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to read prior tournament standings for {TournamentId}; continuing catch processing", tournament.Id);
+                        }
+                    }
+
+                    foreach (var tournament in eligibleTournaments)
                     {
                         db.FishingTournamentCatches.Add(new FishingTournamentCatch
                         {
@@ -317,11 +384,51 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                             CaughtAt = fishCatch.CaughtAt
                         });
                     }
+                    await db.SaveChangesAsync();
+
+                    foreach (var tournament in eligibleTournaments)
+                    {
+                        try
+                        {
+                            var newStandings = await _fishingService.GetFishingTournamentStandings(tournament.Id, 10);
+                            var playerStanding = newStandings.FirstOrDefault(s => s.UserId == userId);
+                            if (playerStanding == null) continue;
+
+                            var prevLeader = previousLeaderByTournament.GetValueOrDefault(tournament.Id);
+                            var tookLead = playerStanding.Rank == 1 &&
+                                (prevLeader == null || !string.Equals(prevLeader.Value.UserId, userId, StringComparison.OrdinalIgnoreCase));
+
+                            matchedTournaments.Add(new FishingTournamentCatchSummary
+                            {
+                                TournamentId = tournament.Id,
+                                TournamentName = tournament.Name,
+                                NewRank = playerStanding.Rank,
+                                IsLeader = playerStanding.Rank == 1,
+                                TookLead = tookLead,
+                                PreviousLeaderUsername = tookLead ? prevLeader?.Username : null,
+                                Score = playerStanding.Score
+                            });
+
+                            if (tookLead)
+                            {
+                                await BroadcastTournamentLeadChangeAsync(tournament.Name, username, prevLeader?.Username, playerStanding.Score, settings);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to enrich post-catch standings for tournament {TournamentId}; continuing catch processing", tournament.Id);
+                        }
+                    }
+
+                    await BroadcastTournamentUpdateAsync();
                 }
-                await db.SaveChangesAsync();
             }
 
             await _fishingService.AddGoldToUser(userId, username, gold);
+
+            // Evaluate & award built-in multi-point catch rewards (if configured in FishingSettings.CatchRewardsJson)
+            var pointRewardsAwarded = await AwardBuiltInCatchPointRewardsAsync(
+                userId, fishType.Rarity, fishCategoryNames, stars, weight, gold, isNewSpecies, isPersonalBest, settings);
 
             // Consume uses from all equipped items in a single batched update
             await _inventoryService.ConsumeItemUses(userId, userBoosts.Select(b => b.Id));
@@ -358,8 +465,163 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             {
                 Outcome = FishingAttemptOutcome.CaughtFish,
                 FishCatch = fishCatch,
-                BrokenItems = brokenItems
+                BrokenItems = brokenItems,
+                IsNewSpecies = isNewSpecies,
+                IsPersonalBest = isPersonalBest,
+                PreviousBestWeight = previousBestWeight,
+                IsServerRecord = isServerRecord,
+                PreviousServerRecordWeight = priorServerMaxWeight,
+                IsFrenzyBonus = selection.WasFrenzyInfluenced,
+                ActiveFrenzyName = activeFrenzy?.Name,
+                TriggeredBoosts = triggeredBoosts,
+                MatchedTournaments = matchedTournaments,
+                PointRewardsAwarded = pointRewardsAwarded
             };
+        }
+
+        private async Task<List<FishingPointRewardAwarded>> AwardBuiltInCatchPointRewardsAsync(
+            string userId,
+            FishRarity rarity,
+            List<string> categories,
+            int stars,
+            double weight,
+            int gold,
+            bool isNewSpecies,
+            bool isPersonalBest,
+            FishingSettings? settings)
+        {
+            var awarded = new List<FishingPointRewardAwarded>();
+            if (_pointsSystem == null || string.IsNullOrWhiteSpace(settings?.CatchRewardsJson))
+            {
+                return awarded;
+            }
+
+            var rules = FishingCatchRewardCalculator.ParseRules(settings.CatchRewardsJson);
+            if (rules.Count == 0)
+            {
+                return awarded;
+            }
+
+            // Sum amounts by PointTypeId so multiple matching rules on the same PointType make one clean credit.
+            var totalsByPointType = new Dictionary<Guid, long>();
+            foreach (var rule in rules)
+            {
+                var amount = FishingCatchRewardCalculator.EvaluateRule(
+                    rule, rarity, categories, stars, weight, gold, isNewSpecies, isPersonalBest);
+                if (amount <= 0) continue;
+
+                totalsByPointType[rule.PointTypeId] = totalsByPointType.GetValueOrDefault(rule.PointTypeId) + amount;
+            }
+
+            if (totalsByPointType.Count == 0)
+            {
+                return awarded;
+            }
+
+            Dictionary<Guid, string> pointTypes;
+            try
+            {
+                pointTypes = (await _pointsSystem.GetPointTypes()).ToDictionary(p => p.Id, p => p.Name);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to look up point type names for built-in fishing catch rewards; falling back to generic names");
+                pointTypes = new Dictionary<Guid, string>();
+            }
+
+            foreach (var (pointTypeId, amount) in totalsByPointType)
+            {
+                try
+                {
+                    await _pointsSystem.AddPointsByUserId(userId, pointTypeId, amount);
+                    awarded.Add(new FishingPointRewardAwarded
+                    {
+                        PointTypeId = pointTypeId,
+                        PointTypeName = pointTypes.GetValueOrDefault(pointTypeId, "Points"),
+                        Amount = amount
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to award built-in fishing catch reward {Amount} of point type {PointTypeId} to {UserId}",
+                        amount, pointTypeId, userId);
+                }
+            }
+
+            return awarded;
+        }
+
+        private async Task BroadcastTournamentUpdateAsync()
+        {
+            if (_webSocketMessenger == null) return;
+            try
+            {
+                await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(new { tournamentUpdate = true }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to broadcast tournament update via WebSocket");
+            }
+        }
+
+        private async Task BroadcastTournamentLeadChangeAsync(
+            string tournamentName,
+            string newLeader,
+            string? previousLeader,
+            double score,
+            FishingSettings? settings)
+        {
+            if (_webSocketMessenger != null)
+            {
+                try
+                {
+                    await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(new
+                    {
+                        tournamentLeadChange = new
+                        {
+                            tournamentName,
+                            newLeader,
+                            previousLeader = previousLeader ?? "",
+                            score
+                        }
+                    }));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to broadcast tournament lead change via WebSocket");
+                }
+            }
+
+            if (_serviceBackbone != null && settings?.AnnounceTournamentLeadChanges == true)
+            {
+                var key = Guid.Empty; // Fallback rate-limit key per tournament name hash
+                var now = DateTime.UtcNow;
+                var hashGuid = new Guid(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(tournamentName)));
+                key = hashGuid;
+
+                var lastSent = _lastLeadAnnouncementByTournament.GetOrAdd(key, DateTime.MinValue);
+                if ((now - lastSent).TotalSeconds >= 15)
+                {
+                    _lastLeadAnnouncementByTournament[key] = now;
+                    try
+                    {
+                        var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
+                        var msg = string.IsNullOrWhiteSpace(previousLeader)
+                            ? FishingMessageSettings.Format(msgs.TournamentFirstLeader,
+                                ("leader", newLeader), ("tournament", tournamentName), ("score", score.ToString("N2")))
+                            : FishingMessageSettings.Format(msgs.TournamentLeadChange,
+                                ("leader", newLeader), ("previousLeader", previousLeader), ("tournament", tournamentName), ("score", score.ToString("N2")));
+                        if (!string.IsNullOrWhiteSpace(msg))
+                        {
+                            await _serviceBackbone.SendChatMessage(msg);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to send tournament lead change chat announcement");
+                    }
+                }
+            }
         }
 
         private static double NormalizeChance(double? chance, double defaultChance) =>

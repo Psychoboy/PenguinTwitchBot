@@ -72,6 +72,7 @@ namespace PenguinTwitchBot.Database.Repository
             FishingGolds = new FishingGoldRepository(_context);
             FishingShopItems = new FishingShopItemRepository(_context);
             UserFishingBoosts = new UserFishingBoostRepository(_context);
+            UserFishingLoadouts = new UserFishingLoadoutRepository(_context);
             FishingSettings = new FishingSettingsRepository(_context);
             FishingSnapEvents = new FishingSnapEventRepository(_context);
             FishingRepairEvents = new FishingRepairEventRepository(_context);
@@ -156,6 +157,7 @@ namespace PenguinTwitchBot.Database.Repository
         public IFishingGoldRepository FishingGolds { get; private set; }
         public IFishingShopItemRepository FishingShopItems { get; private set; }
         public IUserFishingBoostRepository UserFishingBoosts { get; private set; }
+        public IUserFishingLoadoutRepository UserFishingLoadouts { get; private set; }
         public IFishingSettingsRepository FishingSettings { get; private set; }
         public IFishingSnapEventRepository FishingSnapEvents { get; private set; }
         public IFishingRepairEventRepository FishingRepairEvents { get; private set; }

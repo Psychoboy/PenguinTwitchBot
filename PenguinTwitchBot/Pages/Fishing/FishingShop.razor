@@ -11,6 +11,8 @@
 
 <MudContainer Class="pa-2" MaxWidth="MaxWidth.ExtraLarge">
     <MudStack Spacing="2">
+        <FishingNavBar @ref="navBar" ActiveTab="shop" OnDataChanged="RefreshShop" />
+
         <MudText Typo="Typo.h4" Align="Align.Center">
             <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Medium" Class="mr-1" />
             Fishing Shop
@@ -130,6 +132,12 @@
                                       Clearable="true" 
                                       Adornment="Adornment.Start" 
                                       AdornmentIcon="@Icons.Material.Filled.Search" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Wrap="Wrap.Wrap">
+                            <MudSwitch T="bool" @bind-Value="filterCanAffordOnly" Color="Color.Success" Label="Can Afford Only" />
+                            <MudSwitch T="bool" @bind-Value="filterUpgradesOnly" Color="Color.Info" Label="Upgrades Only" />
+                        </MudStack>
                     </MudItem>
                 </MudGrid>
             </MudPaper>
@@ -270,6 +278,19 @@
                                      OnClick="@(() => PurchaseItem(context.Id))">
                                 @GetPurchaseButtonText(context)
                             </MudButton>
+                            @if (context.EquipmentSlot.HasValue)
+                            {
+                                <MudTooltip Text="Purchase and immediately equip into its slot">
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Success"
+                                               Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.FlashOn"
+                                               Disabled="@IsPurchaseButtonDisabled(context)"
+                                               OnClick="@(() => PurchaseAndEquipItem(context.Id))">
+                                        Buy &amp; Equip
+                                    </MudButton>
+                                </MudTooltip>
+                            }
                             </MudStack>
                         </MudTd>
                     </RowTemplate>
@@ -587,6 +608,30 @@
         }
     }
 
+    private bool _filterCanAffordOnly;
+    private bool filterCanAffordOnly
+    {
+        get => _filterCanAffordOnly;
+        set
+        {
+            if (_filterCanAffordOnly == value) return;
+            _filterCanAffordOnly = value;
+            ApplyFilters();
+        }
+    }
+
+    private bool _filterUpgradesOnly;
+    private bool filterUpgradesOnly
+    {
+        get => _filterUpgradesOnly;
+        set
+        {
+            if (_filterUpgradesOnly == value) return;
+            _filterUpgradesOnly = value;
+            ApplyFilters();
+        }
+    }
+
     // Performance optimization: cached filter results and lookups
     private List<FishingShopItem> filteredShopItems = new();
     private Dictionary<Guid, string> fishTypeLookup = new();
@@ -649,12 +694,18 @@
                 .ToDictionary(g => g.Key, g => g.First());
 
             ApplyFilters();
+            if (navBar != null)
+            {
+                await navBar.RefreshStatusAsync();
+            }
         }
         finally
         {
             isLoading = false;
         }
     }
+
+    private FishingNavBar? navBar;
 
     private async Task RefreshShop()
     {
@@ -717,6 +768,32 @@
         }
     }
 
+    private async Task PurchaseAndEquipItem(Guid shopItemId)
+    {
+        if (isPurchasing || confirmingPurchaseItemId == shopItemId) return;
+        var item = shopItems.FirstOrDefault(i => i.Id == shopItemId);
+        if (item == null) return;
+
+        var quantity = item.MaxUses.HasValue ? GetPurchaseQuantity(shopItemId) : 1;
+        isPurchasing = true;
+        confirmingPurchaseItemId = shopItemId;
+        try
+        {
+            await inventoryService.PurchaseAndEquipBoost(userId, shopItemId, quantity);
+            Snackbar.Add($"Purchased and equipped {item.Name}!", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Purchase failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isPurchasing = false;
+            confirmingPurchaseItemId = null;
+        }
+    }
+
     private bool IsPurchaseButtonDisabled(FishingShopItem item)
     {
         var quantity = item.MaxUses.HasValue ? purchaseQuantities.GetValueOrDefault(item.Id, 1) : 1;
@@ -763,6 +840,22 @@
         if (filterSlot.HasValue)
         {
             filtered = filtered.Where(i => i.EquipmentSlot == filterSlot.Value);
+        }
+
+        if (filterCanAffordOnly)
+        {
+            filtered = filtered.Where(i => i.Cost <= userGold);
+        }
+
+        if (filterUpgradesOnly)
+        {
+            filtered = filtered.Where(i =>
+            {
+                if (!i.EquipmentSlot.HasValue) return true;
+                if (!equippedShopItemBySlot.TryGetValue(i.EquipmentSlot.Value, out var equipped)) return true;
+                var cmp = GetTierComparisonIndicator(i);
+                return cmp.HasValue && cmp.Value.text.Contains("Upgrade", StringComparison.OrdinalIgnoreCase);
+            });
         }
 
         // Filter by boost type

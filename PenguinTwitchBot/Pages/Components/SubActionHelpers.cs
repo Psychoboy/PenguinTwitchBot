@@ -48,6 +48,10 @@ namespace PenguinTwitchBot.Pages.Components
                 FishingModifyType modify => modify.TargetType == FishingModifyTargetType.Fish
                     ? $"Modify Fish: {(string.IsNullOrWhiteSpace(modify.TargetFish) ? "None" : modify.TargetFish)}"
                     : $"Modify Shop Item: {(string.IsNullOrWhiteSpace(modify.TargetShopItem) ? "None" : modify.TargetShopItem)}",
+                FishingFrenzyType frenzy => string.Equals(frenzy.Mode, "Stop", StringComparison.OrdinalIgnoreCase)
+                    ? "Fishing Frenzy: Stop Active Frenzy"
+                    : $"Fishing Frenzy: {frenzy.FrenzyName} ({frenzy.DurationMinutes}m, {frenzy.RarityMultiplier:0.##}x{(string.IsNullOrWhiteSpace(frenzy.TargetCategory) ? "" : $", {frenzy.TargetCategory}")})",
+                FishingQuickTournamentType quickTourney => $"Quick Fishing Tournament: {quickTourney.Theme} / {quickTourney.ScoreCategory} ({quickTourney.DurationMinutes}m{(quickTourney.PairWithFrenzy ? " + Frenzy" : "")})",
                 ObsSetSceneFilterStateType obsFilter => $"OBS Filter: {obsFilter.SceneName} - {obsFilter.FilterName} {(obsFilter.FilterEnabled ? "Enabled" : "Disabled")}",
                 ObsSetSceneType obsScene => $"OBS Scene: {obsScene.SceneName}",
                 ObsSetSourceVisibilityType obsVis => $"OBS Visibility: {obsVis.SceneName}/{obsVis.SourceName} {(obsVis.Visible ? "Visible" : "Hidden")}",

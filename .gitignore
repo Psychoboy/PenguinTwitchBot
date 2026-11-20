@@ -590,6 +590,13 @@ PenguinTwitchBot/wwwroot/media/*
 !PenguinTwitchBot/wwwroot/media/racing_crash.wav
 !PenguinTwitchBot/wwwroot/media/racing_boost.wav
 !PenguinTwitchBot/wwwroot/media/racing_win.wav
+!PenguinTwitchBot/wwwroot/media/fishing_cast.mp3
+!PenguinTwitchBot/wwwroot/media/fishing_bite.mp3
+!PenguinTwitchBot/wwwroot/media/fishing_catch_common.mp3
+!PenguinTwitchBot/wwwroot/media/fishing_catch_rare.mp3
+!PenguinTwitchBot/wwwroot/media/fishing_catch_legendary.mp3
+!PenguinTwitchBot/wwwroot/media/fishing_accident.mp3
+!PenguinTwitchBot/wwwroot/media/fishing_frenzy.mp3
 PenguinTwitchBot/vetoed.txt
 PenguinTwitchBot/kokoro.onnx
 PenguinTwitchBot/Data/piper/*

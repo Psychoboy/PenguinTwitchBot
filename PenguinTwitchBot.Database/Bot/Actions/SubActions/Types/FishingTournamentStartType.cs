@@ -4,10 +4,10 @@ using PenguinTwitchBot.Database.Bot.DatabaseTools;
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
-        displayName: "Fishing Tournament Start",
-        description: "Start a fishing tournament immediately",
+        displayName: "Fishing Tournament Start (Deprecated)",
+        description: "[Deprecated — planned for removal] Start a legacy manual fishing tournament. Use 'Fishing Quick Tournament' instead.",
         icon: "mdi-trophy",
-        color: "Primary",
+        color: "Warning",
         tableName: "subactions_fishingtournamentstart")]
     public class FishingTournamentStartType : SubActionType, ISubActionUIProvider
     {

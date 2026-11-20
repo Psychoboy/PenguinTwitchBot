@@ -106,6 +106,235 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
+        public async Task PurchaseAndEquipBoost(string userId, Guid shopItemId, int quantity = 1)
+        {
+            if (quantity < 1)
+            {
+                throw new InvalidOperationException("Purchase quantity must be at least 1");
+            }
+
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var shopItem = await db.FishingShopItems.GetByIdAsync(shopItemId);
+            if (shopItem == null || !shopItem.Enabled || shopItem.IsAdminOnly)
+            {
+                throw new InvalidOperationException("Shop item not found, disabled, or not available for purchase");
+            }
+
+            if (!shopItem.MaxUses.HasValue && quantity != 1)
+            {
+                throw new InvalidOperationException("Only limited-use items can be purchased in multiples");
+            }
+
+            if (shopItem.MaxUses.HasValue && shopItem.MaxUses.Value <= 0)
+            {
+                throw new InvalidOperationException("Limited-use items must have at least 1 max use");
+            }
+
+            var totalCost = shopItem.Cost * quantity;
+            var gold = await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync();
+            if (gold == null || gold.TotalGold < totalCost)
+            {
+                throw new InvalidOperationException("Not enough gold");
+            }
+
+            gold.TotalGold -= totalCost;
+
+            var count = shopItem.MaxUses.HasValue ? quantity : 1;
+            var newBoosts = Enumerable.Range(0, count).Select(_ => NewBoost(userId, shopItem)).ToList();
+
+            // Unequip any existing item in the same slot before equipping the first newly purchased item.
+            if (shopItem.EquipmentSlot.HasValue)
+            {
+                var currentlyEquipped = await db.UserFishingBoosts
+                    .Find(b => b.UserId == userId && b.IsEquipped && b.ShopItem!.EquipmentSlot == shopItem.EquipmentSlot)
+                    .ToListAsync();
+                foreach (var item in currentlyEquipped)
+                {
+                    item.IsEquipped = false;
+                }
+            }
+
+            newBoosts[0].IsEquipped = true;
+            db.UserFishingBoosts.AddRange(newBoosts);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task<List<UserFishingLoadout>> GetUserLoadouts(string userId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.UserFishingLoadouts
+                .Find(l => l.UserId == userId)
+                .OrderByDescending(l => l.UpdatedAtUtc)
+                .ToListAsync();
+        }
+
+        public async Task<UserFishingLoadout> SaveCurrentLoadout(string userId, string name)
+        {
+            var safeName = (name ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(safeName))
+            {
+                throw new InvalidOperationException("Loadout name is required");
+            }
+            if (safeName.Length > 60)
+            {
+                safeName = safeName[..60];
+            }
+
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var equipped = await db.UserFishingBoosts.GetAsync(
+                b => b.UserId == userId && b.IsEquipped && b.ShopItem!.EquipmentSlot != null,
+                includeProperties: ShopItemInclude);
+
+            if (equipped.Count == 0)
+            {
+                throw new InvalidOperationException("Equip at least one item before saving a loadout");
+            }
+
+            var entries = equipped
+                .GroupBy(b => b.ShopItem!.EquipmentSlot!.Value)
+                .Select(g =>
+                {
+                    var item = g.OrderByDescending(b => b.PurchasedAt).First();
+                    return new FishingLoadoutSlotEntry
+                    {
+                        Slot = g.Key,
+                        UserBoostId = item.Id,
+                        ShopItemId = item.ShopItemId,
+                        ItemName = item.ShopItem!.Name
+                    };
+                })
+                .OrderBy(e => (int)e.Slot)
+                .ToList();
+
+            var existing = (await db.UserFishingLoadouts
+                .Find(l => l.UserId == userId)
+                .ToListAsync())
+                .FirstOrDefault(l => string.Equals(l.Name, safeName, StringComparison.OrdinalIgnoreCase));
+
+            var json = JsonSerializer.Serialize(entries);
+            var now = DateTime.UtcNow;
+
+            if (existing != null)
+            {
+                existing.Name = safeName;
+                existing.SlotItemsJson = json;
+                existing.UpdatedAtUtc = now;
+                await db.SaveChangesAsync();
+                return existing;
+            }
+
+            var count = await db.UserFishingLoadouts.Find(l => l.UserId == userId).CountAsync();
+            if (count >= 10)
+            {
+                throw new InvalidOperationException("Maximum of 10 saved loadouts reached. Delete one or overwrite an existing name.");
+            }
+
+            var loadout = new UserFishingLoadout
+            {
+                UserId = userId,
+                Name = safeName,
+                SlotItemsJson = json,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+
+            db.UserFishingLoadouts.Add(loadout);
+            await db.SaveChangesAsync();
+            return loadout;
+        }
+
+        public async Task<FishingLoadoutApplyResult> ApplyLoadout(string userId, Guid loadoutId)
+        {
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var loadout = await db.UserFishingLoadouts
+                .Find(l => l.Id == loadoutId && l.UserId == userId)
+                .FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException("Loadout not found");
+
+            var entries = JsonSerializer.Deserialize<List<FishingLoadoutSlotEntry>>(loadout.SlotItemsJson) ?? [];
+            var allBoosts = await db.UserFishingBoosts
+                .Find(b => b.UserId == userId)
+                .Include(b => b.ShopItem)
+                .ToListAsync();
+
+            // Unequip all slotted gear first
+            foreach (var boost in allBoosts.Where(b => b.IsEquipped && b.ShopItem?.EquipmentSlot.HasValue == true))
+            {
+                boost.IsEquipped = false;
+            }
+
+            var result = new FishingLoadoutApplyResult { LoadoutName = loadout.Name };
+            var usedBoostIds = new HashSet<Guid>();
+            var occupiedSlots = new HashSet<EquipmentSlot>();
+
+            foreach (var entry in entries)
+            {
+                // Prefer exact saved UserBoostId if still usable; otherwise fall back to any usable spare of the same ShopItemId (great for restocked consumables!)
+                var candidate = allBoosts.FirstOrDefault(b =>
+                    b.Id == entry.UserBoostId &&
+                    !usedBoostIds.Contains(b.Id) &&
+                    IsUsableForEquip(b) &&
+                    b.ShopItem?.EquipmentSlot.HasValue == true &&
+                    !occupiedSlots.Contains(b.ShopItem.EquipmentSlot.Value));
+
+                candidate ??= allBoosts
+                    .Where(b => b.ShopItemId == entry.ShopItemId &&
+                        !usedBoostIds.Contains(b.Id) &&
+                        IsUsableForEquip(b) &&
+                        b.ShopItem?.EquipmentSlot.HasValue == true &&
+                        !occupiedSlots.Contains(b.ShopItem.EquipmentSlot.Value))
+                    .OrderByDescending(b => b.RemainingUses)
+                    .ThenByDescending(b => b.CurrentDurability ?? double.MaxValue)
+                    .FirstOrDefault();
+
+                if (candidate?.ShopItem?.EquipmentSlot is EquipmentSlot slot && occupiedSlots.Add(slot))
+                {
+                    candidate.IsEquipped = true;
+                    usedBoostIds.Add(candidate.Id);
+                    result.EquippedCount++;
+                    result.EquippedItems.Add(candidate.ShopItem.Name ?? entry.ItemName);
+                }
+                else
+                {
+                    result.MissingItems.Add($"{entry.Slot}: {entry.ItemName}");
+                }
+            }
+
+            await db.SaveChangesAsync();
+            return result;
+        }
+
+        public async Task DeleteLoadout(string userId, Guid loadoutId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var loadout = await db.UserFishingLoadouts
+                .Find(l => l.Id == loadoutId && l.UserId == userId)
+                .FirstOrDefaultAsync();
+            if (loadout != null)
+            {
+                db.UserFishingLoadouts.Remove(loadout);
+                await db.SaveChangesAsync();
+            }
+        }
+
+        private static bool IsUsableForEquip(UserFishingBoost boost)
+        {
+            if (boost.ShopItem == null) return false;
+            if (boost.ShopItem.MaxUses.HasValue && boost.RemainingUses <= 0) return false;
+            return true;
+        }
+
         public async Task GiveItemToUser(string userId, Guid shopItemId)
         {
             using var scope = _scopeFactory.CreateScope();
@@ -145,6 +374,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task EquipItem(string userId, Guid userBoostId)
         {
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
@@ -175,6 +405,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task UnequipItem(string userId, Guid userBoostId)
         {
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 

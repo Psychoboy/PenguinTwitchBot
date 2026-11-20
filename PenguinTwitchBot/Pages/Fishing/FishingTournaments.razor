@@ -1,5 +1,6 @@
 @page "/fishing/tournaments"
 @using PenguinTwitchBot.Bot.Commands.Fishing
+@using PenguinTwitchBot.Components.Fishing
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
 @inject IFishingService FishingService
 
@@ -7,6 +8,8 @@
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudStack Spacing="3">
+        <FishingNavBar ActiveTab="tournaments" OnDataChanged="ReloadAsync" />
+
         <MudStack Spacing="0" AlignItems="AlignItems.Center">
             <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
                 <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Size="Size.Large" Class="mr-2" />

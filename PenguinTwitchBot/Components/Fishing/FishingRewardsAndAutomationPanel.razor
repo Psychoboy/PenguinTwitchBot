@@ -1,0 +1,349 @@
+@using PenguinTwitchBot.Bot.Commands.Fishing
+@using PenguinTwitchBot.Bot.Core.Points
+@using PenguinTwitchBot.Database.Bot.Models.Fishing
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@using PenguinTwitchBot.Helpers
+@using PenguinTwitchBot.Pages.Actions
+@inject IFishingService FishingService
+@inject IPointsSystem PointsSystem
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4" Class="pa-2">
+    <!-- 1. Built-In Multi-Point Catch Rewards -->
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Spacing="3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.Stars" Color="Color.Warning" Class="mr-1" />
+                        Built-In Multi-Point Catch Rewards
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Automatically award one or more point types on catches — no manual Action math or LogicIfElse loops required. Leave empty if your legacy Actions still award points manually.
+                    </MudText>
+                </MudStack>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" Disabled="@(pointTypes.Count == 0)" OnClick="AddCatchRewardRule">
+                    Add Blank Rule
+                </MudButton>
+            </MudStack>
+
+            <!-- Quick-Start Preset Wizards -->
+            @if (pointTypes.Count > 0)
+            {
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2">
+                            <MudIcon Icon="@Icons.Material.Filled.AutoFixHigh" Size="Size.Small" Color="Color.Secondary" Class="mr-1" />
+                            Quick-Add Reward Presets
+                        </MudText>
+                        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.TrendingUp" OnClick="AddGoldStarPreset">
+                                + Gold &amp; Star-Scaled Payout (All Fish)
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" StartIcon="@Icons.Material.Filled.Diamond" OnClick="AddMythicalBonusPreset">
+                                + Mythical Bonus Payout (Flat)
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" StartIcon="@Icons.Material.Filled.EmojiEvents" OnClick="AddLegendaryPlusPreset">
+                                + Legendary+ Bonus (+50% New Dex)
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">No point types found. Create a point type in Settings → Point Settings first.</MudAlert>
+            }
+
+            @foreach (var rule in catchRewardRules)
+            {
+                <MudPaper Outlined="true" Class="pa-3" @key="rule.Id">
+                    <MudGrid Spacing="2" Class="align-center">
+                        <MudItem xs="6" sm="3">
+                            <MudSelect T="Guid" @bind-Value="rule.PointTypeId" Label="Point Type" Variant="Variant.Outlined" Margin="Margin.Dense" ToStringFunc="GetPointTypeName">
+                                @foreach (var pt in pointTypes)
+                                {
+                                    <MudSelectItem T="Guid" Value="@pt.Id">@pt.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="6" sm="2">
+                            <MudSelect T="FishingCatchRewardMode" @bind-Value="rule.Mode" Label="Mode" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                <MudSelectItem Value="FishingCatchRewardMode.GoldScaled">Gold-Scaled</MudSelectItem>
+                                <MudSelectItem Value="FishingCatchRewardMode.Flat">Flat Amount</MudSelectItem>
+                                <MudSelectItem Value="FishingCatchRewardMode.WeightScaled">Weight-Scaled</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="6" sm="2">
+                            <MudSelect T="FishRarity?" @bind-Value="rule.MinRarity" Label="Min Rarity" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                @foreach (var r in Enum.GetValues<FishRarity>())
+                                {
+                                    <MudSelectItem T="FishRarity?" Value="@r">@r</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="6" sm="2">
+                            <MudSelect T="string?" @bind-Value="rule.CategoryFilter" Label="Category" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                <MudSelectItem T="string?" Value="@((string?)null)">None (All)</MudSelectItem>
+                                @foreach (var cat in availableCategories)
+                                {
+                                    <MudSelectItem T="string?" Value="@cat">@cat</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="6" sm="2">
+                            <MudSwitch T="bool" @bind-Value="rule.Enabled" Color="Color.Success" Label="Enabled" />
+                        </MudItem>
+                        <MudItem xs="6" sm="1" Class="d-flex justify-end">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => catchRewardRules.Remove(rule))" />
+                        </MudItem>
+
+                        @if (rule.Mode == FishingCatchRewardMode.Flat)
+                        {
+                            <MudItem xs="6" sm="3">
+                                <MudNumericField T="long" @bind-Value="rule.FlatAmount" Label="Flat Points" Min="0" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                        }
+                        else
+                        {
+                            <MudItem xs="6" sm="2">
+                                <MudNumericField T="double" @bind-Value="rule.BaseMultiplier" Label="Base Mult" Min="0" Step="1" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="4" sm="2">
+                                <MudNumericField T="double" @bind-Value="rule.Star1Multiplier" Label="1★ Mult" Min="0" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="4" sm="2">
+                                <MudNumericField T="double" @bind-Value="rule.Star2Multiplier" Label="2★ Mult" Min="0" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="4" sm="2">
+                                <MudNumericField T="double" @bind-Value="rule.Star3Multiplier" Label="3★ Mult" Min="0" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                        }
+
+                        <MudItem xs="6" sm="2">
+                            <MudNumericField T="double" @bind-Value="rule.NewDexBonusPercent" Label="New Dex +%" Min="0" Max="500" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        </MudItem>
+                        <MudItem xs="6" sm="2">
+                            <MudNumericField T="double" @bind-Value="rule.PersonalBestBonusPercent" Label="New PB +%" Min="0" Max="500" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+
+            @if (catchRewardRules.Count > 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    <b>Live Preview (100g 3★ Mythical):</b> @GetPreviewSummary(FishRarity.Mythical, 3, 25.0, 100)
+                    &nbsp;|&nbsp;
+                    <b>(25g 1★ Common):</b> @GetPreviewSummary(FishRarity.Common, 1, 2.0, 25)
+                </MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveCatchRewardsAsync">
+                Save Catch Reward Rules
+            </MudButton>
+        </MudStack>
+    </MudPaper>
+
+    <!-- 2. Fishing Automation Wizards (reuses ActionRecipeWizard) -->
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Spacing="3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Color="Color.Primary" Class="mr-1" />
+                        Fishing Automation Wizards
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        One-click guided wizards to wire commands, channel point redeems, cheers, or raids to Fishing actions without manual wiring.
+                    </MudText>
+                </MudStack>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" StartIcon="@Icons.Material.Filled.OpenInNew" Href="/actions">
+                    Open Actions Manager
+                </MudButton>
+            </MudStack>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" md="4">
+                    <MudPaper Outlined="true" Class="pa-3 h-100 d-flex flex-column justify-space-between">
+                        <MudStack Spacing="1">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Phishing" Color="Color.Primary" />
+                                <MudText Typo="Typo.subtitle1"><b>Fishing Cast (Single / Multi)</b></MudText>
+                            </MudStack>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Create a 1x, 5x, or Cheer-scaled fishing action with synced reveal timing and a single clean chat summary (no recursive loops needed).
+                            </MudText>
+                        </MudStack>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Class="mt-3" StartIcon="@Icons.Material.Filled.AutoFixHigh" OnClick="@(() => OpenRecipeWizardAsync("fishing-cast", "Fishing Cast Wizard"))">
+                            Launch Cast Wizard
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudPaper Outlined="true" Class="pa-3 h-100 d-flex flex-column justify-space-between">
+                        <MudStack Spacing="1">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" />
+                                <MudText Typo="Typo.subtitle1"><b>Quick Blitz Tournament</b></MudText>
+                            </MudStack>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Let mods, channel point redeems, or raid triggers launch a 5–15 min Quick Blitz Tournament paired with a Fishing Frenzy and multi-point payouts.
+                            </MudText>
+                        </MudStack>
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" Class="mt-3" StartIcon="@Icons.Material.Filled.AutoFixHigh" OnClick="@(() => OpenRecipeWizardAsync("fishing-quick-tournament", "Quick Blitz Tournament Wizard"))">
+                            Launch Blitz Wizard
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudPaper Outlined="true" Class="pa-3 h-100 d-flex flex-column justify-space-between">
+                        <MudStack Spacing="1">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.LocalFireDepartment" Color="Color.Error" />
+                                <MudText Typo="Typo.subtitle1"><b>Fishing Frenzy / Hotspot</b></MudText>
+                            </MudStack>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Automatically trigger a timed Rarity Frenzy or Category Hotspot on hype events (Cheers, Subs, Channel Points, or Mod commands).
+                            </MudText>
+                        </MudStack>
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small" Class="mt-3" StartIcon="@Icons.Material.Filled.AutoFixHigh" OnClick="@(() => OpenRecipeWizardAsync("fishing-frenzy", "Fishing Frenzy Wizard"))">
+                            Launch Frenzy Wizard
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudStack>
+    </MudPaper>
+
+    <!-- 3. Configurable Fishing Chat Messages -->
+    <FishingMessagesEditor />
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public FishingSettings Settings { get; set; } = new();
+    [Parameter] public EventCallback OnSettingsSaved { get; set; }
+
+    private List<PointType> pointTypes = new();
+    private List<FishingCatchRewardRule> catchRewardRules = new();
+    private List<string> availableCategories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        pointTypes = (await PointsSystem.GetPointTypes()).ToList();
+        catchRewardRules = FishingCatchRewardCalculator.ParseRules(Settings.CatchRewardsJson);
+        var allFish = await FishingService.GetAllFishTypes();
+        availableCategories = allFish
+            .SelectMany(f => f.Categories)
+            .Select(c => c.Category?.Trim())
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+    }
+
+    private string GetPointTypeName(Guid id) => pointTypes.FirstOrDefault(p => p.Id == id)?.Name ?? "Select point type";
+
+    private void AddCatchRewardRule()
+    {
+        if (pointTypes.Count == 0) return;
+        catchRewardRules.Add(new FishingCatchRewardRule
+        {
+            PointTypeId = pointTypes[0].Id,
+            Mode = FishingCatchRewardMode.GoldScaled,
+            BaseMultiplier = 1000,
+            Star1Multiplier = 1,
+            Star2Multiplier = 2,
+            Star3Multiplier = 4
+        });
+    }
+
+    private void AddGoldStarPreset()
+    {
+        if (pointTypes.Count == 0) return;
+        catchRewardRules.Add(new FishingCatchRewardRule
+        {
+            PointTypeId = pointTypes[0].Id,
+            Mode = FishingCatchRewardMode.GoldScaled,
+            BaseMultiplier = 1000,
+            Star1Multiplier = 1,
+            Star2Multiplier = 4,
+            Star3Multiplier = 8,
+            NewDexBonusPercent = 25
+        });
+    }
+
+    private void AddMythicalBonusPreset()
+    {
+        if (pointTypes.Count == 0) return;
+        catchRewardRules.Add(new FishingCatchRewardRule
+        {
+            PointTypeId = pointTypes[0].Id,
+            MinRarity = FishRarity.Mythical,
+            Mode = FishingCatchRewardMode.Flat,
+            FlatAmount = 50
+        });
+    }
+
+    private void AddLegendaryPlusPreset()
+    {
+        if (pointTypes.Count == 0) return;
+        catchRewardRules.Add(new FishingCatchRewardRule
+        {
+            PointTypeId = pointTypes[0].Id,
+            MinRarity = FishRarity.Legendary,
+            Mode = FishingCatchRewardMode.Flat,
+            FlatAmount = 10,
+            NewDexBonusPercent = 50
+        });
+    }
+
+    private string GetPreviewSummary(FishRarity rarity, int stars, double weight, int gold)
+    {
+        var totals = new Dictionary<string, long>();
+        foreach (var rule in catchRewardRules)
+        {
+            var amt = FishingCatchRewardCalculator.EvaluateRule(rule, rarity, [], stars, weight, gold, false, false);
+            if (amt <= 0) continue;
+            var name = GetPointTypeName(rule.PointTypeId);
+            totals[name] = totals.GetValueOrDefault(name) + amt;
+        }
+        return totals.Count == 0
+            ? "No points awarded"
+            : string.Join(", ", totals.Select(kv => $"+{FishingFormatHelper.FormatCompactNumber(kv.Value)} {kv.Key}"));
+    }
+
+    private async Task SaveCatchRewardsAsync()
+    {
+        try
+        {
+            Settings.CatchRewardsJson = FishingCatchRewardCalculator.SerializeRules(catchRewardRules);
+            await FishingService.UpdateSettings(Settings);
+            Snackbar.Add("Saved Catch Reward rules!", Severity.Success);
+            if (OnSettingsSaved.HasDelegate) await OnSettingsSaved.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save catch rewards: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OpenRecipeWizardAsync(string recipeId, string title)
+    {
+        var parameters = new DialogParameters<ActionRecipeWizard>
+        {
+            { wizard => wizard.InitialRecipeId, recipeId }
+        };
+        var dialog = await DialogService.ShowAsync<ActionRecipeWizard>(title, parameters, new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        });
+        await dialog.Result;
+    }
+}
