@@ -11,11 +11,10 @@
 <MudStack Spacing="3">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
         <MudStack Spacing="0">
-            <MudText Typo="Typo.h5">Tournament Editor</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">Create tournaments, choose eligible fish, and define reward brackets.</MudText>
+            <MudText Typo="Typo.h5">Fishing Tournaments</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Launch Quick / Blitz tournaments with multi-point payouts, and manage active or past runs.</MudText>
         </MudStack>
         <MudStack Row="true" Spacing="2">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="BeginNewTournament">New Tournament</MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ReloadAsync" Disabled="isLoading">Refresh</MudButton>
         </MudStack>
     </MudStack>
@@ -34,11 +33,91 @@
         <FishingQuickTournamentLauncher OnTournamentLaunched="ReloadAsync" />
 
         <MudPaper Elevation="3" Class="pa-4">
-            <MudStack Spacing="3">
+            <MudStack Spacing="2">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.h6">@editorTitle</MudText>
-                    <MudChip T="string" Color="Color.Primary" Size="Size.Small">@editingTournamentStatus</MudChip>
+                    <MudText Typo="Typo.h6">Active &amp; Past Tournaments</MudText>
+                    <MudTooltip Text="Remove category selections from tournaments where that category no longer exists on any fish.">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Warning"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.CleaningServices"
+                                   OnClick="CleanOrphanedCategoriesAsync">
+                            Clean Orphaned Categories
+                        </MudButton>
+                    </MudTooltip>
                 </MudStack>
+                <MudTable Items="@allTournaments" Dense="true" Hover="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Scoring</MudTh>
+                        <MudTh>Eligible Fish</MudTh>
+                        <MudTh>Eligible Categories</MudTh>
+                        <MudTh>Rewards</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">
+                            <MudStack Spacing="0">
+                                <MudText><strong>@context.Name</strong></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="Status">@context.Status</MudTd>
+                        <MudTd DataLabel="Scoring">@PenguinTwitchBot.Helpers.FishingFormatHelper.FormatScoreCategory(context.PrimaryScoreCategory)</MudTd>
+                        <MudTd DataLabel="Eligible Fish">@GetEligibleFishCount(context)</MudTd>
+                        <MudTd DataLabel="Eligible Categories">@context.EligibleCategories.Count</MudTd>
+                        <MudTd DataLabel="Rewards">@context.RewardRules.Count</MudTd>
+                        <MudTd DataLabel="Actions">
+                            <MudTooltip Text="Edit in Legacy Editor (Deprecated)">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => BeginEditTournament(context)" />
+                            </MudTooltip>
+                            <MudTooltip Text="Clone and launch immediately as a 10-minute Quick Blitz">
+                                <MudIconButton Icon="@Icons.Material.Filled.Bolt" Color="Color.Warning" OnClick="() => CloneAndStartQuickBlitzAsync(context)" />
+                            </MudTooltip>
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Info" OnClick="() => ConfirmDuplicateTournament(context)" />
+                            @if (context.Status == FishingTournamentStatus.Draft || context.Status == FishingTournamentStatus.Scheduled)
+                            {
+                                <MudTooltip Text="@($"Start now and end automatically after {context.RunDurationMinutes} minutes.")">
+                                    <MudIconButton Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" OnClick="() => StartTournament(context)" />
+                                </MudTooltip>
+                            }
+                            @if (context.Status == FishingTournamentStatus.Active || context.Status == FishingTournamentStatus.Scheduled)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.StopCircle" Color="Color.Warning" OnClick="() => ConfirmEndTournament(context)" />
+                            }
+                            @if (context.Status == FishingTournamentStatus.Completed || context.Status == FishingTournamentStatus.Cancelled)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.RestartAlt" Color="Color.Success" OnClick="() => ConfirmReopenTournament(context)" />
+                            }
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => ConfirmDeleteTournament(context)" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudStack>
+        </MudPaper>
+
+        <MudExpansionPanels Elevation="2">
+            <MudExpansionPanel @bind-Expanded="legacyEditorExpanded">
+                <TitleContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Warning" />
+                        <MudText Typo="Typo.subtitle1"><b>Legacy Manual Tournament Editor</b></MudText>
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">Deprecated</MudChip>
+                    </MudStack>
+                </TitleContent>
+                <ChildContent>
+                    <MudStack Spacing="3" Class="pt-2">
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            <strong>Deprecated:</strong> The legacy manual tournament editor is planned for removal in a future update. Use the <strong>Quick / Blitz Tournament Launcher</strong> above (or the <strong>Fishing Quick Tournament</strong> sub-action) for a simpler workflow.
+                        </MudAlert>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText Typo="Typo.h6">@editorTitle</MudText>
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small">@editingTournamentStatus</MudChip>
+                            </MudStack>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" OnClick="BeginNewTournament">New Legacy Draft</MudButton>
+                        </MudStack>
 
                 <MudGrid>
                     <MudItem xs="12" md="6">
@@ -231,71 +310,10 @@
                         <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteForever" OnClick="ConfirmDeleteCurrentTournament" Disabled="isSaving">Delete Tournament</MudButton>
                     }
                 </MudStack>
-            </MudStack>
-        </MudPaper>
-
-        <MudPaper Elevation="3" Class="pa-4">
-            <MudStack Spacing="2">
-                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.h6">Existing Tournaments</MudText>
-                    <MudTooltip Text="Remove category selections from tournaments where that category no longer exists on any fish.">
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Warning"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.CleaningServices"
-                                   OnClick="CleanOrphanedCategoriesAsync">
-                            Clean Orphaned Categories
-                        </MudButton>
-                    </MudTooltip>
-                </MudStack>
-                <MudTable Items="@allTournaments" Dense="true" Hover="true" Striped="true">
-                    <HeaderContent>
-                        <MudTh>Name</MudTh>
-                        <MudTh>Status</MudTh>
-                        <MudTh>Scoring</MudTh>
-                        <MudTh>Eligible Fish</MudTh>
-                        <MudTh>Eligible Categories</MudTh>
-                        <MudTh>Rewards</MudTh>
-                        <MudTh>Actions</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Name">
-                            <MudStack Spacing="0">
-                                <MudText><strong>@context.Name</strong></MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
-                            </MudStack>
-                        </MudTd>
-                        <MudTd DataLabel="Status">@context.Status</MudTd>
-                        <MudTd DataLabel="Scoring">@context.PrimaryScoreCategory</MudTd>
-                        <MudTd DataLabel="Eligible Fish">@GetEligibleFishCount(context)</MudTd>
-                        <MudTd DataLabel="Eligible Categories">@context.EligibleCategories.Count</MudTd>
-                        <MudTd DataLabel="Rewards">@context.RewardRules.Count</MudTd>
-                        <MudTd DataLabel="Actions">
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => BeginEditTournament(context)" />
-                            <MudTooltip Text="Clone and launch immediately as a 10-minute Quick Blitz">
-                                <MudIconButton Icon="@Icons.Material.Filled.Bolt" Color="Color.Warning" OnClick="() => CloneAndStartQuickBlitzAsync(context)" />
-                            </MudTooltip>
-                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Info" OnClick="() => ConfirmDuplicateTournament(context)" />
-                            @if (context.Status == FishingTournamentStatus.Draft || context.Status == FishingTournamentStatus.Scheduled)
-                            {
-                                <MudTooltip Text="@($"Start now and end automatically after {context.RunDurationMinutes} minutes.")">
-                                    <MudIconButton Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" OnClick="() => StartTournament(context)" />
-                                </MudTooltip>
-                            }
-                            @if (context.Status == FishingTournamentStatus.Active || context.Status == FishingTournamentStatus.Scheduled)
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.StopCircle" Color="Color.Warning" OnClick="() => ConfirmEndTournament(context)" />
-                            }
-                            @if (context.Status == FishingTournamentStatus.Completed || context.Status == FishingTournamentStatus.Cancelled)
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.RestartAlt" Color="Color.Success" OnClick="() => ConfirmReopenTournament(context)" />
-                            }
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => ConfirmDeleteTournament(context)" />
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudStack>
-        </MudPaper>
+                    </MudStack>
+                </ChildContent>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
     }
 </MudStack>
 
@@ -320,6 +338,7 @@
         FishingTournamentStatus.Cancelled
     ];
 
+    private bool legacyEditorExpanded;
     private Guid? editingTournamentId;
     private string editorTitle = "Create Tournament";
     private string editingTournamentStatus = FishingTournamentStatus.Draft.ToString();
@@ -399,6 +418,7 @@
 
     private void BeginEditTournament(FishingTournament tournament)
     {
+        legacyEditorExpanded = true;
         editingTournamentId = tournament.Id;
         editorTitle = $"Edit Tournament: {tournament.Name}";
         editingTournamentStatus = tournament.Status.ToString();

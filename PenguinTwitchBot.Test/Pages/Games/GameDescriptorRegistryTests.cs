@@ -11,9 +11,10 @@ public class GameDescriptorRegistryTests
     [Fact]
     public void Registry_CoversAllGamesWithUniqueIdsAndRoutes()
     {
-        Assert.Equal(19, GameDescriptorRegistry.All.Count);
+        Assert.Equal(20, GameDescriptorRegistry.All.Count);
         Assert.Equal(GameDescriptorRegistry.All.Count, GameDescriptorRegistry.All.Select(game => game.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(GameDescriptorRegistry.All.Count, GameDescriptorRegistry.All.Select(game => game.Route).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Contains(GameDescriptorRegistry.All, game => game.Id == "fishing" && game.Kind == GameKind.Overlay);
         Assert.Contains(GameDescriptorRegistry.All, game => game.Id == "wheelspin" && game.Kind == GameKind.Overlay);
         Assert.Contains(GameDescriptorRegistry.All, game => game.Id == "ufoclaw" && game.Kind == GameKind.Overlay);
         Assert.Contains(GameDescriptorRegistry.All, game => game.Id == "defuse" && game.Kind == GameKind.Chat);

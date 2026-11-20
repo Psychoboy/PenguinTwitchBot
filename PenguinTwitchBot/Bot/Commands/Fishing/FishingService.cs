@@ -754,6 +754,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             };
 
             static string FormatScoreLabel(FishingTournamentScoreCategory cat) => FishingFormatHelper.FormatScoreCategory(cat);
+            var eventTypeLabel = duration <= 15 ? "Blitz" : duration <= 45 ? "Derby" : "Tournament";
+            var durationTag = duration >= 60 && duration % 60 == 0
+                ? $"{duration / 60}h"
+                : duration > 60
+                    ? $"{duration / 60}h {duration % 60}m"
+                    : $"{duration}m";
 
             string titlePrefix;
             FishingTournamentScoreCategory scoreCategory;
@@ -782,33 +788,33 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 scoreCategory = request.ScoreCategoryOverride
                     ?? randomScorePool[System.Security.Cryptography.RandomNumberGenerator.GetInt32(randomScorePool.Length)];
                 titlePrefix = string.IsNullOrWhiteSpace(eligibleCategory)
-                    ? $"All Fish {FormatScoreLabel(scoreCategory)} Blitz"
-                    : $"{eligibleCategory} {FormatScoreLabel(scoreCategory)} Blitz";
+                    ? $"All Fish {FormatScoreLabel(scoreCategory)} {eventTypeLabel}"
+                    : $"{eligibleCategory} {FormatScoreLabel(scoreCategory)} {eventTypeLabel}";
             }
             else if (rawTheme.Equals("AllFish", StringComparison.OrdinalIgnoreCase) || rawTheme.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
                 scoreCategory = request.ScoreCategoryOverride ?? FishingTournamentScoreCategory.Largest;
-                titlePrefix = $"All Fish {FormatScoreLabel(scoreCategory)} Blitz";
+                titlePrefix = $"All Fish {FormatScoreLabel(scoreCategory)} {eventTypeLabel}";
             }
             else if (rawTheme.Equals("Smallest", StringComparison.OrdinalIgnoreCase))
             {
                 scoreCategory = request.ScoreCategoryOverride ?? FishingTournamentScoreCategory.Smallest;
-                titlePrefix = "Smallest Catch Blitz";
+                titlePrefix = $"Smallest Catch {eventTypeLabel}";
             }
             else if (rawTheme.Equals("MostValuable", StringComparison.OrdinalIgnoreCase) || rawTheme.Equals("MostGold", StringComparison.OrdinalIgnoreCase))
             {
                 scoreCategory = request.ScoreCategoryOverride ?? FishingTournamentScoreCategory.MostValuable;
-                titlePrefix = "Gold Rush Blitz";
+                titlePrefix = $"Gold Rush {eventTypeLabel}";
             }
             else if (rawTheme.Equals("MostCatches", StringComparison.OrdinalIgnoreCase))
             {
                 scoreCategory = request.ScoreCategoryOverride ?? FishingTournamentScoreCategory.MostCatches;
-                titlePrefix = "Most Catches Blitz";
+                titlePrefix = $"Most Catches {eventTypeLabel}";
             }
             else if (rawTheme.Equals("TotalWeight", StringComparison.OrdinalIgnoreCase))
             {
                 scoreCategory = request.ScoreCategoryOverride ?? FishingTournamentScoreCategory.TotalWeight;
-                titlePrefix = "Heavy Haul Blitz";
+                titlePrefix = $"Heavy Haul {eventTypeLabel}";
             }
             else
             {
@@ -816,7 +822,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var matchedCategory = dbCategories.FirstOrDefault(c => c.Equals(rawTheme, StringComparison.OrdinalIgnoreCase)) ?? rawTheme;
                 eligibleCategory = matchedCategory;
                 scoreCategory = request.ScoreCategoryOverride ?? FishingTournamentScoreCategory.Largest;
-                titlePrefix = $"{matchedCategory} {FormatScoreLabel(scoreCategory)} Blitz";
+                titlePrefix = $"{matchedCategory} {FormatScoreLabel(scoreCategory)} {eventTypeLabel}";
             }
 
             var settings = await GetSettings();
@@ -847,7 +853,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             {
                 Name = !string.IsNullOrWhiteSpace(request.CustomName)
                     ? request.CustomName.Trim()
-                    : $"{titlePrefix} ({duration}m)",
+                    : $"{titlePrefix} ({durationTag})",
                 Description = $"Quick downtime blitz tournament ({duration} minutes).",
                 Enabled = true,
                 Status = FishingTournamentStatus.Scheduled,

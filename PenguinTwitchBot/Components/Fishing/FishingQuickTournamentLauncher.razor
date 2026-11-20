@@ -38,7 +38,7 @@
                            StartIcon="@Icons.Material.Filled.RocketLaunch"
                            Disabled="@isLaunching"
                            OnClick="LaunchQuickTournamentAsync">
-                    @(isLaunching ? "Launching..." : $"Launch {durationMinutes}m Blitz")
+                    @(isLaunching ? "Launching..." : $"Launch {FormatDurationButtonLabel()}")
                 </MudButton>
             </MudStack>
         </MudStack>
@@ -88,13 +88,21 @@
                     }
                 </MudStack>
             </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="customName"
+                              Label="Custom Name (optional)"
+                              Placeholder="Leave blank to auto-name (Blitz ≤15m, Derby 16–45m, Tournament >45m)"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Clearable="true" />
+            </MudItem>
         </MudGrid>
 
         <MudExpansionPanels Elevation="0" Outlined="true">
             <MudExpansionPanel Text="@($"Default Multi-Point Payout Template ({payoutTemplate.Count} rules)")" Icon="@Icons.Material.Filled.Payments">
                 <MudStack Spacing="2">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        Add multiple point types per placement (e.g., 1st place: Pasties + Tickets + Bonus Gold). Saved for both UI &amp; !fishtourney quick.
+                        Add multiple point types per placement (e.g., 1st place: Point Type A + Point Type B + Bonus Gold). Saved for both UI &amp; !fishtourney quick.
                     </MudText>
                     @foreach (var entry in payoutTemplate)
                     {
@@ -146,10 +154,20 @@
 
     private string selectedTheme = "Random";
     private FishingTournamentScoreCategory? selectedScoreCategory;
+    private string? customName;
     private int durationMinutes = 10;
     private bool pairWithFrenzy = true;
     private double frenzyMultiplier = 1.75;
     private bool isLaunching;
+
+    private string FormatDurationButtonLabel()
+    {
+        var label = durationMinutes <= 15 ? "Blitz" : durationMinutes <= 45 ? "Derby" : "Tournament";
+        var dur = durationMinutes >= 60 && durationMinutes % 60 == 0
+            ? $"{durationMinutes / 60}h"
+            : $"{durationMinutes}m";
+        return $"{dur} {label}";
+    }
 
     private List<PointType> pointTypes = new();
     private List<QuickTournamentRewardEntry> payoutTemplate = new();
@@ -210,6 +228,7 @@
             var tournament = await FishingService.StartQuickTournamentAsync(new QuickTournamentRequest(
                 Theme: selectedTheme,
                 DurationMinutes: durationMinutes,
+                CustomName: string.IsNullOrWhiteSpace(customName) ? null : customName.Trim(),
                 RewardOverrides: payoutTemplate,
                 ScoreCategoryOverride: selectedScoreCategory));
 

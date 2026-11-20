@@ -23,6 +23,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             var resolvedTheme = VariableReplacer.ReplaceVariables(quickAction.Theme, variables);
             var resolvedScore = VariableReplacer.ReplaceVariables(quickAction.ScoreCategory, variables);
+            var resolvedCustomName = string.IsNullOrWhiteSpace(quickAction.CustomName)
+                ? null
+                : VariableReplacer.ReplaceVariables(quickAction.CustomName, variables);
             Database.Bot.Models.Fishing.FishingTournamentScoreCategory? scoreOverride =
                 !string.IsNullOrWhiteSpace(resolvedScore) &&
                 !resolvedScore.Equals("Random", StringComparison.OrdinalIgnoreCase) &&
@@ -33,6 +36,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             var tournament = await fishingService.StartQuickTournamentAsync(new QuickTournamentRequest(
                 Theme: string.IsNullOrWhiteSpace(resolvedTheme) ? "Random" : resolvedTheme,
                 DurationMinutes: quickAction.DurationMinutes,
+                CustomName: resolvedCustomName,
                 ScoreCategoryOverride: scoreOverride));
 
             if (quickAction.PairWithFrenzy)

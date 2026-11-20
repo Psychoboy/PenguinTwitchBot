@@ -23,8 +23,37 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         [NotMapped]
         public string ScoreCategory
         {
-            get => string.IsNullOrWhiteSpace(Text) ? "Random" : Text;
-            set => Text = string.IsNullOrWhiteSpace(value) ? "Random" : value.Trim();
+            get
+            {
+                if (string.IsNullOrWhiteSpace(Text)) return "Random";
+                var sep = Text.IndexOf('|');
+                var raw = sep >= 0 ? Text[..sep] : Text;
+                return string.IsNullOrWhiteSpace(raw) ? "Random" : raw.Trim();
+            }
+            set
+            {
+                var safeScore = string.IsNullOrWhiteSpace(value) ? "Random" : value.Trim();
+                var existingCustom = CustomName;
+                Text = string.IsNullOrWhiteSpace(existingCustom) ? safeScore : $"{safeScore}|{existingCustom}";
+            }
+        }
+
+        /// <summary>Optional custom tournament name override (leave blank to auto-name as Blitz / Derby / Tournament). Stored in Text column after '|'.</summary>
+        [NotMapped]
+        public string CustomName
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(Text)) return string.Empty;
+                var sep = Text.IndexOf('|');
+                return sep >= 0 && sep + 1 < Text.Length ? Text[(sep + 1)..].Trim() : string.Empty;
+            }
+            set
+            {
+                var safeScore = ScoreCategory;
+                var safeCustom = string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+                Text = string.IsNullOrWhiteSpace(safeCustom) ? safeScore : $"{safeScore}|{safeCustom}";
+            }
         }
 
         public int DurationMinutes { get; set; } = 10;
@@ -56,13 +85,21 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 },
                 new()
                 {
+                    PropertyName = nameof(CustomName),
+                    Label = "Custom Name (optional)",
+                    FieldType = UIFieldType.Text,
+                    DefaultValue = "",
+                    HelperText = "Leave blank to auto-name (Blitz <=15m, Derby 16-45m, Tournament >45m). Supports %variables%."
+                },
+                new()
+                {
                     PropertyName = nameof(DurationMinutes),
                     Label = "Duration (minutes)",
                     FieldType = UIFieldType.Number,
                     Min = 1,
                     Max = 240,
                     DefaultValue = 10,
-                    HelperText = "Great for stream downtime: 5, 10, or 15 minutes."
+                    HelperText = "1–15m = Blitz, 16–45m = Derby, 46–240m = Tournament."
                 },
                 new()
                 {
@@ -100,6 +137,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             [nameof(Theme)] = Theme,
             [nameof(ScoreCategory)] = ScoreCategory,
+            [nameof(CustomName)] = CustomName,
             [nameof(DurationMinutes)] = DurationMinutes,
             [nameof(PairWithFrenzy)] = PairWithFrenzy,
             [nameof(FrenzyRarityMultiplier)] = FrenzyRarityMultiplier.ToString("0.##"),
@@ -113,6 +151,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 Theme = theme.ToString() ?? "Random";
             if (values.TryGetValue(nameof(ScoreCategory), out var scoreCat) && scoreCat != null)
                 ScoreCategory = scoreCat.ToString() ?? "Random";
+            if (values.TryGetValue(nameof(CustomName), out var customName) && customName != null)
+                CustomName = customName.ToString() ?? string.Empty;
             if (values.TryGetValue(nameof(DurationMinutes), out var dur) && dur != null && int.TryParse(dur.ToString(), out var parsedDur))
                 DurationMinutes = Math.Clamp(parsedDur, 1, 240);
             if (values.TryGetValue(nameof(PairWithFrenzy), out var pair))
