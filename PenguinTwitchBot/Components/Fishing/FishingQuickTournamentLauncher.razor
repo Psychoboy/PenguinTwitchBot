@@ -222,7 +222,8 @@
                     frenzyMultiplier,
                     targetCat,
                     string.IsNullOrWhiteSpace(targetCat) ? 0.0 : 0.45,
-                    announceInChat: false);
+                    announceInChat: false,
+                    linkedTournamentId: tournament.Id);
             }
 
             var msgs = await MessageSettingsService.GetAsync();

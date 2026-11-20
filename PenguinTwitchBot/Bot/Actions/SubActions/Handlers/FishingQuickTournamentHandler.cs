@@ -44,7 +44,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     quickAction.FrenzyRarityMultiplier,
                     targetCat,
                     string.IsNullOrWhiteSpace(targetCat) ? 0.0 : 0.45,
-                    announceInChat: false);
+                    announceInChat: false,
+                    linkedTournamentId: tournament.Id);
             }
 
             variables["fishing_tournament_id"] = tournament.Id.ToString();

@@ -51,7 +51,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             double rarityMultiplier = 2.0,
             string? targetCategory = null,
             double categoryBoost = 0.5,
-            bool announceInChat = true)
+            bool announceInChat = true,
+            Guid? linkedTournamentId = null)
         {
             var safeName = string.IsNullOrWhiteSpace(name) ? "Fishing Frenzy" : name.Trim();
             var safeMinutes = Math.Clamp(durationMinutes, 1, 180);
@@ -67,7 +68,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 TargetCategory = safeCategory,
                 CategoryBoost = safeCatBoost,
                 StartedAtUtc = now,
-                EndsAtUtc = now.AddMinutes(safeMinutes)
+                EndsAtUtc = now.AddMinutes(safeMinutes),
+                LinkedTournamentId = linkedTournamentId
             };
 
             CancellationTokenSource cts;
@@ -131,6 +133,45 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (previous == null)
             {
                 return false;
+            }
+
+            await BroadcastFrenzyStateAsync(null, false, 0, null);
+
+            if (announceInChat)
+            {
+                try
+                {
+                    var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
+                    var formatted = FishingMessageSettings.Format(msgs.FrenzyEnd, ("name", previous.Name));
+                    if (!string.IsNullOrWhiteSpace(formatted))
+                    {
+                        await _serviceBackbone.SendChatMessage(formatted);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send Fishing Frenzy end announcement to chat");
+                }
+            }
+
+            return true;
+        }
+
+        public async Task<bool> StopFrenzyForTournamentAsync(Guid tournamentId, bool announceInChat = false)
+        {
+            FishingFrenzyState? previous;
+            lock (_lock)
+            {
+                if (_activeState == null || _activeState.LinkedTournamentId != tournamentId)
+                {
+                    return false;
+                }
+
+                previous = _activeState;
+                _activeState = null;
+                _expiryCts?.Cancel();
+                _expiryCts?.Dispose();
+                _expiryCts = null;
             }
 
             await BroadcastFrenzyStateAsync(null, false, 0, null);

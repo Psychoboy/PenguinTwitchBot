@@ -301,7 +301,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     1.75,
                     targetCat,
                     string.IsNullOrWhiteSpace(targetCat) ? 0.0 : 0.45,
-                    announceInChat: false);
+                    announceInChat: false,
+                    linkedTournamentId: tournament.Id);
 
                 var quickMsg = FishingMessageSettings.Format(msgs.QuickTournamentStart,
                     ("name", tournament.Name),

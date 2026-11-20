@@ -713,6 +713,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             await BroadcastTournamentEndedAsync(tournament, rewardWinners);
 
+            var frenzyService = scope.ServiceProvider.GetService<IFishingFrenzyService>();
+            if (frenzyService != null)
+            {
+                await frenzyService.StopFrenzyForTournamentAsync(tournament.Id, announceInChat: false);
+            }
+
             return tournament;
         }
 
@@ -1311,6 +1317,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             db.FishingTournaments.Remove(tournament);
             await db.SaveChangesAsync();
+
+            var frenzyService = scope.ServiceProvider.GetService<IFishingFrenzyService>();
+            if (frenzyService != null)
+            {
+                await frenzyService.StopFrenzyForTournamentAsync(id, announceInChat: false);
+            }
         }
 
         #endregion

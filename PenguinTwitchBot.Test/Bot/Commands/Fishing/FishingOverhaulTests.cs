@@ -178,6 +178,34 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         }
 
         [Fact]
+        public async Task FrenzyService_StopFrenzyForTournament_OnlyStopsMatchingTournament()
+        {
+            var ws = Substitute.For<IWebSocketMessenger>();
+            var backbone = Substitute.For<IServiceBackbone>();
+            var fishingService = Substitute.For<IFishingService>();
+            fishingService.GetSettings().Returns(new FishingSettings());
+            var audio = Substitute.For<IFishingAudioResolver>();
+            audio.ResolveFrenzySoundUrl(Arg.Any<FishingSettings?>()).Returns("/media/fishing_frenzy.mp3");
+            var logger = Substitute.For<ILogger<FishingFrenzyService>>();
+
+            using var svc = new FishingFrenzyService(ws, backbone, fishingService, audio, logger);
+
+            var linkedId = Guid.CreateVersion7();
+            var otherId = Guid.CreateVersion7();
+
+            await svc.StartFrenzyAsync("Blitz Frenzy", 10, 1.75, null, 0.0, announceInChat: false, linkedTournamentId: linkedId);
+            Assert.Equal(linkedId, svc.GetActiveFrenzy()?.LinkedTournamentId);
+
+            // Ending an unrelated tournament must not stop this frenzy
+            Assert.False(await svc.StopFrenzyForTournamentAsync(otherId));
+            Assert.NotNull(svc.GetActiveFrenzy());
+
+            // Ending the linked tournament stops the paired frenzy cleanly
+            Assert.True(await svc.StopFrenzyForTournamentAsync(linkedId));
+            Assert.Null(svc.GetActiveFrenzy());
+        }
+
+        [Fact]
         public async Task OverlayAckService_CompletesOnNotifyAndTimesOutCleanly()
         {
             var svc = new FishingOverlayAckService();
