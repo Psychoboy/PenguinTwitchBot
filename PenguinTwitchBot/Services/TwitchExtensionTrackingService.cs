@@ -242,10 +242,7 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
             shouldLogSessionStart = !_lastLoggedActivityUtc.TryGetValue(sessionKey, out var lastLoggedUtc)
                                     || (now - lastLoggedUtc) >= _reengagementLogCooldown;
 
-            if (shouldLogSessionStart)
-            {
-                _lastLoggedActivityUtc[sessionKey] = now;
-            }
+            _lastLoggedActivityUtc[sessionKey] = now;
 
             if (claims.IsIdentityShared
                 && !string.IsNullOrWhiteSpace(claims.UserId)

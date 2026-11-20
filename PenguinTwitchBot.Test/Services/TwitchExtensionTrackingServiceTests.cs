@@ -133,8 +133,8 @@ public sealed class TwitchExtensionTrackingServiceTests
             await service.LastBackgroundTask;
         }
 
-        // Routine 30s refreshes over 10 minutes -> no additional logs
-        for (var i = 0; i < 10; i++)
+        // Routine 30s refreshes over 20 minutes (past the 15m window) -> sliding cooldown keeps resetting, no additional logs
+        for (var i = 0; i < 40; i++)
         {
             time.Advance(TimeSpan.FromSeconds(30));
             service.RecordRequest(
@@ -151,7 +151,7 @@ public sealed class TwitchExtensionTrackingServiceTests
         Assert.Equal(1, startLogsBeforeCooldown);
         Assert.Contains(logger.Entries, e => e.Message.Contains("penguinuser (u300) started using the Twitch extension"));
 
-        // Advance past the 15-minute cooldown -> logs again
+        // Go inactive for 15 minutes -> logs again when returning
         time.Advance(TimeSpan.FromMinutes(15));
         service.RecordRequest(
             claims,
