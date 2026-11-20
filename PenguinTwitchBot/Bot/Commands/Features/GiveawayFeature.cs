@@ -215,7 +215,14 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         private async void SendCurrentEntriesToAll(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            await hubContext.Clients.All.SendAsync("UpdateTickets", await GetEntriesCount(), await GetEntrantsCount());
+            try
+            {
+                await hubContext.Clients.All.SendAsync("UpdateTickets", await GetEntriesCount(), await GetEntrantsCount());
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error broadcasting current giveaway entries");
+            }
         }
 
         private async Task<IEnumerable<GiveawayEntry>> GetEntries()

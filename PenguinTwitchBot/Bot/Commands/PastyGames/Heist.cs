@@ -191,14 +191,21 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 
         private async void JoinTimerCallback(object? state)
         {
-            if (state == null)
+            try
             {
-                logger.LogError("State was null, state should never be null!");
-                return;
-            }
+                if (state == null)
+                {
+                    logger.LogError("State was null, state should never be null!");
+                    return;
+                }
 
-            var heist = (Heist)state;
-            await heist.RunStory();
+                var heist = (Heist)state;
+                await heist.RunStory();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error in Heist JoinTimerCallback");
+            }
         }
 
         private async Task RunStory()
