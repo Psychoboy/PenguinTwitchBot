@@ -51,9 +51,16 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
 
         private async void TimerCallBack(object? state)
         {
-            if (state == null) return;
-            var modSpam = (ModSpam)state;
-            await modSpam.UpdateOrStopSpam();
+            try
+            {
+                if (state == null) return;
+                var modSpam = (ModSpam)state;
+                await modSpam.UpdateOrStopSpam();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error during ModSpam timer callback");
+            }
         }
 
         private async Task UpdateOrStopSpam()

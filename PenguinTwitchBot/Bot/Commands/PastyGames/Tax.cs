@@ -52,8 +52,16 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 
         private async void Elapsed(object? sender, ElapsedEventArgs e)
         {
-            if (ServiceBackbone.IsOnline || !await _processing.WaitAsync(0))
+            try
             {
+                if (ServiceBackbone.IsOnline || !await _processing.WaitAsync(0))
+                {
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error acquiring tax timer lock");
                 return;
             }
 

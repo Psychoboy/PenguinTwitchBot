@@ -41,7 +41,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         private async void HealthStatusTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            await ValidateAndRefreshToken();
+            try
+            {
+                await ValidateAndRefreshToken();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error during TwitchChatBot health status timer");
+            }
         }
 
         public async Task<SendChatMessageResult?> SendMessage(string message, bool sourceOnly = true)

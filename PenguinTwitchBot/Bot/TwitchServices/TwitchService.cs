@@ -168,8 +168,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            if(!await ValidateAndRefreshToken()) _logger.LogError("Failed to refresh token");
-    
+            try
+            {
+                if (!await ValidateAndRefreshToken()) _logger.LogError("Failed to refresh token");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during TwitchService token refresh timer");
+            }
         }
 
         public async Task<IEnumerable<Chatter>> GetCurrentChatters()

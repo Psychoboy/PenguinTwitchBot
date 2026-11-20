@@ -137,16 +137,23 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 
         private async void ElapseTimer(object? sender, ElapsedEventArgs e)
         {
-            // Prevent re-entrancy: skip this tick if the previous one is still running
-            if (!await _timerLock.WaitAsync(0)) return;
-
             try
             {
-                await RunTimers();
+                // Prevent re-entrancy: skip this tick if the previous one is still running
+                if (!await _timerLock.WaitAsync(0)) return;
+
+                try
+                {
+                    await RunTimers();
+                }
+                finally
+                {
+                    _timerLock.Release();
+                }
             }
-            finally
+            catch (Exception ex)
             {
-                _timerLock.Release();
+                _logger.LogError(ex, "Error in AutoTimers elapsed callback");
             }
         }
 

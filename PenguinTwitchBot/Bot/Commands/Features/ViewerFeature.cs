@@ -59,8 +59,15 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         private async void OnChatterUpdaterTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            await UpdateChatters();
-            CleanupStaleEntries();
+            try
+            {
+                await UpdateChatters();
+                CleanupStaleEntries();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in OnChatterUpdaterTimerElapsed");
+            }
         }
 
         private void CleanupStaleEntries()
@@ -118,8 +125,15 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         private async void OnSubscriberTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            await UpdateSubscribers();
-            await UpdateEditors();
+            try
+            {
+                await UpdateSubscribers();
+                await UpdateEditors();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in OnSubscriberTimerElapsed");
+            }
         }
 
 
