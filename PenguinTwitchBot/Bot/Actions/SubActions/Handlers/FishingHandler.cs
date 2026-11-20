@@ -311,12 +311,35 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 if (_overlayAckService != null && batchRevealId != Guid.Empty && await HasConnectedFishingOverlayAsync())
                 {
-                    await _overlayAckService.WaitForRevealAsync(batchRevealId, TimeSpan.FromSeconds(120));
+                    var maxWait = TimeSpan.FromSeconds(120);
+                    context?.BeginIntentionalDelay(maxWait);
+                    var waitSw = System.Diagnostics.Stopwatch.StartNew();
+                    try
+                    {
+                        await _overlayAckService.WaitForRevealAsync(batchRevealId, maxWait);
+                    }
+                    finally
+                    {
+                        waitSw.Stop();
+                        context?.AddCompletedIntentionalDelay(waitSw.Elapsed);
+                        context?.EndIntentionalDelay();
+                    }
                 }
                 else if (settings.EnableCastAnimation && _overlayAckService == null)
                 {
-                    var delayMs = Math.Clamp(settings.CastAnimationMs, 300, 5000);
-                    await Task.Delay(delayMs);
+                    var delay = TimeSpan.FromMilliseconds(Math.Clamp(settings.CastAnimationMs, 300, 5000));
+                    context?.BeginIntentionalDelay(delay);
+                    var waitSw = System.Diagnostics.Stopwatch.StartNew();
+                    try
+                    {
+                        await Task.Delay(delay);
+                    }
+                    finally
+                    {
+                        waitSw.Stop();
+                        context?.AddCompletedIntentionalDelay(waitSw.Elapsed);
+                        context?.EndIntentionalDelay();
+                    }
                 }
             }
             }
