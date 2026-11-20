@@ -29,6 +29,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private readonly object _cacheLock = new();
         private List<FishType>? _cachedFishTypes;
         private FishingSettings? _cachedSettings;
+        private long _fishTypesCacheGeneration;
+        private long _settingsCacheGeneration;
 
         public FishingService(
             IServiceScopeFactory scopeFactory,
@@ -48,6 +50,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             {
                 _cachedFishTypes = null;
                 _cachedSettings = null;
+                _fishTypesCacheGeneration++;
+                _settingsCacheGeneration++;
             }
         }
 
@@ -55,12 +59,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task<List<FishType>> GetAllFishTypes()
         {
+            long generation;
             lock (_cacheLock)
             {
                 if (_cachedFishTypes != null)
                 {
                     return _cachedFishTypes;
                 }
+                generation = _fishTypesCacheGeneration;
             }
 
             using var scope = _scopeFactory.CreateScope();
@@ -69,7 +75,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             lock (_cacheLock)
             {
-                _cachedFishTypes = list;
+                if (_fishTypesCacheGeneration == generation)
+                {
+                    _cachedFishTypes = list;
+                }
             }
             return list;
         }
@@ -448,6 +457,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Find(t => t.Id == id)
                 .AsSplitQuery()
                 .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
                 .Include(t => t.RewardRules)
@@ -562,6 +572,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Find(t => t.Id == id)
                 .AsSplitQuery()
                 .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
                 .Include(t => t.RewardRules)
@@ -697,11 +708,13 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             // Gold credits and the completion flip share this db/SaveChangesAsync so a failed save can't leave gold
             // credited against a tournament that a retry would settle again.
-            var rewardWinners = await SettleFishingTournamentRewards(db, tournament, DateTime.UtcNow);
+            var settlementEndUtc = DateTime.UtcNow;
+            var settlementCatches = await GetTournamentCatches(db, tournament, settlementEndUtc, useLinkedCatchesOnly: false);
+            var rewardWinners = await SettleFishingTournamentRewards(db, tournament, settlementCatches);
 
             tournament.Status = FishingTournamentStatus.Completed;
             tournament.Enabled = false;
-            tournament.EndsAtUtc = DateTime.UtcNow;
+            tournament.EndsAtUtc = settlementEndUtc;
 
             await db.SaveChangesAsync();
 
@@ -711,7 +724,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 FishingTournamentEndTriggerName,
                 rewardWinners);
 
-            await BroadcastTournamentEndedAsync(tournament, rewardWinners);
+            var podiumStandings = CalculateStandings(settlementCatches, tournament.PrimaryScoreCategory)
+                .Take(3)
+                .Select((standing, index) => new FishingTournamentStanding
+                {
+                    Rank = index + 1,
+                    UserId = standing.UserId,
+                    Username = standing.Username,
+                    Score = standing.Score,
+                    CatchCount = standing.CatchCount,
+                    LastCaughtAtUtc = standing.LastCaughtAtUtc
+                })
+                .ToList();
+            await BroadcastTournamentEndedAsync(tournament, rewardWinners, podiumStandings);
 
             var frenzyService = scope.ServiceProvider.GetService<IFishingFrenzyService>();
             if (frenzyService != null)
@@ -793,8 +818,16 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
             else if (rawTheme.Equals("AllFish", StringComparison.OrdinalIgnoreCase) || rawTheme.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
-                scoreCategory = request.ScoreCategoryOverride ?? FishingTournamentScoreCategory.Largest;
+                scoreCategory = request.ScoreCategoryOverride
+                    ?? randomScorePool[System.Security.Cryptography.RandomNumberGenerator.GetInt32(randomScorePool.Length)];
                 titlePrefix = $"All Fish {FormatScoreLabel(scoreCategory)} {eventTypeLabel}";
+            }
+            else if (dbCategories.FirstOrDefault(c => c.Equals(rawTheme, StringComparison.OrdinalIgnoreCase)) is string matchedDbCategory)
+            {
+                eligibleCategory = matchedDbCategory;
+                scoreCategory = request.ScoreCategoryOverride
+                    ?? randomScorePool[System.Security.Cryptography.RandomNumberGenerator.GetInt32(randomScorePool.Length)];
+                titlePrefix = $"{matchedDbCategory} {FormatScoreLabel(scoreCategory)} {eventTypeLabel}";
             }
             else if (rawTheme.Equals("Smallest", StringComparison.OrdinalIgnoreCase))
             {
@@ -818,11 +851,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
             else
             {
-                // Treat any other value as a dynamic fish category name from the streamer's DB
-                var matchedCategory = dbCategories.FirstOrDefault(c => c.Equals(rawTheme, StringComparison.OrdinalIgnoreCase)) ?? rawTheme;
-                eligibleCategory = matchedCategory;
-                scoreCategory = request.ScoreCategoryOverride ?? FishingTournamentScoreCategory.Largest;
-                titlePrefix = $"{matchedCategory} {FormatScoreLabel(scoreCategory)} {eventTypeLabel}";
+                // Treat any other value as a dynamic fish category name
+                eligibleCategory = rawTheme;
+                scoreCategory = request.ScoreCategoryOverride
+                    ?? randomScorePool[System.Security.Cryptography.RandomNumberGenerator.GetInt32(randomScorePool.Length)];
+                titlePrefix = $"{rawTheme} {FormatScoreLabel(scoreCategory)} {eventTypeLabel}";
             }
 
             var settings = await GetSettings();
@@ -870,7 +903,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             db.FishingTournaments.Add(tournament);
             await db.SaveChangesAsync();
 
-            var started = await StartFishingTournament(tournament.Id) ?? tournament;
+            var started = await StartFishingTournament(tournament.Id);
+            if (started == null || started.Status != FishingTournamentStatus.Active)
+            {
+                throw new InvalidOperationException("Failed to activate quick tournament.");
+            }
             await BroadcastTournamentUpdateAsync();
             return started;
         }
@@ -881,11 +918,13 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var allFish = await GetAllFishTypes();
-            var totalEnabledSpecies = allFish.Count(f => f.Enabled);
+            var enabledFishIds = allFish.Where(f => f.Enabled).Select(f => f.Id).ToHashSet();
+            var totalEnabledSpecies = enabledFishIds.Count;
 
             var userCatches = db.FishCatches.Find(c => c.UserId == userId);
             var totalCatches = await userCatches.CountAsync();
-            var caughtSpeciesCount = await userCatches.Select(c => c.FishTypeId).Distinct().CountAsync();
+            var caughtSpeciesIds = await userCatches.Select(c => c.FishTypeId).Distinct().ToListAsync();
+            var caughtSpeciesCount = caughtSpeciesIds.Count(id => enabledFishIds.Contains(id));
 
             var bestCatch = await userCatches
                 .Include(c => c.FishType)
@@ -921,12 +960,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
         }
 
-        private async Task BroadcastTournamentEndedAsync(FishingTournament tournament, List<TournamentRewardWinner> rewardWinners)
+        private async Task BroadcastTournamentEndedAsync(
+            FishingTournament tournament,
+            List<TournamentRewardWinner> rewardWinners,
+            List<FishingTournamentStanding> standings)
         {
             if (_webSocketMessenger == null) return;
             try
             {
-                var standings = await GetFishingTournamentStandings(tournament.Id, 3);
                 var settings = await GetSettings();
                 var soundUrl = string.IsNullOrWhiteSpace(settings?.FrenzySoundPath)
                     ? FishingAudioResolver.DefaultFrenzySoundUrl
@@ -984,18 +1025,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
         }
 
-        private async Task<List<TournamentRewardWinner>> SettleFishingTournamentRewards(IUnitOfWork db, FishingTournament tournament, DateTime settlementEndUtc)
+        private async Task<List<TournamentRewardWinner>> SettleFishingTournamentRewards(
+            IUnitOfWork db,
+            FishingTournament tournament,
+            List<TournamentCatchEntry> catches)
         {
             var winners = new List<TournamentRewardWinner>();
 
-            if (tournament.RewardRules.Count == 0)
-            {
-                return winners;
-            }
-
-            var catches = await GetTournamentCatches(db, tournament, settlementEndUtc, useLinkedCatchesOnly: false);
-
-            if (catches.Count == 0)
+            if (tournament.RewardRules.Count == 0 || catches.Count == 0)
             {
                 return winners;
             }
@@ -1006,7 +1043,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     .Take(rewardRule.Placement)
                     .ToList();
 
-                var winner = standings.LastOrDefault();
+                var winner = standings.Count == rewardRule.Placement ? standings[^1] : null;
                 if (winner == null)
                 {
                     continue;
@@ -1403,12 +1440,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task<FishingSettings?> GetSettings()
         {
+            long generation;
             lock (_cacheLock)
             {
                 if (_cachedSettings != null)
                 {
-                    return _cachedSettings;
+                    return _cachedSettings.Clone();
                 }
+                generation = _settingsCacheGeneration;
             }
 
             using var scope = _scopeFactory.CreateScope();
@@ -1427,9 +1466,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             lock (_cacheLock)
             {
-                _cachedSettings = settings;
+                if (_settingsCacheGeneration == generation)
+                {
+                    _cachedSettings = settings;
+                }
             }
-            return settings;
+            return settings.Clone();
         }
 
         public async Task UpdateSettings(FishingSettings settings)
@@ -1498,6 +1540,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (updateCount > 0)
             {
                 await db.SaveChangesAsync();
+                InvalidateCache();
             }
 
             return updateCount;

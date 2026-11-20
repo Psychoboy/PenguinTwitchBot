@@ -12,8 +12,8 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
         IServiceBackbone? serviceBackbone = null,
         IFishingMessageSettingsService? messageSettingsService = null) : BackgroundService
     {
-        private readonly ConcurrentDictionary<Guid, bool> _twoMinuteAnnounced = new();
-        private readonly ConcurrentDictionary<Guid, bool> _thirtySecondAnnounced = new();
+        private readonly ConcurrentDictionary<(Guid TournamentId, DateTime EndsAtUtc), bool> _twoMinuteAnnounced = new();
+        private readonly ConcurrentDictionary<(Guid TournamentId, DateTime EndsAtUtc), bool> _thirtySecondAnnounced = new();
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -82,8 +82,10 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
                         }
 
                         await fishingService.EndFishingTournament(tournamentId);
-                        _twoMinuteAnnounced.TryRemove(tournamentId, out _);
-                        _thirtySecondAnnounced.TryRemove(tournamentId, out _);
+                        foreach (var key in _twoMinuteAnnounced.Keys.Where(k => k.TournamentId == tournamentId))
+                            _twoMinuteAnnounced.TryRemove(key, out _);
+                        foreach (var key in _thirtySecondAnnounced.Keys.Where(k => k.TournamentId == tournamentId))
+                            _thirtySecondAnnounced.TryRemove(key, out _);
                         logger.LogInformation("Automatically ended fishing tournament {TournamentId}", tournamentId);
                     }
                     catch (Exception ex)
@@ -111,15 +113,16 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
                         var msgs = messageSettingsService != null ? await messageSettingsService.GetAsync() : new FishingMessageSettings();
                         foreach (var t in activeShortTournaments)
                         {
+                            var runKey = (t.Id, t.EndsAtUtc!.Value);
                             var remainingSeconds = (t.EndsAtUtc!.Value - now).TotalSeconds;
-                            if (remainingSeconds <= 35 && remainingSeconds > 0 && _thirtySecondAnnounced.TryAdd(t.Id, true))
+                            if (remainingSeconds <= 35 && remainingSeconds > 0 && _thirtySecondAnnounced.TryAdd(runKey, true))
                             {
                                 var top = (await fishingService.GetFishingTournamentStandings(t.Id, 1)).FirstOrDefault();
                                 var leaderNote = top != null ? $" Current leader: {top.Username} ({top.Score:N2})!" : "";
                                 var msg = FishingMessageSettings.Format(msgs.TournamentThirtySecondWarning, ("tournament", t.Name), ("leaderNote", leaderNote));
                                 if (!string.IsNullOrWhiteSpace(msg)) await serviceBackbone.SendChatMessage(msg);
                             }
-                            else if (remainingSeconds <= 125 && remainingSeconds > 40 && _twoMinuteAnnounced.TryAdd(t.Id, true))
+                            else if (remainingSeconds <= 125 && remainingSeconds > 40 && _twoMinuteAnnounced.TryAdd(runKey, true))
                             {
                                 var top = (await fishingService.GetFishingTournamentStandings(t.Id, 1)).FirstOrDefault();
                                 var leaderNote = top != null ? $" Current leader: {top.Username} ({top.Score:N2})!" : "";

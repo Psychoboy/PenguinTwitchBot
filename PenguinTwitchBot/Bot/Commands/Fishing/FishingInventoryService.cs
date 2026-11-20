@@ -275,6 +275,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             var result = new FishingLoadoutApplyResult { LoadoutName = loadout.Name };
             var usedBoostIds = new HashSet<Guid>();
+            var occupiedSlots = new HashSet<EquipmentSlot>();
 
             foreach (var entry in entries)
             {
@@ -282,20 +283,26 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var candidate = allBoosts.FirstOrDefault(b =>
                     b.Id == entry.UserBoostId &&
                     !usedBoostIds.Contains(b.Id) &&
-                    IsUsableForEquip(b));
+                    IsUsableForEquip(b) &&
+                    b.ShopItem?.EquipmentSlot.HasValue == true &&
+                    !occupiedSlots.Contains(b.ShopItem.EquipmentSlot.Value));
 
                 candidate ??= allBoosts
-                    .Where(b => b.ShopItemId == entry.ShopItemId && !usedBoostIds.Contains(b.Id) && IsUsableForEquip(b))
+                    .Where(b => b.ShopItemId == entry.ShopItemId &&
+                        !usedBoostIds.Contains(b.Id) &&
+                        IsUsableForEquip(b) &&
+                        b.ShopItem?.EquipmentSlot.HasValue == true &&
+                        !occupiedSlots.Contains(b.ShopItem.EquipmentSlot.Value))
                     .OrderByDescending(b => b.RemainingUses)
                     .ThenByDescending(b => b.CurrentDurability ?? double.MaxValue)
                     .FirstOrDefault();
 
-                if (candidate != null)
+                if (candidate?.ShopItem?.EquipmentSlot is EquipmentSlot slot && occupiedSlots.Add(slot))
                 {
                     candidate.IsEquipped = true;
                     usedBoostIds.Add(candidate.Id);
                     result.EquippedCount++;
-                    result.EquippedItems.Add(candidate.ShopItem?.Name ?? entry.ItemName);
+                    result.EquippedItems.Add(candidate.ShopItem.Name ?? entry.ItemName);
                 }
                 else
                 {
@@ -367,6 +374,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task EquipItem(string userId, Guid userBoostId)
         {
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
@@ -397,6 +405,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task UnequipItem(string userId, Guid userBoostId)
         {
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 

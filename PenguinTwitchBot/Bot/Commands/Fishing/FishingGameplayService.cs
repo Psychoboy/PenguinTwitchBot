@@ -356,10 +356,17 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     var previousLeaderByTournament = new Dictionary<Guid, (string UserId, string Username)?>();
                     foreach (var tournament in eligibleTournaments)
                     {
-                        var prevTop = (await _fishingService.GetFishingTournamentStandings(tournament.Id, 1)).FirstOrDefault();
-                        previousLeaderByTournament[tournament.Id] = prevTop != null
-                            ? (prevTop.UserId, prevTop.Username)
-                            : null;
+                        try
+                        {
+                            var prevTop = (await _fishingService.GetFishingTournamentStandings(tournament.Id, 1)).FirstOrDefault();
+                            previousLeaderByTournament[tournament.Id] = prevTop != null
+                                ? (prevTop.UserId, prevTop.Username)
+                                : null;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to read prior tournament standings for {TournamentId}; continuing catch processing", tournament.Id);
+                        }
                     }
 
                     foreach (var tournament in eligibleTournaments)
@@ -381,28 +388,35 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
                     foreach (var tournament in eligibleTournaments)
                     {
-                        var newStandings = await _fishingService.GetFishingTournamentStandings(tournament.Id, 10);
-                        var playerStanding = newStandings.FirstOrDefault(s => s.UserId == userId);
-                        if (playerStanding == null) continue;
-
-                        var prevLeader = previousLeaderByTournament.GetValueOrDefault(tournament.Id);
-                        var tookLead = playerStanding.Rank == 1 &&
-                            (prevLeader == null || !string.Equals(prevLeader.Value.UserId, userId, StringComparison.OrdinalIgnoreCase));
-
-                        matchedTournaments.Add(new FishingTournamentCatchSummary
+                        try
                         {
-                            TournamentId = tournament.Id,
-                            TournamentName = tournament.Name,
-                            NewRank = playerStanding.Rank,
-                            IsLeader = playerStanding.Rank == 1,
-                            TookLead = tookLead,
-                            PreviousLeaderUsername = tookLead ? prevLeader?.Username : null,
-                            Score = playerStanding.Score
-                        });
+                            var newStandings = await _fishingService.GetFishingTournamentStandings(tournament.Id, 10);
+                            var playerStanding = newStandings.FirstOrDefault(s => s.UserId == userId);
+                            if (playerStanding == null) continue;
 
-                        if (tookLead)
+                            var prevLeader = previousLeaderByTournament.GetValueOrDefault(tournament.Id);
+                            var tookLead = playerStanding.Rank == 1 &&
+                                (prevLeader == null || !string.Equals(prevLeader.Value.UserId, userId, StringComparison.OrdinalIgnoreCase));
+
+                            matchedTournaments.Add(new FishingTournamentCatchSummary
+                            {
+                                TournamentId = tournament.Id,
+                                TournamentName = tournament.Name,
+                                NewRank = playerStanding.Rank,
+                                IsLeader = playerStanding.Rank == 1,
+                                TookLead = tookLead,
+                                PreviousLeaderUsername = tookLead ? prevLeader?.Username : null,
+                                Score = playerStanding.Score
+                            });
+
+                            if (tookLead)
+                            {
+                                await BroadcastTournamentLeadChangeAsync(tournament.Name, username, prevLeader?.Username, playerStanding.Score, settings);
+                            }
+                        }
+                        catch (Exception ex)
                         {
-                            await BroadcastTournamentLeadChangeAsync(tournament.Name, username, prevLeader?.Username, playerStanding.Score, settings);
+                            _logger.LogWarning(ex, "Failed to enrich post-catch standings for tournament {TournamentId}; continuing catch processing", tournament.Id);
                         }
                     }
 
@@ -504,7 +518,16 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return awarded;
             }
 
-            var pointTypes = (await _pointsSystem.GetPointTypes()).ToDictionary(p => p.Id, p => p.Name);
+            Dictionary<Guid, string> pointTypes;
+            try
+            {
+                pointTypes = (await _pointsSystem.GetPointTypes()).ToDictionary(p => p.Id, p => p.Name);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to look up point type names for built-in fishing catch rewards; falling back to generic names");
+                pointTypes = new Dictionary<Guid, string>();
+            }
 
             foreach (var (pointTypeId, amount) in totalsByPointType)
             {

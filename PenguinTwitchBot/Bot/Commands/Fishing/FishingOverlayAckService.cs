@@ -12,6 +12,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         /// <summary>Signals that the fishing overlay has revealed the catch for <paramref name="revealId"/>.</summary>
         bool NotifyRevealed(Guid revealId);
+
+        /// <summary>Removes an unawaited reveal registration so the pending table never leaks entries.</summary>
+        void Unregister(Guid revealId);
     }
 
     public class FishingOverlayAckService : IFishingOverlayAckService
@@ -54,6 +57,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return tcs.TrySetResult(true);
             }
             return false;
+        }
+
+        public void Unregister(Guid revealId)
+        {
+            if (revealId == Guid.Empty) return;
+            _pending.TryRemove(revealId, out _);
         }
     }
 }

@@ -11,7 +11,7 @@
 
 <MudContainer Class="pa-2" MaxWidth="MaxWidth.ExtraLarge">
     <MudStack Spacing="2">
-        <FishingNavBar ActiveTab="shop" OnDataChanged="RefreshShop" />
+        <FishingNavBar @ref="navBar" ActiveTab="shop" OnDataChanged="RefreshShop" />
 
         <MudText Typo="Typo.h4" Align="Align.Center">
             <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Medium" Class="mr-1" />
@@ -694,12 +694,18 @@
                 .ToDictionary(g => g.Key, g => g.First());
 
             ApplyFilters();
+            if (navBar != null)
+            {
+                await navBar.RefreshStatusAsync();
+            }
         }
         finally
         {
             isLoading = false;
         }
     }
+
+    private FishingNavBar? navBar;
 
     private async Task RefreshShop()
     {

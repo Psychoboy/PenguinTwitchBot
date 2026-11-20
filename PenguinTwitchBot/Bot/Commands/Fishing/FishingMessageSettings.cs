@@ -66,6 +66,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             return result.Trim();
         }
+
+        public FishingMessageSettings Clone() => (FishingMessageSettings)MemberwiseClone();
     }
 
     public interface IFishingMessageSettingsService
@@ -82,12 +84,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         private readonly object _lock = new();
         private FishingMessageSettings? _cached;
+        private long _generation;
 
         public async Task<FishingMessageSettings> GetAsync()
         {
+            long generation;
             lock (_lock)
             {
-                if (_cached != null) return _cached;
+                if (_cached != null) return _cached.Clone();
+                generation = _generation;
             }
 
             var raw = await gameSettingsService.GetStringSetting(GameName, SettingKey, string.Empty);
@@ -110,18 +115,23 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             lock (_lock)
             {
-                _cached = parsed;
+                if (_generation == generation)
+                {
+                    _cached = parsed;
+                }
+                return (_cached ?? parsed).Clone();
             }
-            return parsed;
         }
 
         public async Task SaveAsync(FishingMessageSettings settings)
         {
-            var json = JsonSerializer.Serialize(settings, JsonOptions);
+            var copy = settings.Clone();
+            var json = JsonSerializer.Serialize(copy, JsonOptions);
             await gameSettingsService.SaveSetting(GameName, SettingKey, json);
             lock (_lock)
             {
-                _cached = settings;
+                _generation++;
+                _cached = copy;
             }
         }
     }

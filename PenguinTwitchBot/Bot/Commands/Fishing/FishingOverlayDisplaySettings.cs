@@ -53,6 +53,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             TournamentReminderDurationSeconds = Math.Clamp(TournamentReminderDurationSeconds, 5, 60);
             AutoAlwaysThresholdMinutes = Math.Clamp(AutoAlwaysThresholdMinutes, 1, 120);
         }
+
+        public FishingOverlayDisplaySettings Clone() => (FishingOverlayDisplaySettings)MemberwiseClone();
     }
 
     public interface IFishingOverlayDisplaySettingsService
@@ -75,12 +77,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         private readonly object _lock = new();
         private FishingOverlayDisplaySettings? _cached;
+        private long _generation;
 
         public async Task<FishingOverlayDisplaySettings> GetAsync()
         {
+            long generation;
             lock (_lock)
             {
-                if (_cached != null) return _cached;
+                if (_cached != null) return _cached.Clone();
+                generation = _generation;
             }
 
             var raw = await gameSettingsService.GetStringSetting(GameName, SettingKey, string.Empty);
@@ -105,24 +110,29 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             parsed.Normalize();
             lock (_lock)
             {
-                _cached = parsed;
+                if (_generation == generation)
+                {
+                    _cached = parsed;
+                }
+                return (_cached ?? parsed).Clone();
             }
-            return parsed;
         }
 
         public async Task SaveAsync(FishingOverlayDisplaySettings settings)
         {
-            settings.Normalize();
-            var json = JsonSerializer.Serialize(settings, JsonOptions);
+            var copy = settings.Clone();
+            copy.Normalize();
+            var json = JsonSerializer.Serialize(copy, JsonOptions);
             await gameSettingsService.SaveSetting(GameName, SettingKey, json);
             lock (_lock)
             {
-                _cached = settings;
+                _generation++;
+                _cached = copy;
             }
 
             if (webSocketMessenger != null)
             {
-                var payload = JsonSerializer.Serialize(new { fishingOverlayConfig = settings }, JsonOptions);
+                var payload = JsonSerializer.Serialize(new { fishingOverlayConfig = copy }, JsonOptions);
                 await webSocketMessenger.AddToQueue(WsTopics.Fishing, payload);
             }
         }

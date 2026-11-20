@@ -249,5 +249,61 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.Equal(120, loaded.AutoAlwaysThresholdMinutes);
             await ws.Received(1).AddToQueue(WsTopics.Fishing, Arg.Is<string>(s => s.Contains("fishingOverlayConfig")));
         }
+
+        [Fact]
+        public async Task FrenzyService_DoesNotActivateForAlreadyEndedTournament()
+        {
+            var ws = Substitute.For<IWebSocketMessenger>();
+            var backbone = Substitute.For<IServiceBackbone>();
+            var fishingService = Substitute.For<IFishingService>();
+            fishingService.GetSettings().Returns(new FishingSettings());
+            var audio = Substitute.For<IFishingAudioResolver>();
+            audio.ResolveFrenzySoundUrl(Arg.Any<FishingSettings?>()).Returns("/media/fishing_frenzy.mp3");
+            var logger = Substitute.For<ILogger<FishingFrenzyService>>();
+
+            using var svc = new FishingFrenzyService(ws, backbone, fishingService, audio, logger);
+
+            var endedTournamentId = Guid.CreateVersion7();
+            Assert.False(await svc.StopFrenzyForTournamentAsync(endedTournamentId));
+
+            var state = await svc.StartFrenzyAsync("Late Blitz Frenzy", 10, 1.75, null, 0.0, announceInChat: true, linkedTournamentId: endedTournamentId);
+            Assert.False(state.IsActiveAt(DateTime.UtcNow));
+            Assert.Null(svc.GetActiveFrenzy());
+            await ws.DidNotReceive().AddToQueue(WsTopics.Fishing, Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task FrenzyService_GetSettingsFailure_PreservesPreviousFrenzy()
+        {
+            var ws = Substitute.For<IWebSocketMessenger>();
+            var backbone = Substitute.For<IServiceBackbone>();
+            var fishingService = Substitute.For<IFishingService>();
+            fishingService.GetSettings().Returns(
+                _ => Task.FromResult<FishingSettings?>(new FishingSettings()),
+                _ => Task.FromException<FishingSettings?>(new InvalidOperationException("DB unavailable")));
+            var audio = Substitute.For<IFishingAudioResolver>();
+            audio.ResolveFrenzySoundUrl(Arg.Any<FishingSettings?>()).Returns("/media/fishing_frenzy.mp3");
+            var logger = Substitute.For<ILogger<FishingFrenzyService>>();
+
+            using var svc = new FishingFrenzyService(ws, backbone, fishingService, audio, logger);
+
+            await svc.StartFrenzyAsync("Initial Frenzy", 10, 2.0, null, 0.0, announceInChat: false);
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                svc.StartFrenzyAsync("Failing Frenzy", 10, 3.0, null, 0.0, announceInChat: false));
+
+            Assert.Equal("Initial Frenzy", svc.GetActiveFrenzy()?.Name);
+        }
+
+        [Fact]
+        public void FishingSettings_Clone_ReturnsDetachedCopy()
+        {
+            var original = new FishingSettings { DisplayDurationMs = 5000, BoostMode = false, CastAnimationMs = 1600 };
+            var copy = original.Clone();
+            copy.DisplayDurationMs = 9999;
+            copy.BoostMode = true;
+
+            Assert.Equal(5000, original.DisplayDurationMs);
+            Assert.False(original.BoostMode);
+        }
     }
 }

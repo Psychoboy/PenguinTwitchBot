@@ -12,7 +12,7 @@
 
 <MudContainer Class="pa-2" MaxWidth="MaxWidth.ExtraLarge">
     <MudStack Spacing="2">
-        <FishingNavBar ActiveTab="inventory" OnDataChanged="RefreshInventory" />
+        <FishingNavBar @ref="navBar" ActiveTab="inventory" OnDataChanged="RefreshInventory" />
 
         <MudText Typo="Typo.h4" Align="Align.Center">
             <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Medium" Class="mr-1" />
@@ -812,6 +812,10 @@
 
             // Invalidate cached filter results
             cachedFilteredItems = null;
+            if (navBar != null)
+            {
+                await navBar.RefreshStatusAsync();
+            }
         }
         finally
         {
@@ -883,6 +887,8 @@
             Snackbar.Add($"Failed to delete loadout: {ex.Message}", Severity.Error);
         }
     }
+
+    private FishingNavBar? navBar;
 
     private async Task RefreshInventory()
     {

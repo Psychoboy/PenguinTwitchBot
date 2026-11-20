@@ -223,41 +223,74 @@
     private async Task LaunchQuickTournamentAsync()
     {
         isLaunching = true;
+        var reqTheme = selectedTheme;
+        var reqDuration = durationMinutes;
+        var reqCustomName = string.IsNullOrWhiteSpace(customName) ? null : customName.Trim();
+        var reqRewards = payoutTemplate.ToList();
+        var reqScore = selectedScoreCategory;
+        var reqPairWithFrenzy = pairWithFrenzy;
+        var reqFrenzyMultiplier = frenzyMultiplier;
+
         try
         {
             var tournament = await FishingService.StartQuickTournamentAsync(new QuickTournamentRequest(
-                Theme: selectedTheme,
-                DurationMinutes: durationMinutes,
-                CustomName: string.IsNullOrWhiteSpace(customName) ? null : customName.Trim(),
-                RewardOverrides: payoutTemplate,
-                ScoreCategoryOverride: selectedScoreCategory));
+                Theme: reqTheme,
+                DurationMinutes: reqDuration,
+                CustomName: reqCustomName,
+                RewardOverrides: reqRewards,
+                ScoreCategoryOverride: reqScore));
 
-            if (pairWithFrenzy)
+            var actualDuration = tournament.RunDurationMinutes;
+            var followUpWarning = (string?)null;
+
+            if (reqPairWithFrenzy)
             {
-                var targetCat = tournament.EligibleCategories.FirstOrDefault()?.Category;
-                await FrenzyService.StartFrenzyAsync(
-                    $"{tournament.Name} Frenzy",
-                    durationMinutes,
-                    frenzyMultiplier,
-                    targetCat,
-                    string.IsNullOrWhiteSpace(targetCat) ? 0.0 : 0.45,
-                    announceInChat: false,
-                    linkedTournamentId: tournament.Id);
+                try
+                {
+                    var targetCat = tournament.EligibleCategories.FirstOrDefault()?.Category;
+                    await FrenzyService.StartFrenzyAsync(
+                        $"{tournament.Name} Frenzy",
+                        actualDuration,
+                        reqFrenzyMultiplier,
+                        targetCat,
+                        string.IsNullOrWhiteSpace(targetCat) ? 0.0 : 0.45,
+                        announceInChat: false,
+                        linkedTournamentId: tournament.Id);
+                }
+                catch (Exception ex)
+                {
+                    followUpWarning = $"Tournament launched, but paired Frenzy failed: {ex.Message}";
+                }
             }
 
-            var msgs = await MessageSettingsService.GetAsync();
-            var frenzyNote = pairWithFrenzy ? $" 🔥 {frenzyMultiplier:0.##}x Frenzy ACTIVE!" : "";
-            var announceMsg = FishingMessageSettings.Format(msgs.QuickTournamentStart,
-                ("name", tournament.Name),
-                ("minutes", durationMinutes.ToString()),
-                ("category", FishingFormatHelper.FormatScoreCategory(tournament.PrimaryScoreCategory)),
-                ("frenzyNote", frenzyNote));
-            if (!string.IsNullOrWhiteSpace(announceMsg))
+            try
             {
-                await ServiceBackbone.SendChatMessage(announceMsg);
+                var msgs = await MessageSettingsService.GetAsync();
+                var frenzyNote = reqPairWithFrenzy ? $" 🔥 {reqFrenzyMultiplier:0.##}x Frenzy ACTIVE!" : "";
+                var announceMsg = FishingMessageSettings.Format(msgs.QuickTournamentStart,
+                    ("name", tournament.Name),
+                    ("minutes", actualDuration.ToString()),
+                    ("category", FishingFormatHelper.FormatScoreCategory(tournament.PrimaryScoreCategory)),
+                    ("frenzyNote", frenzyNote));
+                if (!string.IsNullOrWhiteSpace(announceMsg))
+                {
+                    await ServiceBackbone.SendChatMessage(announceMsg);
+                }
+            }
+            catch (Exception ex)
+            {
+                followUpWarning ??= $"Tournament launched, but chat announcement failed: {ex.Message}";
             }
 
-            Snackbar.Add($"Launched '{tournament.Name}'!", Severity.Success);
+            if (followUpWarning != null)
+            {
+                Snackbar.Add(followUpWarning, Severity.Warning);
+            }
+            else
+            {
+                Snackbar.Add($"Launched '{tournament.Name}'!", Severity.Success);
+            }
+
             if (OnTournamentLaunched.HasDelegate)
             {
                 await OnTournamentLaunched.InvokeAsync();

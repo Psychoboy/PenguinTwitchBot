@@ -6,7 +6,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 {
     public class FishingFrenzyService : IFishingFrenzyService, IDisposable
     {
+        private const int MaxTrackedEndedTournaments = 256;
+
         private readonly object _lock = new();
+        private readonly SemaphoreSlim _transitionLock = new(1, 1);
+        private readonly HashSet<Guid> _endedTournamentIds = new();
+        private readonly Queue<Guid> _endedTournamentOrder = new();
         private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly IServiceBackbone _serviceBackbone;
         private readonly IFishingService _fishingService;
@@ -16,6 +21,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         private FishingFrenzyState? _activeState;
         private CancellationTokenSource? _expiryCts;
+        private bool _disposed;
 
         public FishingFrenzyService(
             IWebSocketMessenger webSocketMessenger,
@@ -39,7 +45,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             {
                 if (_activeState != null && !_activeState.IsActiveAt(DateTime.UtcNow))
                 {
-                    _activeState = null;
+                    // Return null without clearing _activeState so the expiry timer can complete
+                    // its identity check and send the inactive broadcast / end announcement.
+                    return null;
                 }
                 return _activeState;
             }
@@ -54,146 +62,229 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             bool announceInChat = true,
             Guid? linkedTournamentId = null)
         {
+            if (!double.IsFinite(rarityMultiplier))
+            {
+                throw new ArgumentOutOfRangeException(nameof(rarityMultiplier), "Rarity multiplier must be a finite number.");
+            }
+            if (!double.IsFinite(categoryBoost))
+            {
+                throw new ArgumentOutOfRangeException(nameof(categoryBoost), "Category boost must be a finite number.");
+            }
+
             var safeName = string.IsNullOrWhiteSpace(name) ? "Fishing Frenzy" : name.Trim();
-            var safeMinutes = Math.Clamp(durationMinutes, 1, 180);
+            var safeMinutes = Math.Clamp(durationMinutes, 1, 240);
             var safeMult = Math.Clamp(rarityMultiplier, 1.0, 10.0);
             var safeCategory = string.IsNullOrWhiteSpace(targetCategory) ? null : targetCategory.Trim();
             var safeCatBoost = safeCategory == null ? 0.0 : Math.Clamp(categoryBoost, 0.0, 0.85);
 
-            var now = DateTime.UtcNow;
-            var state = new FishingFrenzyState
-            {
-                Name = safeName,
-                RarityMultiplier = safeMult,
-                TargetCategory = safeCategory,
-                CategoryBoost = safeCatBoost,
-                StartedAtUtc = now,
-                EndsAtUtc = now.AddMinutes(safeMinutes),
-                LinkedTournamentId = linkedTournamentId
-            };
-
-            CancellationTokenSource cts;
-            lock (_lock)
-            {
-                _expiryCts?.Cancel();
-                _expiryCts?.Dispose();
-                _expiryCts = new CancellationTokenSource();
-                cts = _expiryCts;
-                _activeState = state;
-            }
-
-            _ = ScheduleAutoExpiryAsync(state, announceInChat, cts.Token);
-
+            // Load settings & audio before mutating active state so failures leave any previous Frenzy untouched.
             var settings = await _fishingService.GetSettings();
             var soundUrl = _audioResolver.ResolveFrenzySoundUrl(settings);
 
-            await BroadcastFrenzyStateAsync(state, settings?.SoundEnabled ?? true, settings?.SoundVolume ?? 0.8, soundUrl);
-
-            if (announceInChat)
+            await _transitionLock.WaitAsync();
+            try
             {
-                var bonusText = BuildBonusSummary(state);
-                try
+                if (_disposed)
                 {
-                    var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
-                    var formatted = FishingMessageSettings.Format(msgs.FrenzyStart,
-                        ("name", state.Name),
-                        ("minutes", safeMinutes.ToString()),
-                        ("bonus", bonusText),
-                        ("multiplier", $"{state.RarityMultiplier:0.##}x"),
-                        ("category", state.TargetCategory ?? "All Fish"));
-                    if (!string.IsNullOrWhiteSpace(formatted))
+                    return new FishingFrenzyState
                     {
-                        await _serviceBackbone.SendChatMessage(formatted);
+                        Name = safeName,
+                        RarityMultiplier = safeMult,
+                        TargetCategory = safeCategory,
+                        CategoryBoost = safeCatBoost,
+                        StartedAtUtc = DateTime.UtcNow,
+                        EndsAtUtc = DateTime.UtcNow,
+                        LinkedTournamentId = linkedTournamentId
+                    };
+                }
+
+                // If the paired tournament already ended or was deleted while launch was in flight, do not activate.
+                if (linkedTournamentId.HasValue && _endedTournamentIds.Contains(linkedTournamentId.Value))
+                {
+                    _logger.LogInformation("Skipping paired Frenzy '{Name}' because tournament {TournamentId} already ended",
+                        safeName, linkedTournamentId.Value);
+                    var expiredNow = DateTime.UtcNow;
+                    return new FishingFrenzyState
+                    {
+                        Name = safeName,
+                        RarityMultiplier = safeMult,
+                        TargetCategory = safeCategory,
+                        CategoryBoost = safeCatBoost,
+                        StartedAtUtc = expiredNow,
+                        EndsAtUtc = expiredNow,
+                        LinkedTournamentId = linkedTournamentId
+                    };
+                }
+
+                var now = DateTime.UtcNow;
+                var state = new FishingFrenzyState
+                {
+                    Name = safeName,
+                    RarityMultiplier = safeMult,
+                    TargetCategory = safeCategory,
+                    CategoryBoost = safeCatBoost,
+                    StartedAtUtc = now,
+                    EndsAtUtc = now.AddMinutes(safeMinutes),
+                    LinkedTournamentId = linkedTournamentId
+                };
+
+                CancellationToken expiryToken;
+                lock (_lock)
+                {
+                    _expiryCts?.Cancel();
+                    _expiryCts?.Dispose();
+                    _expiryCts = new CancellationTokenSource();
+                    expiryToken = _expiryCts.Token;
+                    _activeState = state;
+                }
+
+                _ = ScheduleAutoExpiryAsync(state, announceInChat, expiryToken);
+
+                await BroadcastFrenzyStateAsync(state, settings?.SoundEnabled ?? true, settings?.SoundVolume ?? 0.8, soundUrl);
+
+                if (announceInChat)
+                {
+                    var bonusText = BuildBonusSummary(state);
+                    try
+                    {
+                        var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
+                        var formatted = FishingMessageSettings.Format(msgs.FrenzyStart,
+                            ("name", state.Name),
+                            ("minutes", safeMinutes.ToString()),
+                            ("bonus", bonusText),
+                            ("multiplier", $"{state.RarityMultiplier:0.##}x"),
+                            ("category", state.TargetCategory ?? "All Fish"));
+                        if (!string.IsNullOrWhiteSpace(formatted))
+                        {
+                            await _serviceBackbone.SendChatMessage(formatted);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to send Fishing Frenzy start announcement to chat");
                     }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to send Fishing Frenzy start announcement to chat");
-                }
+
+                _logger.LogInformation("Started Fishing Frenzy '{Name}' for {Minutes}m ({Mult}x, category={Category})",
+                    state.Name, safeMinutes, safeMult, safeCategory ?? "All");
+
+                return state;
             }
-
-            _logger.LogInformation("Started Fishing Frenzy '{Name}' for {Minutes}m ({Mult}x, category={Category})",
-                state.Name, safeMinutes, safeMult, safeCategory ?? "All");
-
-            return state;
+            finally
+            {
+                _transitionLock.Release();
+            }
         }
 
         public async Task<bool> StopFrenzyAsync(bool announceInChat = true)
         {
-            FishingFrenzyState? previous;
-            lock (_lock)
+            await _transitionLock.WaitAsync();
+            try
             {
-                previous = _activeState;
-                _activeState = null;
-                _expiryCts?.Cancel();
-                _expiryCts?.Dispose();
-                _expiryCts = null;
-            }
-
-            if (previous == null)
-            {
-                return false;
-            }
-
-            await BroadcastFrenzyStateAsync(null, false, 0, null);
-
-            if (announceInChat)
-            {
-                try
+                FishingFrenzyState? previous;
+                lock (_lock)
                 {
-                    var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
-                    var formatted = FishingMessageSettings.Format(msgs.FrenzyEnd, ("name", previous.Name));
-                    if (!string.IsNullOrWhiteSpace(formatted))
-                    {
-                        await _serviceBackbone.SendChatMessage(formatted);
-                    }
+                    previous = _activeState;
+                    _activeState = null;
+                    _expiryCts?.Cancel();
+                    _expiryCts?.Dispose();
+                    _expiryCts = null;
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to send Fishing Frenzy end announcement to chat");
-                }
-            }
 
-            return true;
-        }
-
-        public async Task<bool> StopFrenzyForTournamentAsync(Guid tournamentId, bool announceInChat = false)
-        {
-            FishingFrenzyState? previous;
-            lock (_lock)
-            {
-                if (_activeState == null || _activeState.LinkedTournamentId != tournamentId)
+                if (previous == null)
                 {
                     return false;
                 }
 
-                previous = _activeState;
-                _activeState = null;
-                _expiryCts?.Cancel();
-                _expiryCts?.Dispose();
-                _expiryCts = null;
-            }
+                await BroadcastFrenzyStateAsync(null, false, 0, null);
 
-            await BroadcastFrenzyStateAsync(null, false, 0, null);
-
-            if (announceInChat)
-            {
-                try
+                if (announceInChat)
                 {
-                    var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
-                    var formatted = FishingMessageSettings.Format(msgs.FrenzyEnd, ("name", previous.Name));
-                    if (!string.IsNullOrWhiteSpace(formatted))
+                    try
                     {
-                        await _serviceBackbone.SendChatMessage(formatted);
+                        var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
+                        var formatted = FishingMessageSettings.Format(msgs.FrenzyEnd, ("name", previous.Name));
+                        if (!string.IsNullOrWhiteSpace(formatted))
+                        {
+                            await _serviceBackbone.SendChatMessage(formatted);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to send Fishing Frenzy end announcement to chat");
                     }
                 }
-                catch (Exception ex)
+
+                return true;
+            }
+            finally
+            {
+                _transitionLock.Release();
+            }
+        }
+
+        public async Task<bool> StopFrenzyForTournamentAsync(Guid tournamentId, bool announceInChat = false)
+        {
+            await _transitionLock.WaitAsync();
+            try
+            {
+                RecordEndedTournamentLocked(tournamentId);
+
+                FishingFrenzyState? previous;
+                lock (_lock)
                 {
-                    _logger.LogWarning(ex, "Failed to send Fishing Frenzy end announcement to chat");
+                    if (_activeState == null || _activeState.LinkedTournamentId != tournamentId)
+                    {
+                        return false;
+                    }
+
+                    previous = _activeState;
+                    _activeState = null;
+                    _expiryCts?.Cancel();
+                    _expiryCts?.Dispose();
+                    _expiryCts = null;
                 }
+
+                await BroadcastFrenzyStateAsync(null, false, 0, null);
+
+                if (announceInChat)
+                {
+                    try
+                    {
+                        var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
+                        var formatted = FishingMessageSettings.Format(msgs.FrenzyEnd, ("name", previous.Name));
+                        if (!string.IsNullOrWhiteSpace(formatted))
+                        {
+                            await _serviceBackbone.SendChatMessage(formatted);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to send Fishing Frenzy end announcement to chat");
+                    }
+                }
+
+                return true;
+            }
+            finally
+            {
+                _transitionLock.Release();
+            }
+        }
+
+        private void RecordEndedTournamentLocked(Guid tournamentId)
+        {
+            if (!_endedTournamentIds.Add(tournamentId))
+            {
+                return;
             }
 
-            return true;
+            _endedTournamentOrder.Enqueue(tournamentId);
+            while (_endedTournamentOrder.Count > MaxTrackedEndedTournaments)
+            {
+                var oldest = _endedTournamentOrder.Dequeue();
+                _endedTournamentIds.Remove(oldest);
+            }
         }
 
         private async Task ScheduleAutoExpiryAsync(FishingFrenzyState state, bool announceInChat, CancellationToken ct)
@@ -211,40 +302,52 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     return;
                 }
 
-                bool expiredCurrent;
-                lock (_lock)
+                await _transitionLock.WaitAsync(ct);
+                try
                 {
-                    expiredCurrent = ReferenceEquals(_activeState, state);
+                    bool expiredCurrent;
+                    lock (_lock)
+                    {
+                        expiredCurrent = ReferenceEquals(_activeState, state);
+                        if (expiredCurrent)
+                        {
+                            _activeState = null;
+                        }
+                    }
+
                     if (expiredCurrent)
                     {
-                        _activeState = null;
-                    }
-                }
-
-                if (expiredCurrent)
-                {
-                    await BroadcastFrenzyStateAsync(null, false, 0, null);
-                    if (announceInChat)
-                    {
-                        try
+                        await BroadcastFrenzyStateAsync(null, false, 0, null);
+                        if (announceInChat)
                         {
-                            var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
-                            var formatted = FishingMessageSettings.Format(msgs.FrenzyEnd, ("name", state.Name));
-                            if (!string.IsNullOrWhiteSpace(formatted))
+                            try
                             {
-                                await _serviceBackbone.SendChatMessage(formatted);
+                                var msgs = _messageSettingsService != null ? await _messageSettingsService.GetAsync() : new FishingMessageSettings();
+                                var formatted = FishingMessageSettings.Format(msgs.FrenzyEnd, ("name", state.Name));
+                                if (!string.IsNullOrWhiteSpace(formatted))
+                                {
+                                    await _serviceBackbone.SendChatMessage(formatted);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Failed to send Fishing Frenzy expiry announcement");
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Failed to send Fishing Frenzy expiry announcement");
-                        }
                     }
                 }
+                finally
+                {
+                    _transitionLock.Release();
+                }
             }
-            catch (TaskCanceledException)
+            catch (OperationCanceledException)
             {
                 // Replaced or stopped manually
+            }
+            catch (ObjectDisposedException)
+            {
+                // Service disposed during shutdown
             }
             catch (Exception ex)
             {
@@ -312,10 +415,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             lock (_lock)
             {
+                _disposed = true;
                 _expiryCts?.Cancel();
                 _expiryCts?.Dispose();
                 _expiryCts = null;
             }
+            _transitionLock.Dispose();
         }
     }
 }

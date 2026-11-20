@@ -93,7 +93,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 _overlayAckService!.Register(batchRevealId);
             }
 
-            for (int i = 0; i < attempts; i++)
+            try
+            {
+                for (int i = 0; i < attempts; i++)
             {
                 try
                 {
@@ -162,6 +164,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                         variables["fish_weight"] = "0";
                         variables["fish_gold"] = "0";
                         variables["fish_points_awarded"] = string.Empty;
+                        variables["fish_is_new_species"] = "false";
+                        variables["fish_is_pb"] = "false";
+                        variables["fish_is_server_record"] = "false";
                         summaryParts.Add(failText);
 
                         var accidentVariables = new ConcurrentDictionary<string, string>(variables);
@@ -311,6 +316,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 {
                     var delayMs = Math.Clamp(settings.CastAnimationMs, 300, 5000);
                     await Task.Delay(delayMs);
+                }
+            }
+            }
+            finally
+            {
+                if (shouldWaitForOverlay)
+                {
+                    _overlayAckService!.Unregister(batchRevealId);
                 }
             }
         }

@@ -251,8 +251,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 RemainingUses = 999
             }).ToList();
 
-            var rarityWeights = CalculateRarityWeights(fishTypes, useBoostMode, boostModeMultiplier, mockBoosts);
-            var totalWeight = rarityWeights.Values.Sum();
+            var fishProbs = BuildFishProbabilityMap(fishTypes, useBoostMode, boostModeMultiplier, mockBoosts);
 
             var result = new RarityProbability();
             var rarityOrder = new[]
@@ -270,8 +269,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 result.Probabilities[rarity] = 0.0;
             }
 
-            var presentRarities = rarityOrder.Where(rarityWeights.ContainsKey).ToList();
-            if (presentRarities.Count == 0 || totalWeight <= 0)
+            var totalsByRarity = fishProbs.Values
+                .GroupBy(fp => fp.Rarity)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.OverallChance));
+
+            var presentRarities = rarityOrder.Where(r => totalsByRarity.GetValueOrDefault(r) > 0).ToList();
+            if (presentRarities.Count == 0)
             {
                 return result;
             }
@@ -280,7 +283,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             for (int i = 0; i < presentRarities.Count; i++)
             {
                 var rarity = presentRarities[i];
-                var rawPercent = (rarityWeights[rarity] / totalWeight) * 100.0;
+                var rawPercent = totalsByRarity[rarity];
 
                 if (i == presentRarities.Count - 1)
                 {
@@ -1667,13 +1670,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (rarityBoost > 0)
             {
-                foreach (var rarity in rarityWeights.Keys.ToList())
-                {
-                    if (rarity != FishRarity.Common)
-                    {
-                        rarityWeights[rarity] *= (1.0 + rarityBoost);
-                    }
-                }
+                FishingRarityWeightProfiles.ApplyProgressiveGeneralRarityBoost(rarityWeights, rarityBoost);
             }
 
             var totalRarityWeight = rarityWeights.Values.Sum();
@@ -1774,34 +1771,34 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             profile.TwoStarPercent = Math.Round(starProbabilities.GetValueOrDefault(2, 0.0) * 100.0, 1);
             profile.ThreeStarPercent = Math.Round(starProbabilities.GetValueOrDefault(3, 0.0) * 100.0, 1);
 
-            var rarityWeights = FishingRarityWeightProfiles.CreateAvailableWeights(fishTypes);
-
-            if (useBoostMode)
+            var tempSettings = new FishingSettings
             {
-                FishingRarityWeightProfiles.ApplyGlobalRarityMultiplier(rarityWeights, boostModeMultiplier);
-            }
-
-            if (rarityBoost > 0)
+                BoostMode = useBoostMode,
+                BoostModeRarityMultiplier = boostModeMultiplier
+            };
+            var mockBoosts = (equippedItems ?? Enumerable.Empty<FishingShopItem>()).Select(item => new UserFishingBoost
             {
-                foreach (var rarity in rarityWeights.Keys.ToList())
-                {
-                    if (rarity != FishRarity.Common)
-                    {
-                        rarityWeights[rarity] *= (1.0 + rarityBoost);
-                    }
-                }
-            }
+                UserId = "calculation",
+                ShopItemId = item.Id,
+                ShopItem = item,
+                IsEquipped = true,
+                RemainingUses = 999
+            }).ToList();
 
-            var totalRarityWeight = rarityWeights.Values.Sum();
-            if (totalRarityWeight <= 0)
+            var overallFishProbs = ComputeExactOverallProbabilities(fishTypes, tempSettings, mockBoosts);
+            if (overallFishProbs.Values.Sum() <= 0)
             {
                 return profile;
             }
 
+            var probByRarity = fishTypes
+                .GroupBy(f => f.Rarity)
+                .ToDictionary(g => g.Key, g => g.Sum(f => overallFishProbs.GetValueOrDefault(f.Id, 0.0)));
+
             double rarePlus = 0.0;
-            foreach (var (rarity, weight) in rarityWeights)
+            foreach (var (rarity, prob) in probByRarity)
             {
-                var pct = Math.Round((weight / totalRarityWeight) * 100.0, 1);
+                var pct = Math.Round(prob * 100.0, 1);
                 profile.RarityPercentages[rarity] = pct;
                 if (rarity is FishRarity.Rare or FishRarity.Epic or FishRarity.Legendary or FishRarity.Mythical)
                 {
@@ -1817,24 +1814,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var avgRollWeightMultiplier = (0.8 + 1.13) / 2.0;
             var gearWeightMultiplier = 1.0 + weightBoost;
 
-            var mockBoosts = (equippedItems ?? Enumerable.Empty<FishingShopItem>()).Select(item => new UserFishingBoost
-            {
-                UserId = "calculation",
-                ShopItemId = item.Id,
-                ShopItem = item,
-                IsEquipped = true,
-                RemainingUses = 999
-            }).ToList();
-
-            double expectedBaseWeight = 0.0;
-            foreach (var (rarity, weight) in rarityWeights)
-            {
-                var fishOfRarity = fishTypes.Where(f => f.Rarity == rarity).ToList();
-                if (!fishOfRarity.Any()) continue;
-                var rarityProbability = weight / totalRarityWeight;
-                var rarityAvgBaseWeight = fishOfRarity.Sum(f => f.BaseWeight * CalculateWithinRarityChance(f, fishOfRarity, mockBoosts));
-                expectedBaseWeight += rarityProbability * rarityAvgBaseWeight;
-            }
+            double expectedBaseWeight = fishTypes.Sum(f => f.BaseWeight * overallFishProbs.GetValueOrDefault(f.Id, 0.0));
 
             profile.AverageWeight = Math.Round(expectedBaseWeight * avgRollWeightMultiplier * avgStarWeightMultiplier * gearWeightMultiplier, 2);
 
@@ -1978,18 +1958,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 })
                 .Where(x => x.Amount > 0)
                 .GroupBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
-                .Select(g => (Category: g.Key, Chance: Math.Clamp(g.Sum(x => x.Amount), 0.0, 0.85)))
-                .OrderByDescending(x => x.Chance)
+                .Select(g => (Category: g.Key, RawTotal: g.Sum(x => x.Amount)))
+                .OrderByDescending(x => x.RawTotal)
                 .ToList();
 
             var remainingProb = 1.0;
-            foreach (var (category, chance) in categoryBranches)
+            foreach (var (category, rawTotal) in categoryBranches)
             {
                 var matching = fishTypes
                     .Where(f => f.Categories.Any(c => c.Category.Equals(category, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
                 if (matching.Count == 0) continue;
 
+                var chance = Math.Clamp(rawTotal, 0.0, 0.85);
                 var branchProb = remainingProb * chance;
                 remainingProb -= branchProb;
                 AccumulatePoolProbabilities(result, matching, settings, boosts, branchProb);
@@ -2014,11 +1995,51 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var total = weights.Sum(w => w.Weight);
             if (total <= 0) return;
 
-            foreach (var (fish, weight) in weights)
+            var baseProbs = weights.Select(w => (w.Fish, Prob: w.Weight / total)).ToList();
+
+            // Account for consumable GeneralRarityBoost advantage roll matching FishingCalculations.SelectRandomFishWithDetails
+            var consumableRarityBoost = boosts
+                .Where(b => b.ShopItem?.MaxUses.HasValue == true)
+                .Sum(b =>
+                    (b.ShopItem!.BoostType == FishingBoostType.GeneralRarityBoost ? b.ShopItem.BoostAmount : 0) +
+                    (b.ShopItem.BoostType2 == FishingBoostType.GeneralRarityBoost ? b.ShopItem.BoostAmount2 ?? 0 : 0) +
+                    (b.ShopItem.BoostType3 == FishingBoostType.GeneralRarityBoost ? b.ShopItem.BoostAmount3 ?? 0 : 0));
+
+            var advantageChance = consumableRarityBoost >= 0.25 ? Math.Min(0.75, consumableRarityBoost) : 0.0;
+            if (advantageChance <= 0)
             {
+                foreach (var (fish, prob) in baseProbs)
+                {
+                    if (target.ContainsKey(fish.Id))
+                    {
+                        target[fish.Id] += branchWeight * prob;
+                    }
+                }
+                return;
+            }
+
+            for (int i = 0; i < baseProbs.Count; i++)
+            {
+                var (fish, p) = baseProbs[i];
+                double strictlyBetter = 0.0;
+                double strictlyWorse = 0.0;
+                for (int j = 0; j < baseProbs.Count; j++)
+                {
+                    var other = baseProbs[j].Fish;
+                    if (other.Rarity > fish.Rarity || (other.Rarity == fish.Rarity && other.BaseGold > fish.BaseGold))
+                    {
+                        strictlyBetter += baseProbs[j].Prob;
+                    }
+                    else if (fish.Rarity > other.Rarity || (fish.Rarity == other.Rarity && fish.BaseGold > other.BaseGold))
+                    {
+                        strictlyWorse += baseProbs[j].Prob;
+                    }
+                }
+
+                var finalProb = (1.0 - advantageChance) * p + advantageChance * p * (1.0 - strictlyBetter + strictlyWorse);
                 if (target.ContainsKey(fish.Id))
                 {
-                    target[fish.Id] += branchWeight * (weight / total);
+                    target[fish.Id] += branchWeight * finalProb;
                 }
             }
         }

@@ -53,5 +53,8 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         // Tournament chat hype settings
         public bool AnnounceTournamentLeadChanges { get; set; } = true;
         public bool AnnounceTournamentCountdown { get; set; } = true;
+
+        /// <summary>Returns a detached shallow copy so callers (e.g. admin editors) cannot mutate cached settings before saving.</summary>
+        public FishingSettings Clone() => (FishingSettings)MemberwiseClone();
     }
 }

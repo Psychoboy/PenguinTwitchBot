@@ -194,8 +194,8 @@ public sealed class FishingFrenzyRecipe : IActionRecipe
             throw new ArgumentException("Queue name is required.", nameof(context));
 
         var frenzyName = parameters.GetValueOrDefault("FrenzyName", "Golden Hour Frenzy").Trim();
-        var duration = int.TryParse(parameters.GetValueOrDefault("DurationMinutes", "10"), out var d) ? Math.Clamp(d, 1, 180) : 10;
-        var mult = double.TryParse(parameters.GetValueOrDefault("RarityMultiplier", "2.0"), out var m) ? Math.Clamp(m, 1.0, 10.0) : 2.0;
+        var duration = int.TryParse(parameters.GetValueOrDefault("DurationMinutes", "10"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var d) ? Math.Clamp(d, 1, 240) : 10;
+        var mult = double.TryParse(parameters.GetValueOrDefault("RarityMultiplier", "2.0"), System.Globalization.NumberStyles.AllowDecimalPoint | System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var m) && double.IsFinite(m) ? Math.Clamp(m, 1.0, 10.0) : 2.0;
         var targetCategory = parameters.GetValueOrDefault("TargetCategory", "").Trim();
 
         var triggers = new List<TriggerType>();

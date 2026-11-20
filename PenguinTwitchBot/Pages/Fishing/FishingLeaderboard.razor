@@ -15,7 +15,7 @@
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
     <MudStack Spacing="3">
-        <FishingNavBar ActiveTab="leaderboard" />
+        <FishingNavBar @ref="navBar" ActiveTab="leaderboard" />
 
         <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
             <MudIcon Icon="@Icons.Material.Filled.Leaderboard" Size="Size.Large" Class="mr-2" />
@@ -891,6 +891,7 @@
             }
         </MudStack>;
 
+    private FishingNavBar? navBar;
     private UserFishingDexSummary? myDexSummary;
 
     protected override async Task OnInitializedAsync()
@@ -1064,6 +1065,12 @@
             if (!string.IsNullOrEmpty(currentUserId))
             {
                 tasks.Add(LoadUserDex());
+                tasks.Add(Task.Run(async () => myDexSummary = await fishingService.GetUserDexSummaryAsync(currentUserId)));
+            }
+
+            if (navBar != null)
+            {
+                tasks.Add(navBar.RefreshStatusAsync());
             }
 
             await Task.WhenAll(tasks);

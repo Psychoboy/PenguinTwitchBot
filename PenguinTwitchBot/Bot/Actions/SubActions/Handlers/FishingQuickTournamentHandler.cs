@@ -22,14 +22,17 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var resolvedTheme = VariableReplacer.ReplaceVariables(quickAction.Theme, variables);
-            var resolvedScore = VariableReplacer.ReplaceVariables(quickAction.ScoreCategory, variables);
+            var resolvedScore = VariableReplacer.ReplaceVariables(quickAction.ScoreCategory, variables)?.Trim();
             var resolvedCustomName = string.IsNullOrWhiteSpace(quickAction.CustomName)
                 ? null
                 : VariableReplacer.ReplaceVariables(quickAction.CustomName, variables);
             Database.Bot.Models.Fishing.FishingTournamentScoreCategory? scoreOverride =
                 !string.IsNullOrWhiteSpace(resolvedScore) &&
                 !resolvedScore.Equals("Random", StringComparison.OrdinalIgnoreCase) &&
-                Enum.TryParse<Database.Bot.Models.Fishing.FishingTournamentScoreCategory>(resolvedScore, true, out var parsedScore)
+                !int.TryParse(resolvedScore, out _) &&
+                Enum.TryParse<Database.Bot.Models.Fishing.FishingTournamentScoreCategory>(resolvedScore, true, out var parsedScore) &&
+                Enum.IsDefined(parsedScore) &&
+                parsedScore != Database.Bot.Models.Fishing.FishingTournamentScoreCategory.SpecificFish
                     ? parsedScore
                     : null;
 

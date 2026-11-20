@@ -10,6 +10,7 @@
     let comboState = { username: '', totalGold: 0, catches: 0, batchTotal: 1 };
 
     // Active Frenzy state & visibility config
+    let frenzyStateVersion = 0;
     let frenzyStartedAtMs = 0;
     let frenzyEndsAtMs = 0;
     let frenzyTimerHandle = null;
@@ -240,11 +241,14 @@
     }
 
     async function loadInitialFrenzyState() {
+        const versionAtStart = frenzyStateVersion;
         try {
             const res = await fetch('/api/overlay/fishing-frenzy-state', { cache: 'no-store' });
-            if (res.ok) {
+            if (res.ok && frenzyStateVersion === versionAtStart) {
                 const data = await res.json();
-                if (data && data.active) updateFrenzyBanner(data);
+                if (frenzyStateVersion === versionAtStart && data && data.active) {
+                    updateFrenzyBanner(data);
+                }
             }
         } catch (_) {}
     }
@@ -818,6 +822,7 @@
                         enqueueFishingEvent(json.fishing);
                     }
                     if (json.fishingFrenzy !== undefined) {
+                        frenzyStateVersion++;
                         updateFrenzyBanner(json.fishingFrenzy);
                     }
                     if (json.fishingOverlayConfig !== undefined) {

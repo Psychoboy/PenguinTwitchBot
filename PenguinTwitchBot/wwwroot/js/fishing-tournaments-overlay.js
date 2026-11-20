@@ -7,6 +7,7 @@
     let cachedTournaments = [];
     let previousRanks = new Map();
     let knownTournamentIds = new Set();
+    let standingsRequestSeq = 0;
     let leadBannerTimeout = null;
     let podiumActiveUntil = 0;
     let podiumTimeout = null;
@@ -250,10 +251,13 @@
 
     async function loadStandings(triggerFlash = false) {
         if (Date.now() < podiumActiveUntil) return;
+        const requestSeq = ++standingsRequestSeq;
         try {
             const response = await fetch("/api/overlay/fishing-tournaments-standings?top=5", { cache: "no-store" });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const tournaments = await response.json();
+            if (requestSeq !== standingsRequestSeq || Date.now() < podiumActiveUntil) return;
+
             cachedTournaments = Array.isArray(tournaments) ? tournaments : [];
 
             if (cachedTournaments.length === 0) {
@@ -309,7 +313,9 @@
                         showLeadBanner(data.tournamentLeadChange);
                     }
                     if (data.tournamentUpdate || data.tournamentLeadChange || data.fishing) {
-                        loadStandings(true);
+                        const mode = (overlayConfig.tournamentOverlayMode || "Auto").toLowerCase();
+                        const shouldFlash = Boolean(data.tournamentUpdate || data.tournamentLeadChange) || mode !== "periodic";
+                        loadStandings(shouldFlash);
                     }
                 } catch (_) {}
             });
