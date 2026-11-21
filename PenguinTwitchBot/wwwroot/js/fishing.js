@@ -1,5 +1,7 @@
 (function () {
-    const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
+    const queryParams = new URLSearchParams(window.location.search);
+    const isDebug = queryParams.get('debug') === '1';
+    const overlayKey = (queryParams.get('key') || '').trim();
 
     let ws = null;
     let isProcessing = false;
@@ -712,12 +714,12 @@
         scheduleScaleContainer();
         alertEl.classList.add('show');
 
-        // Two-way ack back to the bot right as the fish splashes onto screen
-        if (revealId) {
+        // Two-way ack back to the bot right as the fish splashes onto screen (authenticated overlay only)
+        if (revealId && overlayKey) {
             fetch('/api/overlay/fishing-revealed', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ revealId })
+                body: JSON.stringify({ revealId, overlayKey })
             }).catch(() => {});
         }
 
@@ -799,6 +801,15 @@
 
     window.addEventListener('resize', scheduleScaleContainer);
 
+    function registerAuthenticatedOverlay() {
+        if (!overlayKey) return;
+        fetch('/api/overlay/fishing-register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ overlayKey })
+        }).catch(() => {});
+    }
+
     // --- WebSocket Connection ---
     function connectWS() {
         try {
@@ -806,6 +817,7 @@
             ws.addEventListener('open', () => {
                 logDebug('WebSocket connected');
                 wsStatusShow(true);
+                registerAuthenticatedOverlay();
             });
             ws.addEventListener('close', () => {
                 wsStatusShow(false);
@@ -838,5 +850,9 @@
     }
 
     loadOverlayConfig().then(() => loadInitialFrenzyState());
+    registerAuthenticatedOverlay();
+    if (overlayKey) {
+        setInterval(registerAuthenticatedOverlay, 45000);
+    }
     connectWS();
 })();

@@ -45,6 +45,41 @@ namespace PenguinTwitchBot.Helpers
             _ => category.ToString()
         };
 
+        /// <summary>
+        /// Formats numbers in natural spoken English for TTS (e.g., 1,000,000,000 -> "1 billion", 500,000,000 -> "500 million").
+        /// </summary>
+        public static string FormatSpokenNumber(long value)
+        {
+            var abs = Math.Abs((double)value);
+            var sign = value < 0 ? "minus " : "";
+
+            if (abs < 10_000)
+                return value.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+            if (abs < 1_000_000)
+                return $"{sign}{TrimZeros(abs / 1_000.0)} thousand";
+            if (abs < 1_000_000_000)
+                return $"{sign}{TrimZeros(abs / 1_000_000.0)} million";
+            if (abs < 1_000_000_000_000)
+                return $"{sign}{TrimZeros(abs / 1_000_000_000.0)} billion";
+            return $"{sign}{TrimZeros(abs / 1_000_000_000_000.0)} trillion";
+        }
+
+        public static string FormatSpokenList(IReadOnlyList<string> items) => items.Count switch
+        {
+            0 => string.Empty,
+            1 => items[0],
+            2 => $"{items[0]} and {items[1]}",
+            _ => $"{string.Join(", ", items.Take(items.Count - 1))}, and {items[^1]}"
+        };
+
+        public static string FormatSpokenOrdinal(int place) => place switch
+        {
+            1 => "First place",
+            2 => "Second place",
+            3 => "Third place",
+            _ => $"Place {place}"
+        };
+
         private static string TrimZeros(double scaled)
         {
             if (scaled >= 100)

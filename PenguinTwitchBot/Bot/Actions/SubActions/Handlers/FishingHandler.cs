@@ -87,20 +87,23 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             var summaryParts = new List<string>();
             var aggregatePoints = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
-            var shouldWaitForOverlay = fishingAction.WaitForReveal && _overlayAckService != null;
-            var batchRevealId = shouldWaitForOverlay ? Guid.CreateVersion7() : Guid.Empty;
-            if (shouldWaitForOverlay)
-            {
-                _overlayAckService!.Register(batchRevealId);
-            }
+            var hasRegisteredOverlay = _overlayAckService != null
+                && _overlayAckService.HasActiveRegisteredOverlay()
+                && await HasConnectedFishingOverlayAsync();
 
-            try
+            for (int i = 0; i < attempts; i++)
             {
-                for (int i = 0; i < attempts; i++)
-            {
+                var attemptRevealId = hasRegisteredOverlay ? Guid.CreateVersion7() : Guid.Empty;
+                if (attemptRevealId != Guid.Empty)
+                {
+                    _overlayAckService!.Register(attemptRevealId);
+                }
+
                 try
                 {
-                    var attemptResult = await _fishingGameplayService.PerformFishingAttempt(userId, username);
+                    var attemptResult = hasRegisteredOverlay
+                        ? await _fishingGameplayService.PerformFishingAttempt(userId, username, deferRewards: true)
+                        : await _fishingGameplayService.PerformFishingAttempt(userId, username);
 
                     if (attemptResult.Outcome != FishingAttemptOutcome.CaughtFish)
                     {
@@ -142,7 +145,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                                 totalGoldLost = attemptResult.SnapEvent?.TotalGoldLost ?? 0,
                                 batchIndex = i + 1,
                                 batchTotal = attempts,
-                                revealId = i == attempts - 1 && batchRevealId != Guid.Empty ? batchRevealId.ToString() : "",
+                                revealId = attemptRevealId != Guid.Empty ? attemptRevealId.ToString() : "",
                                 enableCastAnimation = settings.EnableCastAnimation,
                                 castAnimationMs = settings.CastAnimationMs,
                                 soundEnabled = audio?.SoundEnabled ?? settings.SoundEnabled,
@@ -156,6 +159,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                         };
 
                         await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(snappedMessage));
+
+                        if (attemptRevealId != Guid.Empty)
+                        {
+                            await WaitForAttemptRevealAsync(attemptRevealId, context);
+                        }
 
                         _logger.LogInformation("User {Username} had an accident ({Accident}) and caught nothing", username, logItem);
                         variables["fish_type"] = failText;
@@ -206,11 +214,6 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                         formatted = $"+{FishingFormatHelper.FormatCompactNumber(r.Amount)} {r.PointTypeName}"
                     }).ToList();
 
-                    foreach (var r in attemptResult.PointRewardsAwarded)
-                    {
-                        aggregatePoints[r.PointTypeName] = aggregatePoints.GetValueOrDefault(r.PointTypeName) + r.Amount;
-                    }
-
                     var message = new
                     {
                         fishing = new
@@ -246,7 +249,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                             brokenItems = attemptResult.BrokenItems.Select(b => b.ItemName).ToList(),
                             batchIndex = i + 1,
                             batchTotal = attempts,
-                            revealId = i == attempts - 1 && batchRevealId != Guid.Empty ? batchRevealId.ToString() : "",
+                            revealId = attemptRevealId != Guid.Empty ? attemptRevealId.ToString() : "",
                             enableCastAnimation = settings.EnableCastAnimation,
                             castAnimationMs = settings.CastAnimationMs,
                             soundEnabled = audioUrls?.SoundEnabled ?? settings.SoundEnabled,
@@ -261,6 +264,22 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
                     await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(message));
 
+                    // Wait for the FIRST authenticated overlay with the valid secure key to display this fish
+                    // BEFORE crediting gold/points or firing any specific-fish / any-catch / tournament triggers.
+                    if (attemptRevealId != Guid.Empty)
+                    {
+                        await WaitForAttemptRevealAsync(attemptRevealId, context);
+                    }
+
+                    var awardedPoints = hasRegisteredOverlay
+                        ? await _fishingGameplayService.AwardDeferredCatchRewardsAsync(userId, username, fishCatch.GoldEarned, attemptResult.PointRewardsAwarded)
+                        : attemptResult.PointRewardsAwarded;
+
+                    foreach (var r in awardedPoints)
+                    {
+                        aggregatePoints[r.PointTypeName] = aggregatePoints.GetValueOrDefault(r.PointTypeName) + r.Amount;
+                    }
+
                     _logger.LogInformation("User {Username} caught a {Stars} star {FishName} weighing {Weight}kg for {Gold} gold",
                         username, fishCatch.Stars, fishCatch.FishType?.Name, fishCatch.Weight, fishCatch.GoldEarned);
                     variables["fish_type"] = fishCatch.FishType?.Name ?? "Unknown";
@@ -272,7 +291,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     variables["fish_is_new_species"] = attemptResult.IsNewSpecies ? "true" : "false";
                     variables["fish_is_pb"] = attemptResult.IsPersonalBest ? "true" : "false";
                     variables["fish_is_server_record"] = attemptResult.IsServerRecord ? "true" : "false";
-                    variables["fish_points_awarded"] = string.Join(", ", pointRewardsPayload.Select(p => p.formatted));
+                    variables["fish_points_awarded"] = string.Join(", ", awardedPoints.Select(p => $"+{FishingFormatHelper.FormatCompactNumber(p.Amount)} {p.PointTypeName}"));
                     summaryParts.Add($"{fishCatch.Stars}★ {fishCatch.FishType?.Name} ({fishCatch.GoldEarned}g)");
 
                     var fishCategoryNames = fishCatch.FishType?.Categories?.Select(c => c.Category).ToList() ?? [];
@@ -291,6 +310,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     _logger.LogError(ex, "Error performing fishing attempt for user {Username}", username);
                     throw new SubActionHandlerException(subAction, $"Failed to perform fishing attempt: {ex.Message}");
                 }
+                finally
+                {
+                    if (attemptRevealId != Guid.Empty)
+                    {
+                        _overlayAckService!.Unregister(attemptRevealId);
+                    }
+                }
             }
 
             // Populate aggregate summary variables for multi-cast (and single-cast) recipes
@@ -305,50 +331,45 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             variables["fish_summary"] = string.Join(", ", summaryParts);
             variables["fish_total_points_awarded"] = string.Join(", ", aggregatePoints.Select(kvp => $"+{FishingFormatHelper.FormatCompactNumber(kvp.Value)} {kvp.Key}"));
 
-            // Two-way overlay sync: wait until the fishing overlay actually reveals this viewer's catch
-            // (so when 5 viewers cast at once, chat announcements fire in sync with each viewer's splash!).
-            if (fishingAction.WaitForReveal)
+            // Fallback delay only when no registered overlay ack service is available and WaitForReveal is enabled
+            if (!hasRegisteredOverlay && fishingAction.WaitForReveal && settings.EnableCastAnimation && _overlayAckService == null)
             {
-                if (_overlayAckService != null && batchRevealId != Guid.Empty && await HasConnectedFishingOverlayAsync())
+                var delay = TimeSpan.FromMilliseconds(Math.Clamp(settings.CastAnimationMs, 300, 5000));
+                context?.BeginIntentionalDelay(delay);
+                var waitSw = System.Diagnostics.Stopwatch.StartNew();
+                try
                 {
-                    var maxWait = TimeSpan.FromSeconds(120);
-                    context?.BeginIntentionalDelay(maxWait);
-                    var waitSw = System.Diagnostics.Stopwatch.StartNew();
-                    try
-                    {
-                        await _overlayAckService.WaitForRevealAsync(batchRevealId, maxWait);
-                    }
-                    finally
-                    {
-                        waitSw.Stop();
-                        context?.AddCompletedIntentionalDelay(waitSw.Elapsed);
-                        context?.EndIntentionalDelay();
-                    }
+                    await Task.Delay(delay);
                 }
-                else if (settings.EnableCastAnimation && _overlayAckService == null)
+                finally
                 {
-                    var delay = TimeSpan.FromMilliseconds(Math.Clamp(settings.CastAnimationMs, 300, 5000));
-                    context?.BeginIntentionalDelay(delay);
-                    var waitSw = System.Diagnostics.Stopwatch.StartNew();
-                    try
-                    {
-                        await Task.Delay(delay);
-                    }
-                    finally
-                    {
-                        waitSw.Stop();
-                        context?.AddCompletedIntentionalDelay(waitSw.Elapsed);
-                        context?.EndIntentionalDelay();
-                    }
+                    waitSw.Stop();
+                    context?.AddCompletedIntentionalDelay(waitSw.Elapsed);
+                    context?.EndIntentionalDelay();
                 }
             }
+        }
+
+        private async Task<bool> WaitForAttemptRevealAsync(Guid revealId, ActionExecutionContext? context)
+        {
+            if (_overlayAckService == null || revealId == Guid.Empty) return false;
+            var maxWait = TimeSpan.FromSeconds(120);
+            context?.BeginIntentionalDelay(maxWait);
+            var waitSw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var revealed = await _overlayAckService.WaitForRevealAsync(revealId, maxWait);
+                if (!revealed)
+                {
+                    _logger.LogWarning("Timed out waiting for registered fishing overlay to confirm reveal {RevealId}", revealId);
+                }
+                return revealed;
             }
             finally
             {
-                if (shouldWaitForOverlay)
-                {
-                    _overlayAckService!.Unregister(batchRevealId);
-                }
+                waitSw.Stop();
+                context?.AddCompletedIntentionalDelay(waitSw.Elapsed);
+                context?.EndIntentionalDelay();
             }
         }
 

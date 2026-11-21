@@ -95,6 +95,34 @@
                                       Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
                                       OnAdornmentClick="@(() => messages.TournamentThirtySecondWarning = FishingMessageSettings.DefaultTournamentThirtySecondWarning)" />
                     </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Tournament Ended Summary (%fishing_tournament_end_message%)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.TournamentEnd"
+                                      HelperText="Placeholders: {tournament}, {category}, {podium}, {rewards}, {winners}, {winnerCount}, {first}, {second}, {third}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.TournamentEnd = FishingMessageSettings.DefaultTournamentEnd)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Tournament Ended — No Catches (%fishing_tournament_end_message%)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.TournamentEndNoWinners"
+                                      HelperText="Placeholders: {tournament}, {category}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.TournamentEndNoWinners = FishingMessageSettings.DefaultTournamentEndNoWinners)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Tournament Ended — TTS Spoken (%fishing_tournament_tts_message%)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.TournamentEndTts"
+                                      HelperText="Spoken/TTS-friendly (no emojis or symbols). Placeholders: {tournament}, {category}, {podium}, {winners}, {winnerCount}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.TournamentEndTts = FishingMessageSettings.DefaultTournamentEndTts)" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Tournament Ended — TTS No Catches (%fishing_tournament_tts_message%)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      @bind-Value="messages.TournamentEndTtsNoWinners"
+                                      HelperText="Placeholders: {tournament}, {category}"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Restore"
+                                      OnAdornmentClick="@(() => messages.TournamentEndTtsNoWinners = FishingMessageSettings.DefaultTournamentEndTtsNoWinners)" />
+                    </MudItem>
                 </MudGrid>
             </MudExpansionPanel>
 

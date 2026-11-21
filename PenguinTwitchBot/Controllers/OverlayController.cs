@@ -309,21 +309,47 @@ namespace PenguinTwitchBot.Controllers
 
         /// <summary>
         /// Two-way overlay ack called by fishing.js at the exact moment a fish splashes onto screen,
-        /// allowing Waiting Fishing actions to post chat messages in sync with the overlay queue.
+        /// allowing Fishing actions to award points and fire catch triggers in sync with the first
+        /// authenticated overlay that displays the catch.
         /// </summary>
         [AllowAnonymous]
         [HttpPost("fishing-revealed")]
-        public IActionResult NotifyFishingRevealed(
+        public async Task<IActionResult> NotifyFishingRevealed(
             [FromBody] FishingRevealAckRequest request,
-            [FromServices] IFishingOverlayAckService ackService)
+            [FromServices] IFishingOverlayAckService ackService,
+            [FromServices] IOverlaySecurityService overlaySecurityService)
         {
             if (request == null || request.RevealId == Guid.Empty)
             {
                 return BadRequest();
             }
 
-            ackService.NotifyRevealed(request.RevealId);
-            return Ok();
+            if (!await overlaySecurityService.ValidateKeyAsync(request.OverlayKey))
+            {
+                return Unauthorized();
+            }
+
+            return ackService.NotifyRevealed(request.RevealId) ? Accepted() : Conflict();
+        }
+
+        /// <summary>
+        /// Heartbeat/registration endpoint called by fishing.js when loaded with the valid secure overlay key,
+        /// allowing FishingHandler to know an authenticated overlay is live and defer points/triggers until reveal.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("fishing-register")]
+        public async Task<IActionResult> RegisterFishingOverlay(
+            [FromBody] FishingOverlayRegisterRequest request,
+            [FromServices] IFishingOverlayAckService ackService,
+            [FromServices] IOverlaySecurityService overlaySecurityService)
+        {
+            if (request == null || !await overlaySecurityService.ValidateKeyAsync(request.OverlayKey))
+            {
+                return Unauthorized();
+            }
+
+            ackService.RecordRegisteredOverlay();
+            return Ok(new { registered = true });
         }
 
         /// <summary>
@@ -441,5 +467,6 @@ namespace PenguinTwitchBot.Controllers
     public record SaveWidgetRequest(string WidgetType, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex, string? CustomSettings, Guid? WidgetId = null);
     public record FishingTournamentOverlayResponse(Guid Id, string Name, string ScoreCategory, DateTime? EndsAtUtc, int RunDurationMinutes, string EligibleSummary, List<FishingTournamentStandingOverlayResponse> Standings);
     public record FishingTournamentStandingOverlayResponse(int Rank, string Username, double Score, int CatchCount);
-    public record FishingRevealAckRequest(Guid RevealId);
+    public record FishingRevealAckRequest(Guid RevealId, string? OverlayKey = null);
+    public record FishingOverlayRegisterRequest(string? OverlayKey);
 }

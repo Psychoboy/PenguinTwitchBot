@@ -15,6 +15,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public const string DefaultTournamentLeadChange = "👑 {leader} just stole 1st place from {previousLeader} in {tournament} ({score})!";
         public const string DefaultTournamentTwoMinuteWarning = "⏳ 2 minutes left in {tournament}!{leaderNote}";
         public const string DefaultTournamentThirtySecondWarning = "⏱️ 30 SECONDS LEFT in {tournament}!{leaderNote} Last casts now!";
+        public const string DefaultTournamentEnd = "🏆 {tournament} has ended! {podium}";
+        public const string DefaultTournamentEndNoWinners = "🏆 {tournament} has ended with no catches recorded!";
+        public const string DefaultTournamentEndTts = "{tournament} has ended! {podium}";
+        public const string DefaultTournamentEndTtsNoWinners = "{tournament} has ended with no catches recorded.";
 
         public const string DefaultStatsResponse = "🎣 {user}: {gold}g | {catches} catches | Dex: {caughtSpecies}/{totalSpecies} ({percent}%){bestPart}";
         public const string DefaultGearResponse = "🎣 {user}'s Gear: {gear}{repairHint}";
@@ -37,6 +41,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public string TournamentLeadChange { get; set; } = DefaultTournamentLeadChange;
         public string TournamentTwoMinuteWarning { get; set; } = DefaultTournamentTwoMinuteWarning;
         public string TournamentThirtySecondWarning { get; set; } = DefaultTournamentThirtySecondWarning;
+        public string TournamentEnd { get; set; } = DefaultTournamentEnd;
+        public string TournamentEndNoWinners { get; set; } = DefaultTournamentEndNoWinners;
+        public string TournamentEndTts { get; set; } = DefaultTournamentEndTts;
+        public string TournamentEndTtsNoWinners { get; set; } = DefaultTournamentEndTtsNoWinners;
 
         // Chat Command Responses
         public string StatsResponse { get; set; } = DefaultStatsResponse;
