@@ -98,16 +98,35 @@ public class FishingTriggerVariableResolver : ITriggerVariableResolver
                 variables.SetVariable("fishing_tournament_name", "Name of the tournament", source, category, "Weekend Derby");
                 variables.SetVariable("fishing_tournament_description", "Description of the tournament", source, category, "Catch the heaviest bass!");
                 variables.SetVariable("fishing_tournament_status", "Current status of the tournament", source, category, isEnd ? "Completed" : "Active");
-                variables.SetVariable("fishing_tournament_primary_score_category", "Primary scoring criteria", source, category, "Weight");
+                variables.SetVariable("fishing_tournament_enabled", "Whether the tournament is enabled", source, category, isEnd ? "false" : "true");
+                variables.SetVariable("fishing_tournament_primary_score_category", "Primary scoring criteria enum name", source, category, "Largest");
+                variables.SetVariable("fishing_tournament_score_category_label", "Friendly scoring criteria label", source, category, "Largest Weight");
                 variables.SetVariable("fishing_tournament_starts_at_utc", "Tournament start timestamp (UTC)", source, category, DateTime.UtcNow.ToString("O"));
                 variables.SetVariable("fishing_tournament_ends_at_utc", "Tournament end timestamp (UTC)", source, category, DateTime.UtcNow.AddHours(2).ToString("O"));
                 variables.SetVariable("fishing_tournament_eligible_fish_count", "Total count of eligible fish species", source, category, "3");
                 variables.SetVariable("fishing_tournament_eligible_fish_names", "Comma-separated list of eligible fish species", source, category, "Bass, Trout, Salmon");
+                variables.SetVariable("fishing_tournament_eligible_fish_preview", "First 3 eligible fish species", source, category, "Bass, Trout, Salmon");
+                variables.SetVariable("fishing_tournament_eligible_fish_over_three", "True if more than 3 eligible fish species", source, category, "false");
 
                 if (isEnd)
                 {
                     variables.SetVariable("fishing_tournament_reward_winner_count", "Total number of rewarded winners", source, category, "3");
                     variables.SetVariable("fishing_tournament_reward_winner_names", "Comma-separated usernames of tournament winners", source, category, "angler1, angler2, angler3");
+                    variables.SetVariable("fishing_tournament_reward_winner_ids", "Comma-separated user IDs of tournament winners", source, category, "101,102,103");
+                    variables.SetVariable("fishing_tournament_reward_summary", "Grouped per-placement reward summary", source, category, "#1 angler1 won 1B Coins + 20 Tickets");
+                    variables.SetVariable("fishing_tournament_podium_summary", "Friendly podium summary with scores and rewards", source, category, "🥇 angler1 (42.50) won 1B Coins + 20 Tickets");
+                    variables.SetVariable("fishing_tournament_end_message", "Customizable tournament-ended chat message", source, category, "🏆 Weekend Derby has ended! 🥇 angler1 (42.50) won 1B Coins");
+                    variables.SetVariable("fishing_tournament_tts_podium", "TTS-friendly spoken podium summary", source, category, "First place goes to angler1, winning 1 billion Coins and 20 Tickets.");
+                    variables.SetVariable("fishing_tournament_tts_message", "Customizable TTS-friendly tournament-ended message", source, category, "Weekend Derby has ended! First place goes to angler1, winning 1 billion Coins.");
+                    variables.SetVariable("fishing_tournament_first_user", "1st place username", source, category, "angler1");
+                    variables.SetVariable("fishing_tournament_first_score", "1st place formatted score", source, category, "42.50");
+                    variables.SetVariable("fishing_tournament_first_rewards", "1st place combined rewards", source, category, "1B Coins + 20 Tickets");
+                    variables.SetVariable("fishing_tournament_second_user", "2nd place username", source, category, "angler2");
+                    variables.SetVariable("fishing_tournament_second_score", "2nd place formatted score", source, category, "31.20");
+                    variables.SetVariable("fishing_tournament_second_rewards", "2nd place combined rewards", source, category, "500M Coins");
+                    variables.SetVariable("fishing_tournament_third_user", "3rd place username", source, category, "angler3");
+                    variables.SetVariable("fishing_tournament_third_score", "3rd place formatted score", source, category, "18.90");
+                    variables.SetVariable("fishing_tournament_third_rewards", "3rd place combined rewards", source, category, "250M Coins");
                 }
                 break;
             }

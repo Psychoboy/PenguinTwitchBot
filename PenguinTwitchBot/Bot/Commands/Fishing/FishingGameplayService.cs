@@ -25,6 +25,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private readonly IFishingMessageSettingsService? _messageSettingsService;
 
         private readonly ConcurrentDictionary<Guid, DateTime> _lastLeadAnnouncementByTournament = new();
+        private readonly ConcurrentDictionary<Guid, byte> _settledDeferredCatchIds = new();
+        private readonly ConcurrentQueue<Guid> _settledDeferredCatchOrder = new();
 
         public FishingGameplayService(
             IServiceScopeFactory scopeFactory,
@@ -493,11 +495,26 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         }
 
         public async Task<List<FishingPointRewardAwarded>> AwardDeferredCatchRewardsAsync(
+            Guid catchId,
             string userId,
             string username,
             int gold,
             IReadOnlyList<FishingPointRewardAwarded> plannedPointRewards)
         {
+            if (catchId != Guid.Empty)
+            {
+                if (!_settledDeferredCatchIds.TryAdd(catchId, 0))
+                {
+                    return plannedPointRewards.ToList();
+                }
+
+                _settledDeferredCatchOrder.Enqueue(catchId);
+                while (_settledDeferredCatchOrder.Count > 2048 && _settledDeferredCatchOrder.TryDequeue(out var oldest))
+                {
+                    _settledDeferredCatchIds.TryRemove(oldest, out _);
+                }
+            }
+
             if (gold > 0)
             {
                 await _fishingService.AddGoldToUser(userId, username, gold);

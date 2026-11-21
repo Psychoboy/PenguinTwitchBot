@@ -1239,21 +1239,53 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             variables["fishing_tournament_reward_winner_ids"] = string.Join(",", groupedWinners.Select(w => w.UserId).Distinct(StringComparer.OrdinalIgnoreCase));
             variables["fishing_tournament_reward_summary"] = rewardSummary;
 
-            // Build friendly podium lines (both chat and TTS-spoken) combining standings (score) and grouped rewards
+            // Aggregate total rewards per recipient across all reward rules (including side-category rules
+            // whose placement may differ from the primary podium rank).
+            var rewardsByRecipient = rewardWinners
+                .GroupBy(w => w.UserId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var parts = new List<string>();
+                        var spokenParts = new List<string>();
+                        foreach (var ptGroup in g.Where(w => w.RewardAmount > 0).GroupBy(w => (w.PointTypeId, w.PointTypeName)))
+                        {
+                            var totalPts = ptGroup.Sum(w => w.RewardAmount);
+                            var ptName = string.IsNullOrWhiteSpace(ptGroup.Key.PointTypeName) ? "Points" : ptGroup.Key.PointTypeName;
+                            parts.Add($"{FishingFormatHelper.FormatCompactNumber(totalPts)} {ptName}");
+                            spokenParts.Add($"{FishingFormatHelper.FormatSpokenNumber(totalPts)} {ptName}");
+                        }
+                        var totalGold = g.Sum(w => w.GoldAmount);
+                        if (totalGold > 0)
+                        {
+                            parts.Add($"{FishingFormatHelper.FormatCompactNumber(totalGold)} Gold");
+                            spokenParts.Add($"{FishingFormatHelper.FormatSpokenNumber(totalGold)} Gold");
+                        }
+                        var username = g.First().Username;
+                        return (
+                            Username: username,
+                            RewardsText: string.Join(" + ", parts),
+                            SpokenRewardsText: FishingFormatHelper.FormatSpokenList(spokenParts));
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            // Build friendly podium lines (both chat and TTS-spoken) combining standings (score) and total recipient rewards
             var podium = podiumStandings ?? [];
             var medals = new[] { "🥇", "🥈", "🥉" };
             var podiumEntries = new List<(int Rank, string Username, string ScoreText, string RewardsText, string Line, string TtsLine)>();
+            var includedUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (podium.Count > 0)
             {
                 foreach (var s in podium.OrderBy(x => x.Rank))
                 {
+                    includedUserIds.Add(s.UserId);
                     var medal = s.Rank is >= 1 and <= 3 ? medals[s.Rank - 1] : $"#{s.Rank}";
                     var scoreText = FishingFormatHelper.FormatCompactNumber(s.Score);
-                    var matchingReward = groupedWinners.FirstOrDefault(w =>
-                        w.Placement == s.Rank && string.Equals(w.UserId, s.UserId, StringComparison.OrdinalIgnoreCase));
-                    var rewardsText = matchingReward.RewardsText ?? string.Empty;
-                    var spokenRewardsText = matchingReward.SpokenRewardsText ?? string.Empty;
+                    rewardsByRecipient.TryGetValue(s.UserId, out var recipientReward);
+                    var rewardsText = recipientReward.RewardsText ?? string.Empty;
+                    var spokenRewardsText = recipientReward.SpokenRewardsText ?? string.Empty;
                     var line = string.IsNullOrWhiteSpace(rewardsText)
                         ? $"{medal} {s.Username} ({scoreText})"
                         : $"{medal} {s.Username} ({scoreText}) won {rewardsText}";
@@ -1262,6 +1294,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                         ? $"{ordinal} goes to {s.Username}."
                         : $"{ordinal} goes to {s.Username}, winning {spokenRewardsText}.";
                     podiumEntries.Add((s.Rank, s.Username, scoreText, rewardsText, line, ttsLine));
+                }
+
+                // Include any additional reward recipients who placed outside the primary podium (e.g. side-category winners)
+                foreach (var kvp in rewardsByRecipient)
+                {
+                    if (includedUserIds.Contains(kvp.Key) || string.IsNullOrWhiteSpace(kvp.Value.RewardsText)) continue;
+                    var line = $"🎁 {kvp.Value.Username} won {kvp.Value.RewardsText}";
+                    var ttsLine = $"{kvp.Value.Username} also won {kvp.Value.SpokenRewardsText}.";
+                    podiumEntries.Add((0, kvp.Value.Username, string.Empty, kvp.Value.RewardsText, line, ttsLine));
                 }
             }
             else if (groupedWinners.Count > 0)

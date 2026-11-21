@@ -10,6 +10,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             => PerformFishingAttempt(userId, username);
 
         Task<List<FishingPointRewardAwarded>> AwardDeferredCatchRewardsAsync(
+            Guid catchId,
             string userId,
             string username,
             int gold,

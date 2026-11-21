@@ -87,21 +87,33 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             var summaryParts = new List<string>();
             var aggregatePoints = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
-            var hasRegisteredOverlay = _overlayAckService != null
-                && _overlayAckService.HasActiveRegisteredOverlay()
-                && await HasConnectedFishingOverlayAsync();
+            var anyAttemptUsedOverlay = false;
+            var overlayTimedOut = false;
 
             for (int i = 0; i < attempts; i++)
             {
-                var attemptRevealId = hasRegisteredOverlay ? Guid.CreateVersion7() : Guid.Empty;
+                var useRegisteredOverlay = !overlayTimedOut
+                    && _overlayAckService != null
+                    && _overlayAckService.HasActiveRegisteredOverlay()
+                    && await HasConnectedFishingOverlayAsync();
+
+                if (useRegisteredOverlay)
+                {
+                    anyAttemptUsedOverlay = true;
+                }
+
+                var attemptRevealId = useRegisteredOverlay ? Guid.CreateVersion7() : Guid.Empty;
                 if (attemptRevealId != Guid.Empty)
                 {
                     _overlayAckService!.Register(attemptRevealId);
                 }
 
+                FishingAttemptResult? attemptResult = null;
+                var deferredRewardsSettled = false;
+
                 try
                 {
-                    var attemptResult = hasRegisteredOverlay
+                    attemptResult = useRegisteredOverlay
                         ? await _fishingGameplayService.PerformFishingAttempt(userId, username, deferRewards: true)
                         : await _fishingGameplayService.PerformFishingAttempt(userId, username);
 
@@ -162,7 +174,12 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
                         if (attemptRevealId != Guid.Empty)
                         {
-                            await WaitForAttemptRevealAsync(attemptRevealId, context);
+                            var revealed = await WaitForAttemptRevealAsync(attemptRevealId, context);
+                            if (!revealed)
+                            {
+                                overlayTimedOut = true;
+                                _overlayAckService?.ClearRegisteredOverlay();
+                            }
                         }
 
                         _logger.LogInformation("User {Username} had an accident ({Accident}) and caught nothing", username, logItem);
@@ -268,12 +285,18 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     // BEFORE crediting gold/points or firing any specific-fish / any-catch / tournament triggers.
                     if (attemptRevealId != Guid.Empty)
                     {
-                        await WaitForAttemptRevealAsync(attemptRevealId, context);
+                        var revealed = await WaitForAttemptRevealAsync(attemptRevealId, context);
+                        if (!revealed)
+                        {
+                            overlayTimedOut = true;
+                            _overlayAckService?.ClearRegisteredOverlay();
+                        }
                     }
 
-                    var awardedPoints = hasRegisteredOverlay
-                        ? await _fishingGameplayService.AwardDeferredCatchRewardsAsync(userId, username, fishCatch.GoldEarned, attemptResult.PointRewardsAwarded)
+                    var awardedPoints = useRegisteredOverlay
+                        ? await _fishingGameplayService.AwardDeferredCatchRewardsAsync(fishCatch.Id, userId, username, fishCatch.GoldEarned, attemptResult.PointRewardsAwarded)
                         : attemptResult.PointRewardsAwarded;
+                    deferredRewardsSettled = true;
 
                     foreach (var r in awardedPoints)
                     {
@@ -296,7 +319,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
                     var fishCategoryNames = fishCatch.FishType?.Categories?.Select(c => c.Category).ToList() ?? [];
                     variables["fish_categories"] = string.Join(", ", fishCategoryNames);
-                    await TriggerFishingTournamentCatchActionsAsync(variables, fishCatch.FishTypeId, fishCategoryNames);
+                    var catchTimeTournamentIds = attemptResult.MatchedTournaments.Select(t => t.TournamentId).ToHashSet();
+                    await TriggerFishingTournamentCatchActionsAsync(variables, fishCatch.FishTypeId, fishCategoryNames, catchTimeTournamentIds);
                     await TriggerFishCatchActionsAsync(variables, fishCatch, fishCategoryNames);
 
                     if (attemptResult.BrokenItems.Count > 0)
@@ -307,6 +331,26 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 }
                 catch (Exception ex)
                 {
+                    // Delivery-failure fallback: if a catch was already persisted with deferred rewards,
+                    // settle those rewards idempotently so the player never loses earned gold/points.
+                    if (useRegisteredOverlay && !deferredRewardsSettled && attemptResult?.Outcome == FishingAttemptOutcome.CaughtFish && attemptResult.FishCatch != null)
+                    {
+                        try
+                        {
+                            await _fishingGameplayService.AwardDeferredCatchRewardsAsync(
+                                attemptResult.FishCatch.Id,
+                                userId,
+                                username,
+                                attemptResult.FishCatch.GoldEarned,
+                                attemptResult.PointRewardsAwarded);
+                            deferredRewardsSettled = true;
+                        }
+                        catch (Exception rewardEx)
+                        {
+                            _logger.LogError(rewardEx, "Failed fallback settlement of deferred rewards for catch {CatchId}", attemptResult.FishCatch.Id);
+                        }
+                    }
+
                     _logger.LogError(ex, "Error performing fishing attempt for user {Username}", username);
                     throw new SubActionHandlerException(subAction, $"Failed to perform fishing attempt: {ex.Message}");
                 }
@@ -331,8 +375,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             variables["fish_summary"] = string.Join(", ", summaryParts);
             variables["fish_total_points_awarded"] = string.Join(", ", aggregatePoints.Select(kvp => $"+{FishingFormatHelper.FormatCompactNumber(kvp.Value)} {kvp.Key}"));
 
-            // Fallback delay only when no registered overlay ack service is available and WaitForReveal is enabled
-            if (!hasRegisteredOverlay && fishingAction.WaitForReveal && settings.EnableCastAnimation && _overlayAckService == null)
+            // Fallback delay only when no registered overlay handled reveal sync and WaitForReveal is enabled
+            if (!anyAttemptUsedOverlay && fishingAction.WaitForReveal && settings.EnableCastAnimation)
             {
                 var delay = TimeSpan.FromMilliseconds(Math.Clamp(settings.CastAnimationMs, 300, 5000));
                 context?.BeginIntentionalDelay(delay);
@@ -388,7 +432,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
         }
 
-        private async Task TriggerFishingTournamentCatchActionsAsync(ConcurrentDictionary<string, string> variables, Guid fishTypeId, IEnumerable<string> fishCategoryNames)
+        private async Task TriggerFishingTournamentCatchActionsAsync(
+            ConcurrentDictionary<string, string> variables,
+            Guid fishTypeId,
+            IEnumerable<string> fishCategoryNames,
+            IReadOnlyCollection<Guid>? catchTimeTournamentIds = null)
         {
             try
             {
@@ -409,6 +457,25 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 var matchingTournaments = tournaments
                     .Where(tournament => tournament.Enabled && tournament.Status == FishingTournamentStatus.Active)
                     .Where(tournament => FishingCalculations.IsFishEligible(tournament, fishTypeId, fishCategoryNames))
+                    .ToList();
+
+                // Preserve catch-time tournament eligibility if a tournament ended while waiting for the overlay reveal
+                if (catchTimeTournamentIds != null && catchTimeTournamentIds.Count > 0)
+                {
+                    var existingIds = matchingTournaments.Select(t => t.Id).ToHashSet();
+                    foreach (var tournamentId in catchTimeTournamentIds)
+                    {
+                        if (existingIds.Contains(tournamentId)) continue;
+                        var endedTournament = await _fishingService.GetFishingTournamentById(tournamentId);
+                        if (endedTournament != null)
+                        {
+                            matchingTournaments.Add(endedTournament);
+                            existingIds.Add(tournamentId);
+                        }
+                    }
+                }
+
+                matchingTournaments = matchingTournaments
                     .OrderBy(tournament => tournament.StartsAtUtc)
                     .ThenBy(tournament => tournament.Name)
                     .ToList();

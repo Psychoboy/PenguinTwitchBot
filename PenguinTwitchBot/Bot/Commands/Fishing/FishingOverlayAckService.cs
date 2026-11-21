@@ -21,6 +21,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         /// <summary>Returns true if an overlay with the valid secure key has registered or acknowledged within <paramref name="maxAge"/>.</summary>
         bool HasActiveRegisteredOverlay(TimeSpan? maxAge = null);
+
+        /// <summary>Clears the registered overlay timestamp (e.g., after a reveal wait timeout) so subsequent casts do not stall.</summary>
+        void ClearRegisteredOverlay();
     }
 
     public class FishingOverlayAckService : IFishingOverlayAckService
@@ -86,6 +89,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (lastTicks <= 0) return false;
             var ttl = maxAge ?? DefaultRegistrationTtl;
             return (DateTime.UtcNow - new DateTime(lastTicks, DateTimeKind.Utc)) <= ttl;
+        }
+
+        public void ClearRegisteredOverlay()
+        {
+            Interlocked.Exchange(ref _lastRegisteredOverlayUtcTicks, 0);
         }
     }
 }
