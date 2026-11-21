@@ -874,18 +874,19 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         internal async Task OnChannelFollow(object? _, ChannelFollowEventArgs e)
         {
+            var beganDispatch = false;
             try
             {
                 if (DidProcessMessage(e.Metadata)) return;
                 logger.LogInformation("OnChannelFollow: {UserLogin}", e.Event.UserLogin);
 
-                var isNewFollow = await followTracker.TryRecordFollowAsync(
+                beganDispatch = await followTracker.TryBeginFollowDispatchAsync(
                     e.Event.UserId,
                     e.Event.UserLogin,
                     e.Event.UserName,
                     e.Event.FollowedAt.UtcDateTime);
 
-                if (!isNewFollow)
+                if (!beganDispatch)
                 {
                     logger.LogInformation(
                         "Ignoring re-follow for {UserLogin} ({UserId}); viewer has previously followed.",
@@ -904,9 +905,15 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
                 await eventService.OnFollow(e.Event);
                 await twitchEventActionHandler.HandleFollowAsync(followEventArgs);
+                await followTracker.CompleteFollowDispatchAsync(e.Event.UserId);
+                beganDispatch = false;
             }
             catch (Exception ex)
             {
+                if (beganDispatch)
+                {
+                    followTracker.ReleaseFollowDispatch(e.Event.UserId);
+                }
                 logger.LogError(ex, "Error in websocket message");
             }
         }

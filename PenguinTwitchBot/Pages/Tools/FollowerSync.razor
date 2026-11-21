@@ -33,7 +33,7 @@
                            StartIcon="@Icons.Material.Filled.Sync"
                            OnClick="StartSyncAsync"
                            Disabled="@(_isSyncing || FollowTracker.IsSyncInProgress)">
-                    @if (_isSyncing)
+                    @if (_isSyncing || FollowTracker.IsSyncInProgress)
                     {
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" />
                         <MudText Class="ml-2">Syncing...</MudText>
@@ -104,26 +104,26 @@
             </MudItem>
         </MudGrid>
 
-        @if (_isSyncing)
+        @if (_isSyncing || FollowTracker.IsSyncInProgress)
         {
             <MudPaper Elevation="2" Class="pa-4">
                 <MudStack Spacing="2">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                        <MudText Typo="Typo.subtitle1">Fetching followers from Twitch...</MudText>
-                        @if (_progress != null && _progress.TotalExpected > 0)
+                        <MudText Typo="Typo.subtitle1">@(_isSyncing ? "Fetching followers from Twitch..." : "A follower sync is currently in progress...")</MudText>
+                        @if (_isSyncing && _progress != null && _progress.TotalExpected > 0)
                         {
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
                                 @_progress.FetchedCount.ToString("N0") / @_progress.TotalExpected.ToString("N0")
                             </MudText>
                         }
-                        else if (_progress != null)
+                        else if (_isSyncing && _progress != null)
                         {
                             <MudText Typo="Typo.body2" Color="Color.Secondary">
                                 @_progress.FetchedCount.ToString("N0") fetched
                             </MudText>
                         }
                     </MudStack>
-                    @if (_progress != null && _progress.TotalExpected > 0)
+                    @if (_isSyncing && _progress != null && _progress.TotalExpected > 0)
                     {
                         var pct = Math.Min(100.0, (_progress.FetchedCount * 100.0) / _progress.TotalExpected);
                         <MudProgressLinear Color="Color.Primary" Value="@pct" Rounded="true" Size="Size.Medium" />
@@ -136,7 +136,7 @@
             </MudPaper>
         }
 
-        @if (_lastResult != null && !_isSyncing)
+        @if (_lastResult != null && !_isSyncing && !FollowTracker.IsSyncInProgress)
         {
             <MudAlert Severity="Severity.Success" Variant="Variant.Filled">
                 <MudText Typo="Typo.subtitle1">Sync Complete</MudText>
@@ -170,9 +170,33 @@
 
     protected override async Task OnInitializedAsync()
     {
+        FollowTracker.SyncStateChanged += OnSyncStateChanged;
         _lastResult = FollowTracker.LastSyncResult;
-        _isSyncing = FollowTracker.IsSyncInProgress;
         await LoadCountAsync();
+    }
+
+    private void OnSyncStateChanged()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _lastResult = FollowTracker.LastSyncResult;
+            if (!FollowTracker.IsSyncInProgress && !_isSyncing)
+            {
+                await RefreshCountSafelyAsync();
+            }
+
+            StateHasChanged();
+        });
     }
 
     private async Task LoadCountAsync()
@@ -192,6 +216,18 @@
         }
     }
 
+    private async Task RefreshCountSafelyAsync()
+    {
+        try
+        {
+            _persistedCount = await FollowTracker.GetPersistedFollowerCountAsync();
+        }
+        catch
+        {
+            // Keep existing error/cancellation message intact if count refresh fails.
+        }
+    }
+
     private async Task StartSyncAsync()
     {
         if (_isSyncing || FollowTracker.IsSyncInProgress)
@@ -202,6 +238,7 @@
         _errorMessage = null;
         _progress = null;
         _isSyncing = true;
+        var succeeded = false;
         _syncCts?.Dispose();
         _syncCts = new CancellationTokenSource();
         StateHasChanged();
@@ -217,6 +254,7 @@
         {
             _lastResult = await FollowTracker.SyncFollowersAsync(progress, _syncCts.Token);
             _persistedCount = _lastResult.TotalPersistedFollowers;
+            succeeded = true;
             Snackbar.Add(
                 $"Synced {_lastResult.TotalTwitchFollowers:N0} followers ({_lastResult.AddedCount:N0} added).",
                 Severity.Success);
@@ -234,6 +272,10 @@
         {
             _isSyncing = false;
             _progress = null;
+            if (!succeeded && !_disposed)
+            {
+                await RefreshCountSafelyAsync();
+            }
             if (!_disposed)
             {
                 await InvokeAsync(StateHasChanged);
@@ -249,6 +291,7 @@
     public void Dispose()
     {
         _disposed = true;
+        FollowTracker.SyncStateChanged -= OnSyncStateChanged;
         _syncCts?.Dispose();
     }
 }

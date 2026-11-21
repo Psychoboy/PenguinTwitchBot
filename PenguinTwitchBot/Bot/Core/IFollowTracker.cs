@@ -14,18 +14,33 @@ namespace PenguinTwitchBot.Bot.Core
     {
         bool IsSyncInProgress { get; }
         FollowerSyncResult? LastSyncResult { get; }
+        event Action? SyncStateChanged;
 
         /// <summary>
-        /// Records a channel follow if the user has not previously followed.
-        /// Returns <c>true</c> if this is a first-time follow (events should fire),
-        /// or <c>false</c> if the user has already followed previously (re-follow; suppress events).
+        /// Checks whether a follow notification should be dispatched for this user and records
+        /// a pending-dispatch follower entry if eligible. Returns <c>true</c> if follow events
+        /// should fire (caller must then call <see cref="CompleteFollowDispatchAsync"/> on success
+        /// or <see cref="ReleaseFollowDispatch"/> on failure), or <c>false</c> to suppress.
         /// </summary>
-        Task<bool> TryRecordFollowAsync(
+        Task<bool> TryBeginFollowDispatchAsync(
             string userId,
             string username,
             string displayName,
             DateTime followedAtUtc,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Marks the follower's notification as successfully dispatched and releases the in-flight lock.
+        /// </summary>
+        Task CompleteFollowDispatchAsync(
+            string userId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Releases the in-flight lock after a failed dispatch without marking the notification
+        /// as completed, allowing a retry of the same follow event to complete dispatch.
+        /// </summary>
+        void ReleaseFollowDispatch(string userId);
 
         /// <summary>
         /// Manually fetches all current channel followers from Twitch and persists any missing ones.

@@ -493,9 +493,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
                 progress?.Report(new Core.FollowerSyncProgress(followers.Count, response.Total));
 
-                if (string.IsNullOrEmpty(response.Cursor) || !seenCursors.Add(response.Cursor))
+                if (string.IsNullOrEmpty(response.Cursor))
                 {
                     break;
+                }
+
+                if (!seenCursors.Add(response.Cursor))
+                {
+                    throw new InvalidOperationException($"Twitch follower pagination returned a repeated cursor ('{response.Cursor}').");
                 }
 
                 after = response.Cursor;

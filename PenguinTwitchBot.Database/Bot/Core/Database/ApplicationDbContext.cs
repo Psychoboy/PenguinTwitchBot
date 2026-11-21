@@ -188,6 +188,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                     v => UsernameNormalizer.Normalize(v),
                     v => UsernameNormalizer.Normalize(v));
 
+            modelBuilder.Entity<Follower>()
+                .Property(f => f.FollowEventDispatched)
+                .HasDefaultValue(true);
+
             // AutoShoutout name normalization at model level
             modelBuilder.Entity<AutoShoutout>()
                 .Property(a => a.Name)

@@ -59,7 +59,7 @@ public class TwitchWebsocketHostedServiceTests
         _twitchEventActionHandler = Substitute.For<ITwitchEventActionHandler>();
         _chatColorService = Substitute.For<IChatColorService>();
         _followTracker = Substitute.For<IFollowTracker>();
-        _followTracker.TryRecordFollowAsync(
+        _followTracker.TryBeginFollowDispatchAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -532,18 +532,20 @@ public class TwitchWebsocketHostedServiceTests
     {
         _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelFollow(this, CreateChannelFollowArgs());
-        await _followTracker.Received(1).TryRecordFollowAsync(
+        await _followTracker.Received(1).TryBeginFollowDispatchAsync(
             "uid-1", "testuser", "TestUser", Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
         await _eventService.Received(1).OnFollow(Arg.Any<ChannelFollow>());
         await _twitchEventActionHandler.Received(1).HandleFollowAsync(Arg.Is<FollowEventArgs>(e =>
             e.Username == "testuser" && e.UserId == "uid-1" && e.DisplayName == "TestUser"));
+        await _followTracker.Received(1).CompleteFollowDispatchAsync("uid-1", Arg.Any<CancellationToken>());
+        _followTracker.DidNotReceive().ReleaseFollowDispatch(Arg.Any<string>());
     }
 
     [Fact]
     public async Task OnChannelFollow_WhenRefollow_DoesNotTriggerEvents()
     {
         _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
-        _followTracker.TryRecordFollowAsync(
+        _followTracker.TryBeginFollowDispatchAsync(
                 "uid-1", "testuser", "TestUser", Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
@@ -551,6 +553,21 @@ public class TwitchWebsocketHostedServiceTests
 
         await _eventService.DidNotReceive().OnFollow(Arg.Any<ChannelFollow>());
         await _twitchEventActionHandler.DidNotReceive().HandleFollowAsync(Arg.Any<FollowEventArgs>());
+        await _followTracker.DidNotReceive().CompleteFollowDispatchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        _followTracker.DidNotReceive().ReleaseFollowDispatch(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task OnChannelFollow_WhenDispatchFails_ReleasesWithoutCompleting()
+    {
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
+        _twitchEventActionHandler.HandleFollowAsync(Arg.Any<FollowEventArgs>())
+            .Returns(Task.FromException(new InvalidOperationException("Action failure")));
+
+        await _service.OnChannelFollow(this, CreateChannelFollowArgs());
+
+        await _followTracker.DidNotReceive().CompleteFollowDispatchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        _followTracker.Received(1).ReleaseFollowDispatch("uid-1");
     }
 
     [Fact]

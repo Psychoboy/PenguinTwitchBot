@@ -1734,6 +1734,11 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<DateTime>("FollowDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("FollowEventDispatched")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("text");

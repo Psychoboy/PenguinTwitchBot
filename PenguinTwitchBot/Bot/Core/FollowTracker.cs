@@ -11,15 +11,20 @@ namespace PenguinTwitchBot.Bot.Core
         ITwitchService twitchService) : IFollowTracker
     {
         private const int SyncBatchSize = 500;
+        private const int SyncLiveFollowGraceSeconds = 30;
+        private const int FollowEventMatchWindowSeconds = 5;
+
         private readonly SemaphoreSlim _recordLock = new(1, 1);
         private readonly SemaphoreSlim _syncLock = new(1, 1);
+        private readonly HashSet<string> _inFlightUserIds = new(StringComparer.Ordinal);
         private volatile bool _isSyncInProgress;
         private FollowerSyncResult? _lastSyncResult;
 
         public bool IsSyncInProgress => _isSyncInProgress;
         public FollowerSyncResult? LastSyncResult => _lastSyncResult;
+        public event Action? SyncStateChanged;
 
-        public async Task<bool> TryRecordFollowAsync(
+        public async Task<bool> TryBeginFollowDispatchAsync(
             string userId,
             string username,
             string displayName,
@@ -28,7 +33,7 @@ namespace PenguinTwitchBot.Bot.Core
         {
             if (string.IsNullOrWhiteSpace(userId))
             {
-                logger.LogWarning("TryRecordFollowAsync called with empty UserId for {Username}; ignoring.", username);
+                logger.LogWarning("TryBeginFollowDispatchAsync called with empty UserId for {Username}; ignoring.", username);
                 return false;
             }
 
@@ -38,6 +43,15 @@ namespace PenguinTwitchBot.Bot.Core
             await _recordLock.WaitAsync(cancellationToken);
             try
             {
+                if (_inFlightUserIds.Contains(userId))
+                {
+                    logger.LogInformation(
+                        "Follow dispatch for {UserLogin} ({UserId}) is already in progress; ignoring duplicate delivery.",
+                        normalizedUsername,
+                        userId);
+                    return false;
+                }
+
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
@@ -47,15 +61,25 @@ namespace PenguinTwitchBot.Bot.Core
 
                 if (existing != null)
                 {
-                    var changed = false;
-                    if (!string.IsNullOrEmpty(normalizedUsername) && existing.Username != normalizedUsername)
+                    var changed = UpdateNamesIfChanged(existing, normalizedUsername, displayName);
+
+                    if (!existing.FollowEventDispatched)
                     {
-                        existing.Username = normalizedUsername;
-                        changed = true;
-                    }
-                    if (!string.IsNullOrEmpty(displayName) && existing.DisplayName != displayName)
-                    {
-                        existing.DisplayName = displayName;
+                        if (Math.Abs((existing.FollowDate - utcFollowDate).TotalSeconds) <= FollowEventMatchWindowSeconds)
+                        {
+                            if (changed)
+                            {
+                                db.Followers.Update(existing);
+                                await db.SaveChangesAsync();
+                            }
+
+                            _inFlightUserIds.Add(userId);
+                            return true;
+                        }
+
+                        // A different/later follow timestamp indicates a genuine unfollow + re-follow;
+                        // permanently mark as dispatched so it remains suppressed.
+                        existing.FollowEventDispatched = true;
                         changed = true;
                     }
 
@@ -73,7 +97,8 @@ namespace PenguinTwitchBot.Bot.Core
                     UserId = userId,
                     Username = normalizedUsername,
                     DisplayName = displayName ?? string.Empty,
-                    FollowDate = utcFollowDate
+                    FollowDate = utcFollowDate,
+                    FollowEventDispatched = false
                 };
 
                 await db.Followers.AddAsync(follower);
@@ -81,6 +106,7 @@ namespace PenguinTwitchBot.Bot.Core
                 try
                 {
                     await db.SaveChangesAsync();
+                    _inFlightUserIds.Add(userId);
                     return true;
                 }
                 catch (DbUpdateException ex) when (ex.IsUniqueViolation())
@@ -98,6 +124,57 @@ namespace PenguinTwitchBot.Bot.Core
             }
         }
 
+        public async Task CompleteFollowDispatchAsync(
+            string userId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return;
+            }
+
+            await _recordLock.WaitAsync(cancellationToken);
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                var existing = await db.Followers
+                    .Find(f => f.UserId == userId)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (existing != null && !existing.FollowEventDispatched)
+                {
+                    existing.FollowEventDispatched = true;
+                    db.Followers.Update(existing);
+                    await db.SaveChangesAsync();
+                }
+            }
+            finally
+            {
+                _inFlightUserIds.Remove(userId);
+                _recordLock.Release();
+            }
+        }
+
+        public void ReleaseFollowDispatch(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return;
+            }
+
+            _recordLock.Wait();
+            try
+            {
+                _inFlightUserIds.Remove(userId);
+            }
+            finally
+            {
+                _recordLock.Release();
+            }
+        }
+
         public async Task<FollowerSyncResult> SyncFollowersAsync(
             IProgress<FollowerSyncProgress>? progress = null,
             CancellationToken cancellationToken = default)
@@ -108,8 +185,12 @@ namespace PenguinTwitchBot.Bot.Core
             }
 
             _isSyncInProgress = true;
+            NotifySyncStateChanged();
             try
             {
+                var syncStartedAtUtc = DateTime.UtcNow;
+                var liveFollowCutoffUtc = syncStartedAtUtc.AddSeconds(-SyncLiveFollowGraceSeconds);
+
                 logger.LogInformation("Starting manual follower sync from Twitch.");
                 var twitchFollowers = await twitchService.GetAllFollowersAsync(progress, cancellationToken);
                 var deduplicated = twitchFollowers
@@ -142,19 +223,7 @@ namespace PenguinTwitchBot.Bot.Core
 
                         if (existingByUserId.TryGetValue(item.UserId, out var existing))
                         {
-                            var changed = false;
-                            if (!string.IsNullOrEmpty(normalizedUsername) && existing.Username != normalizedUsername)
-                            {
-                                existing.Username = normalizedUsername;
-                                changed = true;
-                            }
-                            if (!string.IsNullOrEmpty(displayName) && existing.DisplayName != displayName)
-                            {
-                                existing.DisplayName = displayName;
-                                changed = true;
-                            }
-
-                            if (changed)
+                            if (UpdateNamesIfChanged(existing, normalizedUsername, displayName))
                             {
                                 db.Followers.Update(existing);
                                 updatedCount++;
@@ -167,12 +236,19 @@ namespace PenguinTwitchBot.Bot.Core
                         }
                         else
                         {
+                            var followDate = NormalizeToUtc(item.FollowDate);
+                            // Followers who followed right around/during this sync may still have an
+                            // undelivered EventSub notification in flight; keep them eligible for that
+                            // matching first-follow event while suppressing historical baseline followers.
+                            var isHistoricalBaseline = followDate < liveFollowCutoffUtc;
+
                             var newFollower = new Follower
                             {
                                 UserId = item.UserId,
                                 Username = normalizedUsername,
                                 DisplayName = displayName,
-                                FollowDate = NormalizeToUtc(item.FollowDate)
+                                FollowDate = followDate,
+                                FollowEventDispatched = isHistoricalBaseline
                             };
 
                             await db.Followers.AddAsync(newFollower);
@@ -222,6 +298,7 @@ namespace PenguinTwitchBot.Bot.Core
             {
                 _isSyncInProgress = false;
                 _syncLock.Release();
+                NotifySyncStateChanged();
             }
         }
 
@@ -230,6 +307,34 @@ namespace PenguinTwitchBot.Bot.Core
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.Followers.Find(_ => true).CountAsync(cancellationToken);
+        }
+
+        private void NotifySyncStateChanged()
+        {
+            try
+            {
+                SyncStateChanged?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Error notifying SyncStateChanged subscribers.");
+            }
+        }
+
+        private static bool UpdateNamesIfChanged(Follower existing, string normalizedUsername, string? displayName)
+        {
+            var changed = false;
+            if (!string.IsNullOrEmpty(normalizedUsername) && existing.Username != normalizedUsername)
+            {
+                existing.Username = normalizedUsername;
+                changed = true;
+            }
+            if (!string.IsNullOrEmpty(displayName) && existing.DisplayName != displayName)
+            {
+                existing.DisplayName = displayName;
+                changed = true;
+            }
+            return changed;
         }
 
         private static DateTime NormalizeToUtc(DateTime value)

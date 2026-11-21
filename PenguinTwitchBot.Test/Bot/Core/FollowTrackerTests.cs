@@ -56,14 +56,19 @@ public sealed class FollowTrackerTests : IDisposable
     }
 
     [Fact]
-    public async Task TryRecordFollowAsync_FirstFollow_PersistsAndReturnsTrue()
+    public async Task TryBeginAndCompleteFollowDispatch_FirstFollow_PersistsAndMarksDispatched()
     {
         var followDate = new DateTime(2026, 11, 21, 12, 0, 0, DateTimeKind.Utc);
 
-        var isNew = await _tracker.TryRecordFollowAsync("uid-1", "TestUser", "TestUser", followDate);
+        var began = await _tracker.TryBeginFollowDispatchAsync("uid-1", "TestUser", "TestUser", followDate);
 
-        Assert.True(isNew);
+        Assert.True(began);
         Assert.Equal(1, await _tracker.GetPersistedFollowerCountAsync());
+
+        // Duplicate concurrent delivery while in-flight is suppressed
+        Assert.False(await _tracker.TryBeginFollowDispatchAsync("uid-1", "TestUser", "TestUser", followDate));
+
+        await _tracker.CompleteFollowDispatchAsync("uid-1");
 
         await using var verifyContext = new ApplicationDbContext(_dbOptions);
         var saved = await verifyContext.Followers.SingleAsync();
@@ -71,16 +76,19 @@ public sealed class FollowTrackerTests : IDisposable
         Assert.Equal("testuser", saved.Username);
         Assert.Equal("TestUser", saved.DisplayName);
         Assert.Equal(followDate, saved.FollowDate);
+        Assert.True(saved.FollowEventDispatched);
     }
 
     [Fact]
-    public async Task TryRecordFollowAsync_Refollow_ReturnsFalsePreservesOriginalDateAndUpdatesName()
+    public async Task TryBeginFollowDispatchAsync_RefollowAfterComplete_ReturnsFalsePreservesDateAndUpdatesName()
     {
         var originalDate = new DateTime(2025, 1, 15, 8, 30, 0, DateTimeKind.Utc);
         var refollowDate = new DateTime(2026, 11, 21, 12, 0, 0, DateTimeKind.Utc);
 
-        Assert.True(await _tracker.TryRecordFollowAsync("uid-1", "oldname", "OldName", originalDate));
-        var isNewOnRefollow = await _tracker.TryRecordFollowAsync("uid-1", "NewName", "NewName", refollowDate);
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-1", "oldname", "OldName", originalDate));
+        await _tracker.CompleteFollowDispatchAsync("uid-1");
+
+        var isNewOnRefollow = await _tracker.TryBeginFollowDispatchAsync("uid-1", "NewName", "NewName", refollowDate);
 
         Assert.False(isNewOnRefollow);
         Assert.Equal(1, await _tracker.GetPersistedFollowerCountAsync());
@@ -93,42 +101,77 @@ public sealed class FollowTrackerTests : IDisposable
     }
 
     [Fact]
-    public async Task TryRecordFollowAsync_EmptyUserId_ReturnsFalseWithoutPersisting()
+    public async Task ReleaseFollowDispatch_AllowsRetryForSameFollowButSuppressesLaterRefollow()
     {
-        var isNew = await _tracker.TryRecordFollowAsync("", "testuser", "TestUser", DateTime.UtcNow);
+        var followDate = new DateTime(2026, 11, 21, 12, 0, 0, DateTimeKind.Utc);
 
-        Assert.False(isNew);
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-1", "testuser", "TestUser", followDate));
+        _tracker.ReleaseFollowDispatch("uid-1");
+
+        // Retry of the same follow event succeeds
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-1", "testuser", "TestUser", followDate));
+        _tracker.ReleaseFollowDispatch("uid-1");
+
+        // Genuine unfollow + re-follow with a later timestamp is suppressed
+        Assert.False(await _tracker.TryBeginFollowDispatchAsync("uid-1", "testuser", "TestUser", followDate.AddMinutes(5)));
+    }
+
+    [Fact]
+    public async Task TryBeginFollowDispatchAsync_EmptyUserId_ReturnsFalseWithoutPersisting()
+    {
+        var began = await _tracker.TryBeginFollowDispatchAsync("", "testuser", "TestUser", DateTime.UtcNow);
+
+        Assert.False(began);
         Assert.Equal(0, await _tracker.GetPersistedFollowerCountAsync());
     }
 
     [Fact]
-    public async Task SyncFollowersAsync_AddsNewUpdatesChangedAndNeverDeletesUnfollowed()
+    public async Task SyncFollowersAsync_AddsNewUpdatesChangedNeverDeletesAndCoordinatesLiveFollows()
     {
         var unfollowedDate = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc);
         var existingDate = new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc);
-        await _tracker.TryRecordFollowAsync("uid-unfollowed", "formerfollower", "FormerFollower", unfollowedDate);
-        await _tracker.TryRecordFollowAsync("uid-existing", "oldhandle", "OldHandle", existingDate);
-        await _tracker.TryRecordFollowAsync("uid-unchanged", "sameuser", "SameUser", existingDate);
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-unfollowed", "formerfollower", "FormerFollower", unfollowedDate));
+        await _tracker.CompleteFollowDispatchAsync("uid-unfollowed");
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-existing", "oldhandle", "OldHandle", existingDate));
+        await _tracker.CompleteFollowDispatchAsync("uid-existing");
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-unchanged", "sameuser", "SameUser", existingDate));
+        await _tracker.CompleteFollowDispatchAsync("uid-unchanged");
+
+        var historicalDate = DateTime.UtcNow.AddDays(-10);
+        var liveFollowDate = DateTime.UtcNow;
 
         _twitchService.GetAllFollowersAsync(Arg.Any<IProgress<FollowerSyncProgress>?>(), Arg.Any<CancellationToken>())
             .Returns([
                 new Follower { UserId = "uid-existing", Username = "newhandle", DisplayName = "NewHandle", FollowDate = DateTime.UtcNow },
                 new Follower { UserId = "uid-unchanged", Username = "sameuser", DisplayName = "SameUser", FollowDate = DateTime.UtcNow },
-                new Follower { UserId = "uid-new", Username = "BrandNew", DisplayName = "BrandNew", FollowDate = new DateTime(2026, 11, 20, 0, 0, 0, DateTimeKind.Utc) }
+                new Follower { UserId = "uid-historical", Username = "OldFollower", DisplayName = "OldFollower", FollowDate = historicalDate },
+                new Follower { UserId = "uid-live", Username = "LiveFollower", DisplayName = "LiveFollower", FollowDate = liveFollowDate }
             ]);
+
+        var stateChangedCount = 0;
+        _tracker.SyncStateChanged += () => stateChangedCount++;
 
         var result = await _tracker.SyncFollowersAsync();
 
-        Assert.Equal(3, result.TotalTwitchFollowers);
-        Assert.Equal(1, result.AddedCount);
+        Assert.Equal(2, stateChangedCount);
+        Assert.Equal(4, result.TotalTwitchFollowers);
+        Assert.Equal(2, result.AddedCount);
         Assert.Equal(1, result.UpdatedCount);
         Assert.Equal(1, result.ExistingCount);
-        Assert.Equal(4, result.TotalPersistedFollowers);
-        Assert.Equal(4, await _tracker.GetPersistedFollowerCountAsync());
+        Assert.Equal(5, result.TotalPersistedFollowers);
+        Assert.Equal(5, await _tracker.GetPersistedFollowerCountAsync());
         Assert.Equal(result, _tracker.LastSyncResult);
 
-        // Unfollowed viewer is still persisted so re-following will not re-trigger events
-        Assert.False(await _tracker.TryRecordFollowAsync("uid-unfollowed", "formerfollower", "FormerFollower", DateTime.UtcNow));
+        // Unfollowed viewer and historical synced follower are suppressed
+        Assert.False(await _tracker.TryBeginFollowDispatchAsync("uid-unfollowed", "formerfollower", "FormerFollower", DateTime.UtcNow));
+        Assert.False(await _tracker.TryBeginFollowDispatchAsync("uid-historical", "OldFollower", "OldFollower", DateTime.UtcNow));
+
+        // Brand-new follower imported during the sync window still receives their matching first-follow notification
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-live", "LiveFollower", "LiveFollower", liveFollowDate));
+        await _tracker.CompleteFollowDispatchAsync("uid-live");
+
+        // Subsequent re-follow by that same user is suppressed
+        Assert.False(await _tracker.TryBeginFollowDispatchAsync("uid-live", "LiveFollower", "LiveFollower", liveFollowDate.AddMinutes(2)));
     }
 
     [Fact]

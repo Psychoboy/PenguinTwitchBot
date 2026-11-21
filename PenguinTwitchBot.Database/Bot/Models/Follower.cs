@@ -16,5 +16,6 @@ namespace PenguinTwitchBot.Database.Bot.Models
         public string Username { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
         public DateTime FollowDate { get; set; } = DateTime.MinValue;
+        public bool FollowEventDispatched { get; set; } = true;
     }
 }

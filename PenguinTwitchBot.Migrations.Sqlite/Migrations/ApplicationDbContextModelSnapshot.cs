@@ -1728,6 +1728,11 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("FollowDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("FollowEventDispatched")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
