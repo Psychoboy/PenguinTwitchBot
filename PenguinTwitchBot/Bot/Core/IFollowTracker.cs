@@ -8,7 +8,32 @@ namespace PenguinTwitchBot.Bot.Core
         int UpdatedCount,
         int ExistingCount,
         int TotalPersistedFollowers,
-        DateTime CompletedAtUtc);
+        DateTime CompletedAtUtc,
+        int RemovedCount = 0,
+        bool RemovedUnfollowed = false);
+
+    public sealed record FollowerSyncScheduleConfig(
+        bool Enabled = false,
+        int IntervalDays = 30,
+        bool RemoveUnfollowed = false,
+        DateTime? LastScheduledRunUtc = null);
+
+    public sealed record PersistedFollowerListItem(
+        Guid FollowerId,
+        string UserId,
+        string Username,
+        string DisplayName,
+        DateTime FollowDate,
+        Guid? ViewerId,
+        DateTime? LastSeen,
+        bool IsSub,
+        bool IsVip,
+        bool IsMod,
+        bool IsBroadcaster);
+
+    public sealed record PersistedFollowerPage(
+        List<PersistedFollowerListItem> Items,
+        int TotalCount);
 
     public interface IFollowTracker
     {
@@ -43,13 +68,38 @@ namespace PenguinTwitchBot.Bot.Core
         void ReleaseFollowDispatch(string userId);
 
         /// <summary>
-        /// Manually fetches all current channel followers from Twitch and persists any missing ones.
-        /// Never deletes previously persisted followers so unfollowed viewers cannot re-trigger follow events.
+        /// Fetches all current channel followers from Twitch and updates the persisted Followers table.
+        /// When <paramref name="removeUnfollowed"/> is <c>false</c> (default), only adds/updates followers
+        /// and never deletes previously persisted rows. When <c>true</c>, also removes followers who are
+        /// no longer following on Twitch (excluding any live followers within the sync grace window).
         /// </summary>
         Task<FollowerSyncResult> SyncFollowersAsync(
+            bool removeUnfollowed = false,
             IProgress<FollowerSyncProgress>? progress = null,
             CancellationToken cancellationToken = default);
 
         Task<int> GetPersistedFollowerCountAsync(CancellationToken cancellationToken = default);
+
+        Task<bool> GetCheckLocalTableFirstAsync(CancellationToken cancellationToken = default);
+
+        Task SetCheckLocalTableFirstAsync(bool enabled, CancellationToken cancellationToken = default);
+
+        Task<FollowerSyncScheduleConfig> GetScheduleConfigAsync(CancellationToken cancellationToken = default);
+
+        Task SaveScheduleConfigAsync(FollowerSyncScheduleConfig config, CancellationToken cancellationToken = default);
+
+        Task<bool> TryRunScheduledSyncIfDueAsync(DateTime? nowUtc = null, CancellationToken cancellationToken = default);
+
+        Task<Follower?> GetPersistedFollowerByUsernameAsync(
+            string username,
+            CancellationToken cancellationToken = default);
+
+        Task<PersistedFollowerPage> GetPersistedFollowersPageAsync(
+            int page,
+            int pageSize,
+            string? search = null,
+            string? sortBy = null,
+            bool sortDescending = true,
+            CancellationToken cancellationToken = default);
     }
 }

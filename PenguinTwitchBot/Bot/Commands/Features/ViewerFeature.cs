@@ -20,6 +20,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         private readonly ITwitchService _twitchService;
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IFollowTracker? _followTracker;
         private readonly Timer _subscriberUpdateTimer = new(TimeSpan.FromHours(1).TotalMilliseconds);
         private readonly Timer _chatterUpdateTimer = new(TimeSpan.FromMinutes(2).TotalMilliseconds);
         private static readonly Prometheus.Gauge ActiveViewers = Prometheus.Metrics.CreateGauge("active_viewers", "Current active viewers in chat");
@@ -31,7 +32,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             ITwitchService twitchService,
             IServiceScopeFactory scopeFactory,
             Application.Notifications.IPenguinDispatcher dispatcher,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            IFollowTracker? followTracker = null
             ) : base(serviceBackbone, commandHandler, "ViewerFeature", dispatcher)
         {
             _logger = logger;
@@ -44,6 +46,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
+            _followTracker = followTracker;
 
             _subscriberUpdateTimer.Elapsed += OnSubscriberTimerElapsed;
             _subscriberUpdateTimer.Start();
@@ -240,6 +243,15 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         public async Task<Follower?> GetFollowerAsync(string username)
         {
+            if (_followTracker != null && await _followTracker.GetCheckLocalTableFirstAsync())
+            {
+                var persisted = await _followTracker.GetPersistedFollowerByUsernameAsync(username);
+                if (persisted != null)
+                {
+                    return persisted;
+                }
+            }
+
             var follower = await _twitchService.GetUserFollow(username);
             if (follower == null) return null;
             return follower;

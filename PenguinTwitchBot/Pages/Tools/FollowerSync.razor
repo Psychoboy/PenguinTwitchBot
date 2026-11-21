@@ -3,6 +3,8 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IFollowTracker FollowTracker
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
 @implements IDisposable
 
 <PageTitle>Follower Sync</PageTitle>
@@ -28,10 +30,17 @@
                         Cancel
                     </MudButton>
                 }
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.CleaningServices"
+                           OnClick="ConfirmAndStartFullResyncAsync"
+                           Disabled="@(_isSyncing || FollowTracker.IsSyncInProgress)">
+                    Full Resync
+                </MudButton>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Sync"
-                           OnClick="StartSyncAsync"
+                           OnClick="() => StartSyncAsync(removeUnfollowed: false)"
                            Disabled="@(_isSyncing || FollowTracker.IsSyncInProgress)">
                     @if (_isSyncing || FollowTracker.IsSyncInProgress)
                     {
@@ -40,14 +49,15 @@
                     }
                     else
                     {
-                        <span>Sync Followers from Twitch</span>
+                        <span>Sync New Followers</span>
                     }
                 </MudButton>
             </MudStack>
         </MudStack>
 
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-            Follower syncing is <strong>manual only</strong> and never runs automatically. Syncing adds missing followers from Twitch and updates changed usernames, but never deletes previously recorded followers so unfollowed viewers remain blocked from re-triggering follow events.
+            <strong>Sync New Followers</strong> adds missing followers and updates changed names without removing unfollowed viewers (preserving re-follow suppression).
+            <strong>Full Resync</strong> also removes viewers who have unfollowed on Twitch to clean up the table (those viewers will be able to trigger follow events again if they re-follow).
         </MudAlert>
 
         <MudGrid Spacing="3">
@@ -76,7 +86,7 @@
                                     <ToLocal DateTime="_lastResult.CompletedAtUtc" Format="m/d/yyyy h:MM TT" />
                                 </MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @_lastResult.AddedCount.ToString("N0") added, @_lastResult.UpdatedCount.ToString("N0") updated
+                                    @_lastResult.AddedCount.ToString("N0") added, @_lastResult.UpdatedCount.ToString("N0") updated@(_lastResult.RemovedUnfollowed ? $", {_lastResult.RemovedCount:N0} removed" : "")
                                 </MudText>
                             }
                             else
@@ -103,6 +113,101 @@
                 </MudPaper>
             </MudItem>
         </MudGrid>
+
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+                <div>
+                    <MudText Typo="Typo.subtitle1"><b>Follower Lookup Setting</b></MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        When enabled, follower checks (follower-only commands, giveaways, follow age, viewer profiles) check the persisted Followers table first before calling Twitch. Disable to always query Twitch live (reflects unfollows).
+                    </MudText>
+                </div>
+                <MudSwitch T="bool"
+                           Value="_checkLocalTableFirst"
+                           ValueChanged="OnCheckLocalTableFirstChangedAsync"
+                           Color="Color.Primary"
+                           Disabled="_isSavingSetting"
+                           Label="Check persisted followers first" />
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudStack Spacing="3">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+                    <div>
+                        <MudText Typo="Typo.subtitle1"><b>Scheduled Follower Sync</b></MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Optionally run a periodic follower sync automatically in the background (disabled by default).
+                        </MudText>
+                    </div>
+                    <MudSwitch T="bool"
+                               @bind-Value="_scheduleEnabled"
+                               Color="Color.Primary"
+                               Label="Enable scheduled sync" />
+                </MudStack>
+
+                <MudGrid Spacing="2" Class="align-center">
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudSelect T="int"
+                                   Label="Frequency"
+                                   @bind-Value="_scheduleIntervalDays"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Disabled="@(!_scheduleEnabled)">
+                            <MudSelectItem T="int" Value="7">Weekly (every 7 days)</MudSelectItem>
+                            <MudSelectItem T="int" Value="14">Every 2 weeks (14 days)</MudSelectItem>
+                            <MudSelectItem T="int" Value="30">Monthly (every 30 days)</MudSelectItem>
+                            <MudSelectItem T="int" Value="90">Quarterly (every 90 days)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="5">
+                        <MudSelect T="bool"
+                                   Label="Sync Mode"
+                                   @bind-Value="_scheduleRemoveUnfollowed"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Disabled="@(!_scheduleEnabled)">
+                            <MudSelectItem T="bool" Value="false">Additive Sync (keep unfollowed)</MudSelectItem>
+                            <MudSelectItem T="bool" Value="true">Full Resync (remove unfollowed)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="SaveScheduleAsync"
+                                   Disabled="_isSavingSchedule">
+                            @(_isSavingSchedule ? "Saving..." : "Save Schedule")
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+
+                @if (_scheduleConfig.Enabled)
+                {
+                    <MudStack Row="true" Spacing="4" Wrap="Wrap.Wrap">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            <strong>Last scheduled run:</strong>
+                            @if (_scheduleConfig.LastScheduledRunUtc.HasValue)
+                            {
+                                <ToLocal DateTime="_scheduleConfig.LastScheduledRunUtc.Value" Format="m/d/yyyy h:MM TT" />
+                            }
+                            else
+                            {
+                                <span>Pending</span>
+                            }
+                        </MudText>
+                        @if (_scheduleConfig.LastScheduledRunUtc.HasValue)
+                        {
+                            var nextRunUtc = _scheduleConfig.LastScheduledRunUtc.Value.AddDays(_scheduleConfig.IntervalDays);
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                <strong>Next scheduled run:</strong>
+                                <ToLocal DateTime="nextRunUtc" Format="m/d/yyyy h:MM TT" />
+                            </MudText>
+                        }
+                    </MudStack>
+                }
+            </MudStack>
+        </MudPaper>
 
         @if (_isSyncing || FollowTracker.IsSyncInProgress)
         {
@@ -139,12 +244,12 @@
         @if (_lastResult != null && !_isSyncing && !FollowTracker.IsSyncInProgress)
         {
             <MudAlert Severity="Severity.Success" Variant="Variant.Filled">
-                <MudText Typo="Typo.subtitle1">Sync Complete</MudText>
+                <MudText Typo="Typo.subtitle1">@(_lastResult.RemovedUnfollowed ? "Full Resync Complete" : "Sync Complete")</MudText>
                 <MudText Typo="Typo.body2">
                     Fetched <strong>@_lastResult.TotalTwitchFollowers.ToString("N0")</strong> followers from Twitch:
                     <strong>@_lastResult.AddedCount.ToString("N0")</strong> newly persisted,
                     <strong>@_lastResult.UpdatedCount.ToString("N0")</strong> updated,
-                    <strong>@_lastResult.ExistingCount.ToString("N0")</strong> already tracked.
+                    <strong>@_lastResult.ExistingCount.ToString("N0")</strong> already tracked@(_lastResult.RemovedUnfollowed ? $", {_lastResult.RemovedCount:N0} unfollowed removed" : "").
                 </MudText>
             </MudAlert>
         }
@@ -155,13 +260,152 @@
                 @_errorMessage
             </MudAlert>
         }
+
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudTable T="PersistedFollowerListItem"
+                      @ref="_followersTable"
+                      ServerData="LoadFollowersAsync"
+                      Dense="true"
+                      Hover="true"
+                      FixedHeader="true"
+                      RowsPerPage="25">
+                <ToolBarContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Style="width: 100%;" Wrap="Wrap.Wrap" Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.List" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6">Persisted Followers</MudText>
+                        </MudStack>
+                        <MudTextField T="string"
+                                      Value="_searchText"
+                                      ValueChanged="OnSearchChangedAsync"
+                                      Placeholder="Search by username..."
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      DebounceInterval="300"
+                                      Clearable="true"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Style="max-width: 320px;" />
+                    </MudStack>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>
+                        <MudTableSortLabel T="PersistedFollowerListItem" SortLabel="username">Follower</MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        <MudTableSortLabel T="PersistedFollowerListItem" SortLabel="followdate" InitialDirection="SortDirection.Descending">Followed</MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>Last Seen</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh Style="text-align: right;">Profile</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Follower">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudAvatar Color="Color.Primary" Size="Size.Small">
+                                @(string.IsNullOrWhiteSpace(context.DisplayName) ? "U" : context.DisplayName.Substring(0, 1).ToUpperInvariant())
+                            </MudAvatar>
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.subtitle2">@(string.IsNullOrWhiteSpace(context.DisplayName) ? context.Username : context.DisplayName)</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@@@context.Username</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Followed">
+                        @if (context.FollowDate != DateTime.MinValue)
+                        {
+                            <ToLocal DateTime="@context.FollowDate" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">-</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Last Seen">
+                        @if (context.LastSeen.HasValue)
+                        {
+                            <ToLocal DateTime="@context.LastSeen.Value" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">-</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                            @if (context.IsBroadcaster)
+                            {
+                                <MudChip T="string" Color="Color.Tertiary" Size="Size.Small">Broadcaster</MudChip>
+                            }
+                            @if (context.IsMod)
+                            {
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small">Mod</MudChip>
+                            }
+                            @if (context.IsVip)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small">VIP</MudChip>
+                            }
+                            @if (context.IsSub)
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small">Sub</MudChip>
+                            }
+                            @if (!context.IsBroadcaster && !context.IsMod && !context.IsVip && !context.IsSub)
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">-</MudText>
+                            }
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Profile" Style="text-align: right;">
+                        @if (context.ViewerId.HasValue)
+                        {
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.AccountCircle"
+                                       OnClick="@(() => OpenViewerProfile(context.ViewerId.Value))">
+                                View Profile
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">No viewer profile</MudText>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4 text-center">
+                        @(string.IsNullOrWhiteSpace(_searchText)
+                            ? "No persisted followers yet. Click \"Sync Followers from Twitch\" above to backfill existing followers."
+                            : $"No followers found matching '{_searchText}'.")
+                    </MudText>
+                </NoRecordsContent>
+                <LoadingContent>
+                    <MudStack AlignItems="AlignItems.Center" Class="pa-4">
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Loading followers...</MudText>
+                    </MudStack>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new[] { 10, 25, 50, 100 }" />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
     </MudStack>
 </MudContainer>
 
 @code {
+    private MudTable<PersistedFollowerListItem>? _followersTable;
     private int _persistedCount;
     private bool _isLoadingCount = true;
     private bool _isSyncing;
+    private bool _checkLocalTableFirst = true;
+    private bool _isSavingSetting;
+    private FollowerSyncScheduleConfig _scheduleConfig = new();
+    private bool _scheduleEnabled;
+    private int _scheduleIntervalDays = 30;
+    private bool _scheduleRemoveUnfollowed;
+    private bool _isSavingSchedule;
+    private string _searchText = string.Empty;
     private FollowerSyncProgress? _progress;
     private FollowerSyncResult? _lastResult;
     private string? _errorMessage;
@@ -173,6 +417,8 @@
         FollowTracker.SyncStateChanged += OnSyncStateChanged;
         _lastResult = FollowTracker.LastSyncResult;
         await LoadCountAsync();
+        await LoadSettingAsync();
+        await LoadScheduleAsync();
     }
 
     private void OnSyncStateChanged()
@@ -193,6 +439,11 @@
             if (!FollowTracker.IsSyncInProgress && !_isSyncing)
             {
                 await RefreshCountSafelyAsync();
+                await LoadScheduleAsync();
+                if (_followersTable != null)
+                {
+                    await _followersTable.ReloadServerData();
+                }
             }
 
             StateHasChanged();
@@ -216,6 +467,41 @@
         }
     }
 
+    private async Task LoadSettingAsync()
+    {
+        try
+        {
+            _checkLocalTableFirst = await FollowTracker.GetCheckLocalTableFirstAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load follower lookup setting: {ex.Message}";
+        }
+    }
+
+    private async Task OnCheckLocalTableFirstChangedAsync(bool value)
+    {
+        _isSavingSetting = true;
+        try
+        {
+            await FollowTracker.SetCheckLocalTableFirstAsync(value);
+            _checkLocalTableFirst = value;
+            Snackbar.Add(
+                value
+                    ? "Follower checks will check the persisted Followers table first."
+                    : "Follower checks will always query Twitch live.",
+                Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save setting: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingSetting = false;
+        }
+    }
+
     private async Task RefreshCountSafelyAsync()
     {
         try
@@ -228,7 +514,111 @@
         }
     }
 
-    private async Task StartSyncAsync()
+    private async Task<TableData<PersistedFollowerListItem>> LoadFollowersAsync(TableState state, CancellationToken cancellationToken)
+    {
+        var sortBy = string.IsNullOrWhiteSpace(state.SortLabel) ? "followdate" : state.SortLabel;
+        var sortDescending = state.SortDirection != SortDirection.Ascending;
+
+        var page = await FollowTracker.GetPersistedFollowersPageAsync(
+            page: state.Page,
+            pageSize: state.PageSize,
+            search: _searchText,
+            sortBy: sortBy,
+            sortDescending: sortDescending,
+            cancellationToken: cancellationToken);
+
+        return new TableData<PersistedFollowerListItem>
+        {
+            TotalItems = page.TotalCount,
+            Items = page.Items
+        };
+    }
+
+    private async Task OnSearchChangedAsync(string value)
+    {
+        _searchText = value ?? string.Empty;
+        if (_followersTable != null)
+        {
+            await _followersTable.ReloadServerData();
+        }
+    }
+
+    private void OpenViewerProfile(Guid viewerId)
+    {
+        NavigationManager.NavigateTo($"/community/viewers/edit?id={viewerId}");
+    }
+
+    private async Task LoadScheduleAsync()
+    {
+        try
+        {
+            _scheduleConfig = await FollowTracker.GetScheduleConfigAsync();
+            _scheduleEnabled = _scheduleConfig.Enabled;
+            _scheduleIntervalDays = _scheduleConfig.IntervalDays;
+            _scheduleRemoveUnfollowed = _scheduleConfig.RemoveUnfollowed;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load follower sync schedule: {ex.Message}";
+        }
+    }
+
+    private async Task SaveScheduleAsync()
+    {
+        _isSavingSchedule = true;
+        try
+        {
+            var lastRun = _scheduleConfig.LastScheduledRunUtc;
+            if (_scheduleEnabled && !lastRun.HasValue)
+            {
+                // Anchor next scheduled run to interval from now rather than running unexpectedly right away.
+                lastRun = DateTime.UtcNow;
+            }
+
+            var updated = new FollowerSyncScheduleConfig(
+                Enabled: _scheduleEnabled,
+                IntervalDays: _scheduleIntervalDays,
+                RemoveUnfollowed: _scheduleRemoveUnfollowed,
+                LastScheduledRunUtc: lastRun);
+
+            await FollowTracker.SaveScheduleConfigAsync(updated);
+            _scheduleConfig = updated;
+            Snackbar.Add(
+                _scheduleEnabled
+                    ? $"Scheduled follower sync saved (every {_scheduleIntervalDays} days)."
+                    : "Scheduled follower sync disabled.",
+                Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save schedule: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingSchedule = false;
+        }
+    }
+
+    private async Task ConfirmAndStartFullResyncAsync()
+    {
+        if (_isSyncing || FollowTracker.IsSyncInProgress)
+        {
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Confirm Full Resync",
+            "Full Resync will add new followers and REMOVE anyone in the persisted Followers table who is no longer following on Twitch. Removed viewers will be able to trigger follow events again if they re-follow. Continue?",
+            yesText: "Full Resync",
+            cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            await StartSyncAsync(removeUnfollowed: true);
+        }
+    }
+
+    private async Task StartSyncAsync(bool removeUnfollowed)
     {
         if (_isSyncing || FollowTracker.IsSyncInProgress)
         {
@@ -252,11 +642,13 @@
 
         try
         {
-            _lastResult = await FollowTracker.SyncFollowersAsync(progress, _syncCts.Token);
+            _lastResult = await FollowTracker.SyncFollowersAsync(removeUnfollowed, progress, _syncCts.Token);
             _persistedCount = _lastResult.TotalPersistedFollowers;
             succeeded = true;
             Snackbar.Add(
-                $"Synced {_lastResult.TotalTwitchFollowers:N0} followers ({_lastResult.AddedCount:N0} added).",
+                removeUnfollowed
+                    ? $"Full resync complete: {_lastResult.AddedCount:N0} added, {_lastResult.RemovedCount:N0} removed."
+                    : $"Synced {_lastResult.TotalTwitchFollowers:N0} followers ({_lastResult.AddedCount:N0} added).",
                 Severity.Success);
         }
         catch (OperationCanceledException)
@@ -278,6 +670,10 @@
             }
             if (!_disposed)
             {
+                if (_followersTable != null)
+                {
+                    await _followersTable.ReloadServerData();
+                }
                 await InvokeAsync(StateHasChanged);
             }
         }

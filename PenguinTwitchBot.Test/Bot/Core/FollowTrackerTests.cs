@@ -190,4 +190,145 @@ public sealed class FollowTrackerTests : IDisposable
         await firstSync;
         Assert.False(_tracker.IsSyncInProgress);
     }
+
+    [Fact]
+    public async Task CheckLocalTableFirstSetting_DefaultsToTrueAndPersistsChanges()
+    {
+        Assert.True(await _tracker.GetCheckLocalTableFirstAsync());
+
+        await _tracker.SetCheckLocalTableFirstAsync(false);
+        Assert.False(await _tracker.GetCheckLocalTableFirstAsync());
+
+        // Verify persisted in DB for a fresh tracker instance
+        var freshTracker = new FollowTracker(
+            _logger,
+            _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+            _twitchService);
+        Assert.False(await freshTracker.GetCheckLocalTableFirstAsync());
+
+        await freshTracker.SetCheckLocalTableFirstAsync(true);
+        Assert.True(await freshTracker.GetCheckLocalTableFirstAsync());
+    }
+
+    [Fact]
+    public async Task GetPersistedFollowerByUsernameAsync_NormalizesAndFindsFollower()
+    {
+        var followDate = new DateTime(2026, 11, 21, 12, 0, 0, DateTimeKind.Utc);
+        await _tracker.TryBeginFollowDispatchAsync("uid-1", "MixedCaseUser", "MixedCaseUser", followDate);
+
+        var found = await _tracker.GetPersistedFollowerByUsernameAsync("MIXEDCASEUSER");
+        Assert.NotNull(found);
+        Assert.Equal("uid-1", found!.UserId);
+
+        Assert.Null(await _tracker.GetPersistedFollowerByUsernameAsync("missinguser"));
+    }
+
+    [Fact]
+    public async Task GetPersistedFollowersPageAsync_SupportsSearchSortingAndLinksViewerLastSeen()
+    {
+        var older = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var newer = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var lastSeen = new DateTime(2026, 11, 20, 15, 0, 0, DateTimeKind.Utc);
+
+        await _tracker.TryBeginFollowDispatchAsync("uid-1", "alice", "Alice", older);
+        await _tracker.TryBeginFollowDispatchAsync("uid-2", "bob", "Bob", newer);
+
+        await using (var ctx = new ApplicationDbContext(_dbOptions))
+        {
+            ctx.Viewers.Add(new Viewer
+            {
+                UserId = "uid-1",
+                Username = "alice",
+                DisplayName = "Alice",
+                LastSeen = lastSeen,
+                isSub = true,
+                isVip = true
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        var page = await _tracker.GetPersistedFollowersPageAsync(page: 0, pageSize: 10, sortBy: "followdate", sortDescending: true);
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal("bob", page.Items[0].Username);
+        Assert.Null(page.Items[0].ViewerId);
+        Assert.Null(page.Items[0].LastSeen);
+
+        Assert.Equal("alice", page.Items[1].Username);
+        Assert.NotNull(page.Items[1].ViewerId);
+        Assert.Equal(lastSeen, page.Items[1].LastSeen);
+        Assert.True(page.Items[1].IsSub);
+        Assert.True(page.Items[1].IsVip);
+
+        var filtered = await _tracker.GetPersistedFollowersPageAsync(page: 0, pageSize: 10, search: "ALI");
+        Assert.Equal(1, filtered.TotalCount);
+        Assert.Single(filtered.Items);
+        Assert.Equal("alice", filtered.Items[0].Username);
+    }
+
+    [Fact]
+    public async Task SyncFollowersAsync_WithRemoveUnfollowed_RemovesUnfollowedButProtectsLiveFollowers()
+    {
+        var oldDate = DateTime.UtcNow.AddDays(-60);
+        var liveDate = DateTime.UtcNow;
+
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-unfollowed", "oldunfollower", "OldUnfollower", oldDate));
+        await _tracker.CompleteFollowDispatchAsync("uid-unfollowed");
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-kept", "stillfollowing", "StillFollowing", oldDate));
+        await _tracker.CompleteFollowDispatchAsync("uid-kept");
+        Assert.True(await _tracker.TryBeginFollowDispatchAsync("uid-live-recent", "justfollowed", "JustFollowed", liveDate));
+        await _tracker.CompleteFollowDispatchAsync("uid-live-recent");
+
+        _twitchService.GetAllFollowersAsync(Arg.Any<IProgress<FollowerSyncProgress>?>(), Arg.Any<CancellationToken>())
+            .Returns([
+                new Follower { UserId = "uid-kept", Username = "stillfollowing", DisplayName = "StillFollowing", FollowDate = oldDate },
+                new Follower { UserId = "uid-new", Username = "brandnew", DisplayName = "BrandNew", FollowDate = oldDate }
+            ]);
+
+        var result = await _tracker.SyncFollowersAsync(removeUnfollowed: true);
+
+        Assert.True(result.RemovedUnfollowed);
+        Assert.Equal(1, result.AddedCount);
+        Assert.Equal(1, result.RemovedCount);
+        Assert.Equal(3, result.TotalPersistedFollowers);
+        Assert.Null(await _tracker.GetPersistedFollowerByUsernameAsync("oldunfollower"));
+        Assert.NotNull(await _tracker.GetPersistedFollowerByUsernameAsync("justfollowed"));
+        Assert.NotNull(await _tracker.GetPersistedFollowerByUsernameAsync("brandnew"));
+    }
+
+    [Fact]
+    public async Task ScheduledSync_PersistsConfigAndRunsOnlyWhenDue()
+    {
+        var baseTime = new DateTime(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc);
+        var defaultConfig = await _tracker.GetScheduleConfigAsync();
+        Assert.False(defaultConfig.Enabled);
+        Assert.Equal(30, defaultConfig.IntervalDays);
+
+        // Disabled schedule does not run
+        Assert.False(await _tracker.TryRunScheduledSyncIfDueAsync(baseTime));
+
+        // Enable monthly full resync anchored at baseTime
+        await _tracker.SaveScheduleConfigAsync(new FollowerSyncScheduleConfig(
+            Enabled: true,
+            IntervalDays: 30,
+            RemoveUnfollowed: true,
+            LastScheduledRunUtc: baseTime));
+
+        _twitchService.GetAllFollowersAsync(Arg.Any<IProgress<FollowerSyncProgress>?>(), Arg.Any<CancellationToken>())
+            .Returns([new Follower { UserId = "uid-1", Username = "alice", DisplayName = "Alice", FollowDate = baseTime.AddDays(-10) }]);
+
+        // Not due after 15 days
+        Assert.False(await _tracker.TryRunScheduledSyncIfDueAsync(baseTime.AddDays(15)));
+        Assert.Equal(0, await _tracker.GetPersistedFollowerCountAsync());
+
+        // Due after 30 days
+        var runTime = baseTime.AddDays(30);
+        Assert.True(await _tracker.TryRunScheduledSyncIfDueAsync(runTime));
+        Assert.Equal(1, await _tracker.GetPersistedFollowerCountAsync());
+
+        var updatedConfig = await _tracker.GetScheduleConfigAsync();
+        Assert.Equal(runTime, updatedConfig.LastScheduledRunUtc);
+
+        // Not due again immediately after running
+        Assert.False(await _tracker.TryRunScheduledSyncIfDueAsync(runTime.AddHours(1)));
+    }
 }
