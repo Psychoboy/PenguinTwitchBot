@@ -437,9 +437,23 @@
                                         {
                                             var idx = i;
                                             var sec = _profileConfig.Sections[idx];
-                                            <MudPaper Outlined="true" Class="pa-3">
+                                            <div @key="sec.Id"
+                                                 class="@_sectionDrag.GetItemCssClass(idx)"
+                                                 data-drag-item="true"
+                                                 data-drag-index="@idx"
+                                                 draggable="true"
+                                                 @ondragstart="@(() => _sectionDrag.Start(idx))"
+                                                 @ondragenter="@(() => _sectionDrag.Enter(idx))"
+                                                 ondragover="event.preventDefault()"
+                                                 @ondrop="@(() => _sectionDrag.TryCompleteDrop(_profileConfig.Sections, idx, out _, out _))"
+                                                 @ondrop:preventDefault="true"
+                                                 @ondragend="@(() => _sectionDrag.End())">
+                                                <MudPaper Outlined="true" Class="pa-3">
                                                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
                                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="flex: 1 1 280px;">
+                                                        <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
+                                                            <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                                                        </span>
                                                         <MudSwitch T="bool" @bind-Value="sec.Enabled" Color="Color.Success" />
                                                         <MudStack Spacing="0">
                                                             <MudText Typo="Typo.subtitle1"><b>@sec.Title</b></MudText>
@@ -488,7 +502,8 @@
                                                         </MudTooltip>
                                                     </MudStack>
                                                 </MudStack>
-                                            </MudPaper>
+                                                </MudPaper>
+                                            </div>
                                         }
                                     }
                                 </MudStack>
@@ -1852,6 +1867,8 @@
         });
         Snackbar.Add($"Added '{title}' section (click Save Profile to persist).", Severity.Info);
     }
+
+    private readonly DragReorderState _sectionDrag = new();
 
     private void MoveSection(int index, int delta)
     {

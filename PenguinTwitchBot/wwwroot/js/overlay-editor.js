@@ -13,11 +13,73 @@ const WIDGET_COLORS = {
 let _dotnet = null;
 let _interactable = null;
 let _scale = 0.5; // updated on each init() call
+let _snapSize = 0; // 0 = disabled, >0 = snap increment in canvas px
 let _viewportEl = null;
 let _isPanning = false;
 let _lastPanX = 0;
 let _lastPanY = 0;
 let _viewportHandlers = null;
+let _keyDownHandler = null;
+
+function snapValue(val) {
+    if (_snapSize > 0) {
+        return Math.round(val / _snapSize) * _snapSize;
+    }
+    return Math.round(val);
+}
+
+function detachKeyboardShortcuts() {
+    if (_keyDownHandler) {
+        document.removeEventListener('keydown', _keyDownHandler);
+        _keyDownHandler = null;
+    }
+}
+
+function attachKeyboardShortcuts() {
+    detachKeyboardShortcuts();
+    _keyDownHandler = (e) => {
+        if (!_dotnet) return;
+
+        const key = e.key;
+        const isSave = (e.ctrlKey || e.metaKey) && key.toLowerCase() === 's';
+        if (isSave) {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardSave');
+            return;
+        }
+
+        const active = document.activeElement;
+        if (active && (
+            active.tagName === 'INPUT' ||
+            active.tagName === 'TEXTAREA' ||
+            active.tagName === 'SELECT' ||
+            active.isContentEditable
+        )) {
+            return;
+        }
+
+        const step = e.shiftKey ? 10 : 1;
+        if (key === 'ArrowLeft') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardNudge', -step, 0);
+        } else if (key === 'ArrowRight') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardNudge', step, 0);
+        } else if (key === 'ArrowUp') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardNudge', 0, -step);
+        } else if (key === 'ArrowDown') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardNudge', 0, step);
+        } else if (key === 'Delete' || key === 'Backspace') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardDelete');
+        } else if (key === 'Escape') {
+            _dotnet.invokeMethodAsync('OnKeyboardEscape');
+        }
+    };
+    document.addEventListener('keydown', _keyDownHandler);
+}
 
 function detachViewportInteractions() {
     if (!_viewportEl || !_viewportHandlers) return;
@@ -92,15 +154,19 @@ function attachViewportInteractions() {
 
 window.overlayEditor = {
 
-    init(dotnetHelper, scale) {
+    init(dotnetHelper, scale, snapSize) {
         _dotnet = dotnetHelper;
         _scale = scale || 0.5;
+        if (typeof snapSize === 'number') {
+            _snapSize = snapSize;
+        }
         if (_interactable) {
             _interactable.unset();
             _interactable = null;
         }
 
         attachViewportInteractions();
+        attachKeyboardShortcuts();
 
         // Selector targeting — automatically covers widgets added/removed later.
         _interactable = interact('.widget-tile')
@@ -109,16 +175,18 @@ window.overlayEditor = {
                 listeners: {
                     move(event) {
                         const el = event.target;
-                        const x = (parseFloat(el.dataset.x) || 0) + event.dx;
-                        const y = (parseFloat(el.dataset.y) || 0) + event.dy;
-                        el.style.left = x + 'px';
-                        el.style.top  = y + 'px';
-                        el.dataset.x  = x;
-                        el.dataset.y  = y;
+                        const rawX = (parseFloat(el.dataset.x) || 0) + event.dx;
+                        const rawY = (parseFloat(el.dataset.y) || 0) + event.dy;
+                        el.dataset.x = rawX;
+                        el.dataset.y = rawY;
+                        const canvasX = snapValue(rawX / _scale);
+                        const canvasY = snapValue(rawY / _scale);
+                        el.style.left = (canvasX * _scale) + 'px';
+                        el.style.top  = (canvasY * _scale) + 'px';
                         _dotnet.invokeMethodAsync('OnWidgetMoved',
                             el.dataset.widgetId,
-                            Math.round(x / _scale),
-                            Math.round(y / _scale));
+                            canvasX,
+                            canvasY);
                     },
                     end(event) {
                         _dotnet.invokeMethodAsync('OnDragEnd');
@@ -133,20 +201,24 @@ window.overlayEditor = {
                 listeners: {
                     move(event) {
                         const el = event.target;
-                        let x = (parseFloat(el.dataset.x) || 0) + event.deltaRect.left;
-                        let y = (parseFloat(el.dataset.y) || 0) + event.deltaRect.top;
-                        el.style.left   = x + 'px';
-                        el.style.top    = y + 'px';
-                        el.style.width  = event.rect.width  + 'px';
-                        el.style.height = event.rect.height + 'px';
-                        el.dataset.x = x;
-                        el.dataset.y = y;
+                        const rawX = (parseFloat(el.dataset.x) || 0) + event.deltaRect.left;
+                        const rawY = (parseFloat(el.dataset.y) || 0) + event.deltaRect.top;
+                        el.dataset.x = rawX;
+                        el.dataset.y = rawY;
+                        const canvasX = snapValue(rawX / _scale);
+                        const canvasY = snapValue(rawY / _scale);
+                        const canvasW = Math.max(10, snapValue(event.rect.width  / _scale));
+                        const canvasH = Math.max(10, snapValue(event.rect.height / _scale));
+                        el.style.left   = (canvasX * _scale) + 'px';
+                        el.style.top    = (canvasY * _scale) + 'px';
+                        el.style.width  = (canvasW * _scale) + 'px';
+                        el.style.height = (canvasH * _scale) + 'px';
                         _dotnet.invokeMethodAsync('OnWidgetResized',
                             el.dataset.widgetId,
-                            Math.round(x / _scale),
-                            Math.round(y / _scale),
-                            Math.round(event.rect.width  / _scale),
-                            Math.round(event.rect.height / _scale));
+                            canvasX,
+                            canvasY,
+                            canvasW,
+                            canvasH);
                     },
                     end(event) {
                         _dotnet.invokeMethodAsync('OnDragEnd');
@@ -155,12 +227,17 @@ window.overlayEditor = {
             });
     },
 
+    setSnapSize(snapSize) {
+        _snapSize = typeof snapSize === 'number' ? snapSize : 0;
+    },
+
     destroy() {
         if (_interactable) {
             _interactable.unset();
             _interactable = null;
         }
         detachViewportInteractions();
+        detachKeyboardShortcuts();
     },
 
     panViewport(deltaX, deltaY) {

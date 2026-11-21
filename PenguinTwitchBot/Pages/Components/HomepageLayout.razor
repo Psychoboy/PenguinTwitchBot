@@ -39,7 +39,7 @@ else
                         </MudStack>
 
                         <MudAlert Severity="Severity.Info" Variant="Variant.Text" Dense="true">
-                            Widgets are saved in order. Use the arrows to reorder them, or add and remove tiles as needed.
+                            Widgets are saved in order. Drag the handle or use the arrows to reorder them, or add and remove tiles as needed.
                         </MudAlert>
 
                         <MudStack Row="true" AlignItems="AlignItems.End" Spacing="2" Class="flex-wrap">
@@ -68,12 +68,29 @@ else
                                 var widget = editableWidgets[widgetIndex];
                                 HomepageWidgetCatalog.TryGetDefinition(widget.Type, out var definition);
 
-                                <MudPaper Class="pa-4" Elevation="1" @key="widget.Id">
+                                <div @key="widget.Id"
+                                     class="@_drag.GetItemCssClass(widgetIndex)"
+                                     data-drag-item="true"
+                                     data-drag-handle-only="true"
+                                     data-drag-index="@widgetIndex"
+                                     draggable="false"
+                                     @ondragstart="@(() => { if (!isSaving) _drag.Start(widgetIndex); })"
+                                     @ondragenter="@(() => { if (!isSaving) _drag.Enter(widgetIndex); })"
+                                     ondragover="event.preventDefault()"
+                                     @ondrop="@(() => OnDropWidget(widgetIndex))"
+                                     @ondrop:preventDefault="true"
+                                     @ondragend="@(() => _drag.End())">
+                                    <MudPaper Class="pa-4" Elevation="1">
                                     <MudStack Spacing="2">
                                         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                                            <MudStack Spacing="0">
-                                                <MudText Typo="Typo.subtitle1">@definition.DisplayName</MudText>
-                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@definition.Description</MudText>
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <span class="drag-reorder-handle" data-drag-handle="true" data-drag-disabled="@(isSaving ? "true" : "false")" title="Drag to reorder">
+                                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                                                </span>
+                                                <MudStack Spacing="0">
+                                                    <MudText Typo="Typo.subtitle1">@definition.DisplayName</MudText>
+                                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@definition.Description</MudText>
+                                                </MudStack>
                                             </MudStack>
                                             <MudStack Row="true" Spacing="1">
                                                 <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Disabled="@(widgetIndex == 0 || isSaving)" OnClick="@(() => MoveWidget(widgetIndex, -1))" />
@@ -143,7 +160,8 @@ else
                                             }
                                         }
                                     </MudStack>
-                                </MudPaper>
+                                    </MudPaper>
+                                </div>
                             }
                         }
                     </MudStack>
@@ -177,6 +195,13 @@ else
 
 @code {
     private readonly List<HomepageWidgetConfig> editableWidgets = [];
+    private readonly DragReorderState _drag = new();
+
+    private void OnDropWidget(int targetIndex)
+    {
+        if (isSaving) return;
+        _drag.TryCompleteDrop(editableWidgets, targetIndex, out _, out _);
+    }
     private HomepageLayoutConfig layout = new();
     private bool isLoaded;
     private bool isSaving;

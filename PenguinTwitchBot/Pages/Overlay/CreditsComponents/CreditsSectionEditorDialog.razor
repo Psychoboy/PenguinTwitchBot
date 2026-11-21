@@ -249,11 +249,28 @@
                             {
                                 var index = i;
                                 var entry = _edit.StaticEntries[index];
-                                <MudPaper Outlined="true" Class="pa-2">
+                                <div @key="entry"
+                                     class="@_entryDrag.GetItemCssClass(index)"
+                                     data-drag-item="true"
+                                     data-drag-handle-only="true"
+                                     data-drag-index="@index"
+                                     draggable="false"
+                                     @ondragstart="@(() => _entryDrag.Start(index))"
+                                     @ondragenter="@(() => _entryDrag.Enter(index))"
+                                     ondragover="event.preventDefault()"
+                                     @ondrop="@(() => _entryDrag.TryCompleteDrop(_edit.StaticEntries, index, out _, out _))"
+                                     @ondrop:preventDefault="true"
+                                     @ondragend="@(() => _entryDrag.End())">
+                                    <MudPaper Outlined="true" Class="pa-2">
                                     <MudGrid Spacing="2">
                                         <MudItem xs="12" sm="4">
-                                            <MudTextField @bind-Value="entry.Name" Label="Display Name"
-                                                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
+                                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                                                </span>
+                                                <MudTextField @bind-Value="entry.Name" Label="Display Name"
+                                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                            </MudStack>
                                         </MudItem>
                                         <MudItem xs="12" sm="4">
                                             <MudTextField @bind-Value="entry.Role" Label="Role / Credit Note"
@@ -286,7 +303,8 @@
                                             </MudStack>
                                         </MudItem>
                                     </MudGrid>
-                                </MudPaper>
+                                    </MudPaper>
+                                </div>
                             }
                         </MudStack>
                     }
@@ -307,6 +325,7 @@
     [Parameter] public bool IsNew { get; set; }
 
     private CreditsSectionConfig _edit = new();
+    private readonly DragReorderState _entryDrag = new();
 
     protected override void OnInitialized()
     {

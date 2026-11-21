@@ -571,7 +571,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var multiplier = repairCostMultiplier ?? (await db.FishingSettings.Find(s => true).FirstOrDefaultAsync())?.RepairCostMultiplier ?? 0.0;
+            var multiplier = repairCostMultiplier ?? (await db.FishingSettings.Find(s => true).OrderBy(s => s.Id).FirstOrDefaultAsync())?.RepairCostMultiplier ?? 0.0;
             if (multiplier <= 0)
             {
                 throw new InvalidOperationException("Repair feature is currently disabled");
@@ -642,7 +642,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var multiplier = repairCostMultiplier ?? (await db.FishingSettings.Find(s => true).FirstOrDefaultAsync())?.RepairCostMultiplier ?? 0.0;
+            var multiplier = repairCostMultiplier ?? (await db.FishingSettings.Find(s => true).OrderBy(s => s.Id).FirstOrDefaultAsync())?.RepairCostMultiplier ?? 0.0;
             if (multiplier <= 0)
             {
                 throw new InvalidOperationException("Repair feature is currently disabled");

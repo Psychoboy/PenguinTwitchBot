@@ -35,7 +35,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             var amount = (long)roundedAmount;
             if (operation == ManagePointsOperation.Set ? amount < 0 : amount <= 0)
-                throw new SubActionUserFacingException(subAction, "Amount must be {0} for {1}.", operation == ManagePointsOperation.Set ? "zero or greater" : "greater than zero", operation);
+                throw new SubActionUserFacingException(
+                    subAction,
+                    "Amount must be {0} for {1} (got {2}, evaluated from '{3}', template '{4}').",
+                    operation == ManagePointsOperation.Set ? "zero or greater" : "greater than zero",
+                    operation,
+                    amount,
+                    amountText,
+                    managePoints.Amount);
 
             if (operation == ManagePointsOperation.AddActive)
             {

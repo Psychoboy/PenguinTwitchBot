@@ -138,6 +138,13 @@
                                    OnClick="ResetZoom"
                                    Class="ml-1" />
                 </MudTooltip>
+                <MudTooltip Text="@(_snapToGrid ? "Snap to 10px grid: ON" : "Snap to 10px grid: OFF")">
+                    <MudIconButton Icon="@(_snapToGrid ? Icons.Material.Filled.GridOn : Icons.Material.Filled.GridOff)"
+                                   Color="@(_snapToGrid ? Color.Primary : Color.Default)"
+                                   Variant="@(_snapToGrid ? Variant.Filled : Variant.Outlined)"
+                                   OnClick="ToggleSnapToGrid"
+                                   Class="ml-1" />
+                </MudTooltip>
 
                 <MudDivider Vertical="true" Class="mx-2" />
 
@@ -287,20 +294,43 @@
     <!-- ===================== RIGHT: Properties panel ===================== -->
     <div class="props-panel">
 
-        <!-- Widget list (select by name instead of clicking canvas) -->
+        <!-- Widget list (drag to reorder layers; select by name instead of clicking canvas) -->
         @if (_widgets.Count > 0)
         {
+            var orderedWidgets = GetOrderedWidgetsDescending();
             <div class="panel-header">
                 <MudText Typo="Typo.subtitle2"><b>Widgets</b></MudText>
+                <span class="widget-list-hint">Drag to reorder</span>
             </div>
-            @foreach (var wi in _widgets.OrderByDescending(x => x.ZIndex))
+            @for (var i = 0; i < orderedWidgets.Count; i++)
             {
-                <div class="widget-list-item @(wi == _selected ? "widget-list-item--active" : "")"
+                var widgetIndex = i;
+                var wi = orderedWidgets[widgetIndex];
+                <div @key="wi.TempId"
+                     class="widget-list-item @(wi == _selected ? "widget-list-item--active" : "") @(!wi.IsEnabled ? "widget-list-item--hidden" : "") @_widgetDrag.GetItemCssClass(widgetIndex)"
+                     data-drag-item="true"
+                     data-drag-index="@widgetIndex"
+                     draggable="true"
+                     @ondragstart="@(() => _widgetDrag.Start(widgetIndex))"
+                     @ondragenter="@(() => _widgetDrag.Enter(widgetIndex))"
+                     ondragover="event.preventDefault()"
+                     @ondrop="@(() => OnDropWidgetLayer(widgetIndex))"
+                     @ondrop:preventDefault="true"
+                     @ondragend="@(() => _widgetDrag.End())"
                      @onclick="() => SelectWidget(wi)">
+                    <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder layer">
+                        <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                    </span>
                     <span class="widget-list-dot" style="background:@GetWidgetColor(wi.WidgetType);"></span>
                     <span class="widget-list-name">@wi.DisplayName</span>
                     <span class="widget-list-z">z:@wi.ZIndex</span>
-                    <span @onclick:stopPropagation="true" style="flex-shrink:0; margin-left:2px;">
+                    <span class="widget-list-actions" @onclick:stopPropagation="true">
+                        <MudTooltip Text="@(wi.IsEnabled ? "Hide widget" : "Show widget")">
+                            <MudIconButton Icon="@(wi.IsEnabled ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                           Size="Size.Small"
+                                           Color="@(wi.IsEnabled ? Color.Default : Color.Secondary)"
+                                           OnClick="() => wi.IsEnabled = !wi.IsEnabled" />
+                        </MudTooltip>
                         <MudTooltip Text="@(wi.IsLocked ? "Unlock widget" : "Lock widget")">
                             <MudIconButton Icon="@(wi.IsLocked ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
                                            Size="Size.Small"
@@ -331,9 +361,29 @@
             <MudNumericField T="int" Label="Height" @bind-Value="_selected.Height"
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
                              Min="10" />
-            <MudNumericField T="int" Label="Z-Index" @bind-Value="_selected.ZIndex"
-                             Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-4"
-                             Min="1" />
+
+            <div class="widget-quick-actions mb-4">
+                <MudTooltip Text="Center horizontally">
+                    <MudIconButton Icon="@Icons.Material.Filled.AlignHorizontalCenter"
+                                   Size="Size.Small" Variant="Variant.Outlined"
+                                   OnClick="CenterSelectedHorizontally" />
+                </MudTooltip>
+                <MudTooltip Text="Center vertically">
+                    <MudIconButton Icon="@Icons.Material.Filled.AlignVerticalCenter"
+                                   Size="Size.Small" Variant="Variant.Outlined"
+                                   OnClick="CenterSelectedVertically" />
+                </MudTooltip>
+                <MudTooltip Text="Fit to canvas">
+                    <MudIconButton Icon="@Icons.Material.Filled.Fullscreen"
+                                   Size="Size.Small" Variant="Variant.Outlined"
+                                   OnClick="FitSelectedToCanvas" />
+                </MudTooltip>
+                <MudTooltip Text="Duplicate widget">
+                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                   Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info"
+                                   OnClick="DuplicateSelectedWidget" />
+                </MudTooltip>
+            </div>
 
             @* ---- Alerts widget configuration ---- *@
             @if (_selected.WidgetType == "alerts")
@@ -1118,6 +1168,9 @@
     private int  _canvasHeight = 1080;
     private List<WidgetModel> _widgets = [];
     private WidgetModel? _selected;
+    private readonly DragReorderState _widgetDrag = new();
+    private bool _snapToGrid;
+    private const int SnapGridPx = 10;
     private bool _saving;
     private bool _jsInitialized;
     private bool _jsNeedsReinit;
@@ -1160,6 +1213,11 @@
             _fireworksGlobalMaxQueuedBursts = PenguinTwitchBot.Bot.Overlay.FireworksQueueDefaults.MaxQueuedBursts;
         }
         await RefreshLayouts();
+        var initialLayout = _layouts.FirstOrDefault(l => l.IsDefault) ?? _layouts.FirstOrDefault();
+        if (initialLayout != null)
+        {
+            await LoadLayout(initialLayout.Id);
+        }
         try
         {
             _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
@@ -1201,7 +1259,7 @@
 
         if ((!_jsInitialized || _jsNeedsReinit) && _dotNetRef != null)
         {
-            await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale);
+            await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale, _snapToGrid ? SnapGridPx : 0);
             _jsInitialized = true;
             _jsNeedsReinit = false;
         }
@@ -1253,6 +1311,42 @@
     {
         // Refresh property panel to show the final position after drag/resize.
         await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnKeyboardNudge(int dx, int dy)
+    {
+        if (_selected == null || _selected.IsLocked) return;
+        _selected.X += dx;
+        _selected.Y += dy;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnKeyboardDelete()
+    {
+        if (_selected == null || _selected.IsLocked) return;
+        RemoveSelectedWidget();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnKeyboardEscape()
+    {
+        if (_selected == null) return;
+        _selected = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnKeyboardSave()
+    {
+        if (!_currentLayoutId.HasValue || _saving) return;
+        await InvokeAsync(async () =>
+        {
+            await SaveLayout();
+            StateHasChanged();
+        });
     }
 
     [JSInvokable]
@@ -1490,6 +1584,15 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
 
     private async Task DeleteLayout(Guid id)
     {
+        var layoutItem = _layouts.FirstOrDefault(l => l.Id == id);
+        var layoutName = layoutItem?.Name ?? "this layout";
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Delete Layout",
+            $"Are you sure you want to delete '{layoutName}' and all of its widgets? This cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+        if (confirmed != true) return;
+
         await using var scope = ScopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         var layout = await db.OverlayLayouts.GetByIdWithWidgetsAsync(id);
@@ -1502,17 +1605,90 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     }
     // ---- Widget management ----
 
+    private List<WidgetModel> GetOrderedWidgetsDescending() =>
+        _widgets.OrderByDescending(x => x.ZIndex).ThenBy(x => x.TempId, StringComparer.Ordinal).ToList();
+
+    private void OnDropWidgetLayer(int targetIndex)
+    {
+        var ordered = GetOrderedWidgetsDescending();
+        if (!_widgetDrag.TryCompleteDrop(ordered, targetIndex, out _, out _))
+        {
+            return;
+        }
+
+        DragReorderState.ReassignDescendingZIndex(ordered, (w, z) => w.ZIndex = z);
+    }
+
     private void AddWidget(WidgetDefinition def)
     {
-        _widgets.Add(new WidgetModel
+        var nextZ = (_widgets.Count > 0 ? _widgets.Max(w => w.ZIndex) : 0) + 1;
+        var widget = new WidgetModel
         {
             Id          = Guid.NewGuid(),
             WidgetType  = def.Type,
             DisplayName = def.DisplayName,
             Width       = def.DefaultWidth,
             Height      = def.DefaultHeight,
-            ZIndex      = _widgets.Count + 1
-        });
+            ZIndex      = nextZ
+        };
+        _widgets.Add(widget);
+        SelectWidget(widget);
+    }
+
+    private void DuplicateSelectedWidget()
+    {
+        if (_selected == null) return;
+        var nextZ = (_widgets.Count > 0 ? _widgets.Max(w => w.ZIndex) : 0) + 1;
+        var clone = new WidgetModel
+        {
+            Id             = Guid.NewGuid(),
+            WidgetType     = _selected.WidgetType,
+            DisplayName    = _selected.DisplayName,
+            IsEnabled      = _selected.IsEnabled,
+            IsLocked       = false,
+            X              = Math.Min(_selected.X + 20, Math.Max(0, _canvasWidth - _selected.Width)),
+            Y              = Math.Min(_selected.Y + 20, Math.Max(0, _canvasHeight - _selected.Height)),
+            Width          = _selected.Width,
+            Height         = _selected.Height,
+            ZIndex         = nextZ,
+            CustomSettings = _selected.CustomSettings
+        };
+        _widgets.Add(clone);
+        SelectWidget(clone);
+    }
+
+    private void CenterSelectedHorizontally()
+    {
+        if (_selected == null) return;
+        _selected.X = (_canvasWidth - _selected.Width) / 2;
+    }
+
+    private void CenterSelectedVertically()
+    {
+        if (_selected == null) return;
+        _selected.Y = (_canvasHeight - _selected.Height) / 2;
+    }
+
+    private void FitSelectedToCanvas()
+    {
+        if (_selected == null) return;
+        _selected.X = 0;
+        _selected.Y = 0;
+        _selected.Width = _canvasWidth;
+        _selected.Height = _canvasHeight;
+    }
+
+    private async Task ToggleSnapToGrid()
+    {
+        _snapToGrid = !_snapToGrid;
+        if (_jsInitialized)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("overlayEditor.setSnapSize", _snapToGrid ? SnapGridPx : 0);
+            }
+            catch (JSException) { }
+        }
     }
 
     private void SelectWidget(WidgetModel w)
@@ -1654,6 +1830,13 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
 
     private async Task RegenerateKeyAsync()
     {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Regenerate Overlay Security Key",
+            "Regenerating the security key will immediately invalidate all existing OBS browser source URLs. You will need to update them with the new URL. Continue?",
+            yesText: "Regenerate Key",
+            cancelText: "Cancel");
+        if (confirmed != true) return;
+
         try
         {
             _overlayKey = await OverlaySecurityService.RegenerateOverlayKeyAsync();

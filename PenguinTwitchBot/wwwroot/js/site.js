@@ -447,3 +447,53 @@ window.creditsPreviewPostMessage = function (frameId, message) {
     frame.contentWindow.postMessage(message, window.location.origin);
     return true;
 };
+
+// Delegated drag-and-drop reorder helper:
+// - Arms draggable="true" on handle-only items when pressing [data-drag-handle]
+// - Sets dataTransfer metadata on dragstart (required by Firefox)
+(function initDragReorderDelegation() {
+    if (window.__penguinDragReorderInitialized) return;
+    window.__penguinDragReorderInitialized = true;
+
+    let armedItem = null;
+
+    const disarm = () => {
+        if (armedItem) {
+            armedItem.setAttribute('draggable', 'false');
+            armedItem = null;
+        }
+    };
+
+    const armFromEvent = (e) => {
+        const target = e.target;
+        if (!target || typeof target.closest !== 'function') return;
+        const handle = target.closest('[data-drag-handle]');
+        if (!handle || handle.getAttribute('data-drag-disabled') === 'true') return;
+        const item = handle.closest('[data-drag-handle-only="true"]');
+        if (!item) return;
+        disarm();
+        item.setAttribute('draggable', 'true');
+        armedItem = item;
+    };
+
+    document.addEventListener('pointerdown', armFromEvent, true);
+    document.addEventListener('mousedown', armFromEvent, true);
+    document.addEventListener('pointerup', disarm, true);
+    document.addEventListener('mouseup', disarm, true);
+    document.addEventListener('dragend', disarm, true);
+
+    document.addEventListener('dragstart', (e) => {
+        const target = e.target;
+        if (!target || typeof target.closest !== 'function') return;
+        const item = target.closest('[data-drag-item="true"]');
+        if (!item) return;
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            try {
+                e.dataTransfer.setData('text/plain', item.getAttribute('data-drag-index') || '');
+            } catch (_) {
+                // Ignore if dataTransfer is restricted
+            }
+        }
+    });
+})();
