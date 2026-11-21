@@ -8,6 +8,7 @@ internal static class Program
     private const string RecoveryManifestName = "recovery-manifest.json";
     private const string OperationApply = "apply";
     private const string OperationRestore = "restore";
+    private const int DefaultMaxRecoveryBundlesToKeep = 2;
 
     private static async Task<int> Main(string[] args)
     {
@@ -96,6 +97,9 @@ internal static class Program
             }
 
             Console.WriteLine("Update applied successfully.");
+
+            CleanupAppliedPackage(packagePath);
+            PruneOldRecoveryBundles(recoveryRoot, recoveryFile, DefaultMaxRecoveryBundlesToKeep);
 
             if (!string.IsNullOrWhiteSpace(options.RestartCommand))
             {
@@ -278,6 +282,71 @@ internal static class Program
         var manifestEntry = recoveryArchive.CreateEntry(RecoveryManifestName, CompressionLevel.Optimal);
         using var stream = manifestEntry.Open();
         JsonSerializer.Serialize(stream, manifest, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private static void CleanupAppliedPackage(string packagePath)
+    {
+        try
+        {
+            if (File.Exists(packagePath))
+            {
+                File.Delete(packagePath);
+            }
+
+            var checksumPath = packagePath + ".sha256";
+            if (File.Exists(checksumPath))
+            {
+                File.Delete(checksumPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Warning: failed to remove applied update package '{packagePath}': {ex.Message}");
+        }
+    }
+
+    private static void PruneOldRecoveryBundles(string recoveryRoot, string keepFilePath, int maxToKeep)
+    {
+        try
+        {
+            if (!Directory.Exists(recoveryRoot) || maxToKeep < 1)
+            {
+                return;
+            }
+
+            var fullKeepPath = Path.GetFullPath(keepFilePath);
+            var bundles = Directory
+                .GetFiles(recoveryRoot, "recovery-*.zip", SearchOption.TopDirectoryOnly)
+                .Select(path => new FileInfo(path))
+                .OrderByDescending(info => info.LastWriteTimeUtc)
+                .ThenByDescending(info => info.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var kept = 0;
+            foreach (var bundle in bundles)
+            {
+                var isCurrent = string.Equals(Path.GetFullPath(bundle.FullName), fullKeepPath, StringComparison.OrdinalIgnoreCase);
+                if (isCurrent || kept < maxToKeep)
+                {
+                    kept++;
+                    continue;
+                }
+
+                try
+                {
+                    bundle.Delete();
+                    Console.WriteLine($"Pruned old recovery bundle: {bundle.Name}");
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Warning: failed to prune old recovery bundle '{bundle.Name}': {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Warning: failed to prune recovery bundles: {ex.Message}");
+        }
     }
 
     private static List<string> ReadSafeEntries(string packagePath)

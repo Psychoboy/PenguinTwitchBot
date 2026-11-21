@@ -267,6 +267,8 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             var recoveryDir = Path.Combine(appRoot, "Data", "updates", "recovery");
             Directory.CreateDirectory(updatesDir);
             Directory.CreateDirectory(recoveryDir);
+            PruneOldUpdateDownloads(updatesDir);
+            PruneOldRecoveryBundles(recoveryDir, MaxRecoveryBundlesToKeep);
 
             var packageFileName = LatestUpdateAssetName!;
             var packagePath = Path.Combine(updatesDir, packageFileName);
@@ -578,6 +580,8 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
         return Version.TryParse(core, out var parsed) ? parsed : null;
     }
 
+    internal const int MaxRecoveryBundlesToKeep = 2;
+
     private void UpdateRecoveryCache()
     {
         var recoveryDir = Path.Combine(AppContext.BaseDirectory, "Data", "updates", "recovery");
@@ -587,12 +591,70 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             return;
         }
 
+        PruneOldRecoveryBundles(recoveryDir, MaxRecoveryBundlesToKeep);
+
         var latestPath = Directory
             .GetFiles(recoveryDir, "recovery-*.zip", SearchOption.TopDirectoryOnly)
             .OrderByDescending(File.GetLastWriteTimeUtc)
             .FirstOrDefault();
 
         _latestRecoveryBundle = string.IsNullOrWhiteSpace(latestPath) ? null : new FileInfo(latestPath);
+    }
+
+    internal static int PruneOldRecoveryBundles(string recoveryDir, int maxToKeep = MaxRecoveryBundlesToKeep, ILogger? logger = null)
+    {
+        if (!Directory.Exists(recoveryDir) || maxToKeep < 1)
+        {
+            return 0;
+        }
+
+        var bundles = Directory
+            .GetFiles(recoveryDir, "recovery-*.zip", SearchOption.TopDirectoryOnly)
+            .Select(path => new FileInfo(path))
+            .OrderByDescending(info => info.LastWriteTimeUtc)
+            .ThenByDescending(info => info.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var deleted = 0;
+        foreach (var stale in bundles.Skip(maxToKeep))
+        {
+            try
+            {
+                stale.Delete();
+                deleted++;
+                logger?.LogInformation("Pruned old recovery bundle {BundleName}", stale.Name);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to prune old recovery bundle {BundleName}", stale.Name);
+            }
+        }
+
+        return deleted;
+    }
+
+    internal static int PruneOldUpdateDownloads(string downloadsDir, ILogger? logger = null)
+    {
+        if (!Directory.Exists(downloadsDir))
+        {
+            return 0;
+        }
+
+        var deleted = 0;
+        foreach (var file in Directory.GetFiles(downloadsDir, "*", SearchOption.TopDirectoryOnly))
+        {
+            try
+            {
+                File.Delete(file);
+                deleted++;
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to delete old update download {File}", file);
+            }
+        }
+
+        return deleted;
     }
 
     private async Task<bool> VerifyDownloadedPackageAsync(string packagePath, CancellationToken cancellationToken)
