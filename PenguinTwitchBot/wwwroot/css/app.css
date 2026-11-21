@@ -23,3 +23,44 @@
     resize: vertical !important;
     min-height: 80px;
 }
+
+.drag-reorder-handle {
+    cursor: grab;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mud-palette-text-secondary);
+    user-select: none;
+    touch-action: none;
+    flex-shrink: 0;
+}
+
+.drag-reorder-handle:active {
+    cursor: grabbing;
+}
+
+.drag-reorder-item {
+    position: relative;
+    isolation: isolate;
+    transition: opacity 0.12s ease, box-shadow 0.12s ease;
+}
+
+.drag-reorder-item--dragging {
+    opacity: 0.45;
+}
+
+.drag-reorder-item--drop-before {
+    box-shadow: inset 0 3px 0 0 var(--mud-palette-primary);
+}
+
+.drag-reorder-item--drop-after {
+    box-shadow: inset 0 -3px 0 0 var(--mud-palette-primary);
+}
+
+tbody.drag-reorder-item--drop-before > tr:first-child > td {
+    box-shadow: inset 0 3px 0 0 var(--mud-palette-primary);
+}
+
+tbody.drag-reorder-item--drop-after > tr:last-child > td {
+    box-shadow: inset 0 -3px 0 0 var(--mud-palette-primary);
+}

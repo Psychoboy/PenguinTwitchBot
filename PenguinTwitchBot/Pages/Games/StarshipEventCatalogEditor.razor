@@ -278,14 +278,33 @@
         {
         <MudText Typo="Typo.subtitle1">Choices@(IsGraphDraft ? $" in {_selectedStepId}" : "")</MudText>
         <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
-            <thead><tr><th>#</th><th>Choice</th><th>Effect</th><th>Actions</th></tr></thead>
+            <thead><tr>@if (!IsStructuralDraft) { <th style="width:32px"></th> }<th>#</th><th>Choice</th><th>Effect</th><th>Actions</th></tr></thead>
             <tbody>
                 @for (var index = 0; index < activeChoices.Count; index++)
                 {
                     var choiceIndex = index;
                     var choice = activeChoices[index];
                     var isDefault = IsGraphDraft ? CurrentStep?.DefaultChoiceId == choice.ChoiceId : draft.DefaultChoiceId == choice.ChoiceId;
-                    <tr><td>@(index + 1)</td><td>@choice.Label @(isDefault ? "(default)" : "")</td><td>@ChoiceEffect(choice) @(IsGraphDraft ? $"-> {choice.NextStepId}" : "")</td>
+                    <tr @key="choice"
+                        class="@_choiceDrag.GetItemCssClass(choiceIndex)"
+                        data-drag-item="true"
+                        data-drag-index="@choiceIndex"
+                        draggable="@(!IsStructuralDraft ? "true" : "false")"
+                        @ondragstart="@(() => { if (!IsStructuralDraft) _choiceDrag.Start(choiceIndex); })"
+                        @ondragenter="@(() => { if (!IsStructuralDraft) _choiceDrag.Enter(choiceIndex); })"
+                        ondragover="event.preventDefault()"
+                        @ondrop="@(() => OnDropChoice(choiceIndex))"
+                        @ondrop:preventDefault="true"
+                        @ondragend="@(() => _choiceDrag.End())">
+                        @if (!IsStructuralDraft)
+                        {
+                            <td>
+                                <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
+                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                                </span>
+                            </td>
+                        }
+                        <td>@(index + 1)</td><td>@choice.Label @(isDefault ? "(default)" : "")</td><td>@ChoiceEffect(choice) @(IsGraphDraft ? $"-> {choice.NextStepId}" : "")</td>
                         <td style="white-space:nowrap">
                             <MudTooltip Text="Edit choice"><MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="@($"Edit choice {index + 1}")" OnClick="@(() => _choiceIndex = choiceIndex)" /></MudTooltip>
                             @if (!IsStructuralDraft)
@@ -808,6 +827,21 @@
         choices.RemoveAt(index);
         if (CurrentStep?.DefaultChoiceId == removedId) CurrentStep.DefaultChoiceId = choices[0].ChoiceId;
         _choiceIndex = Math.Min(index, choices.Count - 1);
+        DraftChanged();
+    }
+
+    private readonly DragReorderState _choiceDrag = new();
+
+    private void OnDropChoice(int targetIndex)
+    {
+        if (IsStructuralDraft || _draft == null) return;
+        var choices = GetActiveChoices(_draft);
+        var selectedChoice = _choiceIndex >= 0 && _choiceIndex < choices.Count ? choices[_choiceIndex] : null;
+        if (!_choiceDrag.TryCompleteDrop(choices, targetIndex, out _, out _)) return;
+        if (selectedChoice != null)
+        {
+            _choiceIndex = choices.IndexOf(selectedChoice);
+        }
         DraftChanged();
     }
 

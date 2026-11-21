@@ -29,6 +29,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private readonly object _cacheLock = new();
         private List<FishType>? _cachedFishTypes;
         private FishingSettings? _cachedSettings;
+        private readonly SemaphoreSlim _settingsInitLock = new(1, 1);
         private long _fishTypesCacheGeneration;
         private long _settingsCacheGeneration;
 
@@ -1600,38 +1601,54 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task<FishingSettings?> GetSettings()
         {
-            long generation;
             lock (_cacheLock)
             {
                 if (_cachedSettings != null)
                 {
                     return _cachedSettings.Clone();
                 }
-                generation = _settingsCacheGeneration;
             }
 
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var settings = await db.FishingSettings.Query().SingleOrDefaultAsync();
-            if (settings == null)
+            await _settingsInitLock.WaitAsync();
+            try
             {
-                settings = new FishingSettings();
-                db.FishingSettings.Add(settings);
-                await db.SaveChangesAsync();
-            }
-            else if (settings.CastAnimationMs <= 0)
-            {
-                settings.CastAnimationMs = 1600;
-            }
-
-            lock (_cacheLock)
-            {
-                if (_settingsCacheGeneration == generation)
+                long generation;
+                lock (_cacheLock)
                 {
-                    _cachedSettings = settings;
+                    if (_cachedSettings != null)
+                    {
+                        return _cachedSettings.Clone();
+                    }
+                    generation = _settingsCacheGeneration;
                 }
+
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var settings = await db.FishingSettings.Query().OrderBy(s => s.Id).FirstOrDefaultAsync();
+                if (settings == null)
+                {
+                    settings = new FishingSettings();
+                    db.FishingSettings.Add(settings);
+                    await db.SaveChangesAsync();
+                }
+                else if (settings.CastAnimationMs <= 0)
+                {
+                    settings.CastAnimationMs = 1600;
+                }
+
+                lock (_cacheLock)
+                {
+                    if (_settingsCacheGeneration == generation)
+                    {
+                        _cachedSettings = settings;
+                    }
+                }
+                return settings.Clone();
             }
-            return settings.Clone();
+            finally
+            {
+                _settingsInitLock.Release();
+            }
         }
 
         public async Task UpdateSettings(FishingSettings settings)

@@ -22,6 +22,16 @@
         }, 5000);
     }
 
+    var dragFromIndex = null;
+
+    function clearDragIndicators(list) {
+        if (!list) return;
+        var items = list.querySelectorAll('.order-item');
+        items.forEach(function (item) {
+            item.classList.remove('dragging', 'drop-before', 'drop-after');
+        });
+    }
+
     function renderTabOrderList() {
         var list = document.getElementById('tab-order-list');
         if (!list) return;
@@ -30,11 +40,60 @@
         currentTabOrder.forEach(function (tabKey, index) {
             var li = document.createElement('li');
             li.className = 'order-item';
+            li.draggable = true;
+            li.dataset.index = String(index);
+
+            li.addEventListener('dragstart', function (e) {
+                dragFromIndex = index;
+                li.classList.add('dragging');
+                if (e.dataTransfer) {
+                    e.dataTransfer.effectAllowed = 'move';
+                    try {
+                        e.dataTransfer.setData('text/plain', String(index));
+                    } catch (_) {
+                        // Ignore restricted dataTransfer
+                    }
+                }
+            });
+
+            li.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                if (dragFromIndex === null || dragFromIndex === index) return;
+                var items = list.querySelectorAll('.order-item');
+                items.forEach(function (item) {
+                    item.classList.remove('drop-before', 'drop-after');
+                });
+                li.classList.add(dragFromIndex < index ? 'drop-after' : 'drop-before');
+            });
+
+            li.addEventListener('drop', function (e) {
+                e.preventDefault();
+                var from = dragFromIndex;
+                dragFromIndex = null;
+                clearDragIndicators(list);
+                if (from === null || from === index) return;
+                moveTabTo(from, index);
+            });
+
+            li.addEventListener('dragend', function () {
+                dragFromIndex = null;
+                clearDragIndicators(list);
+            });
+
+            var labelGroup = document.createElement('div');
+            labelGroup.className = 'order-label-group';
+
+            var handleSpan = document.createElement('span');
+            handleSpan.className = 'order-handle';
+            handleSpan.textContent = '⋮⋮';
+            handleSpan.title = 'Drag to reorder';
+            labelGroup.appendChild(handleSpan);
 
             var nameSpan = document.createElement('span');
             var tabName = Object.prototype.hasOwnProperty.call(TAB_NAMES, tabKey) ? TAB_NAMES[tabKey] : tabKey;
             nameSpan.textContent = (index + 1) + '. ' + tabName;
-            li.appendChild(nameSpan);
+            labelGroup.appendChild(nameSpan);
+            li.appendChild(labelGroup);
 
             var actions = document.createElement('div');
             actions.className = 'order-actions';
@@ -66,12 +125,15 @@
         });
     }
 
-    function moveTab(fromIndex, delta) {
-        var toIndex = fromIndex + delta;
-        if (toIndex < 0 || toIndex >= currentTabOrder.length) return;
+    function moveTabTo(fromIndex, toIndex) {
+        if (fromIndex < 0 || fromIndex >= currentTabOrder.length || toIndex < 0 || toIndex >= currentTabOrder.length || fromIndex === toIndex) return;
         var moved = currentTabOrder.splice(fromIndex, 1)[0];
         currentTabOrder.splice(toIndex, 0, moved);
         renderTabOrderList();
+    }
+
+    function moveTab(fromIndex, delta) {
+        moveTabTo(fromIndex, fromIndex + delta);
     }
 
     function loadFormValues() {

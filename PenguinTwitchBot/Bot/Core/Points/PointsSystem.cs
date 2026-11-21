@@ -655,6 +655,11 @@ namespace PenguinTwitchBot.Bot.Core.Points
             {
                 case PointCommandType.Add:
                     {
+                        if (e.Args == null || e.Args.Count < 2)
+                        {
+                            logger.LogWarning("Point command {Command} invoked from action with insufficient arguments (count: {ArgCount})", e.Command, e.Args?.Count ?? 0);
+                            return;
+                        }
                         var args = e.Args[1];
                         args = string.IsNullOrWhiteSpace(args) ? "" : args.Split(".")[0]; // Remove any additional arguments after the first period
                         if (Int64.TryParse(args, out long amount))
@@ -673,6 +678,11 @@ namespace PenguinTwitchBot.Bot.Core.Points
                     }
                 case PointCommandType.Remove:
                     {
+                        if (e.Args == null || e.Args.Count < 2)
+                        {
+                            logger.LogWarning("Point command {Command} invoked from action with insufficient arguments (count: {ArgCount})", e.Command, e.Args?.Count ?? 0);
+                            return;
+                        }
                         var args = e.Args[1];
                         args = string.IsNullOrWhiteSpace(args) ? "" : args.Split(".")[0]; // Remove any additional arguments after the first period
                         if (Int64.TryParse(args, out long amount))
@@ -711,6 +721,11 @@ namespace PenguinTwitchBot.Bot.Core.Points
                     break;
                 case PointCommandType.AddActive:
                     {
+                        if (e.Args == null || e.Args.Count < 2)
+                        {
+                            logger.LogWarning("Point command {Command} invoked from action with insufficient arguments (count: {ArgCount})", e.Command, e.Args?.Count ?? 0);
+                            return;
+                        }
                         if (Int64.TryParse(e.Args[1], out long amount))
                         {
                             await AddPointsToActiveUsers(pointCommand.PointType.GetId(), amount);
@@ -726,8 +741,13 @@ namespace PenguinTwitchBot.Bot.Core.Points
             {
                 case PointCommandType.Add:
                     {
+                        if (e.Args == null || e.Args.Count < 2)
+                        {
+                            logger.LogWarning("Point command {Command} invoked with insufficient arguments (count: {ArgCount})", e.Command, e.Args?.Count ?? 0);
+                            return;
+                        }
                         var args = e.Args[1];
-                        args = string.IsNullOrWhiteSpace(args) ? "" : args .Split(".")[0]; // Remove any additional arguments after the first period
+                        args = string.IsNullOrWhiteSpace(args) ? "" : args.Split(".")[0]; // Remove any additional arguments after the first period
                         if (Int64.TryParse(args, out long amount))
                         {
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
@@ -743,6 +763,11 @@ namespace PenguinTwitchBot.Bot.Core.Points
                     }
                 case PointCommandType.Remove:
                     {
+                        if (e.Args == null || e.Args.Count < 2)
+                        {
+                            logger.LogWarning("Point command {Command} invoked with insufficient arguments (count: {ArgCount})", e.Command, e.Args?.Count ?? 0);
+                            return;
+                        }
                         var args = e.Args[1];
                         args = string.IsNullOrWhiteSpace(args) ? "" : args.Split(".")[0]; // Remove any additional arguments after the first period
                         if (Int64.TryParse(args, out long amount))
@@ -766,6 +791,11 @@ namespace PenguinTwitchBot.Bot.Core.Points
                     break;
                 case PointCommandType.AddActive:
                     {
+                        if (e.Args == null || e.Args.Count < 2)
+                        {
+                            logger.LogWarning("Point command {Command} invoked with insufficient arguments (count: {ArgCount})", e.Command, e.Args?.Count ?? 0);
+                            return;
+                        }
                         if (Int64.TryParse(e.Args[1], out long amount))
                         {
                             await AddPointsToActiveUsers(pointCommand.PointType.GetId(), amount);

@@ -38,55 +38,66 @@
                     }
                     else
                     {
-                        <MudList T="SubActionType" Dense="true">
+                        <MudStack Spacing="2">
                             @for (int i = 0; i < IfElseType.TrueSubActions.Count; i++)
                             {
                                 var index = i;
                                 var subAction = IfElseType.TrueSubActions[i];
-                                <MudListItem T="SubActionType" Value="@subAction">
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                            <MudStack>
-                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" 
-                                                               Disabled="@(index == 0)" OnClick="@(() => MoveTrueUp(index))" />
-                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
-                                                               Disabled="@(index == IfElseType.TrueSubActions.Count - 1)" OnClick="@(() => MoveTrueDown(index))" />
-                                            </MudStack>
-                                            <MudStack Spacing="0">
-                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                    <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
-                                                    @if (IsDisabledByFeature(subAction))
-                                                    {
-                                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
-                                                    }
-                                                    @if (IsDisabled(subAction))
-                                                    {
-                                                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Disabled</MudChip>
-                                                    }
+                                <div @key="subAction"
+                                     class="@_drag.GetItemCssClass(index, TrueDragGroup)"
+                                     data-drag-item="true"
+                                     data-drag-index="@index"
+                                     draggable="true"
+                                     @ondragstart="@(() => _drag.Start(index, TrueDragGroup))"
+                                     @ondragenter="@(() => _drag.Enter(index, TrueDragGroup))"
+                                     ondragover="event.preventDefault()"
+                                     @ondrop="@(() => OnDropTrueSubAction(index))"
+                                     @ondrop:preventDefault="true"
+                                     @ondragend="@(() => _drag.End())">
+                                    <MudPaper Outlined="true" Class="pa-2">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
+                                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                                                </span>
+                                                <MudStack Spacing="0">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" 
+                                                                   Disabled="@(index == 0)" OnClick="@(() => MoveTrueUp(index))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
+                                                                   Disabled="@(index == IfElseType.TrueSubActions.Count - 1)" OnClick="@(() => MoveTrueDown(index))" />
                                                 </MudStack>
-                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction, ReferenceNames)</MudText>
+                                                <MudStack Spacing="0">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                        <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                                        @if (IsDisabledByFeature(subAction))
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                                        }
+                                                        @if (IsDisabled(subAction))
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Disabled</MudChip>
+                                                        }
+                                                    </MudStack>
+                                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction, ReferenceNames)</MudText>
+                                                </MudStack>
+                                            </MudStack>
+                                            <MudStack Row="true" Spacing="1">
+                                                @if (subAction is LogicIfElseType)
+                                                {
+                                                    <MudIconButton Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Info" 
+                                                                   OnClick="@(() => EditNestedLogicIfElseTrue(index))" 
+                                                                   aria-label="Edit True/False branches" />
+                                                }
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
+                                                               OnClick="@(() => EditTrueSubAction(index))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
+                                                               OnClick="@(() => DeleteTrueSubAction(index))" />
                                             </MudStack>
                                         </MudStack>
-                                        <MudStack Row="true" Spacing="1">
-                                            @if (subAction is LogicIfElseType)
-                                            {
-                                                <MudIconButton Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Info" 
-                                                               OnClick="@(() => EditNestedLogicIfElseTrue(index))" 
-                                                               aria-label="Edit True/False branches" />
-                                            }
-                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
-                                                           OnClick="@(() => EditTrueSubAction(index))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
-                                                           OnClick="@(() => DeleteTrueSubAction(index))" />
-                                        </MudStack>
-                                    </MudStack>
-                                </MudListItem>
-                                @if (index < IfElseType.TrueSubActions.Count - 1)
-                                {
-                                    <MudDivider />
-                                }
+                                    </MudPaper>
+                                </div>
                             }
-                        </MudList>
+                        </MudStack>
                     }
                 </MudStack>
             </MudPaper>
@@ -108,55 +119,66 @@
                     }
                     else
                     {
-                        <MudList T="SubActionType" Dense="true">
+                        <MudStack Spacing="2">
                             @for (int i = 0; i < IfElseType.FalseSubActions.Count; i++)
                             {
                                 var index = i;
                                 var subAction = IfElseType.FalseSubActions[i];
-                                <MudListItem T="SubActionType" Value="@subAction">
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                            <MudStack>
-                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" 
-                                                               Disabled="@(index == 0)" OnClick="@(() => MoveFalseUp(index))" />
-                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
-                                                               Disabled="@(index == IfElseType.FalseSubActions.Count - 1)" OnClick="@(() => MoveFalseDown(index))" />
-                                            </MudStack>
-                                            <MudStack Spacing="0">
-                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                    <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
-                                                    @if (IsDisabledByFeature(subAction))
-                                                    {
-                                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
-                                                    }
-                                                    @if (IsDisabled(subAction))
-                                                    {
-                                                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Disabled</MudChip>
-                                                    }
+                                <div @key="subAction"
+                                     class="@_drag.GetItemCssClass(index, FalseDragGroup)"
+                                     data-drag-item="true"
+                                     data-drag-index="@index"
+                                     draggable="true"
+                                     @ondragstart="@(() => _drag.Start(index, FalseDragGroup))"
+                                     @ondragenter="@(() => _drag.Enter(index, FalseDragGroup))"
+                                     ondragover="event.preventDefault()"
+                                     @ondrop="@(() => OnDropFalseSubAction(index))"
+                                     @ondrop:preventDefault="true"
+                                     @ondragend="@(() => _drag.End())">
+                                    <MudPaper Outlined="true" Class="pa-2">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
+                                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                                                </span>
+                                                <MudStack Spacing="0">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" 
+                                                                   Disabled="@(index == 0)" OnClick="@(() => MoveFalseUp(index))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
+                                                                   Disabled="@(index == IfElseType.FalseSubActions.Count - 1)" OnClick="@(() => MoveFalseDown(index))" />
                                                 </MudStack>
-                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction, ReferenceNames)</MudText>
+                                                <MudStack Spacing="0">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                        <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                                        @if (IsDisabledByFeature(subAction))
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                                        }
+                                                        @if (IsDisabled(subAction))
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Disabled</MudChip>
+                                                        }
+                                                    </MudStack>
+                                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction, ReferenceNames)</MudText>
+                                                </MudStack>
+                                            </MudStack>
+                                            <MudStack Row="true" Spacing="1">
+                                                @if (subAction is LogicIfElseType)
+                                                {
+                                                    <MudIconButton Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Info" 
+                                                                   OnClick="@(() => EditNestedLogicIfElseFalse(index))" 
+                                                                   aria-label="Edit True/False branches" />
+                                                }
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
+                                                               OnClick="@(() => EditFalseSubAction(index))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
+                                                               OnClick="@(() => DeleteFalseSubAction(index))" />
                                             </MudStack>
                                         </MudStack>
-                                        <MudStack Row="true" Spacing="1">
-                                            @if (subAction is LogicIfElseType)
-                                            {
-                                                <MudIconButton Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Info" 
-                                                               OnClick="@(() => EditNestedLogicIfElseFalse(index))" 
-                                                               aria-label="Edit True/False branches" />
-                                            }
-                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
-                                                           OnClick="@(() => EditFalseSubAction(index))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
-                                                           OnClick="@(() => DeleteFalseSubAction(index))" />
-                                        </MudStack>
-                                    </MudStack>
-                                </MudListItem>
-                                @if (index < IfElseType.FalseSubActions.Count - 1)
-                                {
-                                    <MudDivider />
-                                }
+                                    </MudPaper>
+                                </div>
                             }
-                        </MudList>
+                        </MudStack>
                     }
                 </MudStack>
             </MudPaper>
@@ -186,7 +208,33 @@
     [Parameter]
     public bool IsCatchSubAction { get; set; }
 
+    private const string TrueDragGroup = "true";
+    private const string FalseDragGroup = "false";
+    private readonly DragReorderState _drag = new();
+
     protected override Task OnInitializedAsync() => ReferenceNames.LoadAsync();
+
+    private void OnDropTrueSubAction(int targetIndex)
+    {
+        if (!_drag.TryCompleteDrop(IfElseType.TrueSubActions, targetIndex, out _, out _, TrueDragGroup))
+            return;
+
+        for (int i = 0; i < IfElseType.TrueSubActions.Count; i++)
+            IfElseType.TrueSubActions[i].Index = i;
+
+        StateHasChanged();
+    }
+
+    private void OnDropFalseSubAction(int targetIndex)
+    {
+        if (!_drag.TryCompleteDrop(IfElseType.FalseSubActions, targetIndex, out _, out _, FalseDragGroup))
+            return;
+
+        for (int i = 0; i < IfElseType.FalseSubActions.Count; i++)
+            IfElseType.FalseSubActions[i].Index = i;
+
+        StateHasChanged();
+    }
 
     private async Task OpenAvailableVariablesDialog()
     {

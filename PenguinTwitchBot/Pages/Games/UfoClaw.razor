@@ -60,25 +60,59 @@
                     {
                         <MudTextField Label="Set Name" @bind-Value="selected.Name" MaxLength="200" Class="mb-2" />
                         <MudText Typo="Typo.caption">Set ID: @selected.Id</MudText>
-                        <MudTable Items="selected.Entries" Dense="true" Hover="true" Class="my-3">
-                            <HeaderContent><MudTh>Enabled</MudTh><MudTh>Prize</MudTh><MudTh>Value</MudTh><MudTh>Weight</MudTh><MudTh>Chance</MudTh><MudTh>Color</MudTh><MudTh></MudTh></HeaderContent>
-                            <RowTemplate Context="entry">
-                                <MudTd DataLabel="Enabled"><MudCheckBox T="bool" @bind-Value="entry.Enabled" aria-label="Enable prize" /></MudTd>
-                                <MudTd DataLabel="Prize"><MudTextField @bind-Value="entry.Label" MaxLength="300" aria-label="Prize label" /></MudTd>
-                                <MudTd DataLabel="Value"><MudTextField @bind-Value="entry.Value" aria-label="Prize value" /></MudTd>
-                                <MudTd DataLabel="Weight"><MudNumericField T="decimal" @bind-Value="entry.Weight" Min="0" Max="1000000" aria-label="Prize weight" /></MudTd>
-                                <MudTd DataLabel="Chance">@Chance(selected, entry)</MudTd>
-                                <MudTd DataLabel="Color"><input type="color" @bind="entry.Color" aria-label="Prize color" style="width:40px;height:32px" /></MudTd>
-                                <MudTd>
-                                    <MudTooltip Text="Move up"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Disabled="@(selected.Entries.IndexOf(entry) == 0)" OnClick="@(() => MoveEntry(selected, entry, -1))" /></MudTooltip>
-                                    <MudTooltip Text="Move down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Disabled="@(selected.Entries.IndexOf(entry) == selected.Entries.Count - 1)" OnClick="@(() => MoveEntry(selected, entry, 1))" /></MudTooltip>
-                                    <MudTooltip Text="Remove prize"><MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => selected.Entries.Remove(entry))" /></MudTooltip>
-                                </MudTd>
-                            </RowTemplate>
-                            <ChildRowContent Context="entry">
-                                <MudTr><MudTd colspan="7"><MediaUrlPicker Label="Prize Artwork" @bind-Value="entry.ImageUrl" /></MudTd></MudTr>
-                            </ChildRowContent>
-                        </MudTable>
+                        <MudSimpleTable Dense="true" Hover="true" Class="my-3">
+                            <thead>
+                                <tr>
+                                    <th style="width:32px"></th>
+                                    <th>Enabled</th>
+                                    <th>Prize</th>
+                                    <th>Value</th>
+                                    <th>Weight</th>
+                                    <th>Chance</th>
+                                    <th>Color</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            @for (var i = 0; i < selected.Entries.Count; i++)
+                            {
+                                var entryIndex = i;
+                                var entry = selected.Entries[entryIndex];
+                                <tbody @key="entry"
+                                       class="@_entryDrag.GetItemCssClass(entryIndex)"
+                                       data-drag-item="true"
+                                       data-drag-handle-only="true"
+                                       data-drag-index="@entryIndex"
+                                       draggable="false"
+                                       @ondragstart="@(() => _entryDrag.Start(entryIndex))"
+                                       @ondragenter="@(() => _entryDrag.Enter(entryIndex))"
+                                       ondragover="event.preventDefault()"
+                                       @ondrop="@(() => _entryDrag.TryCompleteDrop(selected.Entries, entryIndex, out _, out _))"
+                                       @ondrop:preventDefault="true"
+                                       @ondragend="@(() => _entryDrag.End())">
+                                    <tr>
+                                        <td>
+                                            <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
+                                                <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                                            </span>
+                                        </td>
+                                        <td><MudCheckBox T="bool" @bind-Value="entry.Enabled" aria-label="Enable prize" /></td>
+                                        <td><MudTextField @bind-Value="entry.Label" MaxLength="300" aria-label="Prize label" /></td>
+                                        <td><MudTextField @bind-Value="entry.Value" aria-label="Prize value" /></td>
+                                        <td><MudNumericField T="decimal" @bind-Value="entry.Weight" Min="0" Max="1000000" aria-label="Prize weight" /></td>
+                                        <td>@Chance(selected, entry)</td>
+                                        <td><input type="color" @bind="entry.Color" aria-label="Prize color" style="width:40px;height:32px" /></td>
+                                        <td style="white-space:nowrap">
+                                            <MudTooltip Text="Move up"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Disabled="@(entryIndex == 0)" OnClick="@(() => MoveEntry(selected, entry, -1))" /></MudTooltip>
+                                            <MudTooltip Text="Move down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Disabled="@(entryIndex == selected.Entries.Count - 1)" OnClick="@(() => MoveEntry(selected, entry, 1))" /></MudTooltip>
+                                            <MudTooltip Text="Remove prize"><MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => selected.Entries.Remove(entry))" /></MudTooltip>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="8"><MediaUrlPicker Label="Prize Artwork" @bind-Value="entry.ImageUrl" /></td>
+                                    </tr>
+                                </tbody>
+                            }
+                        </MudSimpleTable>
                         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => selected.Entries.Add(new()))">Add Prize</MudButton>
                     }
                 </MudTabPanel>
@@ -135,6 +169,7 @@
     private string _overlayKey = "";
     private bool _busy;
     private readonly CancellationTokenSource _refreshCancellation = new();
+    private readonly DragReorderState _entryDrag = new();
     private Task? _refreshTask;
     private UfoClawPrizeSet? SelectedSet => _settings?.PrizeSets.FirstOrDefault(set => set.Id == _setId);
 

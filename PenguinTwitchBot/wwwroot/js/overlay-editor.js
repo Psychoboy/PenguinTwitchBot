@@ -13,11 +13,98 @@ const WIDGET_COLORS = {
 let _dotnet = null;
 let _interactable = null;
 let _scale = 0.5; // updated on each init() call
+let _snapSize = 0; // 0 = disabled, >0 = snap increment in canvas px
 let _viewportEl = null;
 let _isPanning = false;
 let _lastPanX = 0;
 let _lastPanY = 0;
 let _viewportHandlers = null;
+let _keyDownHandler = null;
+
+function snapValue(val) {
+    if (_snapSize > 0) {
+        return Math.round(val / _snapSize) * _snapSize;
+    }
+    return Math.round(val);
+}
+
+function detachKeyboardShortcuts() {
+    if (_keyDownHandler) {
+        document.removeEventListener('keydown', _keyDownHandler);
+        _keyDownHandler = null;
+    }
+}
+
+function attachKeyboardShortcuts() {
+    detachKeyboardShortcuts();
+    _keyDownHandler = (e) => {
+        if (!_dotnet) return;
+
+        const key = e.key;
+        const active = document.activeElement;
+        const isSave = (e.ctrlKey || e.metaKey) && key.toLowerCase() === 's';
+        if (isSave) {
+            e.preventDefault();
+            if (active && (
+                active.tagName === 'INPUT' ||
+                active.tagName === 'TEXTAREA' ||
+                active.tagName === 'SELECT'
+            )) {
+                active.blur();
+                setTimeout(() => {
+                    if (_dotnet) {
+                        _dotnet.invokeMethodAsync('OnKeyboardSave');
+                    }
+                }, 0);
+            } else {
+                _dotnet.invokeMethodAsync('OnKeyboardSave');
+            }
+            return;
+        }
+
+        if (e.defaultPrevented) return;
+
+        if (active) {
+            const role = active.getAttribute ? active.getAttribute('role') : null;
+            if (
+                active.tagName === 'INPUT' ||
+                active.tagName === 'TEXTAREA' ||
+                active.tagName === 'SELECT' ||
+                active.isContentEditable ||
+                role === 'combobox' ||
+                role === 'listbox' ||
+                role === 'menu' ||
+                role === 'menuitem' ||
+                role === 'slider' ||
+                role === 'spinbutton' ||
+                (typeof active.closest === 'function' && active.closest('[role="combobox"], [role="listbox"], [role="menu"]'))
+            ) {
+                return;
+            }
+        }
+
+        const step = e.shiftKey ? 10 : 1;
+        if (key === 'ArrowLeft') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardNudge', -step, 0);
+        } else if (key === 'ArrowRight') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardNudge', step, 0);
+        } else if (key === 'ArrowUp') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardNudge', 0, -step);
+        } else if (key === 'ArrowDown') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardNudge', 0, step);
+        } else if (key === 'Delete' || key === 'Backspace') {
+            e.preventDefault();
+            _dotnet.invokeMethodAsync('OnKeyboardDelete');
+        } else if (key === 'Escape') {
+            _dotnet.invokeMethodAsync('OnKeyboardEscape');
+        }
+    };
+    document.addEventListener('keydown', _keyDownHandler);
+}
 
 function detachViewportInteractions() {
     if (!_viewportEl || !_viewportHandlers) return;
@@ -92,15 +179,19 @@ function attachViewportInteractions() {
 
 window.overlayEditor = {
 
-    init(dotnetHelper, scale) {
+    init(dotnetHelper, scale, snapSize) {
         _dotnet = dotnetHelper;
         _scale = scale || 0.5;
+        if (typeof snapSize === 'number') {
+            _snapSize = snapSize;
+        }
         if (_interactable) {
             _interactable.unset();
             _interactable = null;
         }
 
         attachViewportInteractions();
+        attachKeyboardShortcuts();
 
         // Selector targeting — automatically covers widgets added/removed later.
         _interactable = interact('.widget-tile')
@@ -109,18 +200,23 @@ window.overlayEditor = {
                 listeners: {
                     move(event) {
                         const el = event.target;
-                        const x = (parseFloat(el.dataset.x) || 0) + event.dx;
-                        const y = (parseFloat(el.dataset.y) || 0) + event.dy;
-                        el.style.left = x + 'px';
-                        el.style.top  = y + 'px';
-                        el.dataset.x  = x;
-                        el.dataset.y  = y;
+                        const rawX = (parseFloat(el.dataset.x) || 0) + event.dx;
+                        const rawY = (parseFloat(el.dataset.y) || 0) + event.dy;
+                        el.dataset.x = rawX;
+                        el.dataset.y = rawY;
+                        const canvasX = snapValue(rawX / _scale);
+                        const canvasY = snapValue(rawY / _scale);
+                        el.style.left = (canvasX * _scale) + 'px';
+                        el.style.top  = (canvasY * _scale) + 'px';
                         _dotnet.invokeMethodAsync('OnWidgetMoved',
                             el.dataset.widgetId,
-                            Math.round(x / _scale),
-                            Math.round(y / _scale));
+                            canvasX,
+                            canvasY);
                     },
                     end(event) {
+                        const el = event.target;
+                        el.dataset.x = parseFloat(el.style.left) || 0;
+                        el.dataset.y = parseFloat(el.style.top) || 0;
                         _dotnet.invokeMethodAsync('OnDragEnd');
                     }
                 }
@@ -133,26 +229,69 @@ window.overlayEditor = {
                 listeners: {
                     move(event) {
                         const el = event.target;
-                        let x = (parseFloat(el.dataset.x) || 0) + event.deltaRect.left;
-                        let y = (parseFloat(el.dataset.y) || 0) + event.deltaRect.top;
-                        el.style.left   = x + 'px';
-                        el.style.top    = y + 'px';
-                        el.style.width  = event.rect.width  + 'px';
-                        el.style.height = event.rect.height + 'px';
-                        el.dataset.x = x;
-                        el.dataset.y = y;
+                        const prevLeftCanvas = Math.round((parseFloat(el.style.left) || 0) / _scale);
+                        const prevTopCanvas = Math.round((parseFloat(el.style.top) || 0) / _scale);
+                        const prevWidthCanvas = Math.max(10, Math.round((parseFloat(el.style.width) || 0) / _scale));
+                        const prevHeightCanvas = Math.max(10, Math.round((parseFloat(el.style.height) || 0) / _scale));
+
+                        const rawX = (parseFloat(el.dataset.x) || 0) + event.deltaRect.left;
+                        const rawY = (parseFloat(el.dataset.y) || 0) + event.deltaRect.top;
+                        el.dataset.x = rawX;
+                        el.dataset.y = rawY;
+
+                        let canvasX;
+                        let canvasW;
+                        if (event.edges && event.edges.left) {
+                            const fixedRightCanvas = prevLeftCanvas + prevWidthCanvas;
+                            canvasX = Math.min(snapValue(rawX / _scale), fixedRightCanvas - 10);
+                            canvasW = Math.max(10, fixedRightCanvas - canvasX);
+                        } else if (event.edges && event.edges.right) {
+                            canvasX = prevLeftCanvas;
+                            const snappedRightCanvas = snapValue((rawX + event.rect.width) / _scale);
+                            canvasW = Math.max(10, snappedRightCanvas - canvasX);
+                        } else {
+                            canvasX = prevLeftCanvas;
+                            canvasW = prevWidthCanvas;
+                        }
+
+                        let canvasY;
+                        let canvasH;
+                        if (event.edges && event.edges.top) {
+                            const fixedBottomCanvas = prevTopCanvas + prevHeightCanvas;
+                            canvasY = Math.min(snapValue(rawY / _scale), fixedBottomCanvas - 10);
+                            canvasH = Math.max(10, fixedBottomCanvas - canvasY);
+                        } else if (event.edges && event.edges.bottom) {
+                            canvasY = prevTopCanvas;
+                            const snappedBottomCanvas = snapValue((rawY + event.rect.height) / _scale);
+                            canvasH = Math.max(10, snappedBottomCanvas - canvasY);
+                        } else {
+                            canvasY = prevTopCanvas;
+                            canvasH = prevHeightCanvas;
+                        }
+
+                        el.style.left   = (canvasX * _scale) + 'px';
+                        el.style.top    = (canvasY * _scale) + 'px';
+                        el.style.width  = (canvasW * _scale) + 'px';
+                        el.style.height = (canvasH * _scale) + 'px';
                         _dotnet.invokeMethodAsync('OnWidgetResized',
                             el.dataset.widgetId,
-                            Math.round(x / _scale),
-                            Math.round(y / _scale),
-                            Math.round(event.rect.width  / _scale),
-                            Math.round(event.rect.height / _scale));
+                            canvasX,
+                            canvasY,
+                            canvasW,
+                            canvasH);
                     },
                     end(event) {
+                        const el = event.target;
+                        el.dataset.x = parseFloat(el.style.left) || 0;
+                        el.dataset.y = parseFloat(el.style.top) || 0;
                         _dotnet.invokeMethodAsync('OnDragEnd');
                     }
                 }
             });
+    },
+
+    setSnapSize(snapSize) {
+        _snapSize = typeof snapSize === 'number' ? snapSize : 0;
     },
 
     destroy() {
@@ -161,6 +300,7 @@ window.overlayEditor = {
             _interactable = null;
         }
         detachViewportInteractions();
+        detachKeyboardShortcuts();
     },
 
     panViewport(deltaX, deltaY) {

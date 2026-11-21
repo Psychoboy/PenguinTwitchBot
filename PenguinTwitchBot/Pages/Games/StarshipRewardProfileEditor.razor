@@ -11,34 +11,55 @@
         <MudItem xs="12" sm="3"><MudNumericField T="int" Label="Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Profile.SuccessChancePercent" /></MudItem>
         <MudItem xs="12" sm="3"><MudSwitch T="bool" Label="Enabled" @bind-Value="Profile.Enabled" Color="Color.Primary" /></MudItem>
     </MudGrid>
-    @foreach (var tier in Profile.Tiers)
+    @for (var i = 0; i < Profile.Tiers.Count; i++)
     {
-        <MudDivider />
-        <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-            <MudText Typo="Typo.subtitle1">@tier.Name (@TierOdds(tier).ToString("0.#")%)</MudText>
-            <MudSpacer />
-            <MudTooltip Text="Move tier up"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Move tier up" Disabled="@(Profile.Tiers.IndexOf(tier) == 0)" OnClick="@(() => MoveTier(tier, -1))" /></MudTooltip>
-            <MudTooltip Text="Move tier down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Move tier down" Disabled="@(Profile.Tiers.IndexOf(tier) == Profile.Tiers.Count - 1)" OnClick="@(() => MoveTier(tier, 1))" /></MudTooltip>
-            <MudTooltip Text="Remove tier"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove tier" Color="Color.Error" Disabled="@(Profile.Tiers.Count == 1)" OnClick="@(() => Profile.Tiers.Remove(tier))" /></MudTooltip>
-        </MudStack>
-        <MudGrid Spacing="2">
-            <MudItem xs="12" sm="4"><MudTextField T="string" Label="Tier Name" Variant="Variant.Outlined" MaxLength="24" @bind-Value="tier.Name" /></MudItem>
-            <MudItem xs="6" sm="3"><MudNumericField T="int" Label="Relative Weight" Variant="Variant.Outlined" Min="0" Max="1000" @bind-Value="tier.Weight" /></MudItem>
-            <MudItem xs="6" sm="3"><MudColorPicker Label="Badge Colour" Variant="Variant.Outlined" Value="@TierColor(tier.Color)" ValueChanged="@(value => tier.Color = value.ToString(MudColorOutputFormats.Hex))" /></MudItem>
-            <MudItem xs="12" sm="2"><MudSwitch T="bool" Label="Enabled" @bind-Value="tier.Enabled" /></MudItem>
-        </MudGrid>
-        @foreach (var reward in tier.Rewards)
-        {
-            <MudGrid Spacing="2" @key="reward">
-                <MudItem xs="12" sm="4">@PointTypeField(reward.PointTypeId, value => reward.PointTypeId = value)</MudItem>
-                <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Minimum" Variant="Variant.Outlined" Min="0" @bind-Value="reward.Minimum" /></MudItem>
-                <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Maximum" Variant="Variant.Outlined" Min="0" @bind-Value="reward.Maximum" /></MudItem>
-                <MudItem xs="4" sm="2"><MudNumericField T="int" Label="Chance (%)" Variant="Variant.Outlined" Min="1" Max="100" @bind-Value="reward.ChancePercent" /></MudItem>
-                <MudItem xs="12" sm="2"><MudTooltip Text="Remove reward"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove reward" OnClick="@(() => tier.Rewards.Remove(reward))" /></MudTooltip></MudItem>
-            </MudGrid>
-        }
-        <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(PointTypes.Count == 0 || tier.Rewards.Count >= StarshipRewardProfile.MaximumRewardsPerTier)" OnClick="@(() => tier.Rewards.Add(new() { PointTypeId = FirstPointType, Minimum = 5, Maximum = 10 }))">Add Points Reward</MudButton>
-        @ActionRows(tier.Actions, "Success")
+        var tierIndex = i;
+        var tier = Profile.Tiers[tierIndex];
+        <div @key="tier"
+             class="@_tierDrag.GetItemCssClass(tierIndex)"
+             data-drag-item="true"
+             data-drag-handle-only="true"
+             data-drag-index="@tierIndex"
+             draggable="false"
+             @ondragstart="@(() => _tierDrag.Start(tierIndex))"
+             @ondragenter="@(() => _tierDrag.Enter(tierIndex))"
+             ondragover="event.preventDefault()"
+             @ondrop="@(() => _tierDrag.TryCompleteDrop(Profile.Tiers, tierIndex, out _, out _))"
+             @ondrop:preventDefault="true"
+             @ondragend="@(() => _tierDrag.End())">
+            <MudPaper Outlined="true" Class="pa-3">
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                    <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
+                        <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                    </span>
+                    <MudText Typo="Typo.subtitle1">@tier.Name (@TierOdds(tier).ToString("0.#")%)</MudText>
+                    <MudSpacer />
+                    <MudTooltip Text="Move tier up"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Move tier up" Disabled="@(tierIndex == 0)" OnClick="@(() => MoveTier(tier, -1))" /></MudTooltip>
+                    <MudTooltip Text="Move tier down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Move tier down" Disabled="@(tierIndex == Profile.Tiers.Count - 1)" OnClick="@(() => MoveTier(tier, 1))" /></MudTooltip>
+                    <MudTooltip Text="Remove tier"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove tier" Color="Color.Error" Disabled="@(Profile.Tiers.Count == 1)" OnClick="@(() => Profile.Tiers.Remove(tier))" /></MudTooltip>
+                </MudStack>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="4"><MudTextField T="string" Label="Tier Name" Variant="Variant.Outlined" MaxLength="24" @bind-Value="tier.Name" /></MudItem>
+                    <MudItem xs="6" sm="3"><MudNumericField T="int" Label="Relative Weight" Variant="Variant.Outlined" Min="0" Max="1000" @bind-Value="tier.Weight" /></MudItem>
+                    <MudItem xs="6" sm="3"><MudColorPicker Label="Badge Colour" Variant="Variant.Outlined" Value="@TierColor(tier.Color)" ValueChanged="@(value => tier.Color = value.ToString(MudColorOutputFormats.Hex))" /></MudItem>
+                    <MudItem xs="12" sm="2"><MudSwitch T="bool" Label="Enabled" @bind-Value="tier.Enabled" /></MudItem>
+                </MudGrid>
+                @foreach (var reward in tier.Rewards)
+                {
+                    <MudGrid Spacing="2" @key="reward">
+                        <MudItem xs="12" sm="4">@PointTypeField(reward.PointTypeId, value => reward.PointTypeId = value)</MudItem>
+                        <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Minimum" Variant="Variant.Outlined" Min="0" @bind-Value="reward.Minimum" /></MudItem>
+                        <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Maximum" Variant="Variant.Outlined" Min="0" @bind-Value="reward.Maximum" /></MudItem>
+                        <MudItem xs="4" sm="2"><MudNumericField T="int" Label="Chance (%)" Variant="Variant.Outlined" Min="1" Max="100" @bind-Value="reward.ChancePercent" /></MudItem>
+                        <MudItem xs="12" sm="2"><MudTooltip Text="Remove reward"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove reward" OnClick="@(() => tier.Rewards.Remove(reward))" /></MudTooltip></MudItem>
+                    </MudGrid>
+                }
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(PointTypes.Count == 0 || tier.Rewards.Count >= StarshipRewardProfile.MaximumRewardsPerTier)" OnClick="@(() => tier.Rewards.Add(new() { PointTypeId = FirstPointType, Minimum = 5, Maximum = 10 }))">Add Points Reward</MudButton>
+                @ActionRows(tier.Actions, "Success")
+            </MudStack>
+            </MudPaper>
+        </div>
     }
     <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(Profile.Tiers.Count >= StarshipRewardProfile.MaximumTiers)" OnClick="AddTier">Add Rarity Tier</MudButton>
     <MudDivider />
@@ -76,6 +97,7 @@
 
     private Guid FirstPointType => PointTypes.Keys.FirstOrDefault();
     private readonly Dictionary<string, MudColor> _tierColors = new(StringComparer.OrdinalIgnoreCase);
+    private readonly DragReorderState _tierDrag = new();
 
     private MudColor TierColor(string value)
     {

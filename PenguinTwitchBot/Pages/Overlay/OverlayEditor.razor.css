@@ -271,16 +271,21 @@
 }
 
 /* ── Right panel: widget list ─────────────────────────────────────────────── */
+.widget-list-hint {
+    font-size: 0.7rem;
+    color: var(--mud-palette-text-secondary);
+}
+
 .widget-list-item {
     display: flex;
     align-items: center;
-    padding: 5px 12px;
+    padding: 4px 6px;
     cursor: pointer;
-    gap: 8px;
-    font-size: 0.85rem;
+    gap: 5px;
+    font-size: 0.82rem;
     border-radius: 4px;
-    margin: 1px 4px;
-    transition: background-color 0.1s;
+    margin: 1px 2px;
+    transition: background-color 0.1s, opacity 0.12s, box-shadow 0.12s;
 }
 
 .widget-list-item:hover {
@@ -290,6 +295,29 @@
 .widget-list-item--active {
     background-color: var(--mud-palette-primary-hover);
     font-weight: 600;
+}
+
+.widget-list-item--hidden .widget-list-name {
+    opacity: 0.45;
+    text-decoration: line-through;
+}
+
+.widget-list-actions {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: 2px;
+}
+
+.widget-list-actions ::deep .mud-icon-button {
+    padding: 3px;
+}
+
+.widget-quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .widget-list-dot {
