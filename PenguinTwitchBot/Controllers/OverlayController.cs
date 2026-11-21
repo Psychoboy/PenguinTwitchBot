@@ -315,18 +315,18 @@ namespace PenguinTwitchBot.Controllers
         [AllowAnonymous]
         [HttpPost("fishing-revealed")]
         public async Task<IActionResult> NotifyFishingRevealed(
-            [FromBody] FishingRevealAckRequest request,
+            [FromBody] FishingRevealAckRequest? request,
             [FromServices] IFishingOverlayAckService ackService,
             [FromServices] IOverlaySecurityService overlaySecurityService)
         {
+            if (!await overlaySecurityService.ValidateKeyAsync(request?.OverlayKey))
+            {
+                return Unauthorized();
+            }
+
             if (request == null || request.RevealId == Guid.Empty)
             {
                 return BadRequest();
-            }
-
-            if (!await overlaySecurityService.ValidateKeyAsync(request.OverlayKey))
-            {
-                return Unauthorized();
             }
 
             return ackService.NotifyRevealed(request.RevealId) ? Accepted() : Conflict();
@@ -339,11 +339,11 @@ namespace PenguinTwitchBot.Controllers
         [AllowAnonymous]
         [HttpPost("fishing-register")]
         public async Task<IActionResult> RegisterFishingOverlay(
-            [FromBody] FishingOverlayRegisterRequest request,
+            [FromBody] FishingOverlayRegisterRequest? request,
             [FromServices] IFishingOverlayAckService ackService,
             [FromServices] IOverlaySecurityService overlaySecurityService)
         {
-            if (request == null || !await overlaySecurityService.ValidateKeyAsync(request.OverlayKey))
+            if (!await overlaySecurityService.ValidateKeyAsync(request?.OverlayKey))
             {
                 return Unauthorized();
             }
