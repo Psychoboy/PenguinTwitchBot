@@ -718,12 +718,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             await db.SaveChangesAsync();
 
-            await TriggerFishingTournamentLifecycleActionsAsync(
-                tournament,
-                TriggerTypes.FishingTournamentEnd,
-                FishingTournamentEndTriggerName,
-                rewardWinners);
-
             var podiumStandings = CalculateStandings(settlementCatches, tournament.PrimaryScoreCategory)
                 .Take(3)
                 .Select((standing, index) => new FishingTournamentStanding
@@ -736,6 +730,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     LastCaughtAtUtc = standing.LastCaughtAtUtc
                 })
                 .ToList();
+
+            await TriggerFishingTournamentLifecycleActionsAsync(
+                tournament,
+                TriggerTypes.FishingTournamentEnd,
+                FishingTournamentEndTriggerName,
+                rewardWinners,
+                podiumStandings);
+
             await BroadcastTournamentEndedAsync(tournament, rewardWinners, podiumStandings);
 
             var frenzyService = scope.ServiceProvider.GetService<IFishingFrenzyService>();
@@ -1117,13 +1119,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             FishingTournament tournament,
             TriggerTypes triggerType,
             string triggerName,
-            List<TournamentRewardWinner>? rewardWinners = null)
+            List<TournamentRewardWinner>? rewardWinners = null,
+            List<FishingTournamentStanding>? podiumStandings = null)
         {
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                 var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+                var messageSettingsService = scope.ServiceProvider.GetService<IFishingMessageSettingsService>();
 
                 var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(triggerType, triggerName);
                 if (actions.Count == 0)
@@ -1139,6 +1143,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     .ToList();
 
                 var rewardWinnerList = rewardWinners ?? [];
+                var podiumList = podiumStandings ?? [];
+                var messageSettings = messageSettingsService != null
+                    ? await messageSettingsService.GetAsync()
+                    : new FishingMessageSettings();
 
                 foreach (var action in actions)
                 {
@@ -1153,7 +1161,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     }
 
                     var variables = new ConcurrentDictionary<string, string>();
-                    PopulateTournamentLifecycleVariables(variables, tournament, eligibleFishNames, rewardWinnerList);
+                    PopulateTournamentLifecycleVariables(variables, tournament, eligibleFishNames, rewardWinnerList, podiumList, messageSettings);
 
                     await actionService.EnqueueAction(variables, action);
                 }
@@ -1164,18 +1172,22 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
         }
 
-        private static void PopulateTournamentLifecycleVariables(
+        internal static void PopulateTournamentLifecycleVariables(
             ConcurrentDictionary<string, string> variables,
             FishingTournament tournament,
             List<string> eligibleFishNames,
-            List<TournamentRewardWinner> rewardWinners)
+            List<TournamentRewardWinner> rewardWinners,
+            List<FishingTournamentStanding>? podiumStandings = null,
+            FishingMessageSettings? messageSettings = null)
         {
+            var scoreCategoryLabel = FishingFormatHelper.FormatScoreCategory(tournament.PrimaryScoreCategory);
             variables["fishing_tournament_id"] = tournament.Id.ToString();
             variables["fishing_tournament_name"] = tournament.Name;
             variables["fishing_tournament_description"] = tournament.Description;
             variables["fishing_tournament_status"] = tournament.Status.ToString();
             variables["fishing_tournament_enabled"] = tournament.Enabled.ToString().ToLowerInvariant();
             variables["fishing_tournament_primary_score_category"] = tournament.PrimaryScoreCategory.ToString();
+            variables["fishing_tournament_score_category_label"] = scoreCategoryLabel;
             variables["fishing_tournament_starts_at_utc"] = tournament.StartsAtUtc?.ToString("O") ?? string.Empty;
             variables["fishing_tournament_ends_at_utc"] = tournament.EndsAtUtc?.ToString("O") ?? string.Empty;
 
@@ -1184,22 +1196,170 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             variables["fishing_tournament_eligible_fish_preview"] = string.Join(", ", eligibleFishNames.Take(3));
             variables["fishing_tournament_eligible_fish_over_three"] = (eligibleFishNames.Count > 3).ToString().ToLowerInvariant();
 
-            variables["fishing_tournament_reward_winner_count"] = rewardWinners.Count.ToString();
-            variables["fishing_tournament_reward_winner_names"] = string.Join(", ", rewardWinners.Select(winner => winner.Username).Distinct(StringComparer.OrdinalIgnoreCase));
-            variables["fishing_tournament_reward_winner_ids"] = string.Join(",", rewardWinners.Select(winner => winner.UserId).Distinct(StringComparer.OrdinalIgnoreCase));
-            variables["fishing_tournament_reward_summary"] = string.Join("; ", rewardWinners.Select(winner =>
+            // Group multi-point reward rows by (Placement, UserId, Username) so a winner with multiple
+            // point types appears once with all their combined rewards cleanly formatted.
+            var groupedWinners = rewardWinners
+                .GroupBy(w => (w.Placement, w.UserId, w.Username))
+                .OrderBy(g => g.Key.Placement)
+                .Select(g =>
+                {
+                    var parts = new List<string>();
+                    var spokenParts = new List<string>();
+                    foreach (var ptGroup in g.Where(w => w.RewardAmount > 0).GroupBy(w => (w.PointTypeId, w.PointTypeName)))
+                    {
+                        var totalPts = ptGroup.Sum(w => w.RewardAmount);
+                        var ptName = string.IsNullOrWhiteSpace(ptGroup.Key.PointTypeName) ? "Points" : ptGroup.Key.PointTypeName;
+                        parts.Add($"{FishingFormatHelper.FormatCompactNumber(totalPts)} {ptName}");
+                        spokenParts.Add($"{FishingFormatHelper.FormatSpokenNumber(totalPts)} {ptName}");
+                    }
+                    var totalGold = g.Sum(w => w.GoldAmount);
+                    if (totalGold > 0)
+                    {
+                        parts.Add($"{FishingFormatHelper.FormatCompactNumber(totalGold)} Gold");
+                        spokenParts.Add($"{FishingFormatHelper.FormatSpokenNumber(totalGold)} Gold");
+                    }
+                    return (
+                        g.Key.Placement,
+                        g.Key.UserId,
+                        g.Key.Username,
+                        RewardsText: string.Join(" + ", parts),
+                        SpokenRewardsText: FishingFormatHelper.FormatSpokenList(spokenParts));
+                })
+                .ToList();
+
+            var winnerNames = string.Join(", ", groupedWinners.Select(w => w.Username).Distinct(StringComparer.OrdinalIgnoreCase));
+            var spokenWinnerNames = FishingFormatHelper.FormatSpokenList(groupedWinners.Select(w => w.Username).Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+            var rewardSummary = string.Join("; ", groupedWinners.Select(w =>
+                string.IsNullOrWhiteSpace(w.RewardsText)
+                    ? $"#{w.Placement} {w.Username}"
+                    : $"#{w.Placement} {w.Username} won {w.RewardsText}"));
+
+            variables["fishing_tournament_reward_winner_count"] = groupedWinners.Count.ToString();
+            variables["fishing_tournament_reward_winner_names"] = winnerNames;
+            variables["fishing_tournament_reward_winner_ids"] = string.Join(",", groupedWinners.Select(w => w.UserId).Distinct(StringComparer.OrdinalIgnoreCase));
+            variables["fishing_tournament_reward_summary"] = rewardSummary;
+
+            // Aggregate total rewards per recipient across all reward rules (including side-category rules
+            // whose placement may differ from the primary podium rank).
+            var rewardsByRecipient = rewardWinners
+                .GroupBy(w => w.UserId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var parts = new List<string>();
+                        var spokenParts = new List<string>();
+                        foreach (var ptGroup in g.Where(w => w.RewardAmount > 0).GroupBy(w => (w.PointTypeId, w.PointTypeName)))
+                        {
+                            var totalPts = ptGroup.Sum(w => w.RewardAmount);
+                            var ptName = string.IsNullOrWhiteSpace(ptGroup.Key.PointTypeName) ? "Points" : ptGroup.Key.PointTypeName;
+                            parts.Add($"{FishingFormatHelper.FormatCompactNumber(totalPts)} {ptName}");
+                            spokenParts.Add($"{FishingFormatHelper.FormatSpokenNumber(totalPts)} {ptName}");
+                        }
+                        var totalGold = g.Sum(w => w.GoldAmount);
+                        if (totalGold > 0)
+                        {
+                            parts.Add($"{FishingFormatHelper.FormatCompactNumber(totalGold)} Gold");
+                            spokenParts.Add($"{FishingFormatHelper.FormatSpokenNumber(totalGold)} Gold");
+                        }
+                        var username = g.First().Username;
+                        return (
+                            Username: username,
+                            RewardsText: string.Join(" + ", parts),
+                            SpokenRewardsText: FishingFormatHelper.FormatSpokenList(spokenParts));
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            // Build friendly podium lines (both chat and TTS-spoken) combining standings (score) and total recipient rewards
+            var podium = podiumStandings ?? [];
+            var medals = new[] { "🥇", "🥈", "🥉" };
+            var podiumEntries = new List<(int Rank, string Username, string ScoreText, string RewardsText, string Line, string TtsLine)>();
+            var includedUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (podium.Count > 0)
             {
-                var parts = new List<string>();
-                if (winner.RewardAmount > 0)
+                foreach (var s in podium.OrderBy(x => x.Rank))
                 {
-                    parts.Add($"{winner.RewardAmount} {(string.IsNullOrWhiteSpace(winner.PointTypeName) ? $"PointType:{winner.PointTypeId}" : winner.PointTypeName)}");
+                    includedUserIds.Add(s.UserId);
+                    var medal = s.Rank is >= 1 and <= 3 ? medals[s.Rank - 1] : $"#{s.Rank}";
+                    var scoreText = FishingFormatHelper.FormatCompactNumber(s.Score);
+                    rewardsByRecipient.TryGetValue(s.UserId, out var recipientReward);
+                    var rewardsText = recipientReward.RewardsText ?? string.Empty;
+                    var spokenRewardsText = recipientReward.SpokenRewardsText ?? string.Empty;
+                    var line = string.IsNullOrWhiteSpace(rewardsText)
+                        ? $"{medal} {s.Username} ({scoreText})"
+                        : $"{medal} {s.Username} ({scoreText}) won {rewardsText}";
+                    var ordinal = FishingFormatHelper.FormatSpokenOrdinal(s.Rank);
+                    var ttsLine = string.IsNullOrWhiteSpace(spokenRewardsText)
+                        ? $"{ordinal} goes to {s.Username}."
+                        : $"{ordinal} goes to {s.Username}, winning {spokenRewardsText}.";
+                    podiumEntries.Add((s.Rank, s.Username, scoreText, rewardsText, line, ttsLine));
                 }
-                if (winner.GoldAmount > 0)
+
+                // Include any additional reward recipients who placed outside the primary podium (e.g. side-category winners)
+                foreach (var kvp in rewardsByRecipient)
                 {
-                    parts.Add($"{winner.GoldAmount} Gold");
+                    if (includedUserIds.Contains(kvp.Key) || string.IsNullOrWhiteSpace(kvp.Value.RewardsText)) continue;
+                    var line = $"🎁 {kvp.Value.Username} won {kvp.Value.RewardsText}";
+                    var ttsLine = $"{kvp.Value.Username} also won {kvp.Value.SpokenRewardsText}.";
+                    podiumEntries.Add((0, kvp.Value.Username, string.Empty, kvp.Value.RewardsText, line, ttsLine));
                 }
-                return $"#{winner.Placement} {winner.Username} won {string.Join(" + ", parts)}";
-            }));
+            }
+            else if (groupedWinners.Count > 0)
+            {
+                foreach (var w in groupedWinners.Take(3))
+                {
+                    var medal = w.Placement is >= 1 and <= 3 ? medals[w.Placement - 1] : $"#{w.Placement}";
+                    var line = string.IsNullOrWhiteSpace(w.RewardsText)
+                        ? $"{medal} {w.Username}"
+                        : $"{medal} {w.Username} won {w.RewardsText}";
+                    var ordinal = FishingFormatHelper.FormatSpokenOrdinal(w.Placement);
+                    var ttsLine = string.IsNullOrWhiteSpace(w.SpokenRewardsText)
+                        ? $"{ordinal} goes to {w.Username}."
+                        : $"{ordinal} goes to {w.Username}, winning {w.SpokenRewardsText}.";
+                    podiumEntries.Add((w.Placement, w.Username, string.Empty, w.RewardsText, line, ttsLine));
+                }
+            }
+
+            var podiumSummary = string.Join(" | ", podiumEntries.Select(e => e.Line));
+            var ttsPodium = string.Join(" ", podiumEntries.Select(e => e.TtsLine));
+            variables["fishing_tournament_podium_summary"] = podiumSummary;
+            variables["fishing_tournament_tts_podium"] = ttsPodium;
+
+            var placePrefixes = new[] { (1, "first"), (2, "second"), (3, "third") };
+            var placeLines = new Dictionary<int, string>();
+            foreach (var (rank, prefix) in placePrefixes)
+            {
+                var entry = podiumEntries.FirstOrDefault(e => e.Rank == rank);
+                variables[$"fishing_tournament_{prefix}_user"] = entry.Username ?? string.Empty;
+                variables[$"fishing_tournament_{prefix}_score"] = entry.ScoreText ?? string.Empty;
+                variables[$"fishing_tournament_{prefix}_rewards"] = entry.RewardsText ?? string.Empty;
+                placeLines[rank] = entry.Line ?? string.Empty;
+            }
+
+            var msgs = messageSettings ?? new FishingMessageSettings();
+            var hasResults = podiumEntries.Count > 0 || groupedWinners.Count > 0;
+            var endTemplate = hasResults ? msgs.TournamentEnd : msgs.TournamentEndNoWinners;
+            var endMessage = FishingMessageSettings.Format(endTemplate,
+                ("tournament", tournament.Name),
+                ("category", scoreCategoryLabel),
+                ("podium", podiumSummary),
+                ("rewards", rewardSummary),
+                ("winners", winnerNames),
+                ("winnerCount", groupedWinners.Count.ToString()),
+                ("first", placeLines[1]),
+                ("second", placeLines[2]),
+                ("third", placeLines[3])) ?? string.Empty;
+            variables["fishing_tournament_end_message"] = endMessage;
+
+            var ttsTemplate = hasResults ? msgs.TournamentEndTts : msgs.TournamentEndTtsNoWinners;
+            var ttsMessage = FishingMessageSettings.Format(ttsTemplate,
+                ("tournament", tournament.Name),
+                ("category", scoreCategoryLabel),
+                ("podium", ttsPodium),
+                ("winners", spokenWinnerNames),
+                ("winnerCount", groupedWinners.Count.ToString())) ?? string.Empty;
+            variables["fishing_tournament_tts_message"] = ttsMessage;
         }
 
         private static List<TournamentStanding> CalculateStandings(List<TournamentCatchEntry> catches, FishingTournamentRewardRule rewardRule)
@@ -1334,7 +1494,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             public double Score { get; set; }
         }
 
-        private sealed class TournamentRewardWinner
+        internal sealed class TournamentRewardWinner
         {
             public string UserId { get; set; } = string.Empty;
             public string Username { get; set; } = string.Empty;

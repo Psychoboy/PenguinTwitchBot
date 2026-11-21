@@ -230,4 +230,38 @@ public class VersionCheckServiceTests
         Assert.Null(service.LatestUpdateAssetName);
         Assert.True(eventFired);
     }
+
+    [Fact]
+    public void PruneOldRecoveryBundles_KeepsMostRecentTwoAndIgnoresOtherFiles()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"ptb-recovery-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var baseTime = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
+            for (var i = 1; i <= 5; i++)
+            {
+                var path = Path.Combine(tempDir, $"recovery-2026110{i}000000-0.{i}.0.zip");
+                File.WriteAllText(path, $"bundle-{i}");
+                File.SetLastWriteTimeUtc(path, baseTime.AddDays(i));
+            }
+            var unrelated = Path.Combine(tempDir, "notes.txt");
+            File.WriteAllText(unrelated, "keep me");
+
+            var deleted = VersionCheckService.PruneOldRecoveryBundles(tempDir, maxToKeep: VersionCheckService.MaxRecoveryBundlesToKeep);
+
+            Assert.Equal(3, deleted);
+            var remainingZips = Directory.GetFiles(tempDir, "recovery-*.zip").Select(Path.GetFileName).OrderBy(x => x).ToList();
+            Assert.Equal(new[]
+            {
+                "recovery-20261104000000-0.4.0.zip",
+                "recovery-20261105000000-0.5.0.zip"
+            }, remainingZips);
+            Assert.True(File.Exists(unrelated));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        }
+    }
 }

@@ -15,11 +15,23 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         /// <summary>Removes an unawaited reveal registration so the pending table never leaks entries.</summary>
         void Unregister(Guid revealId);
+
+        /// <summary>Records a heartbeat/ack from an overlay authenticated with the valid secure overlay key.</summary>
+        void RecordRegisteredOverlay();
+
+        /// <summary>Returns true if an overlay with the valid secure key has registered or acknowledged within <paramref name="maxAge"/>.</summary>
+        bool HasActiveRegisteredOverlay(TimeSpan? maxAge = null);
+
+        /// <summary>Clears the registered overlay timestamp (e.g., after a reveal wait timeout) so subsequent casts do not stall.</summary>
+        void ClearRegisteredOverlay();
     }
 
     public class FishingOverlayAckService : IFishingOverlayAckService
     {
+        private static readonly TimeSpan DefaultRegistrationTtl = TimeSpan.FromSeconds(90);
+
         private readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> _pending = new();
+        private long _lastRegisteredOverlayUtcTicks;
 
         public void Register(Guid revealId)
         {
@@ -51,6 +63,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public bool NotifyRevealed(Guid revealId)
         {
+            RecordRegisteredOverlay();
             if (revealId == Guid.Empty) return false;
             if (_pending.TryRemove(revealId, out var tcs))
             {
@@ -63,6 +76,24 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             if (revealId == Guid.Empty) return;
             _pending.TryRemove(revealId, out _);
+        }
+
+        public void RecordRegisteredOverlay()
+        {
+            Interlocked.Exchange(ref _lastRegisteredOverlayUtcTicks, DateTime.UtcNow.Ticks);
+        }
+
+        public bool HasActiveRegisteredOverlay(TimeSpan? maxAge = null)
+        {
+            var lastTicks = Interlocked.Read(ref _lastRegisteredOverlayUtcTicks);
+            if (lastTicks <= 0) return false;
+            var ttl = maxAge ?? DefaultRegistrationTtl;
+            return (DateTime.UtcNow - new DateTime(lastTicks, DateTimeKind.Utc)) <= ttl;
+        }
+
+        public void ClearRegisteredOverlay()
+        {
+            Interlocked.Exchange(ref _lastRegisteredOverlayUtcTicks, 0);
         }
     }
 }

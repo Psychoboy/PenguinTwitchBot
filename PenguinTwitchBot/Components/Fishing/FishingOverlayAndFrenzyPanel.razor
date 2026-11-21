@@ -1,11 +1,13 @@
 @using PenguinTwitchBot.Bot.Commands.Fishing
 @using PenguinTwitchBot.Bot.Notifications
+@using PenguinTwitchBot.Bot.Overlay
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
 @using System.Text.Json
 @inject IFishingService FishingService
 @inject IFishingFrenzyService FrenzyService
 @inject IFishingAudioResolver AudioResolver
 @inject IFishingOverlayDisplaySettingsService OverlayDisplaySettingsService
+@inject IOverlaySecurityService OverlaySecurityService
 @inject IWebSocketMessenger WebSocketMessenger
 @inject IJSRuntime JSRuntime
 @inject ISnackbar Snackbar
@@ -24,7 +26,7 @@
                                Color="Color.Info"
                                Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.OpenInNew"
-                               Href="/fishing.html"
+                               Href="@FishingOverlayHref"
                                Target="_blank">
                         Open Fishing Overlay
                     </MudButton>
@@ -190,6 +192,10 @@
 
     private FishingFrenzyState? activeFrenzy;
     private FishingOverlayDisplaySettings displaySettings = new();
+    private string overlayKey = string.Empty;
+    private string FishingOverlayHref => string.IsNullOrWhiteSpace(overlayKey)
+        ? "/fishing.html"
+        : $"/fishing.html?key={Uri.EscapeDataString(overlayKey)}";
     private string frenzyName = "Golden Hour Frenzy";
     private int frenzyMinutes = 10;
     private double frenzyMultiplier = 2.0;
@@ -200,6 +206,7 @@
     {
         activeFrenzy = FrenzyService.GetActiveFrenzy();
         displaySettings = await OverlayDisplaySettingsService.GetAsync();
+        overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
         var allFish = await FishingService.GetAllFishTypes();
         availableCategories = allFish
             .SelectMany(f => f.Categories)

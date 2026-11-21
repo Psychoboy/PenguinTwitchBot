@@ -330,5 +330,109 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.NotNull(action.Validate(new Dictionary<string, object?> { ["Attempts"] = "abc" }));
             Assert.NotNull(action.Validate(new Dictionary<string, object?> { ["Attempts"] = "99" }));
         }
+
+        [Fact]
+        public async Task OverlayAckService_FirstNotifyWins_SecondReturnsFalse_AndTracksRegistration()
+        {
+            var svc = new FishingOverlayAckService();
+            Assert.False(svc.HasActiveRegisteredOverlay());
+
+            svc.RecordRegisteredOverlay();
+            Assert.True(svc.HasActiveRegisteredOverlay());
+
+            var revealId = Guid.CreateVersion7();
+            svc.Register(revealId);
+            var waitTask = svc.WaitForRevealAsync(revealId, TimeSpan.FromSeconds(5));
+
+            // First authenticated overlay wins
+            Assert.True(svc.NotifyRevealed(revealId));
+            Assert.True(await waitTask);
+
+            // Second overlay reporting the same revealId is rejected
+            Assert.False(svc.NotifyRevealed(revealId));
+        }
+
+        [Fact]
+        public async Task OverlayController_FishingRevealed_EnforcesSecureKeyAndSingleAck()
+        {
+            var security = Substitute.For<PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService>();
+            security.ValidateKeyAsync("valid-key").Returns(true);
+            security.ValidateKeyAsync(Arg.Is<string?>(k => k != "valid-key")).Returns(false);
+
+            var ackService = new FishingOverlayAckService();
+            var revealId = Guid.CreateVersion7();
+            ackService.Register(revealId);
+
+            var controller = new PenguinTwitchBot.Controllers.OverlayController(
+                Substitute.For<PenguinTwitchBot.Database.Repository.IUnitOfWork>(),
+                Substitute.For<IFishingService>(),
+                Substitute.For<PenguinTwitchBot.Bot.Overlay.IStreamTimerService>(),
+                Substitute.For<PenguinTwitchBot.Bot.Services.ICounterService>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Misc.IDeathCounterService>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Games.Starship.IStarshipExpeditionService>(),
+                Substitute.For<ILogger<PenguinTwitchBot.Controllers.OverlayController>>());
+
+            // Missing or invalid key -> 401 Unauthorized, pending reveal still intact
+            var unauth = await controller.NotifyFishingRevealed(
+                new PenguinTwitchBot.Controllers.FishingRevealAckRequest(revealId, "wrong-key"),
+                ackService,
+                security);
+            Assert.IsType<Microsoft.AspNetCore.Mvc.UnauthorizedResult>(unauth);
+
+            // First valid overlay -> 202 Accepted
+            var first = await controller.NotifyFishingRevealed(
+                new PenguinTwitchBot.Controllers.FishingRevealAckRequest(revealId, "valid-key"),
+                ackService,
+                security);
+            Assert.IsType<Microsoft.AspNetCore.Mvc.AcceptedResult>(first);
+
+            // Second valid overlay -> 409 Conflict
+            var second = await controller.NotifyFishingRevealed(
+                new PenguinTwitchBot.Controllers.FishingRevealAckRequest(revealId, "valid-key"),
+                ackService,
+                security);
+            Assert.IsType<Microsoft.AspNetCore.Mvc.ConflictResult>(second);
+        }
+
+        [Fact]
+        public void TournamentEndVariables_GroupMultiPointRewardsAndRenderCustomEndMessage()
+        {
+            var ptA = Guid.CreateVersion7();
+            var ptB = Guid.CreateVersion7();
+            var tournament = new FishingTournament
+            {
+                Id = Guid.CreateVersion7(),
+                Name = "All Fish Largest Blitz (10m)",
+                PrimaryScoreCategory = FishingTournamentScoreCategory.Largest,
+                Status = FishingTournamentStatus.Completed
+            };
+
+            var winners = new List<FishingService.TournamentRewardWinner>
+            {
+                new() { Placement = 1, UserId = "u1", Username = "Alice", PointTypeId = ptA, PointTypeName = "Coins", RewardAmount = 1_000_000_000, GoldAmount = 500 },
+                new() { Placement = 1, UserId = "u1", Username = "Alice", PointTypeId = ptB, PointTypeName = "Tickets", RewardAmount = 20, GoldAmount = 0 },
+                new() { Placement = 2, UserId = "u2", Username = "Bob", PointTypeId = ptA, PointTypeName = "Coins", RewardAmount = 500_000_000, GoldAmount = 0 }
+            };
+            var standings = new List<FishingTournamentStanding>
+            {
+                new() { Rank = 1, UserId = "u1", Username = "Alice", Score = 42.5, CatchCount = 3 },
+                new() { Rank = 2, UserId = "u2", Username = "Bob", Score = 31.2, CatchCount = 2 }
+            };
+            var msgs = new FishingMessageSettings { TournamentEnd = "GG {tournament} ({category})! {podium}" };
+
+            var vars = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
+            FishingService.PopulateTournamentLifecycleVariables(vars, tournament, [], winners, standings, msgs);
+
+            Assert.Equal("2", vars["fishing_tournament_reward_winner_count"]);
+            Assert.Equal("#1 Alice won 1B Coins + 20 Tickets + 500 Gold; #2 Bob won 500M Coins", vars["fishing_tournament_reward_summary"]);
+            Assert.Equal("Alice", vars["fishing_tournament_first_user"]);
+            Assert.Equal("1B Coins + 20 Tickets + 500 Gold", vars["fishing_tournament_first_rewards"]);
+            Assert.Equal("Bob", vars["fishing_tournament_second_user"]);
+            Assert.Equal("500M Coins", vars["fishing_tournament_second_rewards"]);
+            Assert.Contains("🥇 Alice (42.50) won 1B Coins + 20 Tickets + 500 Gold", vars["fishing_tournament_podium_summary"]);
+            Assert.Contains("GG All Fish Largest Blitz (10m) (Largest Weight)!", vars["fishing_tournament_end_message"]);
+            Assert.Equal("First place goes to Alice, winning 1 billion Coins, 20 Tickets, and 500 Gold. Second place goes to Bob, winning 500 million Coins.", vars["fishing_tournament_tts_podium"]);
+            Assert.Equal("All Fish Largest Blitz (10m) has ended! First place goes to Alice, winning 1 billion Coins, 20 Tickets, and 500 Gold. Second place goes to Bob, winning 500 million Coins.", vars["fishing_tournament_tts_message"]);
+        }
     }
 }

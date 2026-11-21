@@ -13,7 +13,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         public FishingType() { SubActionTypes = SubActionTypes.Fishing; }
 
         public int Attempts { get; set; } = 1;
-        public bool WaitForReveal { get; set; } = false;
+        public bool WaitForReveal { get; set; } = true;
 
         public override List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
@@ -33,8 +33,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     PropertyName = nameof(WaitForReveal),
                     Label = "Wait for Cast Reveal",
                     FieldType = UIFieldType.Switch,
+                    DefaultValue = true,
                     SwitchColor = "Info",
-                    HelperText = "Pause briefly (~1.6s) for the cast/bite animation so chat & awards land right as the fish splashes onto the overlay."
+                    HelperText = "When a registered overlay with the secure key is connected, rewards and triggers automatically sync per catch as each fish is displayed. Enable this to also add a fallback cast delay when no registered overlay is connected."
                 },
                 new()
                 {
@@ -76,7 +77,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             }
             if (values.TryGetValue(nameof(WaitForReveal), out var waitForReveal))
             {
-                WaitForReveal = waitForReveal as bool? ?? false;
+                WaitForReveal = waitForReveal as bool? ?? true;
             }
         }
 

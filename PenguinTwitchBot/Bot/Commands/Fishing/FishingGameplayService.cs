@@ -25,6 +25,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private readonly IFishingMessageSettingsService? _messageSettingsService;
 
         private readonly ConcurrentDictionary<Guid, DateTime> _lastLeadAnnouncementByTournament = new();
+        private readonly ConcurrentDictionary<Guid, byte> _settledDeferredCatchIds = new();
+        private readonly ConcurrentQueue<Guid> _settledDeferredCatchOrder = new();
 
         public FishingGameplayService(
             IServiceScopeFactory scopeFactory,
@@ -50,7 +52,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             _messageSettingsService = messageSettingsService;
         }
 
-        public async Task<FishingAttemptResult> PerformFishingAttempt(string userId, string username)
+        public Task<FishingAttemptResult> PerformFishingAttempt(string userId, string username)
+            => PerformFishingAttempt(userId, username, deferRewards: false);
+
+        public async Task<FishingAttemptResult> PerformFishingAttempt(string userId, string username, bool deferRewards)
         {
             // These reads are independent of each other, so fetch them concurrently.
             var fishTypesTask = _fishingService.GetAllFishTypes();
@@ -424,11 +429,21 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 }
             }
 
-            await _fishingService.AddGoldToUser(userId, username, gold);
-
-            // Evaluate & award built-in multi-point catch rewards (if configured in FishingSettings.CatchRewardsJson)
-            var pointRewardsAwarded = await AwardBuiltInCatchPointRewardsAsync(
-                userId, fishType.Rarity, fishCategoryNames, stars, weight, gold, isNewSpecies, isPersonalBest, settings);
+            // Evaluate built-in multi-point catch rewards; when deferRewards is true (registered overlay active),
+            // gold and points are credited only when the authenticated overlay confirms the fish is displayed.
+            List<FishingPointRewardAwarded> pointRewardsAwarded;
+            if (deferRewards)
+            {
+                pointRewardsAwarded = await CalculatePlannedCatchPointRewardsAsync(
+                    fishType.Rarity, fishCategoryNames, stars, weight, gold, isNewSpecies, isPersonalBest, settings);
+            }
+            else
+            {
+                await _fishingService.AddGoldToUser(userId, username, gold);
+                var planned = await CalculatePlannedCatchPointRewardsAsync(
+                    fishType.Rarity, fishCategoryNames, stars, weight, gold, isNewSpecies, isPersonalBest, settings);
+                pointRewardsAwarded = await CreditCatchPointRewardsAsync(userId, planned);
+            }
 
             // Consume uses from all equipped items in a single batched update
             await _inventoryService.ConsumeItemUses(userId, userBoosts.Select(b => b.Id));
@@ -479,8 +494,36 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             };
         }
 
-        private async Task<List<FishingPointRewardAwarded>> AwardBuiltInCatchPointRewardsAsync(
+        public async Task<List<FishingPointRewardAwarded>> AwardDeferredCatchRewardsAsync(
+            Guid catchId,
             string userId,
+            string username,
+            int gold,
+            IReadOnlyList<FishingPointRewardAwarded> plannedPointRewards)
+        {
+            if (catchId != Guid.Empty)
+            {
+                if (!_settledDeferredCatchIds.TryAdd(catchId, 0))
+                {
+                    return plannedPointRewards.ToList();
+                }
+
+                _settledDeferredCatchOrder.Enqueue(catchId);
+                while (_settledDeferredCatchOrder.Count > 2048 && _settledDeferredCatchOrder.TryDequeue(out var oldest))
+                {
+                    _settledDeferredCatchIds.TryRemove(oldest, out _);
+                }
+            }
+
+            if (gold > 0)
+            {
+                await _fishingService.AddGoldToUser(userId, username, gold);
+            }
+
+            return await CreditCatchPointRewardsAsync(userId, plannedPointRewards);
+        }
+
+        private async Task<List<FishingPointRewardAwarded>> CalculatePlannedCatchPointRewardsAsync(
             FishRarity rarity,
             List<string> categories,
             int stars,
@@ -490,16 +533,16 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             bool isPersonalBest,
             FishingSettings? settings)
         {
-            var awarded = new List<FishingPointRewardAwarded>();
+            var planned = new List<FishingPointRewardAwarded>();
             if (_pointsSystem == null || string.IsNullOrWhiteSpace(settings?.CatchRewardsJson))
             {
-                return awarded;
+                return planned;
             }
 
             var rules = FishingCatchRewardCalculator.ParseRules(settings.CatchRewardsJson);
             if (rules.Count == 0)
             {
-                return awarded;
+                return planned;
             }
 
             // Sum amounts by PointTypeId so multiple matching rules on the same PointType make one clean credit.
@@ -515,7 +558,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (totalsByPointType.Count == 0)
             {
-                return awarded;
+                return planned;
             }
 
             Dictionary<Guid, string> pointTypes;
@@ -531,20 +574,39 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             foreach (var (pointTypeId, amount) in totalsByPointType)
             {
+                planned.Add(new FishingPointRewardAwarded
+                {
+                    PointTypeId = pointTypeId,
+                    PointTypeName = pointTypes.GetValueOrDefault(pointTypeId, "Points"),
+                    Amount = amount
+                });
+            }
+
+            return planned;
+        }
+
+        private async Task<List<FishingPointRewardAwarded>> CreditCatchPointRewardsAsync(
+            string userId,
+            IReadOnlyList<FishingPointRewardAwarded> plannedRewards)
+        {
+            var awarded = new List<FishingPointRewardAwarded>();
+            if (_pointsSystem == null || plannedRewards.Count == 0)
+            {
+                return awarded;
+            }
+
+            foreach (var reward in plannedRewards)
+            {
+                if (reward.Amount <= 0) continue;
                 try
                 {
-                    await _pointsSystem.AddPointsByUserId(userId, pointTypeId, amount);
-                    awarded.Add(new FishingPointRewardAwarded
-                    {
-                        PointTypeId = pointTypeId,
-                        PointTypeName = pointTypes.GetValueOrDefault(pointTypeId, "Points"),
-                        Amount = amount
-                    });
+                    await _pointsSystem.AddPointsByUserId(userId, reward.PointTypeId, reward.Amount);
+                    awarded.Add(reward);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to award built-in fishing catch reward {Amount} of point type {PointTypeId} to {UserId}",
-                        amount, pointTypeId, userId);
+                        reward.Amount, reward.PointTypeId, userId);
                 }
             }
 
