@@ -25,6 +25,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<GiveawayWinner> GiveawayWinners { get; set; } = null!;
         public DbSet<GiveawayExclusion> GiveawayExclusions { get; set; } = null!;
         public DbSet<Viewer> Viewers { get; set; } = null!;
+        public DbSet<Follower> Followers { get; set; } = null!;
         public DbSet<Counter> Counters { get; set; } = null!;
         public DbSet<ActionCommand> ActionCommands { get; set; } = null!;
         public DbSet<ActionKeyword> ActionKeywords { get; set; } = null!;
@@ -168,6 +169,20 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
 
             modelBuilder.Entity<Viewer>()
                 .Property(v => v.Username)
+                .HasMaxLength(255)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            modelBuilder.Entity<Follower>()
+                .HasIndex(f => f.UserId)
+                .IsUnique();
+
+            modelBuilder.Entity<Follower>()
+                .ToTable(t => t.HasCheckConstraint("CK_Followers_UserId_NotEmpty", "\"UserId\" <> ''"));
+
+            modelBuilder.Entity<Follower>()
+                .Property(f => f.Username)
                 .HasMaxLength(255)
                 .HasConversion(
                     v => UsernameNormalizer.Normalize(v),

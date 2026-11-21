@@ -27,7 +27,7 @@ public sealed class ChannelsTransport : IChannelsTransport
         return new GetChannelInformationResponse(channels);
     }
 
-    public async Task<GetChannelFollowersResponse> GetChannelFollowersAsync(string clientId, string? accessToken, string broadcasterId, string userId, int first, string? after)
+    public async Task<GetChannelFollowersResponse> GetChannelFollowersAsync(string clientId, string? accessToken, string broadcasterId, string? userId, int first, string? after)
     {
         using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
         var url = BuildFollowersUrl(broadcasterId, userId, first, after);
@@ -36,7 +36,10 @@ public sealed class ChannelsTransport : IChannelsTransport
 
         var payload = await HelixJson.DeserializeAsync<GetChannelFollowersApiResponse>(response);
         var followers = payload?.Data.Select(MapToChannelFollower).ToList() ?? [];
-        return new GetChannelFollowersResponse(followers);
+        return new GetChannelFollowersResponse(
+            Data: followers,
+            Cursor: payload?.Pagination?.Cursor,
+            Total: payload?.Total ?? 0);
     }
 
     public async Task<GetChannelEditorsResponse> GetChannelEditorsAsync(string clientId, string? accessToken, string broadcasterId)
@@ -54,7 +57,7 @@ public sealed class ChannelsTransport : IChannelsTransport
         return new GetChannelEditorsResponse(editors);
     }
 
-    private static string BuildFollowersUrl(string broadcasterId, string userId, int first, string? after)
+    private static string BuildFollowersUrl(string broadcasterId, string? userId, int first, string? after)
     {
         return HelixQuery.Build("channels/followers", new (string Key, string? Value)[]
         {
@@ -110,7 +113,9 @@ public sealed class ChannelsTransport : IChannelsTransport
         [property: JsonPropertyName("delay")] int Delay);
 
     private sealed record GetChannelFollowersApiResponse(
-        [property: JsonPropertyName("data")] IReadOnlyList<ChannelFollowerApiItem> Data);
+        [property: JsonPropertyName("data")] IReadOnlyList<ChannelFollowerApiItem> Data,
+        [property: JsonPropertyName("pagination")] HelixPagination? Pagination,
+        [property: JsonPropertyName("total")] int Total);
 
     private sealed record ChannelFollowerApiItem(
         [property: JsonPropertyName("user_id")] string UserId,

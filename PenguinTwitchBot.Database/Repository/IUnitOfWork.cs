@@ -12,6 +12,7 @@ namespace PenguinTwitchBot.Database.Repository
         ISongRequestHistoryRepository SongRequestHistory { get; }
         IRaidHistoryRepository RaidHistory { get; }
         IViewersRepository Viewers { get; }
+        IFollowersRepository Followers { get; }
         IAliasRepository Aliases { get; }
         ISettingsRepository Settings { get; }
         IGlobalVariablesRepository GlobalVariables { get; }

@@ -43,6 +43,7 @@ public class TwitchWebsocketHostedServiceTests
     private readonly IPenguinDispatcher _dispatcher;
     private readonly ITwitchEventActionHandler _twitchEventActionHandler;
     private readonly IChatColorService _chatColorService;
+    private readonly IFollowTracker _followTracker;
 
     public TwitchWebsocketHostedServiceTests()
     {
@@ -57,11 +58,19 @@ public class TwitchWebsocketHostedServiceTests
         _dispatcher = Substitute.For<IPenguinDispatcher>();
         _twitchEventActionHandler = Substitute.For<ITwitchEventActionHandler>();
         _chatColorService = Substitute.For<IChatColorService>();
+        _followTracker = Substitute.For<IFollowTracker>();
+        _followTracker.TryRecordFollowAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>())
+            .Returns(true);
 
         _service = new(
             _logger, _eventService, _eventSubWebsocketClient, _subscriptionHistory,
             _messageIdTracker, _memoryCache, _twitchService, _timeProvider,
-            _dispatcher, _twitchEventActionHandler, _chatColorService);
+            _dispatcher, _twitchEventActionHandler, _chatColorService, _followTracker);
     }
 
     private static EventSubMetadata CreateMetadata(string messageId = "msg-1", string messageType = "notification")
@@ -523,9 +532,25 @@ public class TwitchWebsocketHostedServiceTests
     {
         _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelFollow(this, CreateChannelFollowArgs());
+        await _followTracker.Received(1).TryRecordFollowAsync(
+            "uid-1", "testuser", "TestUser", Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
         await _eventService.Received(1).OnFollow(Arg.Any<ChannelFollow>());
         await _twitchEventActionHandler.Received(1).HandleFollowAsync(Arg.Is<FollowEventArgs>(e =>
             e.Username == "testuser" && e.UserId == "uid-1" && e.DisplayName == "TestUser"));
+    }
+
+    [Fact]
+    public async Task OnChannelFollow_WhenRefollow_DoesNotTriggerEvents()
+    {
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
+        _followTracker.TryRecordFollowAsync(
+                "uid-1", "testuser", "TestUser", Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        await _service.OnChannelFollow(this, CreateChannelFollowArgs());
+
+        await _eventService.DidNotReceive().OnFollow(Arg.Any<ChannelFollow>());
+        await _twitchEventActionHandler.DidNotReceive().HandleFollowAsync(Arg.Any<FollowEventArgs>());
     }
 
     [Fact]
@@ -1055,7 +1080,7 @@ public class TwitchWebsocketHostedServiceTests
         return new TwitchWebsocketHostedService(
             _logger, _eventService, _eventSubWebsocketClient, _subscriptionHistory,
             _messageIdTracker, _memoryCache, _twitchService, timeProvider,
-            _dispatcher, _twitchEventActionHandler, _chatColorService);
+            _dispatcher, _twitchEventActionHandler, _chatColorService, _followTracker);
     }
 
     [Fact]

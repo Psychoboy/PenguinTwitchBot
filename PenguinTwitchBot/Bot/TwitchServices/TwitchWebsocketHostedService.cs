@@ -29,6 +29,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Application.Notifications.IPenguinDispatcher dispatcher,
         ITwitchEventActionHandler twitchEventActionHandler,
         IChatColorService chatColorService,
+        IFollowTracker followTracker,
         PenguinTwitchBot.Services.IEmoteService? emoteService = null) : ITwitchWebsocketHostedService
     {
         internal readonly ConcurrentDictionary<string, DateTime> SubCache = new();
@@ -877,6 +878,21 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(e.Metadata)) return;
                 logger.LogInformation("OnChannelFollow: {UserLogin}", e.Event.UserLogin);
+
+                var isNewFollow = await followTracker.TryRecordFollowAsync(
+                    e.Event.UserId,
+                    e.Event.UserLogin,
+                    e.Event.UserName,
+                    e.Event.FollowedAt.UtcDateTime);
+
+                if (!isNewFollow)
+                {
+                    logger.LogInformation(
+                        "Ignoring re-follow for {UserLogin} ({UserId}); viewer has previously followed.",
+                        e.Event.UserLogin,
+                        e.Event.UserId);
+                    return;
+                }
 
                 var followEventArgs = new FollowEventArgs
                 {

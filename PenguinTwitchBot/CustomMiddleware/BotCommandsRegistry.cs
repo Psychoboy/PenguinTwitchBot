@@ -143,6 +143,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             );
 
             services.AddSingleton<ISubscriptionTracker, SubscriptionTracker>();
+            services.AddSingleton<IFollowTracker, FollowTracker>();
             // IpLog is registered in Program.cs (always) so it's available even in setup mode.
 
             // Raid Reward feature

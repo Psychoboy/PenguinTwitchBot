@@ -78,6 +78,29 @@ public class ChannelsClientTests
     }
 
     [Fact]
+    public async Task GetChannelFollowersAsync_WithNullUserIdAndCursor_ReturnsPaginatedResponse()
+    {
+        // Arrange
+        var logger = Substitute.For<ILogger<ChannelsClient>>();
+        var transport = Substitute.For<IChannelsTransport>();
+
+        var follower = new ChannelFollower("user1", "user1login", "User1", "2026-01-01T00:00:00Z");
+        var expectedResponse = new GetChannelFollowersResponse([follower], Cursor: "cursor-next", Total: 42);
+        transport.GetChannelFollowersAsync("client", "token", "broadcaster123", null, 100, "cursor-prev")
+            .Returns(Task.FromResult(expectedResponse));
+
+        var client = new ChannelsClient(logger, transport);
+
+        // Act
+        var result = await client.GetChannelFollowersAsync("client", "token", "broadcaster123", null, 100, "cursor-prev");
+
+        // Assert
+        Assert.Single(result.Data);
+        Assert.Equal("cursor-next", result.Cursor);
+        Assert.Equal(42, result.Total);
+    }
+
+    [Fact]
     public async Task GetChannelEditorsAsync_NonTransientError_ThrowsImmediately()
     {
         // Arrange

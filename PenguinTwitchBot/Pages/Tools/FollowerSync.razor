@@ -1,0 +1,254 @@
+@page "/tools/followers"
+@using PenguinTwitchBot.Bot.Core
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IFollowTracker FollowTracker
+@inject ISnackbar Snackbar
+@implements IDisposable
+
+<PageTitle>Follower Sync</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudStack Spacing="4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+            <div>
+                <MudText Typo="Typo.h4">
+                    <MudIcon Icon="@Icons.Material.Filled.PeopleAlt" Class="mr-2" />Follower Sync
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Persists channel followers so viewers who unfollow and re-follow do not re-trigger follow events or actions.
+                </MudText>
+            </div>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (_isSyncing)
+                {
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               StartIcon="@Icons.Material.Filled.Cancel"
+                               OnClick="CancelSync">
+                        Cancel
+                    </MudButton>
+                }
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Sync"
+                           OnClick="StartSyncAsync"
+                           Disabled="@(_isSyncing || FollowTracker.IsSyncInProgress)">
+                    @if (_isSyncing)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ml-2">Syncing...</MudText>
+                    }
+                    else
+                    {
+                        <span>Sync Followers from Twitch</span>
+                    }
+                </MudButton>
+            </MudStack>
+        </MudStack>
+
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+            Follower syncing is <strong>manual only</strong> and never runs automatically. Syncing adds missing followers from Twitch and updates changed usernames, but never deletes previously recorded followers so unfollowed viewers remain blocked from re-triggering follow events.
+        </MudAlert>
+
+        <MudGrid Spacing="3">
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="2" Class="pa-4 h-100">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Persisted Followers</MudText>
+                            <MudText Typo="Typo.h4" Class="mt-1">
+                                @(_isLoadingCount ? "..." : _persistedCount.ToString("N0"))
+                            </MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.HowToReg" Size="Size.Large" Color="Color.Primary" />
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="2" Class="pa-4 h-100">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Last Sync</MudText>
+                            @if (_lastResult != null)
+                            {
+                                <MudText Typo="Typo.h6" Class="mt-1">
+                                    <ToLocal DateTime="_lastResult.CompletedAtUtc" Format="m/d/yyyy h:MM TT" />
+                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @_lastResult.AddedCount.ToString("N0") added, @_lastResult.UpdatedCount.ToString("N0") updated
+                                </MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-1">Never (this session)</MudText>
+                            }
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Large" Color="Color.Secondary" />
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="2" Class="pa-4 h-100">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Last Twitch Count</MudText>
+                            <MudText Typo="Typo.h4" Class="mt-1">
+                                @(_lastResult != null ? _lastResult.TotalTwitchFollowers.ToString("N0") : "-")
+                            </MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Large" Color="Color.Info" />
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        @if (_isSyncing)
+        {
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <MudText Typo="Typo.subtitle1">Fetching followers from Twitch...</MudText>
+                        @if (_progress != null && _progress.TotalExpected > 0)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                @_progress.FetchedCount.ToString("N0") / @_progress.TotalExpected.ToString("N0")
+                            </MudText>
+                        }
+                        else if (_progress != null)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                @_progress.FetchedCount.ToString("N0") fetched
+                            </MudText>
+                        }
+                    </MudStack>
+                    @if (_progress != null && _progress.TotalExpected > 0)
+                    {
+                        var pct = Math.Min(100.0, (_progress.FetchedCount * 100.0) / _progress.TotalExpected);
+                        <MudProgressLinear Color="Color.Primary" Value="@pct" Rounded="true" Size="Size.Medium" />
+                    }
+                    else
+                    {
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Rounded="true" Size="Size.Medium" />
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+
+        @if (_lastResult != null && !_isSyncing)
+        {
+            <MudAlert Severity="Severity.Success" Variant="Variant.Filled">
+                <MudText Typo="Typo.subtitle1">Sync Complete</MudText>
+                <MudText Typo="Typo.body2">
+                    Fetched <strong>@_lastResult.TotalTwitchFollowers.ToString("N0")</strong> followers from Twitch:
+                    <strong>@_lastResult.AddedCount.ToString("N0")</strong> newly persisted,
+                    <strong>@_lastResult.UpdatedCount.ToString("N0")</strong> updated,
+                    <strong>@_lastResult.ExistingCount.ToString("N0")</strong> already tracked.
+                </MudText>
+            </MudAlert>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+                @_errorMessage
+            </MudAlert>
+        }
+    </MudStack>
+</MudContainer>
+
+@code {
+    private int _persistedCount;
+    private bool _isLoadingCount = true;
+    private bool _isSyncing;
+    private FollowerSyncProgress? _progress;
+    private FollowerSyncResult? _lastResult;
+    private string? _errorMessage;
+    private CancellationTokenSource? _syncCts;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _lastResult = FollowTracker.LastSyncResult;
+        _isSyncing = FollowTracker.IsSyncInProgress;
+        await LoadCountAsync();
+    }
+
+    private async Task LoadCountAsync()
+    {
+        _isLoadingCount = true;
+        try
+        {
+            _persistedCount = await FollowTracker.GetPersistedFollowerCountAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load follower count: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingCount = false;
+        }
+    }
+
+    private async Task StartSyncAsync()
+    {
+        if (_isSyncing || FollowTracker.IsSyncInProgress)
+        {
+            return;
+        }
+
+        _errorMessage = null;
+        _progress = null;
+        _isSyncing = true;
+        _syncCts?.Dispose();
+        _syncCts = new CancellationTokenSource();
+        StateHasChanged();
+
+        var progress = new Progress<FollowerSyncProgress>(p =>
+        {
+            if (_disposed) return;
+            _progress = p;
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            _lastResult = await FollowTracker.SyncFollowersAsync(progress, _syncCts.Token);
+            _persistedCount = _lastResult.TotalPersistedFollowers;
+            Snackbar.Add(
+                $"Synced {_lastResult.TotalTwitchFollowers:N0} followers ({_lastResult.AddedCount:N0} added).",
+                Severity.Success);
+        }
+        catch (OperationCanceledException)
+        {
+            Snackbar.Add("Follower sync cancelled.", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Follower sync failed: {ex.Message}";
+            Snackbar.Add("Follower sync failed.", Severity.Error);
+        }
+        finally
+        {
+            _isSyncing = false;
+            _progress = null;
+            if (!_disposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private void CancelSync()
+    {
+        _syncCts?.Cancel();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _syncCts?.Dispose();
+    }
+}

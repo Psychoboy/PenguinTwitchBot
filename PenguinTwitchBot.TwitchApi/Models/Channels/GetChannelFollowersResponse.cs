@@ -4,4 +4,6 @@ namespace PenguinTwitchBot.TwitchApi.Models.Channels;
 /// Domain response model for channel followers.
 /// </summary>
 public sealed record GetChannelFollowersResponse(
-    IReadOnlyList<ChannelFollower> Data);
+    IReadOnlyList<ChannelFollower> Data,
+    string? Cursor = null,
+    int Total = 0);

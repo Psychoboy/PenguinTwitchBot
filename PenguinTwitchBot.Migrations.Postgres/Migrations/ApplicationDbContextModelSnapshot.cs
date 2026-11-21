@@ -1721,6 +1721,41 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("UserFishingLoadouts");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Follower", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("FollowDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.HasIndex("Username");
+
+                    b.ToTable("Followers", t =>
+                        {
+                            t.HasCheckConstraint("CK_Followers_UserId_NotEmpty", "\"UserId\" <> ''");
+                        });
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Games.GameSetting", b =>
                 {
                     b.Property<Guid>("Id")
