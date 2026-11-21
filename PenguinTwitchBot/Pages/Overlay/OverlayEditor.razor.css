@@ -309,6 +309,10 @@
     margin-left: 2px;
 }
 
+.widget-list-actions ::deep .mud-icon-button {
+    padding: 3px;
+}
+
 .widget-quick-actions {
     display: flex;
     align-items: center;

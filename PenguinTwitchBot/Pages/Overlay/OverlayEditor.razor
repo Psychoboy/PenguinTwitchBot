@@ -325,6 +325,20 @@
                     <span class="widget-list-name">@wi.DisplayName</span>
                     <span class="widget-list-z">z:@wi.ZIndex</span>
                     <span class="widget-list-actions" @onclick:stopPropagation="true">
+                        <MudTooltip Text="Move layer up">
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward"
+                                           Size="Size.Small"
+                                           aria-label="@($"Move {wi.DisplayName} layer up")"
+                                           Disabled="@(widgetIndex == 0)"
+                                           OnClick="@(() => MoveWidgetLayer(widgetIndex, -1))" />
+                        </MudTooltip>
+                        <MudTooltip Text="Move layer down">
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward"
+                                           Size="Size.Small"
+                                           aria-label="@($"Move {wi.DisplayName} layer down")"
+                                           Disabled="@(widgetIndex == orderedWidgets.Count - 1)"
+                                           OnClick="@(() => MoveWidgetLayer(widgetIndex, 1))" />
+                        </MudTooltip>
                         <MudTooltip Text="@(wi.IsEnabled ? "Hide widget" : "Show widget")">
                             <MudIconButton Icon="@(wi.IsEnabled ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
                                            Size="Size.Small"
@@ -351,14 +365,14 @@
             <MudSwitch @bind-Value="_selected.IsEnabled" Label="Enabled"
                        Color="Color.Success" Class="mb-3" />
 
-            <MudNumericField T="int" Label="X" @bind-Value="_selected.X"
+            <MudNumericField T="int" Label="X" @bind-Value="_selected.X" Immediate="true"
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2" />
-            <MudNumericField T="int" Label="Y" @bind-Value="_selected.Y"
+            <MudNumericField T="int" Label="Y" @bind-Value="_selected.Y" Immediate="true"
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2" />
-            <MudNumericField T="int" Label="Width" @bind-Value="_selected.Width"
+            <MudNumericField T="int" Label="Width" @bind-Value="_selected.Width" Immediate="true"
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
                              Min="10" />
-            <MudNumericField T="int" Label="Height" @bind-Value="_selected.Height"
+            <MudNumericField T="int" Label="Height" @bind-Value="_selected.Height" Immediate="true"
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
                              Min="10" />
 
@@ -1612,6 +1626,17 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     {
         var ordered = GetOrderedWidgetsDescending();
         if (!_widgetDrag.TryCompleteDrop(ordered, targetIndex, out _, out _))
+        {
+            return;
+        }
+
+        DragReorderState.ReassignDescendingZIndex(ordered, (w, z) => w.ZIndex = z);
+    }
+
+    private void MoveWidgetLayer(int index, int offset)
+    {
+        var ordered = GetOrderedWidgetsDescending();
+        if (!DragReorderState.MoveItem(ordered, index, index + offset))
         {
             return;
         }

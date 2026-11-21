@@ -487,6 +487,21 @@ window.creditsPreviewPostMessage = function (frameId, message) {
         if (!target || typeof target.closest !== 'function') return;
         const item = target.closest('[data-drag-item="true"]');
         if (!item) return;
+
+        if (item.getAttribute('data-drag-handle-only') === 'true') {
+            if (target !== item) {
+                // Drag originated from a child control or text selection inside the card;
+                // prevent it from bubbling to the card's Blazor @ondragstart handler.
+                e.stopPropagation();
+                return;
+            }
+            if (item !== armedItem) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+        }
+
         if (e.dataTransfer) {
             e.dataTransfer.effectAllowed = 'move';
             try {
@@ -495,5 +510,5 @@ window.creditsPreviewPostMessage = function (frameId, message) {
                 // Ignore if dataTransfer is restricted
             }
         }
-    });
+    }, true);
 })();

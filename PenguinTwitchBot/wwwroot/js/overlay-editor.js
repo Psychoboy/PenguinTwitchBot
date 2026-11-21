@@ -41,21 +41,46 @@ function attachKeyboardShortcuts() {
         if (!_dotnet) return;
 
         const key = e.key;
+        const active = document.activeElement;
         const isSave = (e.ctrlKey || e.metaKey) && key.toLowerCase() === 's';
         if (isSave) {
             e.preventDefault();
-            _dotnet.invokeMethodAsync('OnKeyboardSave');
+            if (active && (
+                active.tagName === 'INPUT' ||
+                active.tagName === 'TEXTAREA' ||
+                active.tagName === 'SELECT'
+            )) {
+                active.blur();
+                setTimeout(() => {
+                    if (_dotnet) {
+                        _dotnet.invokeMethodAsync('OnKeyboardSave');
+                    }
+                }, 0);
+            } else {
+                _dotnet.invokeMethodAsync('OnKeyboardSave');
+            }
             return;
         }
 
-        const active = document.activeElement;
-        if (active && (
-            active.tagName === 'INPUT' ||
-            active.tagName === 'TEXTAREA' ||
-            active.tagName === 'SELECT' ||
-            active.isContentEditable
-        )) {
-            return;
+        if (e.defaultPrevented) return;
+
+        if (active) {
+            const role = active.getAttribute ? active.getAttribute('role') : null;
+            if (
+                active.tagName === 'INPUT' ||
+                active.tagName === 'TEXTAREA' ||
+                active.tagName === 'SELECT' ||
+                active.isContentEditable ||
+                role === 'combobox' ||
+                role === 'listbox' ||
+                role === 'menu' ||
+                role === 'menuitem' ||
+                role === 'slider' ||
+                role === 'spinbutton' ||
+                (typeof active.closest === 'function' && active.closest('[role="combobox"], [role="listbox"], [role="menu"]'))
+            ) {
+                return;
+            }
         }
 
         const step = e.shiftKey ? 10 : 1;
@@ -189,6 +214,9 @@ window.overlayEditor = {
                             canvasY);
                     },
                     end(event) {
+                        const el = event.target;
+                        el.dataset.x = parseFloat(el.style.left) || 0;
+                        el.dataset.y = parseFloat(el.style.top) || 0;
                         _dotnet.invokeMethodAsync('OnDragEnd');
                     }
                 }
@@ -201,14 +229,46 @@ window.overlayEditor = {
                 listeners: {
                     move(event) {
                         const el = event.target;
+                        const prevLeftCanvas = Math.round((parseFloat(el.style.left) || 0) / _scale);
+                        const prevTopCanvas = Math.round((parseFloat(el.style.top) || 0) / _scale);
+                        const prevWidthCanvas = Math.max(10, Math.round((parseFloat(el.style.width) || 0) / _scale));
+                        const prevHeightCanvas = Math.max(10, Math.round((parseFloat(el.style.height) || 0) / _scale));
+
                         const rawX = (parseFloat(el.dataset.x) || 0) + event.deltaRect.left;
                         const rawY = (parseFloat(el.dataset.y) || 0) + event.deltaRect.top;
                         el.dataset.x = rawX;
                         el.dataset.y = rawY;
-                        const canvasX = snapValue(rawX / _scale);
-                        const canvasY = snapValue(rawY / _scale);
-                        const canvasW = Math.max(10, snapValue(event.rect.width  / _scale));
-                        const canvasH = Math.max(10, snapValue(event.rect.height / _scale));
+
+                        let canvasX;
+                        let canvasW;
+                        if (event.edges && event.edges.left) {
+                            const fixedRightCanvas = prevLeftCanvas + prevWidthCanvas;
+                            canvasX = Math.min(snapValue(rawX / _scale), fixedRightCanvas - 10);
+                            canvasW = Math.max(10, fixedRightCanvas - canvasX);
+                        } else if (event.edges && event.edges.right) {
+                            canvasX = prevLeftCanvas;
+                            const snappedRightCanvas = snapValue((rawX + event.rect.width) / _scale);
+                            canvasW = Math.max(10, snappedRightCanvas - canvasX);
+                        } else {
+                            canvasX = prevLeftCanvas;
+                            canvasW = prevWidthCanvas;
+                        }
+
+                        let canvasY;
+                        let canvasH;
+                        if (event.edges && event.edges.top) {
+                            const fixedBottomCanvas = prevTopCanvas + prevHeightCanvas;
+                            canvasY = Math.min(snapValue(rawY / _scale), fixedBottomCanvas - 10);
+                            canvasH = Math.max(10, fixedBottomCanvas - canvasY);
+                        } else if (event.edges && event.edges.bottom) {
+                            canvasY = prevTopCanvas;
+                            const snappedBottomCanvas = snapValue((rawY + event.rect.height) / _scale);
+                            canvasH = Math.max(10, snappedBottomCanvas - canvasY);
+                        } else {
+                            canvasY = prevTopCanvas;
+                            canvasH = prevHeightCanvas;
+                        }
+
                         el.style.left   = (canvasX * _scale) + 'px';
                         el.style.top    = (canvasY * _scale) + 'px';
                         el.style.width  = (canvasW * _scale) + 'px';
@@ -221,6 +281,9 @@ window.overlayEditor = {
                             canvasH);
                     },
                     end(event) {
+                        const el = event.target;
+                        el.dataset.x = parseFloat(el.style.left) || 0;
+                        el.dataset.y = parseFloat(el.style.top) || 0;
                         _dotnet.invokeMethodAsync('OnDragEnd');
                     }
                 }
