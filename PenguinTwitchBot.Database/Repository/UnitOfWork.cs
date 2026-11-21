@@ -17,6 +17,7 @@ namespace PenguinTwitchBot.Database.Repository
             SongRequestMetrics = new SongRequestMetricsRepository(_context);
             RaidHistory = new RaidHistoryRepository(_context);
             Viewers = new ViewersRepository(_context);
+            Followers = new FollowersRepository(_context);
             Aliases = new AliasRepository(_context);
             Settings = new SettingsRepository(_context);
             GlobalVariables = new GlobalVariablesRepository(_context);
@@ -103,6 +104,7 @@ namespace PenguinTwitchBot.Database.Repository
         public ISongRequestHistoryRepository SongRequestHistory { get; private set; }
         public IRaidHistoryRepository RaidHistory { get; private set; }
         public IViewersRepository Viewers { get; private set; }
+        public IFollowersRepository Followers { get; private set; }
         public IAliasRepository Aliases { get; private set; }
         public ISettingsRepository Settings { get; private set; }
         public IGlobalVariablesRepository GlobalVariables { get; private set; }
