@@ -87,8 +87,9 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                     .GroupBy(m => m.UserId, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-                var liveStreams = await _twitchService.AreStreamsOnline(teamByUserId.Keys.ToList());
-                var liveByUserId = liveStreams
+                var liveStreams = await _twitchService.TryAreStreamsOnlineAsync(teamByUserId.Keys.ToList());
+                var lookupSucceeded = liveStreams != null;
+                var liveByUserId = (liveStreams ?? [])
                     .Where(s => !string.IsNullOrWhiteSpace(s.UserId))
                     .GroupBy(s => s.UserId, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
@@ -106,17 +107,24 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                         item.IsStreamTeamMember = true;
                         item.StreamTeamNames = teamMember.TeamNames;
 
-                        if (liveByUserId.TryGetValue(item.UserId, out var liveStream))
+                        if (lookupSucceeded)
                         {
-                            item.IsOnline = true;
-                            item.LastGame = liveStream.Game;
-                            if (!string.IsNullOrWhiteSpace(liveStream.DisplayName))
+                            if (liveByUserId.TryGetValue(item.UserId, out var liveStream))
                             {
-                                item.DisplayName = liveStream.DisplayName;
+                                item.IsOnline = true;
+                                item.LastGame = liveStream.Game;
+                                if (!string.IsNullOrWhiteSpace(liveStream.DisplayName))
+                                {
+                                    item.DisplayName = liveStream.DisplayName;
+                                }
+                                if (!string.IsNullOrWhiteSpace(liveStream.UserLogin))
+                                {
+                                    item.Name = liveStream.UserLogin;
+                                }
                             }
-                            if (!string.IsNullOrWhiteSpace(liveStream.UserLogin))
+                            else
                             {
-                                item.Name = liveStream.UserLogin;
+                                item.IsOnline = false;
                             }
                         }
                     }

@@ -175,26 +175,61 @@
     private bool OnlineOnly { get; set; } = true;
     private bool _showLiveTeamMembers = true;
     private bool _loading;
+    private int _refreshVersion;
     private string _search = "";
 
     protected override async Task OnInitializedAsync()
     {
         _showLiveTeamMembers = await RaidHistorySettings.GetShowLiveTeamMembersAsync();
-        raidHistory = await RaidTracker.GetDisplayHistoryAsync(_showLiveTeamMembers);
+        await RefreshHistoryAsync();
+    }
+
+    private async Task RefreshHistoryAsync()
+    {
+        while (true)
+        {
+            var expectedShowLiveTeamMembers = _showLiveTeamMembers;
+            var requestVersion = ++_refreshVersion;
+            var result = await RaidTracker.GetDisplayHistoryAsync(expectedShowLiveTeamMembers);
+
+            if (requestVersion == _refreshVersion && expectedShowLiveTeamMembers == _showLiveTeamMembers)
+            {
+                raidHistory = result;
+                return;
+            }
+
+            if (requestVersion != _refreshVersion)
+            {
+                return;
+            }
+        }
     }
 
     private async Task OnShowLiveTeamMembersChanged(bool enabled)
     {
+        var previousValue = _showLiveTeamMembers;
         _showLiveTeamMembers = enabled;
         _loading = true;
         try
         {
             await RaidHistorySettings.SetShowLiveTeamMembersAsync(enabled);
-            raidHistory = await RaidTracker.GetDisplayHistoryAsync(_showLiveTeamMembers);
         }
         catch (Exception)
         {
+            _showLiveTeamMembers = previousValue;
             Snackbar.Add("Failed to save stream team display setting.", Severity.Error);
+            _loading = false;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            await RefreshHistoryAsync();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to refresh raid history.", Severity.Error);
         }
         finally
         {
@@ -249,7 +284,7 @@
         {
             var cutoff = DateTime.UtcNow.AddDays(-olderThanDays);
             var removed = await RaidTracker.PruneRaidHistory(cutoff);
-            raidHistory = await RaidTracker.GetDisplayHistoryAsync(_showLiveTeamMembers);
+            await RefreshHistoryAsync();
             Snackbar.Add($"Cleaned up {removed} creator(s) with no raid activity in the last {olderThanDays} days.", Severity.Info);
             StateHasChanged();
         }
@@ -279,7 +314,7 @@
         try
         {
             await RaidTracker.RemoveRaidHistory(item.HistoryEntry);
-            raidHistory = await RaidTracker.GetDisplayHistoryAsync(_showLiveTeamMembers);
+            await RefreshHistoryAsync();
             StateHasChanged();
         }
         catch (Exception ex)

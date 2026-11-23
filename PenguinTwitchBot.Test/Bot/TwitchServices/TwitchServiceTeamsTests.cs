@@ -146,4 +146,29 @@ public class TwitchServiceTeamsTests
         Assert.Equal("user101", online[1].UserLogin);
         await _streamsClient.Received(2).GetStreamsAsync("client-id", "access-token", Arg.Any<List<string>?>());
     }
+
+    [Fact]
+    public async Task TryAreStreamsOnlineAsync_WhenLookupSucceedsWithNoStreams_ReturnsEmptyList()
+    {
+        _streamsClient.GetStreamsAsync("client-id", "access-token", Arg.Any<List<string>?>())
+            .Returns(new GetStreamsResponse([]));
+
+        var sut = CreateSut();
+        var result = await sut.TryAreStreamsOnlineAsync(["u1"]);
+
+        Assert.NotNull(result);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task TryAreStreamsOnlineAsync_WhenLookupThrows_ReturnsNull()
+    {
+        _streamsClient.GetStreamsAsync("client-id", "access-token", Arg.Any<List<string>?>())
+            .Returns(Task.FromException<GetStreamsResponse>(new HttpRequestException("Twitch unavailable")));
+
+        var sut = CreateSut();
+        var result = await sut.TryAreStreamsOnlineAsync(["u1"]);
+
+        Assert.Null(result);
+    }
 }

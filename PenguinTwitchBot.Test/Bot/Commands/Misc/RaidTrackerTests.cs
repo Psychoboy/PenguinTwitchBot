@@ -461,7 +461,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
                 new() { UserId = "u3", UserLogin = "charlie", DisplayName = "Charlie", TeamNames = ["Penguin Squad"] }
             });
 
-            twitchService.AreStreamsOnline(Arg.Any<List<string>>()).Returns(new List<PenguinTwitchBot.Bot.TwitchServices.TwitchModels.OnlineStream>
+            twitchService.TryAreStreamsOnlineAsync(Arg.Any<List<string>>()).Returns(new List<PenguinTwitchBot.Bot.TwitchServices.TwitchModels.OnlineStream>
             {
                 new() { UserId = "u1", UserLogin = "alice", UserName = "Alice", DisplayName = "Alice", Game = "Balatro" },
                 new() { UserId = "u2", UserLogin = "bob", UserName = "Bob", DisplayName = "Bob", Game = "Minecraft" }
@@ -537,7 +537,97 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
 
             var item = Assert.Single(result);
             Assert.False(item.IsStreamTeamMember);
-            await twitchService.DidNotReceive().AreStreamsOnline(Arg.Any<List<string>>());
+            await twitchService.DidNotReceive().TryAreStreamsOnlineAsync(Arg.Any<List<string>>());
+        }
+
+        [Fact]
+        public async Task GetDisplayHistoryAsync_WhenStreamLookupSucceedsWithNoLiveStreams_ClearsStaleTeamMemberOnlineStatus()
+        {
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var twitchService = Substitute.For<ITwitchService>();
+
+            scopeFactory.CreateScope().Returns(scope);
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            dbContext.RaidHistory.GetAllAsync().Returns(new List<RaidHistoryEntry>
+            {
+                new() { Id = Guid.NewGuid(), UserId = "u1", Name = "alice", DisplayName = "Alice", IsOnline = true },
+                new() { Id = Guid.NewGuid(), UserId = "u9", Name = "nonteam", DisplayName = "NonTeam", IsOnline = true }
+            });
+
+            twitchService.GetStreamTeamMembersAsync().Returns(new List<PenguinTwitchBot.Bot.TwitchServices.TwitchModels.StreamTeamMember>
+            {
+                new() { UserId = "u1", UserLogin = "alice", DisplayName = "Alice", TeamNames = ["Penguin Squad"] }
+            });
+
+            // Successful lookup returning zero live streams
+            twitchService.TryAreStreamsOnlineAsync(Arg.Any<List<string>>())
+                .Returns(new List<PenguinTwitchBot.Bot.TwitchServices.TwitchModels.OnlineStream>());
+
+            var raidTracker = new RaidTracker(
+                Substitute.For<ILogger<RaidTracker>>(),
+                scopeFactory,
+                twitchService,
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
+
+            var result = await raidTracker.GetDisplayHistoryAsync(includeLiveTeamMembers: true);
+
+            var alice = Assert.Single(result, x => x.UserId == "u1");
+            Assert.True(alice.IsStreamTeamMember);
+            Assert.False(alice.IsOnline);
+
+            var nonTeam = Assert.Single(result, x => x.UserId == "u9");
+            Assert.True(nonTeam.IsOnline);
+        }
+
+        [Fact]
+        public async Task GetDisplayHistoryAsync_WhenStreamLookupFails_PreservesExistingOnlineStatusFallback()
+        {
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var twitchService = Substitute.For<ITwitchService>();
+
+            scopeFactory.CreateScope().Returns(scope);
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            dbContext.RaidHistory.GetAllAsync().Returns(new List<RaidHistoryEntry>
+            {
+                new() { Id = Guid.NewGuid(), UserId = "u1", Name = "alice", DisplayName = "Alice", IsOnline = true }
+            });
+
+            twitchService.GetStreamTeamMembersAsync().Returns(new List<PenguinTwitchBot.Bot.TwitchServices.TwitchModels.StreamTeamMember>
+            {
+                new() { UserId = "u1", UserLogin = "alice", DisplayName = "Alice", TeamNames = ["Penguin Squad"] }
+            });
+
+            // Failed lookup returns null
+            twitchService.TryAreStreamsOnlineAsync(Arg.Any<List<string>>())
+                .Returns((List<PenguinTwitchBot.Bot.TwitchServices.TwitchModels.OnlineStream>?)null);
+
+            var raidTracker = new RaidTracker(
+                Substitute.For<ILogger<RaidTracker>>(),
+                scopeFactory,
+                twitchService,
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
+
+            var result = await raidTracker.GetDisplayHistoryAsync(includeLiveTeamMembers: true);
+
+            var alice = Assert.Single(result, x => x.UserId == "u1");
+            Assert.True(alice.IsStreamTeamMember);
+            Assert.True(alice.IsOnline);
         }
     }
 }

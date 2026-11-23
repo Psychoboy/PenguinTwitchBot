@@ -971,6 +971,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         public async Task<List<TwitchModels.OnlineStream>> AreStreamsOnline(List<string> userIds)
         {
+            return await TryAreStreamsOnlineAsync(userIds) ?? [];
+        }
+
+        public async Task<List<TwitchModels.OnlineStream>?> TryAreStreamsOnlineAsync(List<string> userIds)
+        {
             if (userIds == null || userIds.Count == 0)
             {
                 return [];
@@ -1004,7 +1009,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var error = ex.Message;
                 _logger.LogError("Error doing AreStreamsOnline: {error}", error);
             }
-            return [];
+            return null;
         }
 
         public async Task<List<TwitchModels.StreamTeamMember>> GetStreamTeamMembersAsync()

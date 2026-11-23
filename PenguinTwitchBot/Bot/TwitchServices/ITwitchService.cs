@@ -14,6 +14,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
     {
         Task Announcement(string message);
         Task<List<TwitchModels.OnlineStream>> AreStreamsOnline(List<string> userIds);
+        Task<List<TwitchModels.OnlineStream>?> TryAreStreamsOnlineAsync(List<string> userIds);
         Task<List<Subscription>> GetAllSubscriptions();
         Task<List<Follower>> GetAllFollowersAsync(IProgress<Core.FollowerSyncProgress>? progress = null, CancellationToken cancellationToken = default);
         Task<string?> GetBotUserId();
