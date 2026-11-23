@@ -42,6 +42,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private readonly IRaidsClient _raidsClient;
         private readonly IUsersClient _usersClient;
         private readonly IScheduleClient _scheduleClient;
+        private readonly ITeamsClient _teamsClient;
         private readonly SettingsFileManager _settingsFileManager;
         private readonly IChatMessageIdTracker _messageIdTracker;
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
@@ -67,6 +68,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             IRaidsClient raidsClient,
             IUsersClient usersClient,
             IScheduleClient scheduleClient,
+            ITeamsClient teamsClient,
             SettingsFileManager settingsFileManager,
             Application.Notifications.IPenguinDispatcher dispatcher,
             IChatMessageIdTracker messageIdTracker)
@@ -87,6 +89,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             _raidsClient = raidsClient;
             _usersClient = usersClient;
             _scheduleClient = scheduleClient;
+            _teamsClient = teamsClient;
             _timer = new Timer();
             _timer = new Timer(300000); //5 minutes
             _timer.Elapsed += OnTimerElapsed;
@@ -913,6 +916,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
             private sealed record StreamSnapshot(
                 string UserId,
+                string UserLogin,
                 string UserName,
                 string GameName,
                 int ViewerCount,
@@ -927,7 +931,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 userIds: userIds);
 
             return response.Data
-                .Select(s => new StreamSnapshot(s.UserId, s.UserName, s.GameName, s.ViewerCount, s.StartedAt, s.ThumbnailUrl))
+                .Select(s => new StreamSnapshot(s.UserId, s.UserLogin, s.UserName, s.GameName, s.ViewerCount, s.StartedAt, s.ThumbnailUrl))
                 .ToList();
         }
 
@@ -967,16 +971,33 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         public async Task<List<TwitchModels.OnlineStream>> AreStreamsOnline(List<string> userIds)
         {
+            return await TryAreStreamsOnlineAsync(userIds) ?? [];
+        }
+
+        public async Task<List<TwitchModels.OnlineStream>?> TryAreStreamsOnlineAsync(List<string> userIds)
+        {
+            if (userIds == null || userIds.Count == 0)
+            {
+                return [];
+            }
+
             try
             {
-                var streams = await GetStreams(userIds);
-                return streams.Select(x => new TwitchModels.OnlineStream
+                var results = new List<TwitchModels.OnlineStream>();
+                foreach (var batch in userIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.OrdinalIgnoreCase).Chunk(100))
                 {
-                    UserId = x.UserId,
-                    UserName = x.UserName,
-                    DisplayName = x.UserName,
-                    Game = x.GameName
-                }).ToList();
+                    var streams = await GetStreams(batch.ToList());
+                    results.AddRange(streams.Select(x => new TwitchModels.OnlineStream
+                    {
+                        UserId = x.UserId,
+                        UserLogin = x.UserLogin,
+                        UserName = x.UserName,
+                        DisplayName = x.UserName,
+                        Game = x.GameName
+                    }));
+                }
+
+                return results;
             }
             catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
@@ -988,7 +1009,83 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var error = ex.Message;
                 _logger.LogError("Error doing AreStreamsOnline: {error}", error);
             }
-            return [];
+            return null;
+        }
+
+        public async Task<List<TwitchModels.StreamTeamMember>> GetStreamTeamMembersAsync()
+        {
+            try
+            {
+                var broadcasterUserId = await GetBroadcasterUserId();
+                if (string.IsNullOrWhiteSpace(broadcasterUserId))
+                {
+                    return [];
+                }
+
+                var clientId = _configuration["twitchClientId"];
+                if (string.IsNullOrWhiteSpace(clientId))
+                {
+                    return [];
+                }
+
+                var channelTeamsResponse = await _teamsClient.GetChannelTeamsAsync(clientId, _accessToken, broadcasterUserId);
+                if (channelTeamsResponse.Data.Count == 0)
+                {
+                    return [];
+                }
+
+                var membersById = new Dictionary<string, TwitchModels.StreamTeamMember>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var channelTeam in channelTeamsResponse.Data)
+                {
+                    if (string.IsNullOrWhiteSpace(channelTeam.Id))
+                    {
+                        continue;
+                    }
+
+                    var teamResponse = await _teamsClient.GetTeamByIdAsync(clientId, _accessToken, channelTeam.Id);
+                    foreach (var team in teamResponse.Data)
+                    {
+                        var teamLabel = !string.IsNullOrWhiteSpace(team.TeamDisplayName)
+                            ? team.TeamDisplayName
+                            : (!string.IsNullOrWhiteSpace(team.TeamName) ? team.TeamName : channelTeam.TeamDisplayName);
+
+                        foreach (var member in team.Users)
+                        {
+                            if (string.IsNullOrWhiteSpace(member.UserId) ||
+                                string.Equals(member.UserId, broadcasterUserId, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            if (!membersById.TryGetValue(member.UserId, out var existing))
+                            {
+                                existing = new TwitchModels.StreamTeamMember
+                                {
+                                    UserId = member.UserId,
+                                    UserLogin = member.UserLogin,
+                                    DisplayName = !string.IsNullOrWhiteSpace(member.UserName) ? member.UserName : member.UserLogin,
+                                    TeamNames = []
+                                };
+                                membersById[member.UserId] = existing;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(teamLabel) &&
+                                !existing.TeamNames.Contains(teamLabel, StringComparer.OrdinalIgnoreCase))
+                            {
+                                existing.TeamNames.Add(teamLabel);
+                            }
+                        }
+                    }
+                }
+
+                return membersById.Values.ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting stream team members.");
+                return [];
+            }
         }
 
         public async Task<DateTime> StreamStartedAt()

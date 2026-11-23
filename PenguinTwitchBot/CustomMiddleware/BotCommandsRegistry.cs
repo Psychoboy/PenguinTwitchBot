@@ -97,6 +97,8 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IUsersClient, UsersClient>();
             services.AddSingleton<IScheduleTransport, ScheduleTransport>();
             services.AddSingleton<IScheduleClient, ScheduleClient>();
+            services.AddSingleton<ITeamsTransport, TeamsTransport>();
+            services.AddSingleton<ITeamsClient, TeamsClient>();
             services.AddSingleton<ITwitchEventActionHandler, TwitchEventActionHandler>();
             services.AddTransient<ISchedule, Schedule>();
             services.AddSingleton<PenguinTwitchBot.Bot.Commands.ICommandHandler, PenguinTwitchBot.Bot.Commands.CommandHandler>();
@@ -148,6 +150,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             // IpLog is registered in Program.cs (always) so it's available even in setup mode.
 
             // Raid Reward feature
+            services.AddSingleton<PenguinTwitchBot.Services.IRaidHistorySettingsService, PenguinTwitchBot.Services.RaidHistorySettingsService>();
             services.AddSingleton<PenguinTwitchBot.Services.IRaidRewardSettingsService, PenguinTwitchBot.Services.RaidRewardSettingsService>();
             services.AddSingleton<PenguinTwitchBot.Services.RaidRewardService>();
             services.AddSingleton<PenguinTwitchBot.Services.IRaidRewardService>(x => x.GetRequiredService<PenguinTwitchBot.Services.RaidRewardService>());
