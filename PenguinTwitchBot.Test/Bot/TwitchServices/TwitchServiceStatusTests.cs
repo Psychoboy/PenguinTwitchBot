@@ -34,6 +34,7 @@ public class TwitchServiceStatusTests
     private readonly IRaidsClient _raidsClient = Substitute.For<IRaidsClient>();
     private readonly IUsersClient _usersClient = Substitute.For<IUsersClient>();
     private readonly IScheduleClient _scheduleClient = Substitute.For<IScheduleClient>();
+    private readonly ITeamsClient _teamsClient = Substitute.For<ITeamsClient>();
     private readonly IPenguinDispatcher _dispatcher = Substitute.For<IPenguinDispatcher>();
     private readonly IChatMessageIdTracker _messageIdTracker = Substitute.For<IChatMessageIdTracker>();
 
@@ -55,6 +56,7 @@ public class TwitchServiceStatusTests
             _raidsClient,
             _usersClient,
             _scheduleClient,
+            _teamsClient,
             settingsManager,
             _dispatcher,
             _messageIdTracker);
@@ -176,6 +178,7 @@ public class TwitchServiceStatusTests
             _raidsClient,
             _usersClient,
             _scheduleClient,
+            _teamsClient,
             settingsManager,
             _dispatcher,
             _messageIdTracker);

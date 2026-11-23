@@ -75,5 +75,6 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         /// </summary>
         Task<Dictionary<string, string>> GetChatEmotesAsync();
         Task<string?> GetBroadcasterProfileImageUrl();
+        Task<List<TwitchModels.StreamTeamMember>> GetStreamTeamMembersAsync();
     }
 }

@@ -6,8 +6,9 @@ Keep your raid history organized, actionable, and free from outdated entries.
 
 ### Search & Filtering
 
-- **Creator / Game Search**: Use the search box above the table to search creators by their Twitch username, display name, or the game they were playing.
+- **Creator / Game Search**: Use the search box above the table to search creators by their Twitch username, display name, game, or stream team name.
 - **Online Only**: Toggle the **Online only** checkbox to immediately narrow down the list to creators currently broadcasting live. This is ideal when choosing who to raid at the end of your stream.
+- **Show Live Team Members**: Toggle the **Show live team members** switch to include and mark currently live members of your Twitch Stream Team(s). This setting is persisted across sessions.
 - **Column Sorting**: By default, the table is sorted by **Last In.** descending to immediately highlight recent raiders. You can click any column header (such as *Name*, *Game*, *Incoming*, *Avg In.*, *Last In.*, *Outgoing*, *Avg Out.*, or *Last Out.*) to sort ascending or descending. MudTable retains the active sort column as you navigate.
 
 ---

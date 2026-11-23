@@ -19,5 +19,6 @@ The [Raid History](/raidhistory) dashboard tracks and analyzes raid interactions
 - **One-Click Raids**: Click the **Raid** button next to any online creator to instantly initiate an outgoing raid from chat.
 - **Channel Links**: Click the creator's username to open their Twitch channel in a new tab.
 - **Status Badges**: Visual indicators show whether a creator is currently **Online** (green) or **Offline** (gray).
+- **Live Stream Team Members**: If your channel belongs to one or more Twitch Stream Teams, teammates who are currently live are automatically listed and marked with a **Team** badge (hover to see the team name). This can be turned off with the **Show live team members** toggle in the toolbar, and your preference is saved automatically.
 - **History Management**: Remove obsolete creators individually or use the cleanup tool to prune stale records.
 

@@ -50,6 +50,126 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             return [];
         }
 
+        public async Task<List<RaidHistoryItem>> GetDisplayHistoryAsync(bool includeLiveTeamMembers)
+        {
+            var historyEntries = await GetHistory();
+            var items = historyEntries.Select(entry => new RaidHistoryItem
+            {
+                HistoryEntry = entry,
+                UserId = entry.UserId,
+                Name = entry.Name,
+                DisplayName = entry.DisplayName,
+                TotalIncomingRaids = entry.TotalIncomingRaids,
+                TotalIncomingRaidViewers = entry.TotalIncomingRaidViewers,
+                TotalOutgoingRaids = entry.TotalOutgoingRaids,
+                TotalOutGoingRaidViewers = entry.TotalOutGoingRaidViewers,
+                IsOnline = entry.IsOnline,
+                LastIncomingRaid = entry.LastIncomingRaid,
+                LastOutgoingRaid = entry.LastOutgoingRaid,
+                LastGame = entry.LastGame
+            }).ToList();
+
+            if (!includeLiveTeamMembers)
+            {
+                return items;
+            }
+
+            try
+            {
+                var teamMembers = await _twitchService.GetStreamTeamMembersAsync();
+                if (teamMembers.Count == 0)
+                {
+                    return items;
+                }
+
+                var teamByUserId = teamMembers
+                    .Where(m => !string.IsNullOrWhiteSpace(m.UserId))
+                    .GroupBy(m => m.UserId, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+                var liveStreams = await _twitchService.AreStreamsOnline(teamByUserId.Keys.ToList());
+                var liveByUserId = liveStreams
+                    .Where(s => !string.IsNullOrWhiteSpace(s.UserId))
+                    .GroupBy(s => s.UserId, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+                var existingByUserId = new Dictionary<string, RaidHistoryItem>(StringComparer.OrdinalIgnoreCase);
+                foreach (var item in items)
+                {
+                    if (!string.IsNullOrWhiteSpace(item.UserId))
+                    {
+                        existingByUserId[item.UserId] = item;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(item.UserId) && teamByUserId.TryGetValue(item.UserId, out var teamMember))
+                    {
+                        item.IsStreamTeamMember = true;
+                        item.StreamTeamNames = teamMember.TeamNames;
+
+                        if (liveByUserId.TryGetValue(item.UserId, out var liveStream))
+                        {
+                            item.IsOnline = true;
+                            item.LastGame = liveStream.Game;
+                            if (!string.IsNullOrWhiteSpace(liveStream.DisplayName))
+                            {
+                                item.DisplayName = liveStream.DisplayName;
+                            }
+                            if (!string.IsNullOrWhiteSpace(liveStream.UserLogin))
+                            {
+                                item.Name = liveStream.UserLogin;
+                            }
+                        }
+                    }
+                }
+
+                foreach (var liveStream in liveByUserId.Values)
+                {
+                    if (existingByUserId.ContainsKey(liveStream.UserId))
+                    {
+                        continue;
+                    }
+
+                    if (!teamByUserId.TryGetValue(liveStream.UserId, out var teamMember))
+                    {
+                        continue;
+                    }
+
+                    var login = !string.IsNullOrWhiteSpace(liveStream.UserLogin)
+                        ? liveStream.UserLogin
+                        : (!string.IsNullOrWhiteSpace(teamMember.UserLogin) ? teamMember.UserLogin : liveStream.UserName);
+                    var displayName = !string.IsNullOrWhiteSpace(liveStream.DisplayName)
+                        ? liveStream.DisplayName
+                        : (!string.IsNullOrWhiteSpace(teamMember.DisplayName) ? teamMember.DisplayName : login);
+
+                    items.Add(new RaidHistoryItem
+                    {
+                        HistoryEntry = null,
+                        UserId = liveStream.UserId,
+                        Name = login,
+                        DisplayName = displayName,
+                        IsOnline = true,
+                        LastGame = liveStream.Game,
+                        LastIncomingRaid = DateTime.MinValue,
+                        LastOutgoingRaid = DateTime.MinValue,
+                        IsStreamTeamMember = true,
+                        StreamTeamNames = teamMember.TeamNames
+                    });
+                }
+
+                return items
+                    .OrderByDescending(x => x.IsOnline)
+                    .ThenByDescending(x => x.IsStreamTeamMember)
+                    .ThenByDescending(x => x.TotalIncomingRaids)
+                    .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error enriching raid history with live stream team members");
+                return items;
+            }
+        }
+
         private async void UpdateOnlineStatus(object? sender, System.Timers.ElapsedEventArgs e)
         {
             await UpdateOnlineStatus();

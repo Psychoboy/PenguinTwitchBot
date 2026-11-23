@@ -1,6 +1,9 @@
 @page "/raidhistory"
 @attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Commands.Misc
+@using PenguinTwitchBot.Services
 @inject PenguinTwitchBot.Bot.Commands.Misc.RaidTracker RaidTracker
+@inject IRaidHistorySettingsService RaidHistorySettings
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
@@ -17,16 +20,18 @@
             <MudText Typo="Typo.body2" Color="Color.Secondary">@GetFilteredContent()?.Count creator(s)</MudText>
         </MudStack>
         <MudPaper Elevation="1">
-            <MudTable Items="@(GetFilteredContent())" Dense="true" Hover="true" SortLabel="Name" FixedHeader="true">
+            <MudTable Items="@(GetFilteredContent())" Dense="true" Hover="true" SortLabel="Name" FixedHeader="true" Loading="@_loading">
                 <ToolBarContent>
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-2" Style="width:100%">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-2" Style="width:100%" Wrap="Wrap.Wrap">
                         <MudText Typo="Typo.subtitle1">Raid Statistics</MudText>
                         <MudSpacer />
-                        <MudTextField @bind-Value="_search" Placeholder="Search creator or game" Adornment="Adornment.Start"
+                        <MudTextField @bind-Value="_search" Placeholder="Search creator, game, or team" Adornment="Adornment.Start"
                                       AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small"
                                       Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true"
-                                      Style="max-width: 250px;" />
+                                      Style="max-width: 260px;" />
                         <MudCheckBox @bind-Value="OnlineOnly" Label="Online only" Color="Color.Primary" Dense="true" />
+                        <MudSwitch T="bool" Value="_showLiveTeamMembers" ValueChanged="OnShowLiveTeamMembersChanged"
+                                   Label="Show live team members" Color="Color.Info" Disabled="@_loading" />
                         <MudMenu Label="Clean Up" StartIcon="@Icons.Material.Filled.CleaningServices"
                                  Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" Dense="true">
                             <MudMenuItem OnClick="() => PruneHistory(30)">Inactive > 30 days</MudMenuItem>
@@ -38,7 +43,7 @@
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.DisplayName)">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryItem, object>(x => x.DisplayName)">
                             Name
                         </MudTableSortLabel>
                     </MudTh>
@@ -46,37 +51,37 @@
                         Online
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.LastGame ?? string.Empty)">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryItem, object>(x => x.LastGame ?? string.Empty)">
                             Game
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalIncomingRaids)">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryItem, object>(x => x.TotalIncomingRaids)">
                             Incoming
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalIncomingRaids > 0 ? x.TotalIncomingRaidViewers / x.TotalIncomingRaids : 0)">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryItem, object>(x => x.TotalIncomingRaids > 0 ? x.TotalIncomingRaidViewers / x.TotalIncomingRaids : 0)">
                             Avg In.
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.LastIncomingRaid)" InitialDirection="SortDirection.Descending">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryItem, object>(x => x.LastIncomingRaid)" InitialDirection="SortDirection.Descending">
                             Last In.
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalOutgoingRaids)">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryItem, object>(x => x.TotalOutgoingRaids)">
                             Outgoing
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalOutgoingRaids > 0 ? x.TotalOutGoingRaidViewers / x.TotalOutgoingRaids : 0)">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryItem, object>(x => x.TotalOutgoingRaids > 0 ? x.TotalOutGoingRaidViewers / x.TotalOutgoingRaids : 0)">
                             Avg Out.
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.LastOutgoingRaid)">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryItem, object>(x => x.LastOutgoingRaid)">
                             Last Out.
                         </MudTableSortLabel>
                     </MudTh>
@@ -86,9 +91,18 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Name">
-                        <MudLink Href=@LinkBuilder(context.Name) Target="_blank">
-                            <strong>@context.DisplayName</strong>
-                        </MudLink>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudLink Href=@LinkBuilder(context.Name) Target="_blank">
+                                <strong>@context.DisplayName</strong>
+                            </MudLink>
+                            @if (context.IsStreamTeamMember)
+                            {
+                                <MudTooltip Text="@GetTeamTooltip(context)">
+                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small"
+                                             Icon="@Icons.Material.Filled.Groups">Team</MudChip>
+                                </MudTooltip>
+                            }
+                        </MudStack>
                     </MudTd>
                     <MudTd DataLabel="Online">
                         @if (context.IsOnline)
@@ -110,7 +124,14 @@
                         @(context.TotalIncomingRaids > 0 ? (context.TotalIncomingRaidViewers / context.TotalIncomingRaids).ToString("N0") : "0")
                     </MudTd>
                     <MudTd DataLabel="Last In.">
-                        <ToLocal DateTime="context.LastIncomingRaid" Format="yyyy-mm-dd" />
+                        @if (context.LastIncomingRaid != DateTime.MinValue)
+                        {
+                            <ToLocal DateTime="context.LastIncomingRaid" Format="yyyy-mm-dd" />
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
                     </MudTd>
                     <MudTd DataLabel="Outgoing">
                         <strong>@context.TotalOutgoingRaids</strong>
@@ -119,12 +140,22 @@
                         @(context.TotalOutgoingRaids > 0 ? (context.TotalOutGoingRaidViewers / context.TotalOutgoingRaids).ToString("N0") : "0")
                     </MudTd>
                     <MudTd DataLabel="Last Out.">
-                        <ToLocal DateTime="context.LastOutgoingRaid" Format="yyyy-mm-dd" />
+                        @if (context.LastOutgoingRaid != DateTime.MinValue)
+                        {
+                            <ToLocal DateTime="context.LastOutgoingRaid" Format="yyyy-mm-dd" />
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
                     </MudTd>
                     <MudTd DataLabel="Actions">
                         <MudStack Row="true" Spacing="1">
                             <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" @onclick="() => Raid(context)">Raid</MudButton>
-                            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" @onclick="() => Remove(context)">Remove</MudButton>
+                            @if (context.IsHistoryEntry)
+                            {
+                                <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" @onclick="() => Remove(context)">Remove</MudButton>
+                            }
                         </MudStack>
                     </MudTd>
                 </RowTemplate>
@@ -140,16 +171,39 @@
 }
 
 @code {
-    private List<RaidHistoryEntry>? raidHistory;
+    private List<RaidHistoryItem>? raidHistory;
     private bool OnlineOnly { get; set; } = true;
+    private bool _showLiveTeamMembers = true;
+    private bool _loading;
     private string _search = "";
 
     protected override async Task OnInitializedAsync()
     {
-        raidHistory = await RaidTracker.GetHistory();
+        _showLiveTeamMembers = await RaidHistorySettings.GetShowLiveTeamMembersAsync();
+        raidHistory = await RaidTracker.GetDisplayHistoryAsync(_showLiveTeamMembers);
     }
 
-    private List<RaidHistoryEntry>? GetFilteredContent()
+    private async Task OnShowLiveTeamMembersChanged(bool enabled)
+    {
+        _showLiveTeamMembers = enabled;
+        _loading = true;
+        try
+        {
+            await RaidHistorySettings.SetShowLiveTeamMembersAsync(enabled);
+            raidHistory = await RaidTracker.GetDisplayHistoryAsync(_showLiveTeamMembers);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to save stream team display setting.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private List<RaidHistoryItem>? GetFilteredContent()
     {
         var items = raidHistory?.AsEnumerable();
         if (items == null) return null;
@@ -164,10 +218,22 @@
             items = items.Where(x =>
                 (x.DisplayName != null && x.DisplayName.Contains(_search, StringComparison.OrdinalIgnoreCase)) ||
                 (x.Name != null && x.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)) ||
-                (x.LastGame != null && x.LastGame.Contains(_search, StringComparison.OrdinalIgnoreCase)));
+                (x.LastGame != null && x.LastGame.Contains(_search, StringComparison.OrdinalIgnoreCase)) ||
+                x.StreamTeamNames.Any(t => t.Contains(_search, StringComparison.OrdinalIgnoreCase)));
         }
 
         return items.ToList();
+    }
+
+    private static string GetTeamTooltip(RaidHistoryItem item)
+    {
+        if (item.StreamTeamNames.Count == 0)
+        {
+            return "Stream Team Member";
+        }
+
+        var prefix = item.StreamTeamNames.Count == 1 ? "Stream Team: " : "Stream Teams: ";
+        return prefix + string.Join(", ", item.StreamTeamNames);
     }
 
     private async Task PruneHistory(int olderThanDays)
@@ -183,7 +249,7 @@
         {
             var cutoff = DateTime.UtcNow.AddDays(-olderThanDays);
             var removed = await RaidTracker.PruneRaidHistory(cutoff);
-            raidHistory = await RaidTracker.GetHistory();
+            raidHistory = await RaidTracker.GetDisplayHistoryAsync(_showLiveTeamMembers);
             Snackbar.Add($"Cleaned up {removed} creator(s) with no raid activity in the last {olderThanDays} days.", Severity.Info);
             StateHasChanged();
         }
@@ -193,7 +259,7 @@
         }
     }
 
-private async Task Raid(RaidHistoryEntry item)
+    private async Task Raid(RaidHistoryItem item)
     {
         try
         {
@@ -205,21 +271,23 @@ private async Task Raid(RaidHistoryEntry item)
             Console.WriteLine($"Error executing raid: {ex.Message}");
         }
     }
-    private async Task Remove(RaidHistoryEntry item)
+
+    private async Task Remove(RaidHistoryItem item)
     {
+        if (item.HistoryEntry == null) return;
+
         try
         {
-            await RaidTracker.RemoveRaidHistory(item);
-            raidHistory = await RaidTracker.GetHistory();
+            await RaidTracker.RemoveRaidHistory(item.HistoryEntry);
+            raidHistory = await RaidTracker.GetDisplayHistoryAsync(_showLiveTeamMembers);
             StateHasChanged();
-}
+        }
         catch (Exception ex)
         {
             // Ignore remove errors - UI will show appropriate state
             Console.WriteLine($"Error removing raid history: {ex.Message}");
         }
     }
-
 
     private string LinkBuilder(string _parameter)
     {

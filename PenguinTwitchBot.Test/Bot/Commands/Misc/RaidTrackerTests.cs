@@ -398,5 +398,146 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(() => raidTracker.PruneRaidHistory(DateTime.UtcNow.AddDays(-30)));
         }
+
+        [Fact]
+        public async Task GetDisplayHistoryAsync_WhenIncludeLiveTeamMembersIsFalse_DoesNotQueryTeamMembers()
+        {
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var twitchService = Substitute.For<ITwitchService>();
+
+            scopeFactory.CreateScope().Returns(scope);
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            dbContext.RaidHistory.GetAllAsync().Returns(new List<RaidHistoryEntry>
+            {
+                new() { Id = Guid.NewGuid(), UserId = "u1", Name = "alice", DisplayName = "Alice", IsOnline = true, TotalIncomingRaids = 2 }
+            });
+
+            var raidTracker = new RaidTracker(
+                Substitute.For<ILogger<RaidTracker>>(),
+                scopeFactory,
+                twitchService,
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
+
+            var result = await raidTracker.GetDisplayHistoryAsync(includeLiveTeamMembers: false);
+
+            var item = Assert.Single(result);
+            Assert.Equal("u1", item.UserId);
+            Assert.False(item.IsStreamTeamMember);
+            Assert.True(item.IsHistoryEntry);
+            await twitchService.DidNotReceive().GetStreamTeamMembersAsync();
+        }
+
+        [Fact]
+        public async Task GetDisplayHistoryAsync_WhenIncludeLiveTeamMembersIsTrue_MarksExistingAndAddsLiveOnlyTeamMembers()
+        {
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var twitchService = Substitute.For<ITwitchService>();
+
+            scopeFactory.CreateScope().Returns(scope);
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            dbContext.RaidHistory.GetAllAsync().Returns(new List<RaidHistoryEntry>
+            {
+                new() { Id = Guid.NewGuid(), UserId = "u1", Name = "alice", DisplayName = "Alice", IsOnline = false, TotalIncomingRaids = 3, LastGame = "Old Game" },
+                new() { Id = Guid.NewGuid(), UserId = "u9", Name = "nonteam", DisplayName = "NonTeam", IsOnline = true, TotalIncomingRaids = 1, LastGame = "Chess" }
+            });
+
+            twitchService.GetStreamTeamMembersAsync().Returns(new List<PenguinTwitchBot.Bot.TwitchServices.TwitchModels.StreamTeamMember>
+            {
+                new() { UserId = "u1", UserLogin = "alice", DisplayName = "Alice", TeamNames = ["Penguin Squad"] },
+                new() { UserId = "u2", UserLogin = "bob", DisplayName = "Bob", TeamNames = ["Penguin Squad"] },
+                new() { UserId = "u3", UserLogin = "charlie", DisplayName = "Charlie", TeamNames = ["Penguin Squad"] }
+            });
+
+            twitchService.AreStreamsOnline(Arg.Any<List<string>>()).Returns(new List<PenguinTwitchBot.Bot.TwitchServices.TwitchModels.OnlineStream>
+            {
+                new() { UserId = "u1", UserLogin = "alice", UserName = "Alice", DisplayName = "Alice", Game = "Balatro" },
+                new() { UserId = "u2", UserLogin = "bob", UserName = "Bob", DisplayName = "Bob", Game = "Minecraft" }
+            });
+
+            var raidTracker = new RaidTracker(
+                Substitute.For<ILogger<RaidTracker>>(),
+                scopeFactory,
+                twitchService,
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
+
+            var result = await raidTracker.GetDisplayHistoryAsync(includeLiveTeamMembers: true);
+
+            // Should contain u1 (history + live team), u2 (live team only), u9 (history non-team) — NOT u3 (offline team only)
+            Assert.Equal(3, result.Count);
+            Assert.DoesNotContain(result, x => x.UserId == "u3");
+
+            var alice = Assert.Single(result, x => x.UserId == "u1");
+            Assert.True(alice.IsHistoryEntry);
+            Assert.True(alice.IsStreamTeamMember);
+            Assert.True(alice.IsOnline);
+            Assert.Equal("Balatro", alice.LastGame);
+            Assert.Equal(3, alice.TotalIncomingRaids);
+            Assert.Equal(["Penguin Squad"], alice.StreamTeamNames);
+
+            var bob = Assert.Single(result, x => x.UserId == "u2");
+            Assert.False(bob.IsHistoryEntry);
+            Assert.True(bob.IsStreamTeamMember);
+            Assert.True(bob.IsOnline);
+            Assert.Equal("bob", bob.Name);
+            Assert.Equal("Bob", bob.DisplayName);
+            Assert.Equal("Minecraft", bob.LastGame);
+            Assert.Equal(DateTime.MinValue, bob.LastIncomingRaid);
+            Assert.Equal(DateTime.MinValue, bob.LastOutgoingRaid);
+
+            var nonTeam = Assert.Single(result, x => x.UserId == "u9");
+            Assert.True(nonTeam.IsHistoryEntry);
+            Assert.False(nonTeam.IsStreamTeamMember);
+        }
+
+        [Fact]
+        public async Task GetDisplayHistoryAsync_WhenNotInAnyTeam_DoesNotCheckOnlineStreams()
+        {
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var twitchService = Substitute.For<ITwitchService>();
+
+            scopeFactory.CreateScope().Returns(scope);
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            dbContext.RaidHistory.GetAllAsync().Returns(new List<RaidHistoryEntry>
+            {
+                new() { Id = Guid.NewGuid(), UserId = "u1", Name = "alice", DisplayName = "Alice", IsOnline = true }
+            });
+            twitchService.GetStreamTeamMembersAsync().Returns([]);
+
+            var raidTracker = new RaidTracker(
+                Substitute.For<ILogger<RaidTracker>>(),
+                scopeFactory,
+                twitchService,
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
+
+            var result = await raidTracker.GetDisplayHistoryAsync(includeLiveTeamMembers: true);
+
+            var item = Assert.Single(result);
+            Assert.False(item.IsStreamTeamMember);
+            await twitchService.DidNotReceive().AreStreamsOnline(Arg.Any<List<string>>());
+        }
     }
 }
