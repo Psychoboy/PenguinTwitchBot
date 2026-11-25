@@ -44,7 +44,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 10.0.x
+        dotnet-version: 11.0.x
 
     - name: Restore dependencies
       run: dotnet restore
@@ -84,12 +84,12 @@ jobs:
         Remove-Item $fullTmp -Recurse -Force -ErrorAction SilentlyContinue
         New-Item -ItemType Directory -Path $fullTmp | Out-Null
 
-        Copy-Item -Path "PenguinTwitchBot/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse -Force
-        Copy-Item -Path "PenguinTwitchBot.Setup/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse -Force
+        Copy-Item -Path "PenguinTwitchBot/bin/Release/net11.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse -Force
+        Copy-Item -Path "PenguinTwitchBot.Setup/bin/Release/net11.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse -Force
 
         New-Item -ItemType Directory -Path "$fullTmp/Updater" -Force | Out-Null
-        Copy-Item -Path "PenguinTwitchBot.Updater/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination "$fullTmp/Updater" -Recurse
-        Copy-Item -Path "PenguinTwitchBot.Updater.Bootstrap/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination "$fullTmp/Updater" -Recurse
+        Copy-Item -Path "PenguinTwitchBot.Updater/bin/Release/net11.0/${{ matrix.rid }}/publish/*" -Destination "$fullTmp/Updater" -Recurse
+        Copy-Item -Path "PenguinTwitchBot.Updater.Bootstrap/bin/Release/net11.0/${{ matrix.rid }}/publish/*" -Destination "$fullTmp/Updater" -Recurse
 
         $fullZip = "PenguinTwitchBot-${{ env.BUILD_LABEL }}-${{ matrix.rid }}-full.zip"
         Compress-Archive -Path "$fullTmp/*" -DestinationPath $fullZip
@@ -99,7 +99,7 @@ jobs:
     - name: Create update zip
       shell: pwsh
       run: |
-        $src = "PenguinTwitchBot/bin/Release/net10.0/${{ matrix.rid }}/publish"
+        $src = "PenguinTwitchBot/bin/Release/net11.0/${{ matrix.rid }}/publish"
         $tmp = "update-tmp"
         Copy-Item -Path $src -Destination $tmp -Recurse
         Remove-Item "$tmp/appsettings.json" -ErrorAction SilentlyContinue
@@ -109,8 +109,8 @@ jobs:
         Remove-Item "$tmp/wwwroot/gifs" -Recurse -ErrorAction SilentlyContinue
 
         New-Item -ItemType Directory -Path "$tmp/Updater" -Force | Out-Null
-        Copy-Item -Path "PenguinTwitchBot.Updater/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination "$tmp/Updater" -Recurse
-        Copy-Item -Path "PenguinTwitchBot.Updater.Bootstrap/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination "$tmp/Updater" -Recurse
+        Copy-Item -Path "PenguinTwitchBot.Updater/bin/Release/net11.0/${{ matrix.rid }}/publish/*" -Destination "$tmp/Updater" -Recurse
+        Copy-Item -Path "PenguinTwitchBot.Updater.Bootstrap/bin/Release/net11.0/${{ matrix.rid }}/publish/*" -Destination "$tmp/Updater" -Recurse
 
         $manifest = @{
           minimumAutoUpdateVersion = "0.2.0"
