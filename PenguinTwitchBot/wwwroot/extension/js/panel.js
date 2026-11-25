@@ -117,15 +117,29 @@
     function fallbackCopy(text, btnEl) {
         var input = document.createElement('textarea');
         input.value = text;
+        input.setAttribute('readonly', '');
+        input.style.position = 'fixed';
+        input.style.top = '0';
+        input.style.left = '0';
+        input.style.opacity = '0';
+        input.style.fontSize = '16px';
         document.body.appendChild(input);
-        input.select();
+        var copied = false;
         try {
-            document.execCommand('copy');
+            input.focus({ preventScroll: true });
+            input.select();
+            input.setSelectionRange(0, text.length);
+            copied = document.execCommand('copy');
+        } catch (_) { /* ignore clipboard errors */ }
+        document.body.removeChild(input);
+
+        if (copied) {
             var old = btnEl.textContent;
             btnEl.textContent = 'Copied!';
             setTimeout(function () { btnEl.textContent = old; }, 1500);
-        } catch (_) { /* ignore clipboard errors */ }
-        document.body.removeChild(input);
+        } else {
+            showAlert('warning', 'Type ' + text + ' in chat', 5000);
+        }
     }
 
     // --- Dynamic Navigation & Gating ---
@@ -824,7 +838,8 @@
 
             var metaBadgesHtml = '';
             if (item.boostType && item.boostAmount) {
-                metaBadgesHtml += '<span class="badge-boost" title="' + escapeHtml(item.boostType + ': +' + item.boostAmount + '%') + '">' + escapeHtml(item.boostType) + '</span>';
+                var boostLabel = item.boostType + ' +' + item.boostAmount + '%';
+                metaBadgesHtml += '<span class="badge-boost" title="' + escapeHtml(item.boostType + ': +' + item.boostAmount + '%') + '">' + escapeHtml(boostLabel) + '</span>';
             }
             if (item.maxDurability) {
                 metaBadgesHtml += '<span title="Max Durability: ' + item.maxDurability + '">' + item.maxDurability + ' dur</span>';
@@ -1100,7 +1115,7 @@
 
         if (statusLower === 'boarding') {
             if (viewer && viewer.hasJoined) {
-                html += '<div style="background:rgba(0,230,153,0.1);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:8px;text-align:center;color:var(--accent);font-size:11.5px;font-weight:700;margin-top:8px;">' +
+                html += '<div style="background:var(--success-bg);border:1px solid var(--success);border-radius:var(--radius-sm);padding:8px;text-align:center;color:var(--success);font-size:11.5px;font-weight:700;margin-top:8px;">' +
                     '✓ You are aboard the crew!' +
                     '</div>';
             } else {
@@ -1510,6 +1525,24 @@
             }
         }
     }
+
+    function applyPlatformViewClass() {
+        if (typeof document === 'undefined') return;
+        try {
+            if (TwitchExtApi.getPlatform && TwitchExtApi.getPlatform() === 'mobile') {
+                if (document.documentElement) {
+                    document.documentElement.classList.remove('panel-view');
+                    document.documentElement.classList.add('mobile-view');
+                }
+                if (document.body) {
+                    document.body.classList.remove('panel-view');
+                    document.body.classList.add('mobile-view');
+                }
+            }
+        } catch (_) { /* ignore DOM class errors */ }
+    }
+
+    applyPlatformViewClass();
 
     function applyTheme(theme) {
         var resolvedTheme = theme === 'light' ? 'light' : 'dark';

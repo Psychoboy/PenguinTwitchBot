@@ -16,10 +16,10 @@ This guide walks you through registering, configuring, and running the **Penguin
 
 ## Architecture Overview
 
-1. **Frontend (Panel & Config UI)**:
+1. **Frontend (Panel, Mobile & Config UI)**:
    - Built with lightweight HTML, CSS, and Vanilla JavaScript (`wwwroot/extension/`).
    - Hosted on Twitch's global CDN in "Hosted Test" mode (or tested locally).
-   - Embedded in the streamer's channel page as a panel (fixed 318px width).
+   - Embedded in the streamer's channel page as a desktop panel (318px width) and as a responsive mobile view (`mobile.html`) inside the Twitch iOS and Android apps.
 2. **Backend (PenguinBot EBS)**:
    - Runs ASP.NET Core Kestrel serving REST endpoints on `/api/twitch-extension/*`.
    - Validates Twitch JWT identity tokens using your Extension Secret (HMAC-SHA256).
@@ -59,9 +59,9 @@ If you run Penguin Bot on a VPS or home server with a domain name (e.g. `https:/
 ## Part 2: Twitch Developer Console Registration
 
 1. Go to the [Twitch Developer Console](https://dev.twitch.tv/console/extensions).
-2. Click **Create Extension**.
+2. Click **Create Extension** (or, if updating an already-approved extension to add mobile support, click **Create New Version** from your extension's Manage page — approved versions cannot have their types or assets edited in-place).
    - **Name**: e.g., `Penguin Bot` (or your preferred name).
-   - **Type of Extension**: Select **Panel**.
+   - **Type of Extension**: Select **Panel** and **Mobile** (both iOS and Android are automatically supported; Twitch removed Apple Developer account / iOS Allowlist requirements in July 2024).
    - **Summary & Description**: Fill in a brief description.
 
 ### 1. General Settings & Capabilities
@@ -111,6 +111,7 @@ Twitch strictly enforces Content Security Policy (CSP) headers on extensions. An
 Under **Asset Hosting / Extension Views**:
 - **Panel Viewer Path**: `panel.html`
 - **Panel Height**: Set to **`500`** px (Twitch defaults this to `300` px. Setting it to `500` expands the extension iframe to match full-height panel extensions).
+- **Mobile Viewer Path**: `mobile.html` *(requires **Mobile** enabled under Extension Types; provides a responsive, touch-optimized view with full feature parity across portrait and landscape orientations)*.
 - **Broadcaster Config Path**: `config.html`
 - **Testing Base URI** (if using Local Test):
   ```text
@@ -119,6 +120,7 @@ Under **Asset Hosting / Extension Views**:
 - **If using Hosted Test (Recommended for Release)**:
   - Download `PenguinBot-<version>-twitch-extension.zip` from the latest [GitHub Release](https://github.com/Psychoboy/PenguinTwitchBot/releases) assets, or zip the contents of `PenguinTwitchBot/wwwroot/extension/` directly:
     - `panel.html`
+    - `mobile.html`
     - `config.html`
     - `css/`
     - `js/`
@@ -217,16 +219,24 @@ Use this checklist to ensure all required fields are satisfied:
 | | **Privacy Policy URL** | Direct URL to your public privacy policy webpage or hosted markdown file (see [privacy-policy.md](privacy-policy.md)). |
 | | **Chat Capabilities** | Set to **No** (the extension operates via panel UI and REST endpoints). |
 | **Monetization** | **Bits in Extensions** | Select **No** (unless you have separately configured Twitch Bits product catalogs). |
-| **Asset Hosting** | **Archive Package** | Upload `PenguinBot-<version>-twitch-extension.zip` (downloaded from the latest GitHub Release assets) or zip `PenguinTwitchBot/wwwroot/extension/`. Verify file structure contains `panel.html`, `config.html`, `css/`, and `js/` at the root. |
-| | **Viewer Path** | `panel.html` |
+| **Asset Hosting** | **Archive Package** | Upload `PenguinBot-<version>-twitch-extension.zip` (downloaded from the latest GitHub Release assets) or zip `PenguinTwitchBot/wwwroot/extension/`. Verify file structure contains `panel.html`, `mobile.html`, `config.html`, `css/`, and `js/` at the root. Total initial page load must stay **≤ 1 MB** and load in **< 3s** at 500 Kb/s. |
+| | **Panel Viewer Path** | `panel.html` |
 | | **Panel Height** | Set to `500` (Twitch defaults this to `300`). |
+| | **Mobile Viewer Path** | `mobile.html` (verify portrait and landscape viewports, ≥ 44 px touch targets, and both Light/Dark themes in the Twitch iOS/Android app while in Hosted Test). |
 | | **Config Path** | `config.html` |
 | **Allowed Domains (CSP)** | **Connect-Src (URL Fetching)** | Add your public HTTPS endpoint (e.g., `https://*.trycloudflare.com/` or your custom domain). Requests to unlisted domains will be blocked by Twitch CSP. |
 | | **Image Domains (`img-src`)** | Add base URLs from which the extension loads images (e.g. `https://*.trycloudflare.com/`, `https://i.imgur.com/`, or your custom domain where prize images are stored). |
 | | **Panel URLs** | Add base URLs that the viewer page is allowed to open in a new tab (e.g. `https://*.trycloudflare.com/` or your bot domain for the web dashboard and giveaway details links). |
 | **Visual Assets** | **Icons** | Upload required extension icon sizes (100x100 and 24x24 px). |
 | | **Screenshots** | Upload at least 1 screenshot of the extension in action (1280x720 px recommended). |
-| **Walkthrough & Review Notes** | **Review Notes** | In the reviewer notes field, clearly explain: (1) This extension is a self-hosted channel companion panel restricted exclusively to the channel via the Streamer Allowlist. (2) State that the bot backend is reachable at your configured public URL. (3) Provide step-by-step instructions on what reviewers can test (e.g., viewing leaderboards, browsing fish store items, and entering giveaways). |
+| **Walkthrough & Review Notes** | **Review Notes** | In the reviewer notes field, clearly explain: (1) This extension is a self-hosted channel companion (Panel + Mobile) restricted exclusively to the channel via the Streamer Allowlist. (2) State that the bot backend is reachable at your configured public URL. (3) Provide step-by-step instructions on what reviewers can test on both desktop and mobile (e.g., viewing leaderboards, browsing fish store items, entering giveaways, and checking portrait/landscape layouts). |
+
+### Testing Mobile Views
+- **Local Responsive Preview**: Open `https://localhost:8080/extension/mobile.html` in Chrome DevTools Device Toolbar to verify portrait/landscape layouts and Light/Dark themes.
+- **Twitch Mobile App (Hosted Test)**: Shift your new version to **Hosted Test**, ensure your account is in the **Testing Account Allowlist**, open your channel in the Twitch iOS or Android app, and tap the Extensions button next to chat.
+- **Remote Debugging**:
+  - **Android**: Enable USB Debugging and inspect via `chrome://inspect/#devices` on desktop Chrome.
+  - **iOS**: Enable **Settings ➔ Safari ➔ Advanced ➔ Web Inspector** and inspect from Mac Safari's **Develop** menu.
 
 ---
 

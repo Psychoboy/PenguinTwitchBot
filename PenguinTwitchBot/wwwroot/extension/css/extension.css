@@ -289,12 +289,15 @@ body {
 #giveaway-content,
 #fishing-sub-content,
 #leaderboard-content,
+#starship-content,
 #commands-list-content {
     flex: 1 1 0;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 2px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
 }
 
 /* Sub Navigation (Underline Sub-Tabs) */
@@ -1120,4 +1123,363 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+}
+
+/* ==========================================================================
+   Mobile Extension View (.mobile-view)
+   Adheres to Twitch Mobile Extension Guidelines:
+   - Fluid full-viewport width & height across portrait and landscape
+   - Minimum 44px touch targets on primary interactive controls
+   - 16px input/select font size to prevent iOS WKWebView auto-zoom
+   - Readable typography and no hover-only critical information
+   ========================================================================== */
+html.mobile-view,
+body.mobile-view {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    user-select: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body.mobile-view {
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.mobile-view .panel-wrapper {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    padding:
+        calc(10px + env(safe-area-inset-top, 0px))
+        calc(12px + env(safe-area-inset-right, 0px))
+        calc(10px + env(safe-area-inset-bottom, 0px))
+        calc(12px + env(safe-area-inset-left, 0px));
+}
+
+.mobile-view .panel-header {
+    padding: 4px 2px 8px 2px;
+    margin-bottom: 8px;
+}
+
+.mobile-view .brand-title {
+    font-size: 15px;
+}
+
+.mobile-view .user-chip {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.mobile-view .banner {
+    padding: 8px 10px;
+    font-size: 12.5px;
+    margin-bottom: 8px;
+}
+
+/* Swipeable touch-friendly main tabs */
+.mobile-view .nav-tabs {
+    gap: 6px;
+    margin-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mobile-view .nav-tab-btn {
+    flex: 1 0 auto;
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 13px;
+}
+
+/* Swipeable sub-tabs */
+.mobile-view .sub-nav {
+    gap: 8px;
+    margin-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mobile-view .sub-pill {
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+/* Touch targets & press feedback */
+.mobile-view .btn-primary,
+.mobile-view .btn-identity,
+.mobile-view .quick-chip {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 10px 14px;
+}
+
+.mobile-view .btn-sm,
+.mobile-view .btn-copy,
+.mobile-view .btn-vote-active,
+.mobile-view .btn-copy-vote,
+.mobile-view .btn-confirm-risk {
+    min-height: 40px;
+    min-width: 44px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+}
+
+.mobile-view .btn-primary:active:not(:disabled),
+.mobile-view .btn-identity:active:not(:disabled),
+.mobile-view .btn-sm:active:not(:disabled),
+.mobile-view .btn-copy:active:not(:disabled),
+.mobile-view .btn-vote-active:active:not(:disabled),
+.mobile-view .btn-copy-vote:active:not(:disabled),
+.mobile-view .btn-confirm-risk:active:not(:disabled),
+.mobile-view .quick-chip:active:not(:disabled) {
+    transform: scale(0.97);
+    opacity: 0.9;
+}
+
+/* Prevent iOS Safari / WKWebView auto-zoom on input focus */
+.mobile-view .search-input,
+.mobile-view .category-select,
+.mobile-view .input-number {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 8px 10px;
+}
+
+.mobile-view .search-bar,
+.mobile-view .shop-filter-bar {
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.mobile-view .category-select {
+    max-width: 150px;
+}
+
+/* Cards & Typography */
+.mobile-view .card,
+.mobile-view .entry-form,
+.mobile-view .identity-box {
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.mobile-view .identity-box p {
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+
+.mobile-view .card-title {
+    font-size: 14px;
+}
+
+.mobile-view .card-subtitle {
+    font-size: 12px;
+}
+
+.mobile-view .prize-title {
+    font-size: 15px;
+}
+
+.mobile-view .stat-box {
+    padding: 8px 4px;
+}
+
+.mobile-view .stat-val {
+    font-size: 14px;
+}
+
+.mobile-view .stat-lbl {
+    font-size: 10.5px;
+}
+
+.mobile-view .giveaway-disclaimer {
+    font-size: 11.5px;
+}
+
+.mobile-view .quick-chips {
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+/* Tables & Catches */
+.mobile-view .table-compact th {
+    font-size: 11.5px;
+    padding: 8px;
+}
+
+.mobile-view .table-compact td {
+    font-size: 13px;
+    padding: 10px 8px;
+}
+
+.mobile-view .rank-1,
+.mobile-view .rank-2,
+.mobile-view .rank-3 {
+    font-size: 14px;
+}
+
+.mobile-view .user-col {
+    max-width: none;
+}
+
+.mobile-view .catch-row {
+    padding: 10px 8px;
+    font-size: 13px;
+}
+
+.mobile-view .catch-user {
+    max-width: 40%;
+}
+
+.mobile-view .catch-weight {
+    font-size: 12.5px;
+}
+
+/* Fishing Shop & Inventory (No hover-only info) */
+.mobile-view .inventory-summary {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.mobile-view .gold-badge {
+    font-size: 14px;
+}
+
+.mobile-view .shop-card-compact,
+.mobile-view .item-card,
+.mobile-view .command-card {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    gap: 6px;
+}
+
+.mobile-view .shop-card-name,
+.mobile-view .item-name {
+    font-size: 13.5px;
+}
+
+.mobile-view .shop-card-cost {
+    font-size: 13px;
+}
+
+.mobile-view .shop-card-bottom {
+    flex-wrap: wrap;
+    font-size: 12px;
+    gap: 6px;
+}
+
+.mobile-view .shop-card-desc {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    cursor: default;
+    font-size: 12px;
+    flex-basis: 100%;
+}
+
+.mobile-view .shop-card-meta,
+.mobile-view .badge-boost,
+.mobile-view .item-gear-type {
+    font-size: 11px;
+    cursor: default;
+}
+
+.mobile-view .item-desc,
+.mobile-view .cmd-desc {
+    font-size: 12.5px;
+}
+
+.mobile-view .item-stats,
+.mobile-view .cmd-meta {
+    font-size: 11.5px;
+    gap: 8px;
+}
+
+.mobile-view .item-actions {
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.mobile-view .cmd-trigger {
+    font-size: 14px;
+}
+
+/* Starship Mobile */
+.mobile-view .starship-title {
+    font-size: 15px;
+}
+
+.mobile-view .resource-label-row {
+    font-size: 12px;
+}
+
+.mobile-view .starship-event-title {
+    font-size: 14px;
+}
+
+.mobile-view .starship-event-desc,
+.mobile-view .starship-choice-item,
+.mobile-view .starship-risk-banner {
+    font-size: 13px;
+}
+
+.mobile-view .starship-risk-banner {
+    flex-wrap: wrap;
+}
+
+.mobile-view .choice-votes {
+    font-size: 11.5px;
+}
+
+.mobile-view .choice-action-row {
+    gap: 8px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.mobile-view .empty-state,
+.mobile-view .loading-spinner {
+    font-size: 13px;
+}
+
+/* Mobile Landscape Split-View Support (Twitch Review Requirement) */
+@media (orientation: landscape) and (max-height: 500px) {
+    .mobile-view .panel-wrapper {
+        padding:
+            calc(6px + env(safe-area-inset-top, 0px))
+            calc(12px + env(safe-area-inset-right, 0px))
+            calc(6px + env(safe-area-inset-bottom, 0px))
+            calc(12px + env(safe-area-inset-left, 0px));
+    }
+
+    .mobile-view .panel-header {
+        padding: 2px 2px 4px 2px;
+        margin-bottom: 4px;
+    }
+
+    .mobile-view .nav-tabs {
+        margin-bottom: 6px;
+    }
+
+    .mobile-view .nav-tab-btn,
+    .mobile-view .sub-pill {
+        min-height: 36px;
+        padding: 6px 10px;
+    }
+
+    .mobile-view .sub-nav {
+        margin-bottom: 6px;
+    }
+
+    .mobile-view .giveaway-image-wrapper,
+    .mobile-view .giveaway-image {
+        max-height: 72px;
+    }
 }

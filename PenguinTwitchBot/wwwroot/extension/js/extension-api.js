@@ -348,12 +348,31 @@
         return await response.json();
     }
 
+    function getPlatform() {
+        try {
+            if (typeof window !== 'undefined' && window.location && window.location.search) {
+                var params = new URLSearchParams(window.location.search);
+                var platform = (params.get('platform') || '').toLowerCase();
+                if (platform === 'mobile' || platform === 'web') {
+                    return platform;
+                }
+            }
+            if (typeof document !== 'undefined' && document.documentElement &&
+                document.documentElement.classList && document.documentElement.classList.contains('mobile-view')) {
+                return 'mobile';
+            }
+        } catch (_) { /* ignore URL/DOM parsing errors */ }
+        return 'web';
+    }
+
     return {
         onReady: onReady,
         onConfigLoaded: onConfigLoaded,
         onAuthorized: onAuthorized,
         onContext: onContext,
         getConfig: getConfig,
+        getBaseUrl: getBaseUrl,
+        getPlatform: getPlatform,
         saveConfig: saveConfig,
         requestIdentityShare: requestIdentityShare,
         isIdentityShared: function () { return isIdentityShared; },
