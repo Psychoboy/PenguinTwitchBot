@@ -829,9 +829,16 @@ namespace PenguinTwitchBot.Bot.Core.Points
         {
             foreach (var viewer in viewerFeature.GetCurrentViewers().Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (await viewerFeature.IsSubscriber(viewer))
+                try
                 {
-                    await AddPointsByUsername(viewer, pointType, points);
+                    if (await viewerFeature.IsSubscriber(viewer))
+                    {
+                        await AddPointsByUsername(viewer, pointType, points);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error adding points to subscribed viewer {Viewer}", viewer);
                 }
             }
         }
@@ -840,7 +847,14 @@ namespace PenguinTwitchBot.Bot.Core.Points
         {
             foreach (var viewer in viewerFeature.GetCurrentViewers().Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                await AddPointsByUsername(viewer, pointType, points);
+                try
+                {
+                    await AddPointsByUsername(viewer, pointType, points);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error adding points to current viewer {Viewer}", viewer);
+                }
             }
         }
 

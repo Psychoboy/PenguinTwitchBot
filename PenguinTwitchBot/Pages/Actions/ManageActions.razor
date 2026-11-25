@@ -466,8 +466,24 @@
         }
         catch (Exception ex)
         {
-            _isNavigating = false;
             _logger.LogError(ex, "Error handling location change in ManageActions");
+            await InvokeAsync(() =>
+            {
+                Snackbar.Add("Failed to load action.", Severity.Error);
+                _isNavigating = true;
+                try
+                {
+                    var targetUrl = _selectedAction != null && !_isNewAction
+                        ? $"/actions/manage?actionId={_selectedAction.Id}"
+                        : "/actions/manage";
+                    NavigationManager.NavigateTo(targetUrl, replace: true);
+                }
+                finally
+                {
+                    _isNavigating = false;
+                }
+                StateHasChanged();
+            });
         }
     }
 

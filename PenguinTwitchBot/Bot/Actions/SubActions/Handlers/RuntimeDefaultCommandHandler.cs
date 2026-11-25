@@ -10,7 +10,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
     public class RuntimeDefaultCommandHandler(ICommandHandler commandHandler, ILogger<RuntimeDefaultCommandHandler> logger) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.RuntimeDefaultCommand;
-        static readonly ConcurrentDictionary<string, SemaphoreSlim> CommandLock = new(StringComparer.OrdinalIgnoreCase);
+        static readonly ConcurrentDictionary<string, SemaphoreSlim> CommandLock = new();
         private string lastCommand = string.Empty;
         internal TimeSpan LockTimeout { get; set; } = TimeSpan.FromSeconds(10);
 

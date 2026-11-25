@@ -91,6 +91,7 @@
     }
 
     [Inject] private ILogger<GiveawayHistory> _logger { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
     private async void ItemHasBeenCommitted(object element)
     {
@@ -102,6 +103,19 @@
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating giveaway winner");
+            try
+            {
+                pastWinners = await giveawayFeature.PastWinners();
+            }
+            catch (Exception reloadEx)
+            {
+                _logger.LogError(reloadEx, "Error reloading giveaway winners after save failure");
+            }
+            await InvokeAsync(() =>
+            {
+                Snackbar.Add("Failed to save giveaway winner changes. Reverted to persisted values.", Severity.Error);
+                StateHasChanged();
+            });
         }
     }
 }

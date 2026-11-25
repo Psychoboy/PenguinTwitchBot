@@ -193,13 +193,37 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 
             if (startedNewGame)
             {
+                try
+                {
+                    var joinTime = await gameSettingsService.GetIntSetting(GAMENAME, JOINTIME, 300);
+                    JoinTimer = timeProvider.CreateTimer(JoinTimerCallback, this, TimeSpan.FromSeconds(joinTime), TimeSpan.FromSeconds(joinTime));
+                }
+                catch
+                {
+                    List<Participant> toRefund = [];
+                    lock (_stateLock)
+                    {
+                        if (GameState == State.Running)
+                        {
+                            toRefund = [.. Entered];
+                            Entered.Clear();
+                            GameState = State.NotRunning;
+                            JoinTimer?.Dispose();
+                            JoinTimer = null;
+                        }
+                    }
+                    foreach (var participant in toRefund)
+                    {
+                        await pointsSystem.AddPointsByUsernameAndGame(participant.Name, ModuleName, participant.Bet);
+                    }
+                    throw;
+                }
+
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, GAMESTARTING, "{Name} is trying to get a team together for some serious heist business! use \"!{Command} AMOUNT/ALL/MAX\" to join!");
                 message = message
                     .Replace("{Command}", e.Command, StringComparison.OrdinalIgnoreCase)
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(message); //GAMESTARTING
-                var joinTime = await gameSettingsService.GetIntSetting(GAMENAME, JOINTIME, 300);
-                JoinTimer = timeProvider.CreateTimer(JoinTimerCallback, this, TimeSpan.FromSeconds(joinTime), TimeSpan.FromSeconds(joinTime));
 
                 // Trigger default command event for heist started
                 await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
@@ -386,11 +410,6 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             catch (Exception e)
             {
                 logger.LogError(e, "Failed Cleaning heist");
-                lock (_stateLock)
-                {
-                    GameState = State.NotRunning;
-                    CurrentStoryPart = 0;
-                }
             }
         }
 

@@ -49,6 +49,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadPointSettingsAsync();
+    }
+
+    private async Task LoadPointSettingsAsync()
+    {
         var assignmentsTask = pointSystem.GetPointTypesForGames();
         var pointTypesTask = pointSystem.GetPointTypes();
         var defaultPointTypeTask = gameSettingsService.GetDefaultPointType();
@@ -59,6 +64,7 @@
     }
 
     [Inject] private ILogger<GamePointSettings> _logger { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
     private async void ItemHasBeenCommitted(object element)
     {
@@ -70,6 +76,19 @@
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating game point assignment");
+            try
+            {
+                await LoadPointSettingsAsync();
+            }
+            catch (Exception reloadEx)
+            {
+                _logger.LogError(reloadEx, "Error reloading game point assignments after save failure");
+            }
+            await InvokeAsync(() =>
+            {
+                Snackbar.Add("Failed to save point type assignment. Reverted to stored values.", Severity.Error);
+                StateHasChanged();
+            });
         }
     }
 
