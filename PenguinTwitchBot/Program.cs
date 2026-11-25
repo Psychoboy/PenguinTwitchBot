@@ -478,8 +478,10 @@ internal class Program
 
         app.MapControllers();
         app.MapGet("/extension", () => Results.Redirect("/extension/panel.html")).AllowAnonymous();
+        app.MapGet("/extension/mobile", () => Results.Redirect("/extension/mobile.html")).AllowAnonymous();
         app.MapGet("/extension/config", () => Results.Redirect("/extension/config.html")).AllowAnonymous();
         app.MapGet("/panel.html", () => Results.Redirect("/extension/panel.html")).AllowAnonymous();
+        app.MapGet("/mobile.html", () => Results.Redirect("/extension/mobile.html")).AllowAnonymous();
         app.MapGet("/config.html", () => Results.Redirect("/extension/config.html")).AllowAnonymous();
         app.MapGet("/sitemap.xml", (HttpContext context) =>
         {
