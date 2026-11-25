@@ -473,10 +473,10 @@
                 _isNavigating = true;
                 try
                 {
-                    var targetUrl = _selectedAction != null && !_isNewAction
-                        ? $"/actions/manage?actionId={_selectedAction.Id}"
-                        : "/actions/manage";
-                    NavigationManager.NavigateTo(targetUrl, replace: true);
+                    var recoveryId = _selectedAction != null && !_isNewAction
+                        ? _selectedAction.Id
+                        : (Guid?)null;
+                    NavigateToManagePage(recoveryId, replace: true);
                 }
                 finally
                 {

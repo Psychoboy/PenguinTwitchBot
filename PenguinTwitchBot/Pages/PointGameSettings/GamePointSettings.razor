@@ -76,9 +76,11 @@
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating game point assignment");
+            bool reloaded = false;
             try
             {
                 await LoadPointSettingsAsync();
+                reloaded = true;
             }
             catch (Exception reloadEx)
             {
@@ -86,7 +88,10 @@
             }
             await InvokeAsync(() =>
             {
-                Snackbar.Add("Failed to save point type assignment. Reverted to stored values.", Severity.Error);
+                var message = reloaded
+                    ? "Failed to save point type assignment. Reverted to stored values."
+                    : "Failed to save point type assignment; the displayed assignment is unconfirmed. Please reload the page.";
+                Snackbar.Add(message, Severity.Error);
                 StateHasChanged();
             });
         }

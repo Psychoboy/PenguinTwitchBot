@@ -778,16 +778,21 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         {
             try
             {
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var winners = await db.GiveawayWinners.GetAllAsync();
-                return winners.OrderByDescending(x => x.WinningDate).ToList();
+                return await GetPastWinnersOrThrowAsync();
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error getting past winners");
                 return new List<GiveawayWinner> { };
             }
+        }
+
+        public async Task<List<GiveawayWinner>> GetPastWinnersOrThrowAsync()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var winners = await db.GiveawayWinners.GetAllAsync();
+            return winners.OrderByDescending(x => x.WinningDate).ToList();
         }
 
         private async Task AddWinner(Viewer? viewer, bool isFollower)

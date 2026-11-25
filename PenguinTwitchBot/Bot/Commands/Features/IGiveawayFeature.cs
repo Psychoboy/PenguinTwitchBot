@@ -36,6 +36,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         Task Reset();
         Task Draw();
         Task<List<GiveawayWinner>> PastWinners();
+        Task<List<GiveawayWinner>> GetPastWinnersOrThrowAsync();
         Task UpdateWinner(GiveawayWinner winner);
         Task<string> Enter(string sender, string amount, bool fromUi);
         Task<string> EnterByUserId(string userId, string amount, bool fromUi);

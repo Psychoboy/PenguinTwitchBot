@@ -4,6 +4,7 @@ using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
+using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Commands.PastyGames
 {
@@ -19,10 +20,14 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
         IDefaultCommandTriggerService defaultCommandTriggerService
             ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
+        private sealed record PendingRefund(string Key, string Username, long Amount);
+
         private readonly List<Participant> Entered = [];
         private readonly List<Participant> Survivors = [];
         private readonly List<Participant> Caught = [];
+        private readonly ConcurrentDictionary<string, PendingRefund> _pendingRefunds = new(StringComparer.Ordinal);
         private readonly object _stateLock = new();
+        private long _roundId = 0;
         private ITimer? JoinTimer;
         private State GameState = State.NotRunning;
         private int CurrentStoryPart = 0;
@@ -74,11 +79,46 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
+        private async Task<bool> TryRefundAsync(PendingRefund refund)
+        {
+            _pendingRefunds.TryAdd(refund.Key, refund);
+            try
+            {
+                var credited = await pointsSystem.AddPointsByUsernameAndGame(refund.Username, ModuleName, refund.Amount);
+                if (credited > 0)
+                {
+                    _pendingRefunds.TryRemove(refund.Key, out _);
+                    return true;
+                }
+
+                logger.LogWarning("Heist refund {RefundKey} for {Username} ({Amount}) returned 0; retaining for retry.", refund.Key, refund.Username, refund.Amount);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error refunding Heist entry {RefundKey} for {Username} ({Amount}); retaining for retry.", refund.Key, refund.Username, refund.Amount);
+                return false;
+            }
+        }
+
+        private async Task RetryPendingRefundsAsync()
+        {
+            foreach (var refund in _pendingRefunds.Values)
+            {
+                await TryRefundAsync(refund);
+            }
+        }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = CommandHandler.GetCommand(e.Command);
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals(CommandName)) return;
+
+            if (!_pendingRefunds.IsEmpty)
+            {
+                await RetryPendingRefundsAsync();
+            }
 
             bool isFinishing;
             bool isAlreadyJoined;
@@ -155,6 +195,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             bool startedNewGame = false;
             bool rejectedLate = false;
             bool rejectedDuplicate = false;
+            long startedRoundId = 0;
             lock (_stateLock)
             {
                 if (GameState == State.Finishing)
@@ -170,6 +211,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     if (GameState == State.NotRunning)
                     {
                         GameState = State.Running;
+                        startedRoundId = ++_roundId;
                         startedNewGame = true;
                     }
                     Entered.Add(new Participant
@@ -183,7 +225,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 
             if (rejectedLate || rejectedDuplicate)
             {
-                await pointsSystem.AddPointsByUsernameAndGame(e.Name, ModuleName, amount);
+                await TryRefundAsync(new PendingRefund($"heist:reject:{Guid.NewGuid():N}", e.Name, amount));
                 var msg = rejectedLate
                     ? await gameSettingsService.GetStringSetting(GAMENAME, GAMEFINISHING, "you can not join the heist now.")
                     : await gameSettingsService.GetStringSetting(GAMENAME, ALREADYJOINED, "you have already joined the heist.");
@@ -203,7 +245,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     List<Participant> toRefund = [];
                     lock (_stateLock)
                     {
-                        if (GameState == State.Running)
+                        if (_roundId == startedRoundId && GameState == State.Running)
                         {
                             toRefund = [.. Entered];
                             Entered.Clear();
@@ -214,7 +256,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     }
                     foreach (var participant in toRefund)
                     {
-                        await pointsSystem.AddPointsByUsernameAndGame(participant.Name, ModuleName, participant.Bet);
+                        var key = $"heist:{startedRoundId}:{participant.Name.ToLowerInvariant()}";
+                        await TryRefundAsync(new PendingRefund(key, participant.Name, participant.Bet));
                     }
                     throw;
                 }
