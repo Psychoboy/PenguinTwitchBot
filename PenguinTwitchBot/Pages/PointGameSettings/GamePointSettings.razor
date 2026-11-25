@@ -58,10 +58,19 @@
         PointSettings = MiscPointAssignmentFilter.Filter(assignmentsTask.Result, defaultPointTypeTask.Result);
     }
 
+    [Inject] private ILogger<GamePointSettings> _logger { get; set; } = default!;
+
     private async void ItemHasBeenCommitted(object element)
     {
-        var assignment = (MiscPointAssignment)element;
-        await pointSystem.SetPointTypeForGame(assignment.Assignment.Setting.GameName, assignment.Assignment.PointType.Id);
+        try
+        {
+            var assignment = (MiscPointAssignment)element;
+            await pointSystem.SetPointTypeForGame(assignment.Assignment.Setting.GameName, assignment.Assignment.PointType.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating game point assignment");
+        }
     }
 
     private string ConvertFunction(PointType? pointType)

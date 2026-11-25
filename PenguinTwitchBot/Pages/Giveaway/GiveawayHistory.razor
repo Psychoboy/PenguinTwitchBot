@@ -90,9 +90,18 @@
 
     }
 
+    [Inject] private ILogger<GiveawayHistory> _logger { get; set; } = default!;
+
     private async void ItemHasBeenCommitted(object element)
     {
-        var winner = (Database.Bot.Models.Giveaway.GiveawayWinner)element;
-        await giveawayFeature.UpdateWinner(winner);
+        try
+        {
+            var winner = (Database.Bot.Models.Giveaway.GiveawayWinner)element;
+            await giveawayFeature.UpdateWinner(winner);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating giveaway winner");
+        }
     }
 }

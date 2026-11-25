@@ -81,7 +81,7 @@
         theAlias = await AliasCommand.GetAliasAsync(id);
     }
 
-    public async void OnSubmit()
+    public async Task OnSubmit()
     {
         if (theAlias == null) return;
         var originalAlias = await AliasCommand.GetAliasAsync(id);

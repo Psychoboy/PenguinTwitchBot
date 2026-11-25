@@ -309,18 +309,18 @@
         FilterLogs();
     }
 
-    private void TogglePauseUpdates()
+    private async Task TogglePauseUpdates()
     {
         _updatesPaused = !_updatesPaused;
 
         if (!_updatesPaused)
         {
             // When resuming, reload to get all latest data
-            ResumeUpdates();
+            await ResumeUpdates();
         }
     }
 
-    private async void ResumeUpdates()
+    private async Task ResumeUpdates()
     {
         _updatesPaused = false;
         _pendingUpdatesCount = 0;

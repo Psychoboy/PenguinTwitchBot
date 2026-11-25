@@ -22,6 +22,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
         private readonly List<Participant> Entered = [];
         private readonly List<Participant> Survivors = [];
         private readonly List<Participant> Caught = [];
+        private readonly object _stateLock = new();
         private ITimer? JoinTimer;
         private State GameState = State.NotRunning;
         private int CurrentStoryPart = 0;
@@ -79,14 +80,22 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals(CommandName)) return;
 
-            if (GameState == State.Finishing)
+            bool isFinishing;
+            bool isAlreadyJoined;
+            lock (_stateLock)
+            {
+                isFinishing = GameState == State.Finishing;
+                isAlreadyJoined = Entered.Exists(x => x.Name.Equals(e.Name));
+            }
+
+            if (isFinishing)
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, GAMEFINISHING, "you can not join the heist now.");
                 await ServiceBackbone.ResponseWithMessage(e, message); //GAMEFINISHING
                 throw new SkipCooldownException();
             }
 
-            if (Entered.Exists(x => x.Name.Equals(e.Name)))
+            if (isAlreadyJoined)
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, ALREADYJOINED, "you have already joined the heist.");
                 await ServiceBackbone.ResponseWithMessage(e, message); //ALREADYJOINED
@@ -143,20 +152,52 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (GameState == State.NotRunning)
+            bool startedNewGame = false;
+            bool rejectedLate = false;
+            bool rejectedDuplicate = false;
+            lock (_stateLock)
+            {
+                if (GameState == State.Finishing)
+                {
+                    rejectedLate = true;
+                }
+                else if (Entered.Exists(x => x.Name.Equals(e.Name)))
+                {
+                    rejectedDuplicate = true;
+                }
+                else
+                {
+                    if (GameState == State.NotRunning)
+                    {
+                        GameState = State.Running;
+                        startedNewGame = true;
+                    }
+                    Entered.Add(new Participant
+                    {
+                        Name = e.Name,
+                        DisplayName = e.DisplayName,
+                        Bet = amount
+                    });
+                }
+            }
+
+            if (rejectedLate || rejectedDuplicate)
+            {
+                await pointsSystem.AddPointsByUsernameAndGame(e.Name, ModuleName, amount);
+                var msg = rejectedLate
+                    ? await gameSettingsService.GetStringSetting(GAMENAME, GAMEFINISHING, "you can not join the heist now.")
+                    : await gameSettingsService.GetStringSetting(GAMENAME, ALREADYJOINED, "you have already joined the heist.");
+                await ServiceBackbone.ResponseWithMessage(e, msg);
+                throw new SkipCooldownException();
+            }
+
+            if (startedNewGame)
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, GAMESTARTING, "{Name} is trying to get a team together for some serious heist business! use \"!{Command} AMOUNT/ALL/MAX\" to join!");
                 message = message
                     .Replace("{Command}", e.Command, StringComparison.OrdinalIgnoreCase)
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(message); //GAMESTARTING
-                GameState = State.Running;
-                Entered.Add(new Participant
-                {
-                    Name = e.Name,
-                    DisplayName = e.DisplayName,
-                    Bet = amount
-                });
                 var joinTime = await gameSettingsService.GetIntSetting(GAMENAME, JOINTIME, 300);
                 JoinTimer = timeProvider.CreateTimer(JoinTimerCallback, this, TimeSpan.FromSeconds(joinTime), TimeSpan.FromSeconds(joinTime));
 
@@ -169,16 +210,6 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     {
                         { "BetAmount", amount.ToString("N0") }
                     });
-            }
-            else
-            {
-                Entered.Add(new Participant
-                {
-                    Name = e.Name,
-                    DisplayName = e.DisplayName,
-                    Bet = amount
-                });
-
             }
         }
 
@@ -210,7 +241,11 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 
         private async Task RunStory()
         {
-            GameState = State.Finishing;
+            lock (_stateLock)
+            {
+                if (GameState != State.Running) return;
+                GameState = State.Finishing;
+            }
             JoinTimer?.Dispose();
             try
             {
@@ -260,6 +295,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             {
                 logger.LogError(e, "Failed finishing heist");
                 await EndHeist();
+                return;
             }
             await EndHeist();
         }
@@ -336,19 +372,25 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
         {
             try
             {
-                Entered.Clear();
-                Survivors.Clear();
-                Caught.Clear();
-                GameState = State.NotRunning;
-                CurrentStoryPart = 0;
+                lock (_stateLock)
+                {
+                    Entered.Clear();
+                    Survivors.Clear();
+                    Caught.Clear();
+                    GameState = State.NotRunning;
+                    CurrentStoryPart = 0;
+                }
                 var cooldown = await gameSettingsService.GetIntSetting(GAMENAME, COOLDOWN, 300);
                 await CommandHandler.AddGlobalCooldown(CommandName, cooldown);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Failed Cleaning heist");
-                GameState = State.NotRunning;
-                CurrentStoryPart = 0;
+                lock (_stateLock)
+                {
+                    GameState = State.NotRunning;
+                    CurrentStoryPart = 0;
+                }
             }
         }
 

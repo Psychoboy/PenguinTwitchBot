@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Application.Notifications
+namespace PenguinTwitchBot.Application.Notifications
 {
     public class PenguinDispatcher(IServiceProvider serviceProvider) : IPenguinDispatcher
     {
@@ -7,7 +7,9 @@
             // Use runtime type instead of compile-time generic type to support polymorphism
             var notificationType = notification.GetType();
             var handlerType = typeof(INotificationHandler<>).MakeGenericType(notificationType);
-            var handlers = serviceProvider.GetServices(handlerType);
+
+            await using var scope = serviceProvider.CreateAsyncScope();
+            var handlers = scope.ServiceProvider.GetServices(handlerType);
 
             var tasks = new List<Task>();
             foreach (var handler in handlers)
@@ -40,7 +42,8 @@
             var requestType = request.GetType();
             var handlerType = typeof(IRequestHandler<,>).MakeGenericType(requestType, typeof(TResponse));
 
-            var handler = serviceProvider.GetService(handlerType);
+            await using var scope = serviceProvider.CreateAsyncScope();
+            var handler = scope.ServiceProvider.GetService(handlerType);
             if (handler == null)
             {
                 throw new InvalidOperationException($"No handler registered for request type {requestType.Name}");

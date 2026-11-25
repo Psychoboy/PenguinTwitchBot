@@ -18,6 +18,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         protected readonly Timer _pointsToActiveCommandTimer = new(1000);
+        private readonly object _pointsLock = new();
         private long _pointsToGiveOut = 0;
         private DateTime _lastPointsGivenOut = DateTime.UtcNow;
 
@@ -54,8 +55,11 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         {
             var maxPoints = await gameSettingsService.GetIntSetting(ModuleName, MAX_POINTS, 100);
             if (maxPoints > 0 && amount > maxPoints) amount = maxPoints;
-            _lastPointsGivenOut = GetDateTime();
-            _pointsToGiveOut += amount;
+            lock (_pointsLock)
+            {
+                _lastPointsGivenOut = GetDateTime();
+                _pointsToGiveOut += amount;
+            }
         }
 
         protected virtual DateTime GetDateTime()
@@ -71,25 +75,41 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         public async Task SendTickets()
         {
             _pointsToActiveCommandTimer.Stop();
+            long pointsToSend = 0;
             try
             {
                 var delay = await gameSettingsService.GetIntSetting(ModuleName, DELAY, 5);
-                if (_pointsToGiveOut > 0 && _lastPointsGivenOut.AddSeconds(delay) < GetDateTime())
+                lock (_pointsLock)
+                {
+                    if (_pointsToGiveOut > 0 && _lastPointsGivenOut.AddSeconds(delay) < GetDateTime())
+                    {
+                        pointsToSend = _pointsToGiveOut;
+                        _pointsToGiveOut = 0;
+                    }
+                }
+
+                if (pointsToSend > 0)
                 {
                     var pointType = await pointSystem.GetPointTypeForGame(ModuleName);
-                    await pointSystem.AddPointsToActiveUsers(pointType.Id, _pointsToGiveOut);
+                    await pointSystem.AddPointsToActiveUsers(pointType.Id, pointsToSend);
 
                     var message = await gameSettingsService.GetStringSetting(ModuleName, MESSAGE, "Sending {Amount} {PointType} to all active users.");
                     message = message
-                        .Replace("{Amount}", _pointsToGiveOut.ToString("n0"), StringComparison.OrdinalIgnoreCase)
+                        .Replace("{Amount}", pointsToSend.ToString("n0"), StringComparison.OrdinalIgnoreCase)
                         .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
 
                     await ServiceBackbone.SendChatMessage(message);
-                    _pointsToGiveOut = 0;
                 }
             }
             catch (Exception ex)
             {
+                if (pointsToSend > 0)
+                {
+                    lock (_pointsLock)
+                    {
+                        _pointsToGiveOut += pointsToSend;
+                    }
+                }
                 logger.LogError(ex, "Error sending tickets");
             }
             finally

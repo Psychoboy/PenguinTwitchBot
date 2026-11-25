@@ -308,7 +308,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var variables = CreateVariables("!test-timeout", skipLock: false);
             var type = new RuntimeDefaultCommandType();
 
-            var lockObj = new SemaphoreSlim(0);
+            var lockObj = new SemaphoreSlim(0, 1);
             var commandLockField = typeof(RuntimeDefaultCommandHandler).GetField("CommandLock", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
             var dict = (ConcurrentDictionary<string, SemaphoreSlim>)commandLockField.GetValue(null)!;
             dict.GetOrAdd("!test-timeout", _ => lockObj);
@@ -317,6 +317,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             {
                 _handler.LockTimeout = TimeSpan.FromMilliseconds(25);
                 await _handler.ExecuteAsync(type, variables, null, -1);
+                Assert.Equal(0, lockObj.CurrentCount);
             }
             finally
             {

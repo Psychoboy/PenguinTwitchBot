@@ -229,7 +229,7 @@
         PointTypes = await pointSystem.GetPointTypes();
     }
 
-    public async void OnSubmit()
+    public async Task OnSubmit()
     {
         if (defaultCommand == null) return;
         var originalCommand = await CommandHandler.GetDefaultCommandById(id);

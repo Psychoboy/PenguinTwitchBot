@@ -424,8 +424,6 @@ internal class Program
         await ConfigureQuartzTriggersAsync(app.Services);
         PenguinTwitchBot.Bot.Actions.SubActions.VariableReplacer.ServiceBackbone = app.Services.GetService<PenguinTwitchBot.Bot.Core.IServiceBackbone>();
 
-        app.UseMiddleware<PenguinTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();
-
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())
         {

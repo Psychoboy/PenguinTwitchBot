@@ -825,25 +825,23 @@ namespace PenguinTwitchBot.Bot.Core.Points
             }
         }
 
-        public Task AddPointsToSubbedUsers(Guid pointType, long points)
+        public async Task AddPointsToSubbedUsers(Guid pointType, long points)
         {
-            viewerFeature.GetCurrentViewers().ForEach(async viewer =>
+            foreach (var viewer in viewerFeature.GetCurrentViewers().Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 if (await viewerFeature.IsSubscriber(viewer))
                 {
                     await AddPointsByUsername(viewer, pointType, points);
                 }
-            });
-            return Task.CompletedTask;
+            }
         }
 
-        public Task AddPointsToAllCurrentUsers(Guid pointType, long points)
+        public async Task AddPointsToAllCurrentUsers(Guid pointType, long points)
         {
-            viewerFeature.GetCurrentViewers().ForEach(async viewer =>
+            foreach (var viewer in viewerFeature.GetCurrentViewers().Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 await AddPointsByUsername(viewer, pointType, points);
-            });
-            return Task.CompletedTask;
+            }
         }
 
         public async Task<UserPointsWithRank> GetPointsWithRankByUsername(string name, Guid pointType)
