@@ -1,6 +1,7 @@
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using LinqToDB.EntityFrameworkCore;
+using System.Collections.Concurrent;
 using System.Timers;
 using Timer = System.Timers.Timer;
 using PenguinTwitchBot.Bot.Features;
@@ -52,14 +53,24 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             });
         }
 
+        private readonly ConcurrentDictionary<string, int> _pendingViewerSeconds = new(StringComparer.OrdinalIgnoreCase);
         private int _timerRunning;
 
         private async void ElapseTimer(object? sender, ElapsedEventArgs e)
         {
+            if (IsFeatureEnabled() && ServiceBackbone.IsOnline)
+            {
+                foreach (var viewerName in viewerFeature.GetCurrentViewers())
+                {
+                    if (ServiceBackbone.IsKnownBot(viewerName)) continue;
+                    _pendingViewerSeconds.AddOrUpdate(viewerName, 60, (_, existing) => existing + 60);
+                }
+            }
+
             if (Interlocked.CompareExchange(ref _timerRunning, 1, 0) != 0) return;
             try
             {
-                await UpdateTime();
+                await DrainPendingTimeCreditsAsync();
             }
             catch (Exception ex)
             {
@@ -68,6 +79,23 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             finally
             {
                 Volatile.Write(ref _timerRunning, 0);
+            }
+
+            // Re-check in case another tick queued credits right before _timerRunning was cleared.
+            if (!_pendingViewerSeconds.IsEmpty && Interlocked.CompareExchange(ref _timerRunning, 1, 0) == 0)
+            {
+                try
+                {
+                    await DrainPendingTimeCreditsAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to update timer");
+                }
+                finally
+                {
+                    Volatile.Write(ref _timerRunning, 0);
+                }
             }
         }
 
@@ -89,26 +117,28 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             await db.SaveChangesAsync();
         }
 
-        private async Task UpdateTime()
+        private async Task DrainPendingTimeCreditsAsync()
         {
-            if (!IsFeatureEnabled()) return;
-            if (!ServiceBackbone.IsOnline) return;
-
-            var currentViewers = viewerFeature.GetCurrentViewers();
-
-            foreach (var viewerName in currentViewers)
+            while (!_pendingViewerSeconds.IsEmpty)
             {
-                if (ServiceBackbone.IsKnownBot(viewerName)) continue;
-                var userId = await viewerFeature.GetViewerId(viewerName);
-                if(userId == null) continue;
+                foreach (var viewerName in _pendingViewerSeconds.Keys.ToList())
+                {
+                    if (!_pendingViewerSeconds.TryRemove(viewerName, out var secondsToAdd) || secondsToAdd <= 0)
+                    {
+                        continue;
+                    }
 
-                try
-                {
-                    await AddTimeToViewerByUserId(userId, 60);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Couldn't add time");
+                    var userId = await viewerFeature.GetViewerId(viewerName);
+                    if (userId == null) continue;
+
+                    try
+                    {
+                        await AddTimeToViewerByUserId(userId, secondsToAdd);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Couldn't add time");
+                    }
                 }
             }
         }

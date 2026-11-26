@@ -175,14 +175,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             {
                 if (kvp.Value.CachedAtUtc < cutoffUtc)
                 {
-                    UserCache.TryRemove(kvp.Key, out _);
+                    UserCache.TryRemove(kvp);
                 }
             }
             foreach (var kvp in UserByIdCache)
             {
                 if (kvp.Value.CachedAtUtc < cutoffUtc)
                 {
-                    UserByIdCache.TryRemove(kvp.Key, out _);
+                    UserByIdCache.TryRemove(kvp);
                 }
             }
         }

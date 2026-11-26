@@ -306,6 +306,10 @@ namespace PenguinTwitchBot.Bot.ObsConnector
                 // Stop existing connection
                 if (_connections.TryRemove(config.Id, out var existing))
                 {
+                    if (!config.Enabled)
+                    {
+                        await MarkConnectionDisconnectedAsync(config.Id, existing.Name);
+                    }
                     await StopAndDisposeConnectionAsync(existing);
                 }
 
@@ -318,6 +322,27 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             finally
             {
                 _lock.Release();
+            }
+        }
+
+        private async Task MarkConnectionDisconnectedAsync(Guid connectionId, string connectionName)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                var connection = await db.OBSConnections.GetByIdAsync(connectionId);
+                if (connection != null && connection.IsConnected)
+                {
+                    connection.IsConnected = false;
+                    connection.LastDisconnected = DateTime.UtcNow;
+                    await db.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error persisting disconnected status for disabled OBS connection '{Name}'", connectionName);
             }
         }
 
