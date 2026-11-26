@@ -33,11 +33,10 @@ public partial class ActionRecipeWizard
             SceneName = GetParameter("SceneName"),
             SourceName = GetParameter("SourceName")
         };
-        var fields = SubActionUIFieldEnhancer.GetEnhancedFields(visibility, scope.ServiceProvider);
+        var fields = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(visibility, scope.ServiceProvider);
         _obsConnectionOptions = fields.FirstOrDefault(field => field.PropertyName == nameof(ObsSetSourceVisibilityType.OBSConnectionId))?.SelectOptions ?? [];
         _obsSceneOptions = fields.FirstOrDefault(field => field.PropertyName == nameof(ObsSetSourceVisibilityType.SceneName))?.SelectOptions ?? [];
         _obsSourceOptions = fields.FirstOrDefault(field => field.PropertyName == nameof(ObsSetSourceVisibilityType.SourceName))?.SelectOptions ?? [];
-        await Task.CompletedTask;
     }
 
     private async Task OnObsConnectionChanged(string? connectionId)

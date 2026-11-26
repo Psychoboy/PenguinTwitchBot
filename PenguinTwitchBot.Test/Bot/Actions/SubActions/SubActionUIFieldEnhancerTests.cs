@@ -20,7 +20,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions;
 public class SubActionUIFieldEnhancerTests
 {
     [Fact]
-    public void GetEnhancedFields_TimerGroupType_EnhancesWithTimerGroups()
+    public async Task GetEnhancedFields_TimerGroupType_EnhancesWithTimerGroups()
     {
         var services = new ServiceCollection();
         var timerService = Substitute.For<IAutoTimers>();
@@ -40,7 +40,7 @@ public class SubActionUIFieldEnhancerTests
             new SubActionUIField { PropertyName = nameof(TimerGroupSetEnabledStateType.TimerGroupId) }
         };
 
-        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+        var result = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, provider);
 
         var timerGroupField = result.First(f => f.PropertyName == nameof(TimerGroupSetEnabledStateType.TimerGroupId));
         Assert.NotNull(timerGroupField);
@@ -52,7 +52,7 @@ public class SubActionUIFieldEnhancerTests
     }
 
     [Fact]
-    public void GetEnhancedFields_RaffleStart_PopulatesPointTypeChoices()
+    public async Task GetEnhancedFields_RaffleStart_PopulatesPointTypeChoices()
     {
         var pointTypeId = Guid.CreateVersion7();
         var pointsSystem = Substitute.For<IPointsSystem>();
@@ -63,7 +63,7 @@ public class SubActionUIFieldEnhancerTests
         var provider = services.BuildServiceProvider();
         var subAction = new RaffleStartType();
 
-        var fields = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+        var fields = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, provider);
 
         var pointTypeField = fields.Single(field => field.PropertyName == nameof(RaffleStartType.PointTypeId));
         Assert.Equal(UIFieldType.Select, pointTypeField.FieldType);
@@ -76,7 +76,7 @@ public class SubActionUIFieldEnhancerTests
     }
 
     [Fact]
-    public void GetEnhancedFields_ObsBrowserSource_UsesOptionalObsInputListMethod()
+    public async Task GetEnhancedFields_ObsBrowserSource_UsesOptionalObsInputListMethod()
     {
         var services = new ServiceCollection();
         var connectionManager = Substitute.For<IOBSConnectionManager>();
@@ -113,7 +113,7 @@ public class SubActionUIFieldEnhancerTests
             new() { PropertyName = nameof(ObsSetBrowserSourceUrlType.InputName) }
         };
 
-        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+        var result = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, provider);
 
         var browserField = result.First(f => f.PropertyName == nameof(ObsSetBrowserSourceUrlType.InputName));
         Assert.Equal(UIFieldType.Select, browserField.FieldType);
@@ -123,7 +123,7 @@ public class SubActionUIFieldEnhancerTests
     }
 
     [Fact]
-    public void GetEnhancedFields_ObsSourceVisibility_UsesSceneItemsAndObsSceneOrder()
+    public async Task GetEnhancedFields_ObsSourceVisibility_UsesSceneItemsAndObsSceneOrder()
     {
         var services = new ServiceCollection();
         var connectionManager = Substitute.For<IOBSConnectionManager>();
@@ -169,7 +169,7 @@ public class SubActionUIFieldEnhancerTests
             SceneName = "Scene Z"
         };
 
-        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+        var result = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, provider);
 
         var sceneField = result.First(field => field.PropertyName == nameof(ObsSetSourceVisibilityType.SceneName));
         Assert.Equal(["Scene A", "Scene Z"], sceneField.SelectOptions!.Select(option => option.Name));
@@ -180,27 +180,27 @@ public class SubActionUIFieldEnhancerTests
     }
 
     [Fact]
-    public void GetEnhancedFields_NullSubAction_ReturnsEmpty()
+    public async Task GetEnhancedFields_NullSubAction_ReturnsEmpty()
     {
         SubActionType? subAction = null;
 
-        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, null);
+        var result = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, null);
 
         Assert.Empty(result);
     }
 
     [Fact]
-    public void GetEnhancedFields_TimerGroup_NullServiceProvider_ReturnsBaseFields()
+    public async Task GetEnhancedFields_TimerGroup_NullServiceProvider_ReturnsBaseFields()
     {
         var subAction = new TimerGroupSetEnabledStateType();
 
-        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, null);
+        var result = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, null);
 
         Assert.NotEmpty(result);
     }
 
     [Fact]
-    public void GetEnhancedFields_FishingModify_FishMode_EnhancesWithFishTypesAndSettings()
+    public async Task GetEnhancedFields_FishingModify_FishMode_EnhancesWithFishTypesAndSettings()
     {
         var services = new ServiceCollection();
         var fishingService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingService>();
@@ -232,7 +232,7 @@ public class SubActionUIFieldEnhancerTests
             TargetFish = fish1Id.ToString()
         };
 
-        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+        var result = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, provider);
 
         var targetFishField = result.First(f => f.PropertyName == nameof(FishingModifyType.TargetFish));
         Assert.NotNull(targetFishField.SelectOptions);
@@ -245,7 +245,7 @@ public class SubActionUIFieldEnhancerTests
     }
 
     [Fact]
-    public void GetEnhancedFields_FishingModify_ShopItemMode_EnhancesWithShopItems()
+    public async Task GetEnhancedFields_FishingModify_ShopItemMode_EnhancesWithShopItems()
     {
         var services = new ServiceCollection();
         var fishingService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingService>();
@@ -269,7 +269,7 @@ public class SubActionUIFieldEnhancerTests
             TargetShopItem = shopItem1Id.ToString()
         };
 
-        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+        var result = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, provider);
 
         var targetShopField = result.First(f => f.PropertyName == nameof(FishingModifyType.TargetShopItem));
         Assert.NotNull(targetShopField.SelectOptions);
@@ -278,7 +278,7 @@ public class SubActionUIFieldEnhancerTests
     }
 
     [Fact]
-    public void GetEnhancedFields_OpenAiType_WhenCachedModelsAvailable_EnhancesOptions()
+    public async Task GetEnhancedFields_OpenAiType_WhenCachedModelsAvailable_EnhancesOptions()
     {
         var services = new ServiceCollection();
         var modelService = Substitute.For<PenguinTwitchBot.Bot.Ai.IOpenAiModelService>();
@@ -287,7 +287,7 @@ public class SubActionUIFieldEnhancerTests
         var provider = services.BuildServiceProvider();
 
         var subAction = new OpenAiType();
-        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+        var result = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, provider);
 
         var modelField = result.First(f => f.PropertyName == nameof(OpenAiType.Model));
         Assert.NotNull(modelField.Options);
@@ -295,7 +295,7 @@ public class SubActionUIFieldEnhancerTests
     }
 
     [Fact]
-    public void GetEnhancedFields_OpenAiType_WhenCachedModelsNull_LeavesDefaultOptionsWithoutCallingApi()
+    public async Task GetEnhancedFields_OpenAiType_WhenCachedModelsNull_LeavesDefaultOptionsWithoutCallingApi()
     {
         var services = new ServiceCollection();
         var modelService = Substitute.For<PenguinTwitchBot.Bot.Ai.IOpenAiModelService>();
@@ -304,7 +304,7 @@ public class SubActionUIFieldEnhancerTests
         var provider = services.BuildServiceProvider();
 
         var subAction = new OpenAiType();
-        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+        var result = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, provider);
 
         var modelField = result.First(f => f.PropertyName == nameof(OpenAiType.Model));
         Assert.NotNull(modelField.Options);

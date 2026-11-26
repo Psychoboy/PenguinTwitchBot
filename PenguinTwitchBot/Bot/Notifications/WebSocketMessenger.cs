@@ -14,9 +14,13 @@ namespace PenguinTwitchBot.Bot.Notifications
 {
     public class WebSocketMessenger : IWebSocketMessenger
     {
-        private readonly BlockingCollection<QueuedMessage> _queue = [];
+        private readonly Channel<QueuedMessage> _queue = Channel.CreateUnbounded<QueuedMessage>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false
+        });
         private List<SocketConnection> websocketConnections = [];
-        static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        static readonly SemaphoreSlim _semaphoreSlim = new(1, 1);
         readonly ILogger<WebSocketMessenger> _logger;
         private bool Paused = false;
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
@@ -59,12 +63,12 @@ namespace PenguinTwitchBot.Bot.Notifications
                     _logger.LogDebug("No websockets connected. Not adding message to queue.");
                     return;
                 }
-                if (_queue.Count >= Volatile.Read(ref _maxQueueSize))
+                if (_queue.Reader.Count >= Volatile.Read(ref _maxQueueSize))
                 {
                     _logger.LogWarning("Queue is full. Not adding message to queue.");
                     return;
                 }
-                _queue.Add(new QueuedMessage(topic, message));
+                _queue.Writer.TryWrite(new QueuedMessage(topic, message));
             }
             finally { _semaphoreSlim.Release(); }
         }
@@ -153,7 +157,7 @@ namespace PenguinTwitchBot.Bot.Notifications
             {
                 await _semaphoreSlim.WaitAsync();
                 return new WebSocketMessengerStatus(
-                    _queue.Count,
+                    _queue.Reader.Count,
                     Volatile.Read(ref _maxQueueSize),
                     Volatile.Read(ref _perSocketQueueCapacity),
                     websocketConnections.Select(connection =>
@@ -190,7 +194,10 @@ namespace PenguinTwitchBot.Bot.Notifications
             await ReconnectAllSocketsAsync();
         }
 
-        public void ClearGlobalQueue() => _queue.Clear();
+        public void ClearGlobalQueue()
+        {
+            while (_queue.Reader.TryRead(out _)) { }
+        }
 
         public async Task<int> ReconnectAllSocketsAsync()
         {
@@ -263,20 +270,40 @@ namespace PenguinTwitchBot.Bot.Notifications
                 {
                     var sentMessage = false;
 
-                    if (_queue.TryTake(out var result, 5000, cancellationToken))
+                    QueuedMessage? result = null;
+                    if (_queue.Reader.TryRead(out var immediate))
                     {
-                        if (!Paused)
+                        result = immediate;
+                    }
+                    else
+                    {
+                        using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        waitCts.CancelAfter(_idlePingInterval);
+                        try
                         {
-                            await SendMessageToSockets(result, cancellationToken);
-                            sentMessage = true;
-                            lastNonPingSendUtc = DateTime.UtcNow;
+                            if (await _queue.Reader.WaitToReadAsync(waitCts.Token) && _queue.Reader.TryRead(out var awaited))
+                            {
+                                result = awaited;
+                            }
                         }
+                        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                        {
+                            // Idle interval elapsed without a queued message; fall through to ping check.
+                        }
+                    }
+
+                    if (result != null && !Paused)
+                    {
+                        await SendMessageToSockets(result, cancellationToken);
+                        sentMessage = true;
+                        lastNonPingSendUtc = DateTime.UtcNow;
                     }
 
                     var shouldPing = !sentMessage && DateTime.UtcNow - lastNonPingSendUtc >= _idlePingInterval;
                     if (!cancellationToken.IsCancellationRequested && shouldPing)
                     {
                         await SendMessageToSockets(new QueuedMessage(null, "ping"), cancellationToken);
+                        lastNonPingSendUtc = DateTime.UtcNow;
                     }
                 }
             }
@@ -536,7 +563,7 @@ namespace PenguinTwitchBot.Bot.Notifications
                     }
 
                     if (closedSockets.Count > 0 && !await HasOpenSockets(cancellationToken))
-                        _queue.Clear();
+                        ClearGlobalQueue();
 
                     try
                     {
@@ -596,7 +623,7 @@ namespace PenguinTwitchBot.Bot.Notifications
             finally { _semaphoreSlim.Release(); }
 
             if (noConnections)
-                _queue.Clear();
+                ClearGlobalQueue();
 
         }
 
@@ -630,7 +657,7 @@ namespace PenguinTwitchBot.Bot.Notifications
         public void Pause()
         {
             Paused = true;
-            _queue.Clear();
+            ClearGlobalQueue();
         }
 
         public void Resume()
