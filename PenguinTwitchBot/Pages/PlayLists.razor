@@ -1,10 +1,9 @@
 @page "/playlists"
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
+@using PenguinTwitchBot.Bot.Hubs
+@inject IInProcessHubEventBus HubEventBus
 @inject PenguinTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
-@inject NavigationManager Navigation
 @implements IAsyncDisposable
 @inject ISnackbar Snackbar
 @inject ILogger<PlayLists> logger
@@ -58,8 +57,7 @@
     private MusicPlaylist? currentPlayList;
     private Song? currentSong;
     private List<Song>? songRequests;
-    private HubConnection? hubConnection;
-    private CancellationTokenSource? _hubConnectionCts;
+    private readonly List<IDisposable> _hubSubscriptions = [];
     private Guid? defaultPlaylistId;
     private List<Guid> additionalPlaylistIds = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
@@ -71,46 +69,30 @@
         currentSong = YtPlayer.GetCurrentSong();
         defaultPlaylistId = await YtPlayer.GetDefaultPlaylistId();
         additionalPlaylistIds = await YtPlayer.GetAdditionalPlaylistIds();
+        songRequests = await YtPlayer.GetRequestedSongs();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender == false) return;
 
-        _hubConnectionCts = new CancellationTokenSource();
-
-        // Configure SignalR with automatic reconnect and retry policy
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/ythub"), options =>
-            {
-                // Allow fallback to other transports if WebSockets fail
-                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-                options.SkipNegotiation = false;
-            })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
-            .Build();
-
-        hubConnection.On<Song?>("CurrentSongUpdate", (song) =>
+        _hubSubscriptions.Add(HubEventBus.On<Song?>(HubNames.YtHub, "CurrentSongUpdate", (song) =>
         {
             currentSong = song;
-            InvokeAsync(StateHasChanged);
-        });
+            _ = InvokeAsync(StateHasChanged);
+        }));
 
-        hubConnection.On<MusicPlaylist>("UpdateCurrentPlaylist", (playlist) =>
+        _hubSubscriptions.Add(HubEventBus.On<MusicPlaylist>(HubNames.YtHub, "UpdateCurrentPlaylist", (playlist) =>
         {
             currentPlayList = playlist;
-            InvokeAsync(StateHasChanged);
-        });
+            _ = InvokeAsync(StateHasChanged);
+        }));
 
-        hubConnection.On<List<Song>>("CurrentSongRequests", (playlist) =>
+        _hubSubscriptions.Add(HubEventBus.On<List<Song>>(HubNames.YtHub, "CurrentSongRequests", (playlist) =>
         {
             songRequests = playlist;
-            InvokeAsync(StateHasChanged);
-        });
-
-        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
+            _ = InvokeAsync(StateHasChanged);
+        }));
     }
 
     private void ViewList(MusicPlaylist musicPlaylist)
@@ -268,13 +250,13 @@
             }
         }
     }
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        // Cancel any pending reconnection attempts
-        _hubConnectionCts?.Cancel();
-
-        await hubConnection.DisposeGracefullyAsync(logger);
-
-        _hubConnectionCts?.Dispose();
+        foreach (var subscription in _hubSubscriptions)
+        {
+            subscription.Dispose();
+        }
+        _hubSubscriptions.Clear();
+        return ValueTask.CompletedTask;
     }
 }

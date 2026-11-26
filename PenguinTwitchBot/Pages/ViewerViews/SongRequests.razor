@@ -1,9 +1,8 @@
 @page "/songrequests"
 @using PenguinTwitchBot.Models
-@using PenguinTwitchBot.Helpers
 @using PenguinTwitchBot.Bot.Commands.Music
-@using Microsoft.AspNetCore.SignalR.Client
-@inject NavigationManager Navigation
+@using PenguinTwitchBot.Bot.Hubs
+@inject IInProcessHubEventBus HubEventBus
 @inject YtPlayer YtPlayer
 @inject ISongCooldownService SongCooldownService
 @implements IAsyncDisposable
@@ -89,8 +88,7 @@
 
 @code {
     private Song? currentSong;
-    private HubConnection? hubConnection;
-    private CancellationTokenSource? _hubConnectionCts;
+    private IDisposable? _hubSubscription;
     private bool currentSongLoaded;
 
     protected override void OnInitialized()
@@ -107,46 +105,22 @@
         Snackbar.Add($"Added '{currentSong.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender == false) return;
 
-        _hubConnectionCts = new CancellationTokenSource();
-
-        // Configure SignalR with automatic reconnect and retry policy
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/ythub"), options =>
-            {
-                // Allow fallback to other transports if WebSockets fail
-                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-                options.SkipNegotiation = false;
-            })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
-            .Build();
-
-        hubConnection.On<Song?>("CurrentSongUpdate", (song) =>
+        _hubSubscription = HubEventBus.On<Song?>(HubNames.YtHub, "CurrentSongUpdate", (song) =>
         {
             currentSong = song;
             currentSongLoaded = true;
-            InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(StateHasChanged);
         });
-
-        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
-
-        currentSong = YtPlayer.GetCurrentSong();
-        currentSongLoaded = true;
-        StateHasChanged();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        // Cancel any pending reconnection attempts
-        _hubConnectionCts?.Cancel();
-
-        await hubConnection.DisposeGracefullyAsync(logger);
-
-        _hubConnectionCts?.Dispose();
+        _hubSubscription?.Dispose();
+        _hubSubscription = null;
+        return ValueTask.CompletedTask;
     }
 }

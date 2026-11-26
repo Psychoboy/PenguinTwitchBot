@@ -104,13 +104,11 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var mockSnackbar = new Mock<ISnackbar>();
 
-            var mockHubFactory = new Mock<ISignalRHubConnectionFactory>();
-
             _ctx!.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
             _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
             _ctx.Services.AddSingleton<IDialogService>(mockDialogService.Object);
             _ctx.Services.AddSingleton<ISnackbar>(mockSnackbar.Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(mockHubFactory.Object);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance));
         }
 
         private IRenderedComponent<ActionHistory> RenderPage()
@@ -162,7 +160,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
             _ctx.Services.AddSingleton<IDialogService>(new Mock<IDialogService>().Object);
             _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(new Mock<ISignalRHubConnectionFactory>().Object);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance));
 
             var page = RenderPage();
             await page.WaitForAssertionAsync(() =>
@@ -241,7 +239,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
             _ctx.Services.AddSingleton<IDialogService>(new Mock<IDialogService>().Object);
             _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(new Mock<ISignalRHubConnectionFactory>().Object);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance));
 
             var page = RenderPage();
             await page.WaitForAssertionAsync(() =>
@@ -572,7 +570,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
             _ctx.Services.AddSingleton<IDialogService>(new Mock<IDialogService>().Object);
             _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(new Mock<ISignalRHubConnectionFactory>().Object);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance));
 
             var page = RenderPage();
             await page.WaitForAssertionAsync(() =>
@@ -626,7 +624,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
             _ctx.Services.AddSingleton<IDialogService>(mockDialogService.Object);
             _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(new Mock<ISignalRHubConnectionFactory>().Object);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance));
 
             var page = RenderPage();
             await page.WaitForAssertionAsync(() =>
@@ -660,7 +658,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
             _ctx.Services.AddSingleton<IDialogService>(new Mock<IDialogService>().Object);
             _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(new Mock<ISignalRHubConnectionFactory>().Object);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance));
 
             var page = RenderPage();
             await page.WaitForAssertionAsync(() =>
@@ -731,7 +729,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
             _ctx.Services.AddSingleton<IDialogService>(mockDialogService.Object);
             _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(new Mock<ISignalRHubConnectionFactory>().Object);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance));
 
             var page = RenderPage();
             await page.WaitForAssertionAsync(() =>
@@ -759,68 +757,32 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         [Fact]
         public async Task SignalR_WhenNotPaused_ShouldInsertNewLogIntoUI()
         {
-            // 1. Arrange: Context & Required page dependencies setup
             SetupContext();
             var mockExecutionLogger = new Mock<IActionExecutionLogger>();
             _ctx!.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
             var mockQueueManager = new Mock<IQueueManager>();
-
-            // 2. Tell the QueueManager mock to return the logger mock instead of null
-            mockQueueManager
-                .Setup(q => q.ExecutionLogger)
-                .Returns(mockExecutionLogger.Object);
-
-            // 3. Register it into the context services container
+            mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockExecutionLogger.Object);
             _ctx.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
 
-            // 2. Intercept the action callback registered by the component
-            Func<ActionExecutionLog, Task>? attachedActionLogUpdatedHandler = null;
+            var hubEventBus = new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(hubEventBus);
 
-            var mockHubConnection = new Mock<ISignalRHubConnection>();
-            mockHubConnection
-                .Setup(h => h.On<ActionExecutionLog>("ActionLogUpdated", It.IsAny<Func<ActionExecutionLog, Task>>()))
-                .Callback<string, Func<ActionExecutionLog, Task>>((eventName, handler) => 
-                {
-                    attachedActionLogUpdatedHandler = handler; // Capture the page's subscription lambda
-                });
-
-            mockHubConnection.Setup(h => h.StartAsync()).Returns(Task.CompletedTask);
-
-            var mockHubFactory = new Mock<ISignalRHubConnectionFactory>();
-            mockHubFactory
-                .Setup(f => f.CreateMainHubConnection(It.IsAny<Uri>()))
-                .Returns(mockHubConnection.Object);
-
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(mockHubFactory.Object);
-
-            // 3. Act: Render the page component. This executes OnAfterRenderAsync and binds the handler.
             var page = _ctx.Render<ActionHistory>();
-
-            // Force internal logs list to be initialized so the UI can print it out
             var component = page.Instance;
             var logsField = typeof(ActionHistory).GetField("_allLogs", BindingFlags.Instance | BindingFlags.NonPublic)!;
             logsField.SetValue(component, new List<ActionExecutionLog>());
 
-            // 4. Simulate the Hub transmitting a real-time event
-            var incomingLog = new ActionExecutionLog 
-            { 
-                Id = Guid.NewGuid(), 
-                ActionName = "Real-time Bot Event Triggered!", 
-                State = ActionExecutionState.Completed, 
-                QueueName = "Default", 
-                EnqueuedAt = DateTime.UtcNow 
+            var incomingLog = new ActionExecutionLog
+            {
+                Id = Guid.NewGuid(),
+                ActionName = "Real-time Bot Event Triggered!",
+                State = ActionExecutionState.Completed,
+                QueueName = "Default",
+                EnqueuedAt = DateTime.UtcNow
             };
 
-            // Execute the intercepted callback handler directly on bUnit's UI thread
-            await _ctx!.Renderer.Dispatcher.InvokeAsync(async () =>
-            {
-                if (attachedActionLogUpdatedHandler != null)
-                {
-                    await attachedActionLogUpdatedHandler(incomingLog);
-                }
-            });
+            await hubEventBus.PublishAsync(HubNames.MainHub, "ActionLogUpdated", [incomingLog]);
 
-            // 5. Assert: Verify the new log entry rendered out directly into the page markup
             await page.WaitForAssertionAsync(() =>
             {
                 Assert.Contains("Real-time Bot Event Triggered!", page.Markup);
@@ -837,17 +799,8 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockExecutionLogger.Object);
             _ctx.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
 
-            Func<ActionExecutionLog, Task>? attachedHandler = null;
-
-            var mockHubConnection = new Mock<ISignalRHubConnection>();
-            mockHubConnection
-                .Setup(h => h.On<ActionExecutionLog>("ActionLogUpdated", It.IsAny<Func<ActionExecutionLog, Task>>()))
-                .Callback<string, Func<ActionExecutionLog, Task>>((eventName, handler) => attachedHandler = handler);
-            mockHubConnection.Setup(h => h.StartAsync()).Returns(Task.CompletedTask);
-
-            var mockHubFactory = new Mock<ISignalRHubConnectionFactory>();
-            mockHubFactory.Setup(f => f.CreateMainHubConnection(It.IsAny<Uri>())).Returns(mockHubConnection.Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(mockHubFactory.Object);
+            var hubEventBus = new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(hubEventBus);
 
             var page = _ctx.Render<ActionHistory>();
             var component = page.Instance;
@@ -861,10 +814,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var incomingLog = new ActionExecutionLog { Id = Guid.NewGuid(), ActionName = "NewPausedLog" };
 
-            await _ctx!.Renderer.Dispatcher.InvokeAsync(async () =>
-            {
-                if (attachedHandler != null) await attachedHandler(incomingLog);
-            });
+            await hubEventBus.PublishAsync(HubNames.MainHub, "ActionLogUpdated", [incomingLog]);
 
             await page.WaitForAssertionAsync(() =>
             {
@@ -884,17 +834,8 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockExecutionLogger.Object);
             _ctx.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
 
-            Func<ActionExecutionLog, Task>? attachedHandler = null;
-
-            var mockHubConnection = new Mock<ISignalRHubConnection>();
-            mockHubConnection
-                .Setup(h => h.On<ActionExecutionLog>("ActionLogUpdated", It.IsAny<Func<ActionExecutionLog, Task>>()))
-                .Callback<string, Func<ActionExecutionLog, Task>>((eventName, handler) => attachedHandler = handler);
-            mockHubConnection.Setup(h => h.StartAsync()).Returns(Task.CompletedTask);
-
-            var mockHubFactory = new Mock<ISignalRHubConnectionFactory>();
-            mockHubFactory.Setup(f => f.CreateMainHubConnection(It.IsAny<Uri>())).Returns(mockHubConnection.Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(mockHubFactory.Object);
+            var hubEventBus = new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(hubEventBus);
 
             var page = _ctx.Render<ActionHistory>();
             var component = page.Instance;
@@ -909,10 +850,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var updateLog = new ActionExecutionLog { Id = existingLog.Id, ActionName = "UpdatedLog" };
 
-            await _ctx!.Renderer.Dispatcher.InvokeAsync(async () =>
-            {
-                if (attachedHandler != null) await attachedHandler(updateLog);
-            });
+            await hubEventBus.PublishAsync(HubNames.MainHub, "ActionLogUpdated", [updateLog]);
 
             await page.WaitForAssertionAsync(() =>
             {
@@ -932,17 +870,8 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockExecutionLogger.Object);
             _ctx.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
 
-            Func<ActionExecutionLog, Task>? attachedHandler = null;
-
-            var mockHubConnection = new Mock<ISignalRHubConnection>();
-            mockHubConnection
-                .Setup(h => h.On<ActionExecutionLog>("ActionLogUpdated", It.IsAny<Func<ActionExecutionLog, Task>>()))
-                .Callback<string, Func<ActionExecutionLog, Task>>((eventName, handler) => attachedHandler = handler);
-            mockHubConnection.Setup(h => h.StartAsync()).Returns(Task.CompletedTask);
-
-            var mockHubFactory = new Mock<ISignalRHubConnectionFactory>();
-            mockHubFactory.Setup(f => f.CreateMainHubConnection(It.IsAny<Uri>())).Returns(mockHubConnection.Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(mockHubFactory.Object);
+            var hubEventBus = new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(hubEventBus);
 
             var page = _ctx.Render<ActionHistory>();
             var component = page.Instance;
@@ -953,10 +882,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var updatedLog = new ActionExecutionLog { Id = existingLog.Id, ActionName = "UpdatedName", State = ActionExecutionState.Completed };
 
-            await _ctx!.Renderer.Dispatcher.InvokeAsync(async () =>
-            {
-                if (attachedHandler != null) await attachedHandler(updatedLog);
-            });
+            await hubEventBus.PublishAsync(HubNames.MainHub, "ActionLogUpdated", [updatedLog]);
 
             await page.WaitForAssertionAsync(() =>
             {
@@ -966,33 +892,30 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         }
 
         [Fact]
-        public async Task SignalR_StartFails_ShowsSnackbarWarning()
+        public async Task InProcessHub_AfterDispose_UnsubscribesCleanly()
         {
             SetupContext();
-            var mockSnackbar = new Mock<ISnackbar>();
-            _ctx!.Services.AddSingleton<ISnackbar>(mockSnackbar.Object);
             var mockExecutionLogger = new Mock<IActionExecutionLogger>();
             mockExecutionLogger.Setup(l => l.GetRecentLogs(It.IsAny<int>())).Returns(new List<ActionExecutionLog>());
             mockExecutionLogger.Setup(l => l.GetLogCount()).Returns(0);
             mockExecutionLogger.Setup(l => l.MaxLogCount()).Returns(1000);
-            _ctx.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
+            _ctx!.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
             var mockQueueManager = new Mock<IQueueManager>();
             mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockExecutionLogger.Object);
             _ctx.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
 
-            var mockHubConnection = new Mock<ISignalRHubConnection>();
-            mockHubConnection.Setup(h => h.StartAsync()).Throws(new InvalidOperationException("Connection refused"));
-            mockHubConnection.Setup(h => h.On<ActionExecutionLog>(It.IsAny<string>(), It.IsAny<Func<ActionExecutionLog, Task>>()));
-
-            var mockHubFactory = new Mock<ISignalRHubConnectionFactory>();
-            mockHubFactory.Setup(f => f.CreateMainHubConnection(It.IsAny<Uri>())).Returns(mockHubConnection.Object);
-            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(mockHubFactory.Object);
+            var hubEventBus = new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance);
+            _ctx.Services.AddSingleton<IInProcessHubEventBus>(hubEventBus);
 
             var page = _ctx.Render<ActionHistory>();
-            await page.WaitForAssertionAsync(() =>
-            {
-                mockSnackbar.Verify(s => s.Add(It.IsAny<string>(), Severity.Warning), Times.Once);
-            });
+            await page.Instance.DisposeAsync();
+
+            var incomingLog = new ActionExecutionLog { Id = Guid.NewGuid(), ActionName = "AfterDisposeLog" };
+            await hubEventBus.PublishAsync(HubNames.MainHub, "ActionLogUpdated", [incomingLog]);
+
+            var logsField = typeof(ActionHistory).GetField("_allLogs", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var logs = (List<ActionExecutionLog>)logsField.GetValue(page.Instance)!;
+            Assert.DoesNotContain(logs, l => l.ActionName == "AfterDisposeLog");
         }
 
         public async Task DisposeAsync()

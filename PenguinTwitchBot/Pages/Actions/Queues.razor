@@ -1,13 +1,13 @@
 @page "/actions/queues"
+@using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Bot.Queues
 @using PenguinTwitchBot.Database.Bot.Models.Queues
-@using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IQueueManager QueueManager
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
+@inject IInProcessHubEventBus HubEventBus
 @inject ILogger<Queues> logger
 @implements IAsyncDisposable
 
@@ -99,7 +99,7 @@
 @code {
     private List<QueueStatistics> _queueStats = new();
     private bool _loading = true;
-    private HubConnection? _hubConnection;
+    private IDisposable? _hubSubscription;
     private bool _disposed;
     private HashSet<string> _togglingQueues = new();
     private bool _renderScheduled;
@@ -111,19 +111,18 @@
         await LoadQueues();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
-                .WithAutomaticReconnect()
-                .Build();
-
-            _hubConnection.On<QueueStatistics>("QueueStatsUpdated", async (stats) =>
+            _hubSubscription = HubEventBus.On<QueueStatistics>(HubNames.MainHub, "QueueStatsUpdated", async (stats) =>
             {
+                if (_disposed) return;
+
                 await InvokeAsync(() =>
                 {
+                    if (_disposed) return;
+
                     // Skip updates for queues that are currently being toggled to prevent overwriting optimistic updates
                     if (_togglingQueues.Contains(stats.QueueName))
                     {
@@ -163,8 +162,6 @@
                     }
                 });
             });
-
-            await _hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar);
         }
     }
 
@@ -400,20 +397,18 @@
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (!_disposed)
         {
             _disposed = true;
             _renderCancellation.Cancel();
             _renderCancellation.Dispose();
-
-            if (_hubConnection is not null)
-            {
-                await _hubConnection.DisposeAsync();
-                _hubConnection = null;
-            }
+            _hubSubscription?.Dispose();
+            _hubSubscription = null;
         }
+
+        return ValueTask.CompletedTask;
     }
 }
 

@@ -269,6 +269,9 @@ internal partial class Program
         });
 
         builder.Services.AddSignalR();
+        builder.Services.AddSingleton<PenguinTwitchBot.Bot.Hubs.IInProcessHubEventBus, PenguinTwitchBot.Bot.Hubs.InProcessHubEventBus>();
+        PenguinTwitchBot.Bot.Hubs.InProcessHubBridgeServiceCollectionExtensions.AddInProcessHubBridge<PenguinTwitchBot.Bot.Hubs.MainHub>(builder.Services);
+        PenguinTwitchBot.Bot.Hubs.InProcessHubBridgeServiceCollectionExtensions.AddInProcessHubBridge<PenguinTwitchBot.Bot.Commands.Music.YtHub>(builder.Services);
 
         // Always register circuit services — MainLayout injects these and Blazor's SSR
         // prerender instantiates it even when the page specifies its own layout.

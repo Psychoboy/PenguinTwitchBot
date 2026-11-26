@@ -1,13 +1,14 @@
-﻿@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Bot.Commands.TicketGames
 @using PenguinTwitchBot.Bot.Core.Points
+@using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IBonusTickets bonusTickets
 @inject IPointsSystem pointsSystem
 @inject PenguinTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject NavigationManager Navigation
+@inject IInProcessHubEventBus HubEventBus
 @inject ILogger<BonusTickets> logger
 @inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @implements IAsyncDisposable
@@ -88,8 +89,7 @@
     private string BonusPointsName = "Points";
     private string bonusPointsNameLower => BonusPointsName.ToLowerInvariant();
     private bool StreamOnline = false;
-    private HubConnection? hubConnection;
-    private CancellationTokenSource? _hubConnectionCts;
+    private IDisposable? _hubSubscription;
     private bool dataLoaded = false;
     private bool _disposed;
     protected override async Task OnInitializedAsync()
@@ -114,7 +114,7 @@
         await InvokeAsync(async () =>
         {
             await RefreshAsync();
-            await EnsureHubConnectionAsync();
+            EnsureHubSubscription();
         });
     }
 
@@ -149,7 +149,7 @@
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender == false) return;
 
@@ -158,10 +158,10 @@
             return;
         }
 
-        await EnsureHubConnectionAsync();
+        EnsureHubSubscription();
     }
 
-    private async Task EnsureHubConnectionAsync()
+    private void EnsureHubSubscription()
     {
         if (_disposed)
         {
@@ -173,31 +173,17 @@
             return;
         }
 
-        if (hubConnection is not null)
+        if (_hubSubscription is not null)
         {
             return;
         }
 
-        _hubConnectionCts = new CancellationTokenSource();
-
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/mainhub"), options =>
-            {
-                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-                options.SkipNegotiation = false;
-            })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
-            .Build();
-
-        hubConnection.On<bool>("StreamChanged", (status) =>
+        _hubSubscription = HubEventBus.On<bool>(HubNames.MainHub, "StreamChanged", (status) =>
         {
+            if (_disposed) return;
             StreamOnline = status;
-            InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(StateHasChanged);
         });
-
-        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, cancellationToken: _hubConnectionCts.Token);
     }
 
     private async Task ClaimBonus()
@@ -213,14 +199,12 @@
         Navigation.NavigateToSigninWithReturnUrl();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _disposed = true;
-        _hubConnectionCts?.Cancel();
-
-        await hubConnection.DisposeGracefullyAsync(logger);
-
-        _hubConnectionCts?.Dispose();
+        _hubSubscription?.Dispose();
+        _hubSubscription = null;
         FeatureRuntimeCoordinator.StateChangedAsync -= HandleFeatureStateChangedAsync;
+        return ValueTask.CompletedTask;
     }
 }
