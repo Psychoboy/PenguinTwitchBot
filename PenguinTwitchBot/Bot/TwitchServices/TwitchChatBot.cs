@@ -22,7 +22,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
          IAuthClient authClient,
          IChatClient chatClient,
          IChatMessageIdTracker messageIdTracker,
-         SettingsFileManager settingsFileManager) : ITwitchChatBot
+         SettingsFileManager settingsFileManager,
+         IHttpClientFactory? httpClientFactory = null) : ITwitchChatBot
     {
         private readonly Timer HealthStatusTimer = new();
         static readonly SemaphoreSlim semaphoreSlim = new(1, 1);
@@ -207,11 +208,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 new("client_secret", clientSecret),
                 new("grant_type", "client_credentials"),
             };
-            var encodedContent = new FormUrlEncodedContent(formData);
-            using var client = new HttpClient();
+            using var encodedContent = new FormUrlEncodedContent(formData);
+            var client = httpClientFactory?.CreateClient();
+            using var fallbackClient = client == null ? new HttpClient() : null;
+            var activeClient = client ?? fallbackClient!;
             try
             {
-                var response = await client.PostAsync(url, encodedContent);
+                using var response = await activeClient.PostAsync(url, encodedContent);
                 if (response.IsSuccessStatusCode)
                 {
                     logger.LogInformation("Successfully requested bot access token");

@@ -14,10 +14,30 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
             @"%(?<token>bot|streamer|user|date|time|ticks|random(?:\((?<min>-?\d+),\s*(?<max>-?\d+)\))?)%",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        private static readonly Regex MathExpressionRegex = new(
+            @"\$math\((.+?)\)\$",
+            RegexOptions.Compiled);
+
         /// <summary>
         /// Optional ambient service backbone used to resolve bot and streamer names in system variables.
         /// </summary>
         public static IServiceBackbone? ServiceBackbone { get; set; }
+
+        private static string? TryGetVariableIgnoreCase(ConcurrentDictionary<string, string> variables, string key)
+        {
+            if (variables.TryGetValue(key, out var exact))
+            {
+                return exact;
+            }
+            foreach (var kvp in variables)
+            {
+                if (kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
+                {
+                    return kvp.Value;
+                }
+            }
+            return null;
+        }
 
         public static string ReplaceVariables(string input, ConcurrentDictionary<string, string> variables)
         {
@@ -26,33 +46,42 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 return input;
             }
 
-            // 1. Replace variables from dictionary (variables dictionary takes precedence)
-            foreach (var variable in variables)
+            if (input.Contains('%'))
             {
-                var replacement = variable.Value;
-                if (variable.Key.Equals("User", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(replacement))
+                // 1. Replace variables from dictionary (variables dictionary takes precedence)
+                foreach (var variable in variables)
                 {
-                    var nameEntry = variables.FirstOrDefault(kvp => kvp.Key.Equals("Name", StringComparison.OrdinalIgnoreCase));
-                    if (!string.IsNullOrEmpty(nameEntry.Value))
+                    var replacement = variable.Value;
+                    if (variable.Key.Equals("User", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(replacement))
                     {
-                        replacement = nameEntry.Value;
+                        var nameVal = TryGetVariableIgnoreCase(variables, "Name");
+                        if (!string.IsNullOrEmpty(nameVal))
+                        {
+                            replacement = nameVal;
+                        }
                     }
+
+                    input = input.Replace($"%{variable.Key}%", replacement, StringComparison.OrdinalIgnoreCase);
                 }
 
-                input = input.Replace($"%{variable.Key}%", replacement, StringComparison.OrdinalIgnoreCase);
+                // 2. Replace built-in system global variables if still present in input
+                if (input.Contains('%'))
+                {
+                    input = ReplaceSystemVariables(input, variables);
+                }
             }
 
-            // 2. Replace built-in system global variables if still present in input
-            input = ReplaceSystemVariables(input, variables);
-
             // 3. Evaluate math expressions: $math(...)
-            var result = Regex.Replace(input, @"\$math\((.+?)\)\$", match =>
+            if (input.Contains("$math(", StringComparison.Ordinal))
             {
-                var expression = match.Groups[1].Value;
-                return DoMath(expression);
-            });
+                input = MathExpressionRegex.Replace(input, match =>
+                {
+                    var expression = match.Groups[1].Value;
+                    return DoMath(expression);
+                });
+            }
 
-            return result;
+            return input;
         }
 
         private static string ReplaceSystemVariables(string input, ConcurrentDictionary<string, string> variables)
@@ -73,17 +102,16 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
 
                 if (token.Equals("user", StringComparison.OrdinalIgnoreCase))
                 {
-                    var userEntry = variables.FirstOrDefault(kvp => kvp.Key.Equals("User", StringComparison.OrdinalIgnoreCase));
-                    var nameEntry = variables.FirstOrDefault(kvp => kvp.Key.Equals("Name", StringComparison.OrdinalIgnoreCase));
-
-                    if (!string.IsNullOrEmpty(userEntry.Value))
+                    var userVal = TryGetVariableIgnoreCase(variables, "User");
+                    if (!string.IsNullOrEmpty(userVal))
                     {
-                        return userEntry.Value;
+                        return userVal;
                     }
 
-                    if (!string.IsNullOrEmpty(nameEntry.Value))
+                    var nameVal = TryGetVariableIgnoreCase(variables, "Name");
+                    if (!string.IsNullOrEmpty(nameVal))
                     {
-                        return nameEntry.Value;
+                        return nameVal;
                     }
 
                     return ServiceBackbone?.BroadcasterName ?? "Streamer";

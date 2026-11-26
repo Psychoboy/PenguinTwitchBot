@@ -90,7 +90,6 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             _usersClient = usersClient;
             _scheduleClient = scheduleClient;
             _teamsClient = teamsClient;
-            _timer = new Timer();
             _timer = new Timer(300000); //5 minutes
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
@@ -169,10 +168,30 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return null;
         }
 
+        private void PruneExpiredUserCacheEntries()
+        {
+            var cutoffUtc = DateTime.UtcNow - UserCacheTtl;
+            foreach (var kvp in UserCache)
+            {
+                if (kvp.Value.CachedAtUtc < cutoffUtc)
+                {
+                    UserCache.TryRemove(kvp.Key, out _);
+                }
+            }
+            foreach (var kvp in UserByIdCache)
+            {
+                if (kvp.Value.CachedAtUtc < cutoffUtc)
+                {
+                    UserByIdCache.TryRemove(kvp.Key, out _);
+                }
+            }
+        }
+
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             try
             {
+                PruneExpiredUserCacheEntries();
                 if (!await ValidateAndRefreshToken()) _logger.LogError("Failed to refresh token");
             }
             catch (Exception ex)

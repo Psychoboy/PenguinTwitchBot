@@ -20,7 +20,6 @@ namespace PenguinTwitchBot.Bot.Commands.Shoutout
         IFeatureRuntimeCoordinator featureRuntimeCoordinator
         ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout", dispatcher), IHostedService, IClipService
     {
-        public HttpClient Client { get; private set; } = new HttpClient();
         private bool IsFeatureEnabled() => featureRuntimeCoordinator.IsEnabled(FeatureKeys.ClipService);
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

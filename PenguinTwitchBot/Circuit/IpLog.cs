@@ -112,13 +112,12 @@ namespace PenguinTwitchBot.Circuit
             }
         }
 
-        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _userIpLocks = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Helpers.KeyedSemaphore _userIpLocks = new(StringComparer.OrdinalIgnoreCase);
 
         private async Task<bool> AddOrUpdateIpEntry(string username, string userId, string ipAddress)
         {
             var lockKey = $"{userId}:{ipAddress}";
-            var semaphore = _userIpLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
-            await semaphore.WaitAsync();
+            using var _ = await _userIpLocks.AcquireAsync(lockKey, CancellationToken.None);
             try
             {
                 for (int attempt = 1; attempt <= 2; attempt++)
@@ -180,10 +179,6 @@ namespace PenguinTwitchBot.Circuit
             {
                 logger.LogError(ex, "Failed to add or update IP log entry for user {Username} ({UserId}) at IP {IpAddress}", username, userId, ipAddress);
                 return false;
-            }
-            finally
-            {
-                semaphore.Release();
             }
         }
 

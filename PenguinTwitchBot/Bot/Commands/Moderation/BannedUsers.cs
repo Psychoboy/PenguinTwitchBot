@@ -24,8 +24,11 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
             _timer.Start();
         }
 
+        private int _timerRunning;
+
         private async void OnTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
+            if (Interlocked.CompareExchange(ref _timerRunning, 1, 0) != 0) return;
             try
             {
                 await UpdateBannedUsers();
@@ -33,6 +36,10 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating banned users.");
+            }
+            finally
+            {
+                Volatile.Write(ref _timerRunning, 0);
             }
         }
 

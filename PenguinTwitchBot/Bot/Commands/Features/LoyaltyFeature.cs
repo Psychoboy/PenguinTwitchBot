@@ -52,8 +52,11 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             });
         }
 
+        private int _timerRunning;
+
         private async void ElapseTimer(object? sender, ElapsedEventArgs e)
         {
+            if (Interlocked.CompareExchange(ref _timerRunning, 1, 0) != 0) return;
             try
             {
                 await UpdateTime();
@@ -61,6 +64,10 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to update timer");
+            }
+            finally
+            {
+                Volatile.Write(ref _timerRunning, 0);
             }
         }
 

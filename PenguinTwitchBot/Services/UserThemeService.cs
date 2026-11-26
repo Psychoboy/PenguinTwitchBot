@@ -84,6 +84,8 @@ public sealed class UserThemeService : IUserThemeService
         }
     }
 
+    private static readonly JsonSerializerOptions WebJsonOptions = new(JsonSerializerDefaults.Web);
+
     public void ApplyInitialPreference(string? rawPreferenceOrCookie)
     {
         if (string.IsNullOrWhiteSpace(rawPreferenceOrCookie)) return;
@@ -91,7 +93,7 @@ public sealed class UserThemeService : IUserThemeService
         try
         {
             var decoded = rawPreferenceOrCookie.Contains('%') ? Uri.UnescapeDataString(rawPreferenceOrCookie) : rawPreferenceOrCookie;
-            var pref = JsonSerializer.Deserialize<UserThemePreference>(decoded, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            var pref = JsonSerializer.Deserialize<UserThemePreference>(decoded, WebJsonOptions);
             if (pref != null)
             {
                 IsDarkMode = pref.IsDarkMode;

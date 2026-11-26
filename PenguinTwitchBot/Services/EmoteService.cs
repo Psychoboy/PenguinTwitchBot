@@ -47,12 +47,24 @@ public class EmoteService(
     private static readonly TimeSpan EmptyEmoteCacheDuration = TimeSpan.FromSeconds(30);
     private readonly SemaphoreSlim _fetchLock = new(1, 1);
     private readonly ConcurrentDictionary<string, string> _chatTrackedEmotes = new(StringComparer.OrdinalIgnoreCase);
+    private long _chatTrackedVersion;
+    private Dictionary<string, string>? _lastMergedSource;
+    private long _lastMergedVersion = -1;
+    private Dictionary<string, string>? _lastMergedResult;
+    private readonly object _mergeLock = new();
     private string? _cachedChannelId;
 
     public void TrackEmote(string name, string url)
     {
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(url)) return;
-        _chatTrackedEmotes[name.Trim()] = url.Trim();
+        var cleanName = name.Trim();
+        var cleanUrl = url.Trim();
+        if (_chatTrackedEmotes.TryGetValue(cleanName, out var existing) && string.Equals(existing, cleanUrl, StringComparison.Ordinal))
+        {
+            return;
+        }
+        _chatTrackedEmotes[cleanName] = cleanUrl;
+        Interlocked.Increment(ref _chatTrackedVersion);
     }
 
     public Task<Dictionary<string, string>> GetEmotesAsync() => GetEmotesCoreAsync(forceRefresh: false);
@@ -113,6 +125,15 @@ public class EmoteService(
     {
         if (_chatTrackedEmotes.IsEmpty) return source;
 
+        var version = Volatile.Read(ref _chatTrackedVersion);
+        lock (_mergeLock)
+        {
+            if (ReferenceEquals(_lastMergedSource, source) && _lastMergedVersion == version && _lastMergedResult != null)
+            {
+                return _lastMergedResult;
+            }
+        }
+
         var hasMissing = false;
         foreach (var (k, _) in _chatTrackedEmotes)
         {
@@ -123,17 +144,31 @@ public class EmoteService(
             }
         }
 
-        if (!hasMissing) return source;
-
-        var copy = new Dictionary<string, string>(source, StringComparer.OrdinalIgnoreCase);
-        foreach (var (k, v) in _chatTrackedEmotes)
+        Dictionary<string, string> result;
+        if (!hasMissing)
         {
-            if (!copy.ContainsKey(k))
-            {
-                copy[k] = v;
-            }
+            result = source;
         }
-        return copy;
+        else
+        {
+            var copy = new Dictionary<string, string>(source, StringComparer.OrdinalIgnoreCase);
+            foreach (var (k, v) in _chatTrackedEmotes)
+            {
+                if (!copy.ContainsKey(k))
+                {
+                    copy[k] = v;
+                }
+            }
+            result = copy;
+        }
+
+        lock (_mergeLock)
+        {
+            _lastMergedSource = source;
+            _lastMergedVersion = version;
+            _lastMergedResult = result;
+        }
+        return result;
     }
 
     public async Task<string?> ResolveEmoteUrlAsync(string emoteName)

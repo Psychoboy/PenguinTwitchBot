@@ -16,7 +16,8 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
         ILogger<Blacklist> logger
             ) : BaseCommandService(serviceBackbone, commandHandler, "Blacklist", dispatcher), IHostedService
     {
-        private readonly ConcurrentBag<WordFilter> _blackList = new();
+        private sealed record CompiledWordFilter(WordFilter Filter, Regex? CompiledRegex, bool HasInvalidRegex);
+        private volatile List<CompiledWordFilter> _blackList = [];
 
         public async Task AddBlacklist(WordFilter wordFilter)
         {
@@ -60,7 +61,7 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
 
         public List<WordFilter> GetBlackList()
         {
-            return _blackList.ToList();
+            return _blackList.Select(x => x.Filter).ToList();
         }
 
         private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(500);
@@ -68,23 +69,21 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
         public bool IsBlacklisted(string message)
         {
             if (string.IsNullOrWhiteSpace(message)) return false;
-            foreach (var wordFilter in _blackList)
+            var snapshot = _blackList;
+            foreach (var entry in snapshot)
             {
+                var wordFilter = entry.Filter;
                 if (wordFilter.IsRegex)
                 {
+                    if (entry.HasInvalidRegex || entry.CompiledRegex == null) continue;
                     try
                     {
-                        var regex = new Regex(wordFilter.Phrase, RegexOptions.None, RegexTimeout);
-                        if (regex.IsMatch(message)) return true;
+                        if (entry.CompiledRegex.IsMatch(message)) return true;
                     }
                     catch (RegexMatchTimeoutException ex)
                     {
                         logger.LogWarning(ex, "Regex evaluation timed out for blacklist phrase {Phrase}; rejecting message as unsafe.", wordFilter.Phrase);
                         return true;
-                    }
-                    catch (ArgumentException ex)
-                    {
-                        logger.LogWarning(ex, "Invalid stored regex pattern {Phrase} in blacklist; skipping pattern.", wordFilter.Phrase);
                     }
                     catch (Exception ex)
                     {
@@ -103,23 +102,21 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
         {
             bool match = false;
             if (e.IsMod || e.IsBroadcaster) return;
-            foreach (var wordFilter in _blackList)
+            var snapshot = _blackList;
+            foreach (var entry in snapshot)
             {
+                var wordFilter = entry.Filter;
                 if (wordFilter.IsRegex)
                 {
+                    if (entry.HasInvalidRegex || entry.CompiledRegex == null) continue;
                     try
                     {
-                        var regex = new Regex(wordFilter.Phrase, RegexOptions.None, RegexTimeout);
-                        if (regex.IsMatch(e.Message)) match = true;
+                        if (entry.CompiledRegex.IsMatch(e.Message)) match = true;
                     }
                     catch (RegexMatchTimeoutException ex)
                     {
                         logger.LogWarning(ex, "Regex evaluation timed out in ChatMessage for blacklist phrase {Phrase}; treating as match.", wordFilter.Phrase);
                         match = true;
-                    }
-                    catch (ArgumentException ex)
-                    {
-                        logger.LogWarning(ex, "Invalid stored regex pattern {Phrase} in blacklist; skipping pattern.", wordFilter.Phrase);
                     }
                     catch (Exception ex)
                     {
@@ -144,8 +141,28 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            _blackList.Clear();
-            _blackList.AddRange(await db.WordFilters.GetAsync(orderBy: x => x.OrderBy(y => y.Id)));
+            var filters = await db.WordFilters.GetAsync(orderBy: x => x.OrderBy(y => y.Id));
+            var compiled = new List<CompiledWordFilter>(filters.Count);
+            foreach (var filter in filters)
+            {
+                if (filter.IsRegex)
+                {
+                    try
+                    {
+                        compiled.Add(new CompiledWordFilter(filter, new Regex(filter.Phrase, RegexOptions.Compiled, RegexTimeout), false));
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        logger.LogWarning(ex, "Invalid stored regex pattern {Phrase} in blacklist; skipping pattern.", filter.Phrase);
+                        compiled.Add(new CompiledWordFilter(filter, null, true));
+                    }
+                }
+                else
+                {
+                    compiled.Add(new CompiledWordFilter(filter, null, false));
+                }
+            }
+            _blackList = compiled;
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)

@@ -178,9 +178,23 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             }
         }
 
+        private int _updateRunning;
+
         private async void UpdateOnlineStatus(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            await UpdateOnlineStatus();
+            if (Interlocked.CompareExchange(ref _updateRunning, 1, 0) != 0) return;
+            try
+            {
+                await UpdateOnlineStatus();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in RaidTracker UpdateOnlineStatus timer");
+            }
+            finally
+            {
+                Volatile.Write(ref _updateRunning, 0);
+            }
         }
 
         public async Task UpdateOnlineStatus()
