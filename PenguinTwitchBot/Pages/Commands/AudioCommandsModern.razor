@@ -164,24 +164,33 @@
         _isLoading = false;
     }
 
+    [Inject] private ILogger<AudioCommandsModern> _logger { get; set; } = default!;
+
     private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         if (_isNavigating) return;
 
-        var uri = new Uri(e.Location);
-        var queryString = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-
-        if (queryString.TryGetValue("commandId", out var commandIdString) && Guid.TryParse(commandIdString, out var commandId))
+        try
         {
-            var command = _commands.FirstOrDefault(c => c.Id == commandId);
-            if (command != null && command != _selectedCommand)
+            var uri = new Uri(e.Location);
+            var queryString = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+            if (queryString.TryGetValue("commandId", out var commandIdString) && Guid.TryParse(commandIdString, out var commandId))
             {
-                await InvokeAsync(() =>
+                var command = _commands.FirstOrDefault(c => c.Id == commandId);
+                if (command != null && command != _selectedCommand)
                 {
-                    OnCommandSelected(command);
-                    StateHasChanged();
-                });
+                    await InvokeAsync(() =>
+                    {
+                        OnCommandSelected(command);
+                        StateHasChanged();
+                    });
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling location change in AudioCommandsModern");
         }
     }
 

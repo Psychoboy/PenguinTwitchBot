@@ -154,7 +154,7 @@
         StateHasChanged();
     }
 
-    public async void OnSubmit()
+    public async Task OnSubmit()
     {
         if (audioCommand == null) return;
         if (await CommandHelper.CommandExists(audioCommand.CommandName))
@@ -180,7 +180,7 @@
         navigationManager.NavigateTo($"/audiocommands/{item.Id}");
     }
 
-    private async void Delete(AudioCommand item)
+    private async Task Delete(AudioCommand item)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
        "Warning",

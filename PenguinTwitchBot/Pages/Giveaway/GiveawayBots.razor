@@ -94,7 +94,7 @@
         giveawayExclusions = (await GiveawayFeature.GetAllExclusions()).ToList();
     }
 
-    private async void OnSubmit()
+    private async Task OnSubmit()
     {
         if (giveawayExclusion == null) return;
         await GiveawayFeature.AddExclusion(giveawayExclusion);

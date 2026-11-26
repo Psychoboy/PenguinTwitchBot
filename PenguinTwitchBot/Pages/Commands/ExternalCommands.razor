@@ -240,7 +240,7 @@
 
     private bool _isEditing = false;
 
-    public async void OnSubmit()
+    public async Task OnSubmit()
     {
         if (externalCommand == null) return;
         await CommandHandler.AddOrUpdateExternalCommand(externalCommand);

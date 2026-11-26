@@ -4,12 +4,19 @@ using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
+using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Commands.PastyGames
 {
     public class FFA : BaseCommandService, IHostedService
     {
-        private readonly List<CommandEventArgs> Entered = [];
+        private sealed record Entrant(CommandEventArgs Args, long Fee);
+        private sealed record PendingRefund(string Key, string Username, long Amount);
+
+        private readonly List<Entrant> Entered = [];
+        private readonly ConcurrentDictionary<string, PendingRefund> _pendingRefunds = new(StringComparer.Ordinal);
+        private readonly object _stateLock = new();
+        private long _roundId = 0;
         private readonly Timer _joinTimer;
         private readonly IPointsSystem _pointsSystem;
 
@@ -62,56 +69,148 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             _defaultCommandTriggerService = defaultCommandTriggerService;
         }
 
-        private static void JoinTimerCallback(object? state)
+        private static async void JoinTimerCallback(object? state)
         {
-            if (state == null) return;
-            var ffa = (FFA)state;
-            var result = ffa.Finish();
-            result.Wait();
+            if (state is not FFA ffa) return;
+            try
+            {
+                await ffa.Finish();
+            }
+            catch (Exception ex)
+            {
+                ffa._logger.LogError(ex, "Error finishing FFA game");
+            }
+        }
+
+        private async Task<bool> TryRefundAsync(PendingRefund refund)
+        {
+            _pendingRefunds.TryAdd(refund.Key, refund);
+            try
+            {
+                var credited = await _pointsSystem.AddPointsByUsernameAndGame(refund.Username, ModuleName, refund.Amount);
+                if (credited > 0)
+                {
+                    _pendingRefunds.TryRemove(refund.Key, out _);
+                    return true;
+                }
+
+                _logger.LogWarning("FFA refund {RefundKey} for {Username} ({Amount}) returned 0; retaining for retry.", refund.Key, refund.Username, refund.Amount);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refunding FFA entry {RefundKey} for {Username} ({Amount}); retaining for retry.", refund.Key, refund.Username, refund.Amount);
+                return false;
+            }
+        }
+
+        private async Task RetryPendingRefundsAsync()
+        {
+            foreach (var refund in _pendingRefunds.Values)
+            {
+                await TryRefundAsync(refund);
+            }
+        }
+
+        private async Task RefundEntrantsAsync(long roundId, IEnumerable<Entrant> entrants)
+        {
+            foreach (var entrant in entrants)
+            {
+                var key = $"ffa:{roundId}:{entrant.Args.Name.ToLowerInvariant()}";
+                await TryRefundAsync(new PendingRefund(key, entrant.Args.Name, entrant.Fee));
+            }
         }
 
         private async Task Finish()
         {
-            var cost = await _gameSettingsService.GetIntSetting(ModuleName, COST, 100);
-            GameState = State.Finishing;
-            if (Entered.Count == 1)
+            List<Entrant> entrants;
+            long activeRoundId;
+            lock (_stateLock)
             {
-                await _pointsSystem.AddPointsByUsernameAndGame(Entered[0].Name, ModuleName, cost);
-                var notEnoughMessage = await _gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH_PLAYERS, "Not enough viewers joined the FFA, returning the fees.");
-                await ServiceBackbone.SendChatMessage(notEnoughMessage);
-                await CleanUp();
-                return;
+                if (GameState != State.Running) return;
+                GameState = State.Finishing;
+                activeRoundId = _roundId;
+                entrants = [.. Entered];
             }
 
-            var winnerIndex = Tools.Next(0, Entered.Count - 1);
-            var winner = Entered[winnerIndex];
-            var winnings = Entered.Count * cost;
-            var winnerMessage = await _gameSettingsService.GetStringSetting(ModuleName, WINNER_MESSAGE, "The dust finally settled and the last one standing is {Name} and gets {Points} {PointType}!");
-            var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
-            winnerMessage = winnerMessage
-                .Replace(GameSettingsService.NAME, winner.DisplayName, StringComparison.OrdinalIgnoreCase)
-                .Replace(GameSettingsService.POINTS, winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
-                .Replace(GameSettingsService.POINT_TYPE, pointType.Name, StringComparison.OrdinalIgnoreCase);
-            await ServiceBackbone.SendChatMessage(winnerMessage);
-            await _pointsSystem.AddPointsByUsernameAndGame(winner.Name, ModuleName, winnings);
-            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
-                CommandName,
-                DefaultCommandEventTypes.FfaWin,
-                winner,
-                new Dictionary<string, string>
+            bool payoutCompleted = false;
+            try
+            {
+                if (entrants.Count == 0)
                 {
-                    ["Winner"] = winner.DisplayName,
-                    ["Winnings"] = winnings.ToString("N0"),
-                    ["ParticipantCount"] = Entered.Count.ToString()
-                });
-            await CleanUp();
+                    await CleanUp(activeRoundId);
+                    return;
+                }
+
+                if (entrants.Count == 1)
+                {
+                    await RefundEntrantsAsync(activeRoundId, entrants);
+                    payoutCompleted = true;
+                    var notEnoughMessage = await _gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH_PLAYERS, "Not enough viewers joined the FFA, returning the fees.");
+                    await ServiceBackbone.SendChatMessage(notEnoughMessage);
+                    await CleanUp(activeRoundId);
+                    return;
+                }
+
+                var winnerIndex = Tools.Next(0, entrants.Count - 1);
+                var winner = entrants[winnerIndex];
+                var winnings = entrants.Sum(x => x.Fee);
+                var paid = await _pointsSystem.AddPointsByUsernameAndGame(winner.Args.Name, ModuleName, winnings);
+                if (paid <= 0)
+                {
+                    _logger.LogError("FFA payout for winner {Winner} ({Winnings}) in round {RoundId} returned {Paid}; refunding entrants.", winner.Args.Name, winnings, activeRoundId, paid);
+                    await RefundEntrantsAsync(activeRoundId, entrants);
+                    await CleanUp(activeRoundId);
+                    return;
+                }
+                payoutCompleted = true;
+
+                var winnerMessage = await _gameSettingsService.GetStringSetting(ModuleName, WINNER_MESSAGE, "The dust finally settled and the last one standing is {Name} and gets {Points} {PointType}!");
+                var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
+                winnerMessage = winnerMessage
+                    .Replace(GameSettingsService.NAME, winner.Args.DisplayName, StringComparison.OrdinalIgnoreCase)
+                    .Replace(GameSettingsService.POINTS, winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace(GameSettingsService.POINT_TYPE, pointType.Name, StringComparison.OrdinalIgnoreCase);
+                await ServiceBackbone.SendChatMessage(winnerMessage);
+                await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    CommandName,
+                    DefaultCommandEventTypes.FfaWin,
+                    winner.Args,
+                    new Dictionary<string, string>
+                    {
+                        ["Winner"] = winner.Args.DisplayName,
+                        ["Winnings"] = winnings.ToString("N0"),
+                        ["ParticipantCount"] = entrants.Count.ToString()
+                    });
+                await CleanUp(activeRoundId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error finishing FFA round {RoundId}", activeRoundId);
+                if (!payoutCompleted)
+                {
+                    await RefundEntrantsAsync(activeRoundId, entrants);
+                }
+                try
+                {
+                    await CleanUp(activeRoundId);
+                }
+                catch (Exception cleanupEx)
+                {
+                    _logger.LogError(cleanupEx, "Error cleaning up FFA round {RoundId} after failure", activeRoundId);
+                }
+            }
         }
 
-        private async Task CleanUp()
+        private async Task CleanUp(long expectedRoundId)
         {
-            Entered.Clear();
-            GameState = State.NotRunning;
-            _joinTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            lock (_stateLock)
+            {
+                if (_roundId != expectedRoundId) return;
+                Entered.Clear();
+                GameState = State.NotRunning;
+                _joinTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            }
             var cooldown = await _gameSettingsService.GetIntSetting(ModuleName, COOLDOWN, 300);
             await CommandHandler.AddGlobalCooldown(CommandName, cooldown);
         }
@@ -131,14 +230,27 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals(CommandName)) return;
 
-            if (GameState == State.Finishing)
+            if (!_pendingRefunds.IsEmpty)
+            {
+                await RetryPendingRefundsAsync();
+            }
+
+            bool isFinishing;
+            bool isAlreadyJoined;
+            lock (_stateLock)
+            {
+                isFinishing = GameState == State.Finishing;
+                isAlreadyJoined = Entered.Any(entrant => string.Equals(entrant.Args.Name, e.Name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (isFinishing)
             {
                 var late = await _gameSettingsService.GetStringSetting(ModuleName, LATE, "The FFA has already started, you are to late to join this one.");
                 await ServiceBackbone.ResponseWithMessage(e, late);
                 throw new SkipCooldownException();
             }
 
-            if (Entered.Any(entrant => string.Equals(entrant.Name, e.Name, StringComparison.OrdinalIgnoreCase)))
+            if (isAlreadyJoined)
             {
                 var alreadyJoined = await _gameSettingsService.GetStringSetting(ModuleName, ALREADY_JOINED, "You have already joined the FFA!");
                 await ServiceBackbone.ResponseWithMessage(e, alreadyJoined);
@@ -157,16 +269,71 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (GameState == State.NotRunning)
+            bool startedNewGame = false;
+            bool rejectedLate = false;
+            bool rejectedDuplicate = false;
+            long startedRoundId = 0;
+            lock (_stateLock)
             {
+                if (GameState == State.Finishing)
+                {
+                    rejectedLate = true;
+                }
+                else if (Entered.Any(entrant => string.Equals(entrant.Args.Name, e.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    rejectedDuplicate = true;
+                }
+                else
+                {
+                    if (GameState == State.NotRunning)
+                    {
+                        GameState = State.Running;
+                        startedRoundId = ++_roundId;
+                        startedNewGame = true;
+                    }
+                    Entered.Add(new Entrant(e, cost));
+                }
+            }
+
+            if (rejectedLate || rejectedDuplicate)
+            {
+                await TryRefundAsync(new PendingRefund($"ffa:reject:{Guid.NewGuid():N}", e.Name, cost));
+                var msg = rejectedLate
+                    ? await _gameSettingsService.GetStringSetting(ModuleName, LATE, "The FFA has already started, you are to late to join this one.")
+                    : await _gameSettingsService.GetStringSetting(ModuleName, ALREADY_JOINED, "You have already joined the FFA!");
+                await ServiceBackbone.ResponseWithMessage(e, msg);
+                throw new SkipCooldownException();
+            }
+
+            if (startedNewGame)
+            {
+                try
+                {
+                    var joinTime = await _gameSettingsService.GetIntSetting(ModuleName, JOIN_TIME, 180);
+                    _joinTimer.Change(joinTime * 1000, Timeout.Infinite);
+                }
+                catch
+                {
+                    List<Entrant> toRefund = [];
+                    lock (_stateLock)
+                    {
+                        if (_roundId == startedRoundId && GameState == State.Running)
+                        {
+                            toRefund = [.. Entered];
+                            Entered.Clear();
+                            GameState = State.NotRunning;
+                            _joinTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                        }
+                    }
+                    await RefundEntrantsAsync(startedRoundId, toRefund);
+                    throw;
+                }
+
                 var starting = await _gameSettingsService.GetStringSetting(ModuleName, STARTING, "{Name} is starting a FFA battle! Type !{CommandName} to join now!");
                 starting = starting
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
                     .Replace("{CommandName}", e.Command, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(starting);
-                GameState = State.Running;
-                var joinTime = await _gameSettingsService.GetIntSetting(ModuleName, JOIN_TIME, 180);
-                _joinTimer.Change(joinTime * 1000, Timeout.Infinite);
             }
             else
             {
@@ -175,7 +342,6 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(joined);
             }
-            Entered.Add(e);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

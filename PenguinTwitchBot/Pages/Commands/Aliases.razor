@@ -133,7 +133,7 @@
                 a.AliasName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
                 a.CommandName.Contains(_searchString, StringComparison.OrdinalIgnoreCase));
 
-    public async void OnSubmit()
+    public async Task OnSubmit()
     {
         if (theAlias == null) return;
         if (await CommandHelper.CommandExists(theAlias.AliasName))

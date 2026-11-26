@@ -10,7 +10,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
     public class RuntimeDefaultCommandHandler(ICommandHandler commandHandler, ILogger<RuntimeDefaultCommandHandler> logger) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.RuntimeDefaultCommand;
-        static readonly ConcurrentDictionary<string, SemaphoreSlim> CommandLock = new ConcurrentDictionary<string, SemaphoreSlim>();
+        static readonly ConcurrentDictionary<string, SemaphoreSlim> CommandLock = new();
         private string lastCommand = string.Empty;
         internal TimeSpan LockTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
@@ -47,10 +47,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (eventArgs.SkipLock) return null;
 
-            var lockInstance = CommandLock.GetOrAdd(eventArgs.Command, _ => new SemaphoreSlim(1));
+            var lockInstance = CommandLock.GetOrAdd(eventArgs.Command, _ => new SemaphoreSlim(1, 1));
             if (await lockInstance.WaitAsync(LockTimeout) == false)
             {
                 logger.LogWarning("BaseCommand Lock expired while waiting... Last Locked Command: {lastCommand}", lastCommand);
+                return null;
             }
             lastCommand = eventArgs.Command;
             return lockInstance;

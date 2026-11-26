@@ -9,6 +9,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
     public class First : BaseCommandService, IHostedService
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
+        private readonly object _claimLock = new();
         private readonly IPointsSystem _pointsSystem;
         private readonly ILogger<First> _logger;
         private readonly IGameSettingsService _gameSettingsService;
@@ -59,8 +60,11 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
 
         private void ResetFirst()
         {
-            ClaimedFirst.Clear();
-            CurrentClaims = 0;
+            lock (_claimLock)
+            {
+                ClaimedFirst.Clear();
+                CurrentClaims = 0;
+            }
         }
 
         private async Task GiveFirst(string sender)
@@ -72,28 +76,54 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 throw new SkipCooldownException();
             }
 
-            if (ClaimedFirst.Count >= options.MaximumClaims)
+            long awardPoints;
+            int position;
+            bool tooSlow = false;
+            bool alreadyClaimed = false;
+
+            lock (_claimLock)
+            {
+                if (ClaimedFirst.Count >= options.MaximumClaims)
+                {
+                    tooSlow = true;
+                    awardPoints = 0;
+                    position = 0;
+                }
+                else if (ClaimedFirst.Contains(sender, StringComparer.OrdinalIgnoreCase))
+                {
+                    alreadyClaimed = true;
+                    awardPoints = 0;
+                    position = 0;
+                }
+                else
+                {
+                    awardPoints = options.GetAwardForPriorClaims(ClaimedFirst.Count);
+                    if (awardPoints == 0)
+                    {
+                        tooSlow = true;
+                        position = 0;
+                    }
+                    else
+                    {
+                        ClaimedFirst.Add(sender);
+                        position = ClaimedFirst.Count;
+                        CurrentClaims = position;
+                    }
+                }
+            }
+
+            if (alreadyClaimed) throw new SkipCooldownException();
+            if (tooSlow)
             {
                 await SendChatMessage(sender, options.TooSlowMessage);
                 throw new SkipCooldownException();
             }
 
-            if (ClaimedFirst.Contains(sender, StringComparer.OrdinalIgnoreCase)) throw new SkipCooldownException();
-
-            var awardPoints = options.GetAwardForPriorClaims(ClaimedFirst.Count);
-            if (awardPoints == 0)
-            {
-                await SendChatMessage(sender, options.TooSlowMessage);
-                throw new SkipCooldownException();
-            }
-
-            ClaimedFirst.Add(sender);
-            CurrentClaims = ClaimedFirst.Count;
-            _logger.LogInformation("Current Claims: {CurrentClaims}", CurrentClaims);
+            _logger.LogInformation("Current Claims: {CurrentClaims}", position);
             await _pointsSystem.AddPointsByUsernameAndGame(sender, ModuleName, awardPoints);
             var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
             var message = options.AwardMessage
-                .Replace("{Position}", ClaimedFirst.Count.ToString(), StringComparison.OrdinalIgnoreCase)
+                .Replace("{Position}", position.ToString(), StringComparison.OrdinalIgnoreCase)
                 .Replace("{Amount}", awardPoints.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                 .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
             await SendChatMessage(sender, message);

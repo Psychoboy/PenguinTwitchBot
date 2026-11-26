@@ -411,47 +411,79 @@
         await LoadActions();
     }
 
+    [Inject] private ILogger<ManageActions> _logger { get; set; } = default!;
+
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         if (_isNavigating) return;
 
-        var uri = new Uri(e.Location);
-        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-        var actionIdStr = query["actionId"];
-
-        if (Guid.TryParse(actionIdStr, out var actionId))
+        try
         {
-            if (actionId != _selectedAction?.Id)
+            var uri = new Uri(e.Location);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            var actionIdStr = query["actionId"];
+
+            if (Guid.TryParse(actionIdStr, out var actionId))
             {
-                _isNavigating = true;
-                var reloadedAction = await ActionService.GetActionByIdAsync(actionId);
-                if (reloadedAction != null)
+                if (actionId != _selectedAction?.Id)
                 {
-                    _selectedAction = reloadedAction;
-                    _isNewAction = false;
-                    _selectedActionIdInList = _selectedAction.Id;
-                    _expandedGroupInList = GetNormalizedGroup(_selectedAction.Group);
-                    _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
-                    CaptureOriginalSnapshot();
+                    _isNavigating = true;
+                    try
+                    {
+                        var reloadedAction = await ActionService.GetActionByIdAsync(actionId);
+                        if (reloadedAction != null)
+                        {
+                            _selectedAction = reloadedAction;
+                            _isNewAction = false;
+                            _selectedActionIdInList = _selectedAction.Id;
+                            _expandedGroupInList = GetNormalizedGroup(_selectedAction.Group);
+                            _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
+                            CaptureOriginalSnapshot();
+                        }
+                    }
+                    finally
+                    {
+                        _isNavigating = false;
+                    }
+                    await InvokeAsync(StateHasChanged);
                 }
-                _isNavigating = false;
-                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                if (_selectedAction != null && !_isNewAction)
+                {
+                    _isNavigating = true;
+                    _selectedAction = null;
+                    _isNewAction = false;
+                    _selectedActionIdInList = null;
+                    _expandedGroupInList = string.Empty;
+                    _actionTriggers = new List<TriggerType>();
+                    _originalActionSnapshot = string.Empty;
+                    _isNavigating = false;
+                    await InvokeAsync(StateHasChanged);
+                }
             }
         }
-        else
+        catch (Exception ex)
         {
-            if (_selectedAction != null && !_isNewAction)
+            _logger.LogError(ex, "Error handling location change in ManageActions");
+            await InvokeAsync(() =>
             {
+                Snackbar.Add("Failed to load action.", Severity.Error);
                 _isNavigating = true;
-                _selectedAction = null;
-                _isNewAction = false;
-                _selectedActionIdInList = null;
-                _expandedGroupInList = string.Empty;
-                _actionTriggers = new List<TriggerType>();
-                _originalActionSnapshot = string.Empty;
-                _isNavigating = false;
-                await InvokeAsync(StateHasChanged);
-            }
+                try
+                {
+                    var recoveryId = _selectedAction != null && !_isNewAction
+                        ? _selectedAction.Id
+                        : (Guid?)null;
+                    NavigateToManagePage(recoveryId, replace: true);
+                }
+                finally
+                {
+                    _isNavigating = false;
+                }
+                StateHasChanged();
+            });
         }
     }
 

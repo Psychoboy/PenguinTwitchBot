@@ -21,13 +21,4 @@ namespace PenguinTwitchBot.Test.Application.Blacklist.Handlers
             Assert.NotNull(typeof(BlacklistSuspiciousChatReceivedHandler).GetMethod("Handle"));
         }
     }
-
-    public class BlacklistSuspiciousHandlerTests
-    {
-        [Fact]
-        public void Handle_MethodExists()
-        {
-            Assert.NotNull(typeof(BlacklistSuspiciousHandler).GetMethod("Handle"));
-        }
-    }
 }

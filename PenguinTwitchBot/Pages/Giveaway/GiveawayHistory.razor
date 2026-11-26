@@ -90,9 +90,38 @@
 
     }
 
+    [Inject] private ILogger<GiveawayHistory> _logger { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
     private async void ItemHasBeenCommitted(object element)
     {
-        var winner = (Database.Bot.Models.Giveaway.GiveawayWinner)element;
-        await giveawayFeature.UpdateWinner(winner);
+        try
+        {
+            var winner = (Database.Bot.Models.Giveaway.GiveawayWinner)element;
+            await giveawayFeature.UpdateWinner(winner);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating giveaway winner");
+            bool reloaded = false;
+            try
+            {
+                var reloadedWinners = await giveawayFeature.GetPastWinnersOrThrowAsync();
+                pastWinners = reloadedWinners;
+                reloaded = true;
+            }
+            catch (Exception reloadEx)
+            {
+                _logger.LogError(reloadEx, "Error reloading giveaway winners after save failure");
+            }
+            await InvokeAsync(() =>
+            {
+                var message = reloaded
+                    ? "Failed to save giveaway winner changes. Reverted to persisted values."
+                    : "Failed to save giveaway winner changes and could not restore persisted values. Please reload the page.";
+                Snackbar.Add(message, Severity.Error);
+                StateHasChanged();
+            });
+        }
     }
 }
