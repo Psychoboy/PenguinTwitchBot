@@ -9,9 +9,7 @@ using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Database.Bot.Models.Queues;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.SignalR.Client;
 using System.Reflection;
-using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace PenguinTwitchBot.Test.Pages.Actions

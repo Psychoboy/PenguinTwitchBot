@@ -1386,63 +1386,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public double SizeScale { get; set; }
     }
 
-    public class ParachuteTrajectoryUpdateDto
-    {
-        [JsonPropertyName("dropToken")]
-        public string DropToken { get; set; } = "";
-
-        [JsonPropertyName("landingX")]
-        public double LandingX { get; set; }
-
-        [JsonPropertyName("totalTicks")]
-        public int TotalTicks { get; set; }
-
-        [JsonPropertyName("score")]
-        public int Score { get; set; }
-
-        [JsonPropertyName("isHit")]
-        public bool IsHit { get; set; }
-
-        [JsonPropertyName("isBullseye")]
-        public bool IsBullseye { get; set; }
-
-        [JsonPropertyName("isWin")]
-        public bool IsWin { get; set; }
-
-        [JsonPropertyName("dropletHits")]
-        public int DropletHits { get; set; }
-
-        [JsonPropertyName("rocketHits")]
-        public int RocketHits { get; set; }
-
-        [JsonPropertyName("parachuteDestroyed")]
-        public bool ParachuteDestroyed { get; set; }
-
-        [JsonPropertyName("freeFallStartTick")]
-        public int FreeFallStartTick { get; set; }
-
-        [JsonPropertyName("collisions")]
-        public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];
-
-        [JsonPropertyName("keyframes")]
-        public List<ParachuteTrajectoryPointDto> Keyframes { get; set; } = [];
-    }
-
-    public class PlinkoWaypointDto
-    {
-        [JsonPropertyName("x")]
-        public double X { get; set; }
-
-        [JsonPropertyName("y")]
-        public double Y { get; set; }
-
-        [JsonPropertyName("row")]
-        public int Row { get; set; }
-
-        [JsonPropertyName("col")]
-        public int Col { get; set; }
-    }
-
     public class DropGameCompleteMessage
     {
         [JsonPropertyName("dropToken")]
