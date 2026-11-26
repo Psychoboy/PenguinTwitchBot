@@ -6,7 +6,7 @@ using PenguinTwitchBot.Helpers;
 
 namespace PenguinTwitchBot.Bot.Commands.Music
 {
-    public class SongCooldownService(
+    public partial class SongCooldownService(
         IServiceScopeFactory scopeFactory,
         IConfiguration configuration,
         ILogger<SongCooldownService> logger) : ISongCooldownService
@@ -81,7 +81,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 return false;
             }
 
-            foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(template, @"(?<!\{)\{(\d+)(?:[^}]*)\}(?!\})"))
+            foreach (System.Text.RegularExpressions.Match match in TemplatePlaceholderRegex().Matches(template))
             {
                 if (!int.TryParse(match.Groups[1].Value, out var argumentIndex) || argumentIndex > 1)
                 {
@@ -91,6 +91,9 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
             return true;
         }
+
+        [System.Text.RegularExpressions.GeneratedRegex(@"(?<!\{)\{(\d+)(?:[^}]*)\}(?!\})")]
+        private static partial System.Text.RegularExpressions.Regex TemplatePlaceholderRegex();
 
         private static async Task SaveIntSetting(IUnitOfWork unitOfWork, string name, int value)
         {

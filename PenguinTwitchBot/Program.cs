@@ -553,6 +553,7 @@ internal partial class Program
                 });
             });
 
+        app.MapStaticAssets();
         app.MapHub<PenguinTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
         app.MapHub<PenguinTwitchBot.Bot.Hubs.MainHub>("/mainhub");
         app.MapBlazorHub();

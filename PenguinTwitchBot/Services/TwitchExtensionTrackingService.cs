@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -49,15 +50,15 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
         "Total Twitch Extension JWT validation failures",
         ["reason"]);
 
-    private static readonly HashSet<string> AllowedFeatures = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenSet<string> AllowedFeatures = new[]
     {
         "features", "leaderboards", "giveaway", "fishing", "starship", "commands", "other"
-    };
+    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly HashSet<string> AllowedRoles = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenSet<string> AllowedRoles = new[]
     {
         "viewer", "broadcaster", "moderator", "external", "other"
-    };
+    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     private static readonly TimeSpan UsernameCacheTtl = TimeSpan.FromHours(6);
     private const int MaxUsernameCacheEntries = 10_000;
@@ -70,9 +71,9 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
     private readonly HashSet<string> _uniqueAnonymousUsers = new(StringComparer.Ordinal);
     private readonly HashSet<(string IdentityShared, string Role)> _publishedActiveUserLabels = [];
     private readonly HashSet<string> _publishedFeatureLabels = [];
-    private readonly object _stateLock = new();
-    private readonly object _metricsLock = new();
-    private readonly object _usernameCachePruneLock = new();
+    private readonly Lock _stateLock = new();
+    private readonly Lock _metricsLock = new();
+    private readonly Lock _usernameCachePruneLock = new();
 
     private readonly ILogger<TwitchExtensionTrackingService> _logger;
     private readonly TimeProvider _timeProvider;

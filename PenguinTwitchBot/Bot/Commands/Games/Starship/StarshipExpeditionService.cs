@@ -534,7 +534,7 @@ public sealed class StarshipExpeditionService(
             var expeditionSeed = seed ?? RandomNumberGenerator.GetInt32(int.MaxValue);
             _snapshot = new StarshipExpeditionSnapshot
             {
-                ExpeditionId = Guid.NewGuid(),
+                ExpeditionId = Guid.CreateVersion7(),
                 Seed = expeditionSeed,
                 StartedBy = startedBy?.Trim() ?? string.Empty,
                 StartedByUserId = startedByUserId?.Trim() ?? string.Empty,

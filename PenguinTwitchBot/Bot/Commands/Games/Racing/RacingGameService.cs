@@ -41,7 +41,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Racing
         };
         private readonly DropGameSessionManager _sessionManager = new(logger);
         private readonly List<PendingDropRecord> _lobbyRacers = [];
-        private readonly object _racerLock = new();
+        private readonly Lock _racerLock = new();
 
         private RacingGameMode _currentSessionGameMode = RacingGameMode.GrandPrix;
         private RacingTrackType _currentSessionTrackType = RacingTrackType.Perimeter;

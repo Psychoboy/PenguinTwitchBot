@@ -75,7 +75,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private FishingOverlayDisplaySettings? _cached;
         private long _generation;
 

@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         protected readonly Timer _pointsToActiveCommandTimer = new(1000);
-        private readonly object _pointsLock = new();
+        private readonly Lock _pointsLock = new();
         private long _pointsToGiveOut = 0;
         private DateTime _lastPointsGivenOut = DateTime.UtcNow;
 

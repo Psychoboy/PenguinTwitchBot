@@ -6,7 +6,7 @@ using Markdig.Syntax.Inlines;
 
 namespace PenguinTwitchBot.Helpers;
 
-public static class GitHubMarkdownRenderer
+public static partial class GitHubMarkdownRenderer
 {
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
@@ -119,9 +119,9 @@ public static class GitHubMarkdownRenderer
 
                 if (!string.IsNullOrWhiteSpace(args))
                 {
-                    var colorMatch = Regex.Match(args, @"(?:color\s*=\s*[""']?([^""'\s]+)[""']?)", RegexOptions.IgnoreCase);
-                    var sizeMatch = Regex.Match(args, @"(?:size\s*=\s*[""']?([^""'\s]+)[""']?)", RegexOptions.IgnoreCase);
-                    var styleMatch = Regex.Match(args, @"(?:style\s*=\s*[""']?([^""'\s]+)[""']?)", RegexOptions.IgnoreCase);
+                    var colorMatch = IconColorArgRegex().Match(args);
+                    var sizeMatch = IconSizeArgRegex().Match(args);
+                    var styleMatch = IconStyleArgRegex().Match(args);
 
                     if (colorMatch.Success) color = colorMatch.Groups[1].Value;
                     if (sizeMatch.Success) size = sizeMatch.Groups[1].Value;
@@ -170,8 +170,23 @@ public static class GitHubMarkdownRenderer
 
     /// <summary>Restricts icon attributes to simple colors and sizes in safe mode.</summary>
     private static bool SafeIconOptions(string? color, string? size) =>
-        (string.IsNullOrEmpty(color) || Regex.IsMatch(color, @"^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$")) &&
-        (string.IsNullOrEmpty(size) || Regex.IsMatch(size, @"^\d+(\.\d+)?(px|em|rem|%)?$"));
+        (string.IsNullOrEmpty(color) || SafeIconColorRegex().IsMatch(color)) &&
+        (string.IsNullOrEmpty(size) || SafeIconSizeRegex().IsMatch(size));
+
+    [GeneratedRegex(@"(?:color\s*=\s*[""']?([^""'\s]+)[""']?)", RegexOptions.IgnoreCase)]
+    private static partial Regex IconColorArgRegex();
+
+    [GeneratedRegex(@"(?:size\s*=\s*[""']?([^""'\s]+)[""']?)", RegexOptions.IgnoreCase)]
+    private static partial Regex IconSizeArgRegex();
+
+    [GeneratedRegex(@"(?:style\s*=\s*[""']?([^""'\s]+)[""']?)", RegexOptions.IgnoreCase)]
+    private static partial Regex IconStyleArgRegex();
+
+    [GeneratedRegex(@"^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$")]
+    private static partial Regex SafeIconColorRegex();
+
+    [GeneratedRegex(@"^\d+(\.\d+)?(px|em|rem|%)?$")]
+    private static partial Regex SafeIconSizeRegex();
 
     private static bool IsColorToken(string token)
     {

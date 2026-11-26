@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -20,14 +21,14 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
     private static readonly TimeSpan CatalogCacheTtl = TimeSpan.FromDays(7);
     private static readonly JsonSerializerOptions IndentedJsonOptions = new() { WriteIndented = true };
 
-    private static readonly Dictionary<string, string> PiperArchiveSha256 = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, string> PiperArchiveSha256 = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["piper_linux_x86_64.tar.gz"] = "a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992",
         ["piper_linux_aarch64.tar.gz"] = "fea0fd2d87c54dbc7078d0f878289f404bd4d6eea6e7444a77835d1537ab88eb",
         ["piper_windows_amd64.zip"] = "f3c58906402b24f3a96d92145f58acba6d86c9b5db896d207f78dc80811efcea",
         ["piper_macos_x64.tar.gz"] = "ced85c0a3df13945b1e623b878a48fdc2854d5c485b4b67f62857cf551deaf8b",
         ["piper_macos_aarch64.tar.gz"] = "6b1eb03b3735946cb35216e063e7eebcc33a6bbf5dd96ec0217959bf1cdcb0cc"
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private static string GetExpectedArchiveName()
     {

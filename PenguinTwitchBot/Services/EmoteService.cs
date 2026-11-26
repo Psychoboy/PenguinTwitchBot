@@ -51,7 +51,7 @@ public class EmoteService(
     private Dictionary<string, string>? _lastMergedSource;
     private long _lastMergedVersion = -1;
     private Dictionary<string, string>? _lastMergedResult;
-    private readonly object _mergeLock = new();
+    private readonly Lock _mergeLock = new();
     private string? _cachedChannelId;
 
     public void TrackEmote(string name, string url)

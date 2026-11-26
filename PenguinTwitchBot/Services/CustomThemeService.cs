@@ -10,7 +10,7 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
 {
     private const string SettingName = "CustomThemes";
     private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly object _cacheLock = new();
+    private readonly Lock _cacheLock = new();
     private List<CustomThemeModel>? _cachedThemes;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)

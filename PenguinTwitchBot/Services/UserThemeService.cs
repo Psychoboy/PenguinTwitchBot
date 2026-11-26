@@ -17,7 +17,7 @@ public sealed class UserThemeService : IUserThemeService
     private readonly string _sessionId = Guid.NewGuid().ToString();
     private List<CustomThemeModel> _availableThemes = [];
     private string? _authenticatedUserId;
-    private readonly object _saveLock = new();
+    private readonly Lock _saveLock = new();
     private Task _lastSaveTask = Task.CompletedTask;
     private bool _disposed;
 

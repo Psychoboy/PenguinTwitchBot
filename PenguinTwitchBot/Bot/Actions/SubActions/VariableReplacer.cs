@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -6,17 +7,16 @@ using PenguinTwitchBot.Bot.Core;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions
 {
-    public static class VariableReplacer
+    public static partial class VariableReplacer
     {
         private static bool CalledLicense = false;
+        private static readonly SearchValues<char> VariableTokenChars = SearchValues.Create(['%', '$']);
 
-        private static readonly Regex SystemTokensRegex = new(
-            @"%(?<token>bot|streamer|user|date|time|ticks|random(?:\((?<min>-?\d+),\s*(?<max>-?\d+)\))?)%",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        [GeneratedRegex(@"%(?<token>bot|streamer|user|date|time|ticks|random(?:\((?<min>-?\d+),\s*(?<max>-?\d+)\))?)%", RegexOptions.IgnoreCase)]
+        private static partial Regex SystemTokensRegex();
 
-        private static readonly Regex MathExpressionRegex = new(
-            @"\$math\((.+?)\)\$",
-            RegexOptions.Compiled);
+        [GeneratedRegex(@"\$math\((.+?)\)\$")]
+        private static partial Regex MathExpressionRegex();
 
         /// <summary>
         /// Optional ambient service backbone used to resolve bot and streamer names in system variables.
@@ -41,7 +41,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
 
         public static string ReplaceVariables(string input, ConcurrentDictionary<string, string> variables)
         {
-            if (string.IsNullOrEmpty(input))
+            if (string.IsNullOrEmpty(input) || input.AsSpan().IndexOfAny(VariableTokenChars) < 0)
             {
                 return input;
             }
@@ -74,7 +74,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
             // 3. Evaluate math expressions: $math(...)
             if (input.Contains("$math(", StringComparison.Ordinal))
             {
-                input = MathExpressionRegex.Replace(input, match =>
+                input = MathExpressionRegex().Replace(input, match =>
                 {
                     var expression = match.Groups[1].Value;
                     return DoMath(expression);
@@ -86,7 +86,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
 
         private static string ReplaceSystemVariables(string input, ConcurrentDictionary<string, string> variables)
         {
-            return SystemTokensRegex.Replace(input, match =>
+            return SystemTokensRegex().Replace(input, match =>
             {
                 var token = match.Groups["token"].Value;
 

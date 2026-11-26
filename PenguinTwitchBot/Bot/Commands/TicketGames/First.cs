@@ -9,7 +9,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
     public class First : BaseCommandService, IHostedService
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
-        private readonly object _claimLock = new();
+        private readonly Lock _claimLock = new();
         private readonly IPointsSystem _pointsSystem;
         private readonly ILogger<First> _logger;
         private readonly IGameSettingsService _gameSettingsService;
