@@ -409,6 +409,122 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasIndex(e => new { e.SongId, e.RequestDate })
                 .HasDatabaseName("IX_SongRequestHistories_SongId_RequestDate");
 
+            modelBuilder.Entity<Models.Metrics.SongRequestHistory>()
+                .HasIndex(e => new { e.RequestDate, e.SongId })
+                .HasDatabaseName("IX_SongRequestHistories_RequestDate_SongId");
+
+            // Hot-path trigger lookups (events, commands, keywords, timers, default commands)
+            modelBuilder.Entity<Models.Actions.Triggers.TriggerType>()
+                .HasIndex(t => new { t.Type, t.Enabled, t.CommandId })
+                .HasDatabaseName("IX_Triggers_Type_Enabled_CommandId")
+                .HasFilter("\"CommandId\" IS NOT NULL");
+
+            modelBuilder.Entity<Models.Actions.Triggers.TriggerType>()
+                .HasIndex(t => new { t.Type, t.Enabled, t.KeywordId })
+                .HasDatabaseName("IX_Triggers_Type_Enabled_KeywordId")
+                .HasFilter("\"KeywordId\" IS NOT NULL");
+
+            modelBuilder.Entity<Models.Actions.Triggers.TriggerType>()
+                .HasIndex(t => new { t.Type, t.Enabled, t.Name })
+                .HasDatabaseName("IX_Triggers_Type_Enabled_Name");
+
+            modelBuilder.Entity<Models.Actions.Triggers.TriggerType>()
+                .HasIndex(t => new { t.Type, t.TimerGroupId })
+                .HasDatabaseName("IX_Triggers_Type_TimerGroupId")
+                .HasFilter("\"TimerGroupId\" IS NOT NULL");
+
+            modelBuilder.Entity<Models.Actions.Triggers.TriggerType>()
+                .HasIndex(t => new { t.Type, t.DefaultCommandId })
+                .HasDatabaseName("IX_Triggers_Type_DefaultCommandId")
+                .HasFilter("\"DefaultCommandId\" IS NOT NULL");
+
+            // High-growth IP log queries (duplicate IP lookup, retention cleanup, username fallback)
+            modelBuilder.Entity<IpLogEntry>()
+                .HasIndex(e => e.Ip)
+                .HasDatabaseName("IX_IpLogEntrys_Ip");
+
+            modelBuilder.Entity<IpLogEntry>()
+                .HasIndex(e => e.ConnectedDate)
+                .HasDatabaseName("IX_IpLogEntrys_ConnectedDate");
+
+            modelBuilder.Entity<IpLogEntry>()
+                .HasIndex(e => e.Username)
+                .HasDatabaseName("IX_IpLogEntrys_Username");
+
+            // Composite descending leaderboard & rank indexes
+            modelBuilder.Entity<ViewerMessageCount>()
+                .HasIndex(e => new { e.banned, e.MessageCount })
+                .IsDescending(false, true)
+                .HasDatabaseName("IX_ViewerMessageCounts_banned_MessageCount");
+
+            modelBuilder.Entity<ViewerTime>()
+                .HasIndex(e => new { e.banned, e.Time })
+                .IsDescending(false, true)
+                .HasDatabaseName("IX_ViewersTime_banned_Time");
+
+            // Periodic raid tracker polling & raider lookups
+            modelBuilder.Entity<RaidHistoryEntry>()
+                .HasIndex(e => e.LastCheckOnline)
+                .HasDatabaseName("IX_RaidHistory_LastCheckOnline");
+
+            modelBuilder.Entity<RaidHistoryEntry>()
+                .HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_RaidHistory_UserId");
+
+            // Default paginated follower listing sort order
+            modelBuilder.Entity<Follower>()
+                .HasIndex(e => new { e.FollowDate, e.Username })
+                .IsDescending(true, false)
+                .HasDatabaseName("IX_Followers_FollowDate_Username");
+
+            // Partial indexes for periodic subscriber/editor sync on Viewers
+            modelBuilder.Entity<Viewer>()
+                .HasIndex(v => v.isSub)
+                .HasDatabaseName("IX_Viewers_isSub")
+                .HasFilter(Database.IsNpgsql() ? "\"isSub\" = true" : "\"isSub\" = 1");
+
+            modelBuilder.Entity<Viewer>()
+                .HasIndex(v => v.isEditor)
+                .HasDatabaseName("IX_Viewers_isEditor")
+                .HasFilter(Database.IsNpgsql() ? "\"isEditor\" = true" : "\"isEditor\" = 1");
+
+            // Medium-priority lookup indexes
+            modelBuilder.Entity<AliasModel>()
+                .HasIndex(a => a.AliasName)
+                .HasDatabaseName("IX_Aliases_AliasName");
+
+            modelBuilder.Entity<UserRegisteredVoice>()
+                .HasIndex(u => u.Username)
+                .HasDatabaseName("IX_UserRegisteredVoices_Username");
+
+            modelBuilder.Entity<Song>()
+                .HasIndex(s => s.SongId)
+                .HasDatabaseName("IX_Songs_SongId");
+
+            modelBuilder.Entity<SongCooldown>()
+                .HasIndex(c => c.CooldownExpiresAt)
+                .HasDatabaseName("IX_SongCooldowns_CooldownExpiresAt");
+
+            modelBuilder.Entity<TimerGroup>()
+                .HasIndex(t => new { t.Active, t.NextRun })
+                .HasDatabaseName("IX_TimerGroups_Active_NextRun");
+
+            modelBuilder.Entity<ActionType>()
+                .HasIndex(a => a.Name)
+                .HasDatabaseName("IX_Actions_Name");
+
+            modelBuilder.Entity<DefaultCommand>()
+                .HasIndex(c => c.ModuleName)
+                .HasDatabaseName("IX_DefaultCommands_ModuleName");
+
+            modelBuilder.Entity<DiscordEventMap>()
+                .HasIndex(d => d.TwitchEventId)
+                .HasDatabaseName("IX_DiscordEvents_TwitchEventId");
+
+            modelBuilder.Entity<DiscordEventMap>()
+                .HasIndex(d => d.DiscordEventId)
+                .HasDatabaseName("IX_DiscordEvents_DiscordEventId");
+
             modelBuilder.Entity<OverlayLayout>()
                 .HasMany(l => l.Widgets)
                 .WithOne(w => w.Layout)
