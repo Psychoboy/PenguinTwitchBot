@@ -100,7 +100,6 @@
         await GiveawayFeature.AddExclusion(giveawayExclusion);
         giveawayExclusions = (await GiveawayFeature.GetAllExclusions()).ToList();
         giveawayExclusion = new();
-        StateHasChanged();
     }
 
     private async Task Delete(GiveawayExclusion item)

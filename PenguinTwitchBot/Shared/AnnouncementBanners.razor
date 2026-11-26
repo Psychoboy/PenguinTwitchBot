@@ -5,7 +5,6 @@
 @using PenguinTwitchBot.Circuit
 @using PenguinTwitchBot.Services
 @inject AnnouncementService Announcements
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JSRuntime
 @inject ILogger<AnnouncementBanners> Logger
 @inject IOptions<CircuitOptions> CircuitOptions
@@ -25,6 +24,9 @@
 }
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     private readonly CancellationTokenSource _cancellation = new();
     private List<Announcement> _visible = [];
     private ClaimsPrincipal _user = new();
@@ -44,7 +46,7 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        _user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        _user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new ClaimsPrincipal();
         if (_cancellation.IsCancellationRequested) return;
         var userId = _user.Identity?.IsAuthenticated == true
             ? _user.FindFirst("UserId")?.Value ?? _user.FindFirst(ClaimTypes.NameIdentifier)?.Value : null;

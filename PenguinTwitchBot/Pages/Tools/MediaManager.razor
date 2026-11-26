@@ -290,7 +290,6 @@
     {
         _currentlyPlayingUrl = null;
         _audioPreviewKey = null;
-        StateHasChanged();
     }
 
     public void Dispose()
@@ -332,7 +331,6 @@
     {
         if (file == null) return;
         _isUploading = true;
-        StateHasChanged();
 
         try
         {
@@ -355,7 +353,6 @@
         finally
         {
             _isUploading = false;
-            StateHasChanged();
         }
     }
 

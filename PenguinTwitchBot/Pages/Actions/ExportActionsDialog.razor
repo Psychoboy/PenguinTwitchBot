@@ -9,6 +9,7 @@
 @using PenguinTwitchBot.Models.Actions
 @using System.Text.Json
 @inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
 @inject IActionCommandService CommandService
 @inject IActionKeywordService KeywordService
 @inject IAutoTimers TimerService
@@ -236,8 +237,16 @@
             _ => $"Actions_{DateTime.Now:yyyyMMdd_HHmmss}.json"
         };
 
-        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, json);
-        MudDialog.Close(DialogResult.Ok(true));
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, json);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to download exported actions.", Severity.Error);
+            return;
+        }
     }
 
     private static string SanitizeName(string? name) =>

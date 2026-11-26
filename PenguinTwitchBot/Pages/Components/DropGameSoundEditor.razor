@@ -336,7 +336,6 @@
     {
         _isPlaying = false;
         _audioPreviewUrl = null;
-        StateHasChanged();
     }
 
     private async Task OpenMediaLibraryAsync()
@@ -370,7 +369,6 @@
 
         StopPreview();
         _isUploading = true;
-        StateHasChanged();
 
         try
         {
@@ -395,7 +393,6 @@
         finally
         {
             _isUploading = false;
-            StateHasChanged();
         }
     }
 

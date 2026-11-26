@@ -355,7 +355,6 @@
         await Task.WhenAll(standingTasks);
 
         isLoading = false;
-        StateHasChanged();
     }
 
     private static RenderFragment FormatDate(DateTime? value) => builder =>

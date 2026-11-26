@@ -393,8 +393,15 @@
         var csv = BuildMonteCarloCsv(report);
         var fileName = $"GiveawayFairness_{report.GeneratedAtUtc:yyyyMMdd_HHmmss}.csv";
 
-        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csv);
-        Snackbar.Add($"CSV export started: {fileName}", Severity.Success);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csv);
+            Snackbar.Add($"CSV export started: {fileName}", Severity.Success);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to start CSV export.", Severity.Error);
+        }
     }
 
     private static string BuildMonteCarloCsv(PenguinTwitchBot.Bot.Commands.Features.GiveawayFairnessReport report)

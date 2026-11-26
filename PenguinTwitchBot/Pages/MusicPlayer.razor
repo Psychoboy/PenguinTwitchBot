@@ -204,6 +204,8 @@
     private IJSRuntime JsRuntime { get; set; } = default!;
 
     private Timer? _timer;
+    private bool _disposed;
+    private bool _youtubeInitialized;
     private bool playerReady;
     private bool apiReady;
     private bool playerCreated;
@@ -225,11 +227,39 @@
     {
         if (firstRender == false) return;
 
-        await JsRuntime.InvokeVoidAsync("initializeYouTubePlayer");
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("initializeYouTubePlayer");
+            _youtubeInitialized = true;
+        }
+        catch (JSDisconnectedException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to initialize YouTube player; will retry in polling timer.");
+            Snackbar.Add("YouTube player initialization failed; retrying...", Severity.Warning);
+        }
+
+        if (_disposed) return;
+
         _timer = new Timer(async (e) =>
         {
+            if (_disposed)
+            {
+                _timer?.Dispose();
+                return;
+            }
+
             try
             {
+                if (!_youtubeInitialized)
+                {
+                    await JsRuntime.InvokeVoidAsync("initializeYouTubePlayer");
+                    _youtubeInitialized = true;
+                }
+
                 playerReady = await JsRuntime.InvokeAsync<bool>("checkPlayer");
                 apiReady = await JsRuntime.InvokeAsync<bool>("checkAPIReady");
 
@@ -251,7 +281,10 @@
                     }
 
                     currentSongLoaded = true;
-                    await InvokeAsync(StateHasChanged);
+                    if (!_disposed)
+                    {
+                        await InvokeAsync(StateHasChanged);
+                    }
 
                     _timer?.Dispose();
                 }
@@ -259,7 +292,10 @@
             catch (Exception)
             {
                 currentSongLoaded = true;
-                _ = InvokeAsync(StateHasChanged);
+                if (!_disposed)
+                {
+                    _ = InvokeAsync(StateHasChanged);
+                }
                 _timer?.Dispose();
             }
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
@@ -297,7 +333,6 @@
             await YtPlayer.SetPlaylists(newDefaultId, additionalPlaylistIds);
             defaultPlaylistId = newDefaultId;
             currentPlayList = await YtPlayer.CurrentPlaylist();
-            StateHasChanged();
         }
     }
 
@@ -321,14 +356,12 @@
         }
         await YtPlayer.SetPlaylists(defaultPlaylistId, additionalPlaylistIds);
         currentPlayList = await YtPlayer.CurrentPlaylist();
-        StateHasChanged();
     }
 
     private async Task RefreshUnplayedSongs()
     {
         await YtPlayer.RefreshUnplayedSongs();
         currentPlayList = await YtPlayer.CurrentPlaylist();
-        StateHasChanged();
     }
 
     private async Task Priority(Song song)
@@ -403,6 +436,7 @@
     }
     public ValueTask DisposeAsync()
     {
+        _disposed = true;
         _timer?.Dispose();
         foreach (var subscription in _hubSubscriptions)
         {

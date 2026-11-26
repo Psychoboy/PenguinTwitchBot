@@ -455,7 +455,6 @@
         StopAlertPreview();
         StopCompanionSoundPreview();
         _isUploadingMedia = true;
-        StateHasChanged();
 
         try
         {
@@ -484,7 +483,6 @@
         finally
         {
             _isUploadingMedia = false;
-            StateHasChanged();
         }
     }
 
@@ -501,7 +499,6 @@
         StopAlertPreview();
         StopCompanionSoundPreview();
         _isUploadingAudio = true;
-        StateHasChanged();
 
         try
         {
@@ -527,7 +524,6 @@
         finally
         {
             _isUploadingAudio = false;
-            StateHasChanged();
         }
     }
 
@@ -569,7 +565,6 @@
     {
         _isPlayingCompanionSound = false;
         _standaloneAudioUrl = null;
-        StateHasChanged();
     }
 
     #endregion
@@ -586,7 +581,6 @@
         _previewCts = new CancellationTokenSource();
         var token = _previewCts.Token;
 
-        StateHasChanged();
 
         // Run countdown timer for the configured duration
         _ = Task.Run(async () =>
@@ -617,15 +611,22 @@
     private async Task OnPreviewFrameLoaded()
     {
         if (!_isPreviewing) return;
-        await JSRuntime.InvokeVoidAsync("alertPreviewBridge.send", _previewFrame, new
+        try
         {
-            file = Alert.File,
-            audioFile = Alert.AudioFile,
-            duration = Alert.Duration,
-            volume = Alert.Volume,
-            css = Alert.CSS,
-            text = Alert.Text
-        });
+            await JSRuntime.InvokeVoidAsync("alertPreviewBridge.send", _previewFrame, new
+            {
+                file = Alert.File,
+                audioFile = Alert.AudioFile,
+                duration = Alert.Duration,
+                volume = Alert.Volume,
+                css = Alert.CSS,
+                text = Alert.Text
+            });
+        }
+        catch (Exception)
+        {
+            // Ignore JS interop failures when circuit disconnects
+        }
     }
 
     private void StopAlertPreview() => StopAlertPreviewCore(true);

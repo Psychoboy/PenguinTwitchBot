@@ -2,7 +2,6 @@
 @attribute [Authorize(Roles = "Streamer")]
 @using PenguinTwitchBot.Services
 @inject AnnouncementService AnnouncementService
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
@@ -54,6 +53,9 @@
 </MudContainer>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     private List<Announcement> _items = [];
     private Announcement? _editing;
     private bool _isNew;
@@ -71,7 +73,7 @@
         if (_editing == null) return;
         try
         {
-            var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
             await AnnouncementService.SaveAsync(user, _editing);
             _items = await AnnouncementService.GetAnnouncementsAsync();
             _editing = null;
@@ -84,7 +86,7 @@
         if (await DialogService.ShowMessageBoxAsync("Delete announcement", "This cannot be undone.", yesText: "Delete", cancelText: "Cancel") != true) return;
         try
         {
-            var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
             await AnnouncementService.DeleteAsync(user, item.Id);
             _items = await AnnouncementService.GetAnnouncementsAsync();
             if (_editing?.Id == item.Id) _editing = null;

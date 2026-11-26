@@ -296,8 +296,15 @@
 
     private async Task CopyOverlayUrlAsync()
     {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", OverlayUrl);
-        Snackbar.Add("OBS URL copied to clipboard!", Severity.Info);
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", OverlayUrl);
+            Snackbar.Add("OBS URL copied to clipboard!", Severity.Info);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add($"OBS URL: {OverlayUrl}", Severity.Info);
+        }
     }
 
     private void HandleFeatureStateChanged()
@@ -409,7 +416,6 @@
         newWheel = new Wheel();
         propertiesToDelete = new List<WheelProperty>();
         Wheels = await WheelService.GetWheels();
-        StateHasChanged();
     }
 
     private void ShowWheel(Wheel wheel)

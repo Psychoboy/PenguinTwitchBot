@@ -1,5 +1,4 @@
 @page "/acommands"
-@inject AuthenticationStateProvider AuthenticationStateProvider;
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias Aliases;
 @inject PenguinTwitchBot.Services.MediaUploadService MediaUploadService
 @inject IJSRuntime JSRuntime
@@ -155,6 +154,9 @@
     .audio-preview-button[aria-pressed="true"] .audio-preview-pause { display: inline-flex; }
 </style>
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     private List<CommandModel> commands = new();
     private string searchString1 = "";
     private bool dataLoaded = false;
@@ -210,9 +212,7 @@
     /// <summary>Loads visible audio commands and aliases, filtered for the current viewer.</summary>
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider
-           .GetAuthenticationStateAsync();
-        var user = authState.User;
+        var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
         var tempCommands = new List<CommandModel>();
         var audioCommands = AudioCommandService.GetAudioCommands();
         foreach (var command in audioCommands.Where(x => x.Value.Disabled == false && x.Value.ExcludeFromUi == false))

@@ -526,7 +526,6 @@
         if (files == null || files.Count == 0) return;
 
         _isUploadingMedia = true;
-        StateHasChanged();
 
         try
         {
@@ -621,7 +620,6 @@
         finally
         {
             _isUploadingMedia = false;
-            StateHasChanged();
         }
     }
 }

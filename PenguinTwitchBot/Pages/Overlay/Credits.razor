@@ -2149,7 +2149,15 @@
     private async Task CopyObsUrlAsync()
     {
         var url = GetStandaloneUrl(autoStart: false);
-        var copied = await JS.InvokeAsync<bool>("copyToClipboard", url);
+        var copied = false;
+        try
+        {
+            copied = await JS.InvokeAsync<bool>("copyToClipboard", url);
+        }
+        catch (Exception)
+        {
+            copied = false;
+        }
         Snackbar.Add(
             copied ? "Copied OBS Credits URL to clipboard!" : $"OBS URL: {url}",
             copied ? Severity.Success : Severity.Info);

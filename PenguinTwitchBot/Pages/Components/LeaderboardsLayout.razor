@@ -3,7 +3,6 @@
 @using PenguinTwitchBot.Database.Bot.Models.Points
 @inject PenguinTwitchBot.Services.LeaderboardsLayoutService LeaderboardsLayoutService
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ISnackbar Snackbar
 
 @if (!isLoaded)
@@ -143,6 +142,9 @@ else
 }
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     private readonly List<LeaderboardWidgetConfig> editableWidgets = [];
     private readonly DragReorderState _drag = new();
 
@@ -160,8 +162,8 @@ else
     private IReadOnlyList<PointType> PointTypes { get; set; } = [];
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        isStreamer = authState.User.IsInRole("Streamer");
+        var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
+        isStreamer = user.IsInRole("Streamer");
 
         PointTypes = (await PointsSystem.GetPointTypes()).ToList();
 

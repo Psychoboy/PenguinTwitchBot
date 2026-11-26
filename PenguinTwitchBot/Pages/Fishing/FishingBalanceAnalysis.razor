@@ -1295,8 +1295,15 @@
         var json = JsonSerializer.Serialize(report, jsonOptions);
         var fileName = $"FishingBalanceReport_{DateTime.Now:yyyyMMdd_HHmmss}.json";
         
-        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, json);
-        Snackbar.Add($"Report exported as {fileName}", Severity.Success);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, json);
+            Snackbar.Add($"Report exported as {fileName}", Severity.Success);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to download report.", Severity.Error);
+        }
     }
 
     private class VarianceRow

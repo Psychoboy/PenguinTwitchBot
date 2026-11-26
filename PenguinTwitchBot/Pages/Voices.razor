@@ -558,7 +558,6 @@
     private async Task SaveKokoroThreadsAsync()
     {
         _savingThreads = true;
-        StateHasChanged();
         try
         {
             await TTSService.SetKokoroThreads(_kokoroThreads);
@@ -571,7 +570,6 @@
         finally
         {
             _savingThreads = false;
-            StateHasChanged();
         }
     }
 
@@ -674,13 +672,11 @@
     private async Task LoadGoogleVoices()
     {
         _loadingGoogle = true;
-        StateHasChanged();
         var all = await TTSService.GetAllVoices(includeGoogle: true);
         GoogleVoices = all
             .Where(v => v.Type == PenguinTwitchBot.Database.Bot.Models.RegisteredVoice.VoiceType.Google)
             .ToList();
         _loadingGoogle = false;
-        StateHasChanged();
     }
 
     private async Task AddVoice(RegisteredVoice voice)
@@ -710,7 +706,6 @@
         UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
         SelectedVoice = null;
         customVoice = new();
-        StateHasChanged();
     }
 
     public async Task Delete(RegisteredVoice voice)

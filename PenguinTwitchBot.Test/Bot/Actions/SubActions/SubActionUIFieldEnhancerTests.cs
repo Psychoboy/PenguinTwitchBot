@@ -310,6 +310,6 @@ public class SubActionUIFieldEnhancerTests
         Assert.NotNull(modelField.Options);
         Assert.Contains("gpt-5.1", modelField.Options);
         Assert.Contains("gpt-4o", modelField.Options);
-        modelService.DidNotReceiveWithAnyArgs().GetAvailableTextModelsAsync();
+        await modelService.DidNotReceiveWithAnyArgs().GetAvailableTextModelsAsync();
     }
 }

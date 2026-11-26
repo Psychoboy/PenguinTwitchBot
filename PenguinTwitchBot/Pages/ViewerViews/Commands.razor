@@ -5,7 +5,6 @@
 @using PenguinTwitchBot.Database.Bot.Models.Points;
 @using PenguinTwitchBot.Bot.Features
 @implements IDisposable
-@inject AuthenticationStateProvider AuthenticationStateProvider;
 @inject ICommandHandler CommandHandler;
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias Aliases;
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem;
@@ -172,6 +171,9 @@
 
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     private List<CommandModel> originalCommands = new();
     private List<CommandModel> commands = new();
     private string searchString1 = "";
@@ -200,9 +202,7 @@
     {
         FeatureRuntimeCoordinator.StateChangedAsync += OnFeatureStateChangedAsync;
 
-        var authState = await AuthenticationStateProvider
-           .GetAuthenticationStateAsync();
-        var user = authState.User;
+        var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
         var defaultCommands = await CommandHandler.GetDefaultCommandsFromDb();
         var tempCommands = new List<CommandModel>();
         foreach(var command in defaultCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))

@@ -3,7 +3,6 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @inject ISnackbar Snackbar
-@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <MudDialog>
     <DialogContent>
@@ -67,6 +66,9 @@
 
 @code {
     [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = null!;
 
     [Parameter]
@@ -90,8 +92,8 @@
         var baseUri = NavigationManager.BaseUri.TrimEnd('/');
         _urlById = $"{baseUri}/actions/{ActionId}";
         _urlByName = string.IsNullOrWhiteSpace(ActionName) ? string.Empty : $"{baseUri}/actions/{Uri.EscapeDataString(ActionName)}";
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        _isStreamer = authState.User.IsInRole("Streamer");
+        var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
+        _isStreamer = user.IsInRole("Streamer");
         _webAuth = _isStreamer ? Configuration["webauth"] : null;
         _queryExample = $"{_urlById}?target=someuser&amount=100";
         _curl = $"curl -X POST -H \"webauth:<webauth>\" \"{_queryExample}\"";

@@ -726,7 +726,6 @@
     {
         Config.RewardTitles.Add("");
         await ConfigChanged.InvokeAsync(Config); // Fix: Invoke ConfigChanged when mutating
-        StateHasChanged();
     }
 
     private Task OnRewardTitleChanged(int index, string? value)
@@ -814,7 +813,6 @@
     {
         Config.CustomPowerUpTitles.Add("");
         await ConfigChanged.InvokeAsync(Config);
-        StateHasChanged();
     }
 
     private async Task RemoveCustomPowerUpTitle(int index)
@@ -831,7 +829,6 @@
     {
         Config.CustomPowerUpRewardIds.Add("");
         await ConfigChanged.InvokeAsync(Config);
-        StateHasChanged();
     }
 
     private async Task RemoveCustomPowerUpRewardId(int index)
