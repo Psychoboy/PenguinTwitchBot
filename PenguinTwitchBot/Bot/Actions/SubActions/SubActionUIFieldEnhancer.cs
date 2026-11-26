@@ -15,7 +15,7 @@ public static class SubActionUIFieldEnhancer
     private static readonly string[] TextInputKinds = ["text_gdiplus", "text_gdiplus_v2", "text_gdiplus_v3", "text_ft2_source", "text_ft2_source_v2"];
     private static readonly string[] BrowserInputKinds = ["browser_source"];
 
-    public static List<SubActionUIField> GetEnhancedFields(SubActionType? subAction, IServiceProvider? serviceProvider)
+    public static async Task<List<SubActionUIField>> GetEnhancedFieldsAsync(SubActionType? subAction, IServiceProvider? serviceProvider)
     {
         if (subAction is not ISubActionUIProvider uiProvider)
             return new List<SubActionUIField>();
@@ -25,8 +25,8 @@ public static class SubActionUIFieldEnhancer
         if (serviceProvider == null)
             return fields;
 
-        using var scope = serviceProvider.CreateScope();
-        fields = EnhanceObsConnectionField(fields, subAction, scope.ServiceProvider);
+        await using var scope = serviceProvider.CreateAsyncScope();
+        fields = await EnhanceObsConnectionFieldAsync(fields, subAction, scope.ServiceProvider);
 
         return subAction switch
         {
@@ -41,35 +41,35 @@ public static class SubActionUIFieldEnhancer
             ObsSetSourceFilterStateType sourceFilter => EnhanceObsSourceFilterState(fields, sourceFilter, scope.ServiceProvider),
             ObsSetSourceMuteStateType mute => EnhanceObsSourceMuteState(fields, mute, scope.ServiceProvider),
             ObsSetSourceVisibilityType visibility => EnhanceObsSourceVisibility(fields, visibility, scope.ServiceProvider),
-            RaffleStartType raffleStart => EnhanceRaffleStart(fields, scope.ServiceProvider),
+            RaffleStartType => await EnhanceRaffleStartAsync(fields, scope.ServiceProvider),
             ObsSetTextType text => EnhanceObsTextSource(fields, text, scope.ServiceProvider),
-            ExecuteActionType execute => EnhanceExecuteAction(fields, execute, scope.ServiceProvider),
-            FishingGiveItemToPlayerType fishingGiveItem => EnhanceFishingGiveItemToPlayer(fields, fishingGiveItem, scope.ServiceProvider),
-            FishingModifyType fishingModify => EnhanceFishingModify(fields, fishingModify, scope.ServiceProvider),
-            FishingTournamentStartType fishStart => EnhanceFishingTournamentStart(fields, scope.ServiceProvider),
-            FishingTournamentEndType fishEnd => EnhanceFishingTournamentEnd(fields, scope.ServiceProvider),
-            FishingFrenzyType fishFrenzy => EnhanceFishingFrenzy(fields, fishFrenzy, scope.ServiceProvider),
-            FishingQuickTournamentType fishQuickTourney => EnhanceFishingQuickTournament(fields, fishQuickTourney, scope.ServiceProvider),
-            TimerGroupSetEnabledStateType timer => EnhanceTimerGroupSetEnabledState(fields, timer, scope.ServiceProvider),
-            ToggleCommandDisabledType toggle => EnhanceToggleCommandDisabled(fields, toggle, scope.ServiceProvider),
-            PointCommandType point => EnhancePointCommand(fields, point, scope.ServiceProvider),
-            GiftPointsType gift => EnhanceGiftPoints(fields, gift, scope.ServiceProvider),
-            ManagePointsType managePoints => EnhanceManagePoints(fields, managePoints, scope.ServiceProvider),
-            ForEachViewerType foreachViewer => EnhanceForEachViewer(fields, foreachViewer, scope.ServiceProvider),
-            ExecuteDefaultCommandType defaultCmd => EnhanceExecuteDefaultCommand(fields, defaultCmd, scope.ServiceProvider),
-            ExecuteCommandType cmd => EnhanceExecuteCommand(fields, cmd, scope.ServiceProvider),
-            ChannelPointSetEnabledStateType channelPoint => EnhanceChannelPointSetEnabledState(fields, channelPoint, scope.ServiceProvider),
-            CheckPointsType checkPoints => EnhanceCheckPoints(fields, checkPoints, scope.ServiceProvider),
-            SetGlobalVariableType setGlobalVariable => EnhanceGlobalVariableNames(fields, setGlobalVariable, scope.ServiceProvider),
-            GetGlobalVariableType getGlobalVariable => EnhanceGlobalVariableNames(fields, getGlobalVariable, scope.ServiceProvider),
+            ExecuteActionType execute => await EnhanceExecuteActionAsync(fields, execute, scope.ServiceProvider),
+            FishingGiveItemToPlayerType fishingGiveItem => await EnhanceFishingGiveItemToPlayerAsync(fields, fishingGiveItem, scope.ServiceProvider),
+            FishingModifyType fishingModify => await EnhanceFishingModifyAsync(fields, fishingModify, scope.ServiceProvider),
+            FishingTournamentStartType => await EnhanceFishingTournamentStartAsync(fields, scope.ServiceProvider),
+            FishingTournamentEndType => await EnhanceFishingTournamentEndAsync(fields, scope.ServiceProvider),
+            FishingFrenzyType fishFrenzy => await EnhanceFishingFrenzyAsync(fields, fishFrenzy, scope.ServiceProvider),
+            FishingQuickTournamentType fishQuickTourney => await EnhanceFishingQuickTournamentAsync(fields, fishQuickTourney, scope.ServiceProvider),
+            TimerGroupSetEnabledStateType timer => await EnhanceTimerGroupSetEnabledStateAsync(fields, timer, scope.ServiceProvider),
+            ToggleCommandDisabledType toggle => await EnhanceToggleCommandDisabledAsync(fields, toggle, scope.ServiceProvider),
+            PointCommandType point => await EnhancePointCommandAsync(fields, point, scope.ServiceProvider),
+            GiftPointsType gift => await EnhanceGiftPointsAsync(fields, gift, scope.ServiceProvider),
+            ManagePointsType managePoints => await EnhanceManagePointsAsync(fields, managePoints, scope.ServiceProvider),
+            ForEachViewerType foreachViewer => await EnhanceForEachViewerAsync(fields, foreachViewer, scope.ServiceProvider),
+            ExecuteDefaultCommandType defaultCmd => await EnhanceExecuteDefaultCommandAsync(fields, defaultCmd, scope.ServiceProvider),
+            ExecuteCommandType cmd => await EnhanceExecuteCommandAsync(fields, cmd, scope.ServiceProvider),
+            ChannelPointSetEnabledStateType channelPoint => await EnhanceChannelPointSetEnabledStateAsync(fields, channelPoint, scope.ServiceProvider),
+            CheckPointsType checkPoints => await EnhanceCheckPointsAsync(fields, checkPoints, scope.ServiceProvider),
+            SetGlobalVariableType setGlobalVariable => await EnhanceGlobalVariableNamesAsync(fields, setGlobalVariable, scope.ServiceProvider),
+            GetGlobalVariableType getGlobalVariable => await EnhanceGlobalVariableNamesAsync(fields, getGlobalVariable, scope.ServiceProvider),
             OpenAiType openAi => EnhanceOpenAiModels(fields, openAi, scope.ServiceProvider),
             OverlayTimerStartType or OverlayTimerStopType or OverlayTimerAddTimeType or OverlayTimerRemoveTimeType or OverlayTimerVisibilityType => EnhanceOverlayTimer(fields, scope.ServiceProvider),
-            CreditsPlayType or CreditsStopType or CreditsPauseResumeType or CreditsMarkStartType => EnhanceCredits(fields, scope.ServiceProvider),
+            CreditsPlayType or CreditsStopType or CreditsPauseResumeType or CreditsMarkStartType => await EnhanceCreditsAsync(fields, scope.ServiceProvider),
             _ => fields
         };
     }
 
-    private static List<SubActionUIField> EnhanceObsConnectionField(List<SubActionUIField> fields, SubActionType subAction, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceObsConnectionFieldAsync(List<SubActionUIField> fields, SubActionType subAction, IServiceProvider serviceProvider)
     {
         var hasObsConnectionProperty = subAction.GetType().GetProperty(nameof(ObsSetSceneType.OBSConnectionId)) != null;
         if (!hasObsConnectionProperty)
@@ -79,7 +79,7 @@ public static class SubActionUIFieldEnhancer
         if (connectionManager == null)
             return fields;
 
-        var connections = Task.Run(async () => await connectionManager.GetAllConnectionsAsync()).GetAwaiter().GetResult();
+        var connections = await connectionManager.GetAllConnectionsAsync();
         var connectionOptions = connections
             .Select(c => new SelectOption { Id = c.Id, Name = c.Name })
             .ToList();
@@ -478,10 +478,10 @@ public static class SubActionUIFieldEnhancer
         return [];
     }
 
-    private static List<SubActionUIField> EnhanceExecuteAction(List<SubActionUIField> fields, ExecuteActionType execute, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceExecuteActionAsync(List<SubActionUIField> fields, ExecuteActionType execute, IServiceProvider serviceProvider)
     {
         var actionService = serviceProvider.GetRequiredService<IActionManagementService>();
-        var actions = Task.Run(async () => await actionService.GetActionSummariesAsync()).GetAwaiter().GetResult();
+        var actions = await actionService.GetActionSummariesAsync();
         var actionOptions = actions
             .Where(a => a.Id != Guid.Empty)
             .Select(a => new SelectOption { Name = a.Name, Id = a.Id })
@@ -512,13 +512,13 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceFishingGiveItemToPlayer(List<SubActionUIField> fields, FishingGiveItemToPlayerType giveItem, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceFishingGiveItemToPlayerAsync(List<SubActionUIField> fields, FishingGiveItemToPlayerType giveItem, IServiceProvider serviceProvider)
     {
         var fishingService = serviceProvider.GetRequiredService<IFishingService>();
         var shopService = serviceProvider.GetRequiredService<IFishingShopService>();
 
-        var players = Task.Run(async () => await fishingService.GetAllPlayersWithGold()).GetAwaiter().GetResult();
-        var shopItems = Task.Run(async () => await shopService.GetAllShopItems()).GetAwaiter().GetResult();
+        var players = await fishingService.GetAllPlayersWithGold();
+        var shopItems = await shopService.GetAllShopItems();
 
         var playerOptions = players
             .Where(player => !string.IsNullOrWhiteSpace(player.Username))
@@ -582,10 +582,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceFishingTournamentStart(List<SubActionUIField> fields, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceFishingTournamentStartAsync(List<SubActionUIField> fields, IServiceProvider serviceProvider)
     {
         var fishingService = serviceProvider.GetRequiredService<IFishingService>();
-        var tournaments = Task.Run(async () => await fishingService.GetAllFishingTournaments()).GetAwaiter().GetResult();
+        var tournaments = await fishingService.GetAllFishingTournaments();
         var options = tournaments
             .Select(t => new SelectOption { Id = t.Id, Name = $"{t.Name} ({t.Status})" })
             .OrderBy(o => o.Name)
@@ -605,10 +605,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceFishingFrenzy(List<SubActionUIField> fields, FishingFrenzyType frenzy, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceFishingFrenzyAsync(List<SubActionUIField> fields, FishingFrenzyType frenzy, IServiceProvider serviceProvider)
     {
         var fishingService = serviceProvider.GetRequiredService<IFishingService>();
-        var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
+        var fishTypes = await fishingService.GetAllFishTypes();
 
         var categoryOptions = new List<SelectOption>
         {
@@ -651,10 +651,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceFishingQuickTournament(List<SubActionUIField> fields, FishingQuickTournamentType quickTourney, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceFishingQuickTournamentAsync(List<SubActionUIField> fields, FishingQuickTournamentType quickTourney, IServiceProvider serviceProvider)
     {
         var fishingService = serviceProvider.GetRequiredService<IFishingService>();
-        var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
+        var fishTypes = await fishingService.GetAllFishTypes();
 
         var categoryOptions = new List<SelectOption>
         {
@@ -723,10 +723,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceFishingTournamentEnd(List<SubActionUIField> fields, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceFishingTournamentEndAsync(List<SubActionUIField> fields, IServiceProvider serviceProvider)
     {
         var fishingService = serviceProvider.GetRequiredService<IFishingService>();
-        var tournaments = Task.Run(async () => await fishingService.GetAllFishingTournaments()).GetAwaiter().GetResult();
+        var tournaments = await fishingService.GetAllFishingTournaments();
         var options = tournaments
             .Select(t => new SelectOption { Id = t.Id, Name = $"{t.Name} ({t.Status})" })
             .OrderBy(o => o.Name)
@@ -746,10 +746,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceTimerGroupSetEnabledState(List<SubActionUIField> fields, TimerGroupSetEnabledStateType timer, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceTimerGroupSetEnabledStateAsync(List<SubActionUIField> fields, TimerGroupSetEnabledStateType timer, IServiceProvider serviceProvider)
     {
         var timerService = serviceProvider.GetRequiredService<IAutoTimers>();
-        var timerGroups = Task.Run(async () => await timerService.GetTimerGroupsAsync()).GetAwaiter().GetResult();
+        var timerGroups = await timerService.GetTimerGroupsAsync();
         var timerGroupOptions = timerGroups
             .Where(tg => tg.Id != Guid.Empty)
             .Select(tg => new SelectOption { Name = tg.Name, Id = tg.Id })
@@ -769,10 +769,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceToggleCommandDisabled(List<SubActionUIField> fields, ToggleCommandDisabledType toggle, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceToggleCommandDisabledAsync(List<SubActionUIField> fields, ToggleCommandDisabledType toggle, IServiceProvider serviceProvider)
     {
         var commandService = serviceProvider.GetRequiredService<IActionCommandService>();
-        var commands = Task.Run(async () => await commandService.GetAllAsync()).GetAwaiter().GetResult();
+        var commands = await commandService.GetAllAsync();
         var commandOptions = commands
             .Select(a => new SelectOption { Name = a.CommandName, Value = a.CommandName })
             .OrderBy(a => a.Name)
@@ -791,10 +791,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhancePointCommand(List<SubActionUIField> fields, PointCommandType point, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhancePointCommandAsync(List<SubActionUIField> fields, PointCommandType point, IServiceProvider serviceProvider)
     {
         var commandService = serviceProvider.GetRequiredService<IPointsSystem>();
-        var commands = Task.Run(async () => await commandService.GetAllPointCommands()).GetAwaiter().GetResult();
+        var commands = await commandService.GetAllPointCommands();
         var pointNames = commands.Select(x => x.CommandName).ToArray();
 
         fields.RemoveAll(f => f.PropertyName == "Text");
@@ -821,10 +821,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceGiftPoints(List<SubActionUIField> fields, GiftPointsType gift, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceGiftPointsAsync(List<SubActionUIField> fields, GiftPointsType gift, IServiceProvider serviceProvider)
     {
         var commandService = serviceProvider.GetRequiredService<IPointsSystem>();
-        var pointTypes = Task.Run(async () => await commandService.GetPointTypes()).GetAwaiter().GetResult();
+        var pointTypes = await commandService.GetPointTypes();
         var pointNames = pointTypes.Select(pt => pt.Name).ToArray();
 
         fields.RemoveAll(f => f.PropertyName == "Text");
@@ -841,10 +841,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceManagePoints(List<SubActionUIField> fields, ManagePointsType managePoints, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceManagePointsAsync(List<SubActionUIField> fields, ManagePointsType managePoints, IServiceProvider serviceProvider)
     {
         var pointsSystem = serviceProvider.GetRequiredService<IPointsSystem>();
-        var pointTypes = Task.Run(async () => await pointsSystem.GetPointTypes()).GetAwaiter().GetResult();
+        var pointTypes = await pointsSystem.GetPointTypes();
 
         fields.RemoveAll(field => field.PropertyName == nameof(ManagePointsType.PointTypeName));
         fields.Insert(0, new SubActionUIField
@@ -859,10 +859,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceForEachViewer(List<SubActionUIField> fields, ForEachViewerType foreachViewer, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceForEachViewerAsync(List<SubActionUIField> fields, ForEachViewerType foreachViewer, IServiceProvider serviceProvider)
     {
         var actionService = serviceProvider.GetRequiredService<IActionManagementService>();
-        var actions = Task.Run(async () => await actionService.GetActionSummariesAsync()).GetAwaiter().GetResult();
+        var actions = await actionService.GetActionSummariesAsync();
         var actionOptions = actions
             .Where(a => a.Id != Guid.Empty)
             .Select(a => new SelectOption { Name = a.Name, Id = a.Id })
@@ -884,10 +884,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceExecuteDefaultCommand(List<SubActionUIField> fields, ExecuteDefaultCommandType defaultCmd, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceExecuteDefaultCommandAsync(List<SubActionUIField> fields, ExecuteDefaultCommandType defaultCmd, IServiceProvider serviceProvider)
     {
         var commandHandler = serviceProvider.GetRequiredService<ICommandHandler>();
-        var defaultCommands = Task.Run(async () => await commandHandler.GetDefaultCommandsFromDb()).GetAwaiter().GetResult();
+        var defaultCommands = await commandHandler.GetDefaultCommandsFromDb();
         var commands = defaultCommands.Select(a => new SelectOption { Name = a.CustomCommandName, Value = a.CommandName }).OrderBy(a => a.Name).ToList();
 
         fields.RemoveAll(f => f.PropertyName == nameof(ExecuteDefaultCommandType.CommandName));
@@ -913,13 +913,13 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceExecuteCommand(List<SubActionUIField> fields, ExecuteCommandType cmd, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceExecuteCommandAsync(List<SubActionUIField> fields, ExecuteCommandType cmd, IServiceProvider serviceProvider)
     {
         var actionCommandService = serviceProvider.GetRequiredService<IActionCommandService>();
         var commandHandler = serviceProvider.GetRequiredService<ICommandHandler>();
 
-        var actionCommands = Task.Run(async () => await actionCommandService.GetAllAsync()).GetAwaiter().GetResult();
-        var defaultCommands = Task.Run(async () => await commandHandler.GetDefaultCommandsFromDb()).GetAwaiter().GetResult();
+        var actionCommands = await actionCommandService.GetAllAsync();
+        var defaultCommands = await commandHandler.GetDefaultCommandsFromDb();
 
         var commands = new List<SelectOption>();
         foreach (var ac in actionCommands)
@@ -960,10 +960,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceChannelPointSetEnabledState(List<SubActionUIField> fields, ChannelPointSetEnabledStateType channelPoint, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceChannelPointSetEnabledStateAsync(List<SubActionUIField> fields, ChannelPointSetEnabledStateType channelPoint, IServiceProvider serviceProvider)
     {
         var twitchService = serviceProvider.GetRequiredService<ITwitchService>();
-        var channelPoints = Task.Run(async () => await twitchService.GetChannelPointRewards()).GetAwaiter().GetResult();
+        var channelPoints = await twitchService.GetChannelPointRewards();
         var names = channelPoints.Select(cp => cp.Title).ToList();
 
         fields.RemoveAll(f => f.PropertyName == "Text");
@@ -980,10 +980,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceRaffleStart(List<SubActionUIField> fields, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceRaffleStartAsync(List<SubActionUIField> fields, IServiceProvider serviceProvider)
     {
         var pointsSystem = serviceProvider.GetRequiredService<IPointsSystem>();
-        var pointTypes = Task.Run(async () => await pointsSystem.GetPointTypes()).GetAwaiter().GetResult();
+        var pointTypes = await pointsSystem.GetPointTypes();
         var pointTypeField = fields.FirstOrDefault(field => field.PropertyName == nameof(RaffleStartType.PointTypeId));
         if (pointTypeField is null)
             return fields;
@@ -997,10 +997,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceCheckPoints(List<SubActionUIField> fields, CheckPointsType checkPoints, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceCheckPointsAsync(List<SubActionUIField> fields, CheckPointsType checkPoints, IServiceProvider serviceProvider)
     {
         var pointSystem = serviceProvider.GetRequiredService<IPointsSystem>();
-        var pointTypes = Task.Run(async () => await pointSystem.GetPointTypes()).GetAwaiter().GetResult();
+        var pointTypes = await pointSystem.GetPointTypes();
         var pointTypeNames = pointTypes.Select(pt => pt.Name).ToArray();
 
         fields.RemoveAll(f => f.PropertyName == nameof(CheckPointsType.PointTypeName));
@@ -1016,10 +1016,10 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceGlobalVariableNames(List<SubActionUIField> fields, SimpleSubActionType subAction, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceGlobalVariableNamesAsync(List<SubActionUIField> fields, SimpleSubActionType subAction, IServiceProvider serviceProvider)
     {
         var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
-        var globalVariables = Task.Run(async () => await unitOfWork.GlobalVariables.GetAllOrderedAsync()).GetAwaiter().GetResult();
+        var globalVariables = await unitOfWork.GlobalVariables.GetAllOrderedAsync();
         var variableNames = globalVariables.Select(variable => variable.Name).ToArray();
 
         fields.RemoveAll(field => field.PropertyName == nameof(SubActionType.Text));
@@ -1040,7 +1040,7 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceFishingModify(List<SubActionUIField> fields, FishingModifyType modify, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceFishingModifyAsync(List<SubActionUIField> fields, FishingModifyType modify, IServiceProvider serviceProvider)
     {
         var fishingService = serviceProvider.GetService<IFishingService>();
         var shopService = serviceProvider.GetService<IFishingShopService>();
@@ -1049,7 +1049,7 @@ public static class SubActionUIFieldEnhancer
         {
             if (fishingService != null)
             {
-                var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
+                var fishTypes = await fishingService.GetAllFishTypes();
                 var fishOptions = fishTypes
                     .Select(f => new SelectOption
                     {
@@ -1072,7 +1072,7 @@ public static class SubActionUIFieldEnhancer
                     targetFishField.SelectOptions = fishOptions;
                 }
 
-                var settings = Task.Run(async () => await fishingService.GetSettings()).GetAwaiter().GetResult();
+                var settings = await fishingService.GetSettings();
                 if (settings != null)
                 {
                     var rarityField = fields.FirstOrDefault(f => f.PropertyName == nameof(FishingModifyType.RarityMode));
@@ -1087,7 +1087,7 @@ public static class SubActionUIFieldEnhancer
         {
             if (shopService != null)
             {
-                var shopItems = Task.Run(async () => await shopService.GetAllShopItems()).GetAwaiter().GetResult();
+                var shopItems = await shopService.GetAllShopItems();
                 var shopItemOptions = shopItems
                     .Select(item => new SelectOption
                     {
@@ -1113,31 +1113,33 @@ public static class SubActionUIFieldEnhancer
                 if (fishingService != null)
                 {
                     var targetFishField = fields.FirstOrDefault(f => f.PropertyName == nameof(FishingModifyType.NewTargetFish));
-                    if (targetFishField != null)
-                    {
-                        var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
-                        targetFishField.SelectOptions = fishTypes
-                            .Select(f => new SelectOption
-                            {
-                                Id = f.Id,
-                                Name = $"{f.Name} (ID: {f.Id} | {f.Rarity})",
-                                Value = f.Id.ToString()
-                            })
-                            .OrderBy(o => o.Name)
-                            .ToList();
-                    }
-
                     var targetCatField = fields.FirstOrDefault(f => f.PropertyName == nameof(FishingModifyType.NewTargetCategory));
-                    if (targetCatField != null)
+                    if (targetFishField != null || targetCatField != null)
                     {
-                        var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
-                        targetCatField.SelectOptions = fishTypes
-                            .SelectMany(f => f.Categories.Select(c => c.Category))
-                            .Where(c => !string.IsNullOrWhiteSpace(c))
-                            .Distinct(StringComparer.OrdinalIgnoreCase)
-                            .OrderBy(c => c)
-                            .Select(c => new SelectOption { Name = c, Value = c })
-                            .ToList();
+                        var fishTypes = await fishingService.GetAllFishTypes();
+                        if (targetFishField != null)
+                        {
+                            targetFishField.SelectOptions = fishTypes
+                                .Select(f => new SelectOption
+                                {
+                                    Id = f.Id,
+                                    Name = $"{f.Name} (ID: {f.Id} | {f.Rarity})",
+                                    Value = f.Id.ToString()
+                                })
+                                .OrderBy(o => o.Name)
+                                .ToList();
+                        }
+
+                        if (targetCatField != null)
+                        {
+                            targetCatField.SelectOptions = fishTypes
+                                .SelectMany(f => f.Categories.Select(c => c.Category))
+                                .Where(c => !string.IsNullOrWhiteSpace(c))
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .OrderBy(c => c)
+                                .Select(c => new SelectOption { Name = c, Value = c })
+                                .ToList();
+                        }
                     }
                 }
             }
@@ -1187,7 +1189,7 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceCredits(List<SubActionUIField> fields, IServiceProvider serviceProvider)
+    private static async Task<List<SubActionUIField>> EnhanceCreditsAsync(List<SubActionUIField> fields, IServiceProvider serviceProvider)
     {
         var creditsService = serviceProvider.GetService<Overlay.Credits.ICreditsService>();
         if (creditsService == null)
@@ -1196,7 +1198,7 @@ public static class SubActionUIFieldEnhancer
         IReadOnlyList<string> profileNames;
         try
         {
-            profileNames = Task.Run(async () => await creditsService.GetProfileNamesAsync()).GetAwaiter().GetResult();
+            profileNames = await creditsService.GetProfileNamesAsync();
         }
         catch
         {

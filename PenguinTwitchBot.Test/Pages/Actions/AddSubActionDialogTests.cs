@@ -5,7 +5,11 @@ using MudBlazor.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
+using PenguinTwitchBot.Bot.Commands.Misc;
+using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Features;
+using PenguinTwitchBot.Database.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.Models.Timers;
 using PenguinTwitchBot.Pages.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using System.Collections.Generic;
@@ -502,6 +506,82 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         }
 
 
+
+        [Fact]
+        public async Task EditTimerGroupSetEnabledState_DynamicallyPopulatesTimerGroupDropdown()
+        {
+            SetupContext();
+            var timer1Id = Guid.CreateVersion7();
+            var timer2Id = Guid.CreateVersion7();
+            var timerService = Substitute.For<IAutoTimers>();
+            timerService.GetTimerGroupsAsync().Returns(Task.FromResult(new List<TimerGroup>
+            {
+                new() { Id = timer1Id, Name = "Ad Timers" },
+                new() { Id = timer2Id, Name = "Social Timers" }
+            }));
+            _ctx!.Services.AddSingleton(timerService);
+
+            var dialogProvider = _ctx.Render<MudDialogProvider>();
+            var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
+            var parameters = new DialogParameters<AddSubActionDialog>
+            {
+                { x => x.ExistingSubAction, new TimerGroupSetEnabledStateType() }
+            };
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddSubActionDialog>("Edit Timer", parameters));
+
+            MudAutocomplete<string>? timerSelect = null;
+            dialogProvider.WaitForAssertion(() =>
+            {
+                timerSelect = dialogProvider.FindComponents<MudAutocomplete<string>>()
+                    .FirstOrDefault(c => c.Instance.Label == "Timer Group")?.Instance;
+                Assert.NotNull(timerSelect);
+                Assert.NotNull(timerSelect!.SearchFunc);
+            });
+
+            var values = (await timerSelect!.SearchFunc!.Invoke(string.Empty, CancellationToken.None))!.ToList();
+            Assert.Contains(timer1Id.ToString(), values);
+            Assert.Contains(timer2Id.ToString(), values);
+            Assert.Equal("Ad Timers", timerSelect.ToStringFunc!(timer1Id.ToString()));
+            Assert.Equal("Social Timers", timerSelect.ToStringFunc!(timer2Id.ToString()));
+        }
+
+        [Fact]
+        public async Task EditRaffleStart_DynamicallyPopulatesPointTypeDropdown()
+        {
+            SetupContext();
+            var pastiesId = Guid.CreateVersion7();
+            var starsId = Guid.CreateVersion7();
+            var pointsSystem = Substitute.For<IPointsSystem>();
+            pointsSystem.GetPointTypes().Returns(Task.FromResult<IEnumerable<PointType>>(
+            [
+                new() { Id = pastiesId, Name = "Pasties" },
+                new() { Id = starsId, Name = "Stars" }
+            ]));
+            _ctx!.Services.AddSingleton(pointsSystem);
+
+            var dialogProvider = _ctx.Render<MudDialogProvider>();
+            var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
+            var parameters = new DialogParameters<AddSubActionDialog>
+            {
+                { x => x.ExistingSubAction, new RaffleStartType() }
+            };
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddSubActionDialog>("Edit Raffle", parameters));
+
+            MudAutocomplete<string>? pointSelect = null;
+            dialogProvider.WaitForAssertion(() =>
+            {
+                pointSelect = dialogProvider.FindComponents<MudAutocomplete<string>>()
+                    .FirstOrDefault(c => c.Instance.Label != null && c.Instance.Label.Contains("Point", StringComparison.OrdinalIgnoreCase))?.Instance;
+                Assert.NotNull(pointSelect);
+                Assert.NotNull(pointSelect!.SearchFunc);
+            });
+
+            var values = (await pointSelect!.SearchFunc!.Invoke(string.Empty, CancellationToken.None))!.ToList();
+            Assert.Contains(pastiesId.ToString(), values);
+            Assert.Contains(starsId.ToString(), values);
+            Assert.Equal("Pasties", pointSelect.ToStringFunc!(pastiesId.ToString()));
+            Assert.Equal("Stars", pointSelect.ToStringFunc!(starsId.ToString()));
+        }
 
         public async Task DisposeAsync()
         {

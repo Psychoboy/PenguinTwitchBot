@@ -59,15 +59,20 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
         "viewer", "broadcaster", "moderator", "external", "other"
     };
 
+    private static readonly TimeSpan UsernameCacheTtl = TimeSpan.FromHours(6);
+    private const int MaxUsernameCacheEntries = 10_000;
+    private sealed record CachedUsernameEntry(string Username, DateTime CachedAtUtc);
+
     private readonly Dictionary<string, TwitchExtensionSession> _activeSessions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTime> _lastLoggedActivityUtc = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, string> _usernameCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, CachedUsernameEntry> _usernameCache = new(StringComparer.Ordinal);
     private readonly HashSet<string> _uniqueSharedUsers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _uniqueAnonymousUsers = new(StringComparer.Ordinal);
     private readonly HashSet<(string IdentityShared, string Role)> _publishedActiveUserLabels = [];
     private readonly HashSet<string> _publishedFeatureLabels = [];
     private readonly object _stateLock = new();
     private readonly object _metricsLock = new();
+    private readonly object _usernameCachePruneLock = new();
 
     private readonly ILogger<TwitchExtensionTrackingService> _logger;
     private readonly TimeProvider _timeProvider;
@@ -174,9 +179,17 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
         bool needsUsernameResolution = false;
         string? cachedUsername = null;
 
-        if (claims.IsIdentityShared && !string.IsNullOrWhiteSpace(claims.UserId))
+        if (claims.IsIdentityShared && !string.IsNullOrWhiteSpace(claims.UserId) &&
+            _usernameCache.TryGetValue(claims.UserId, out var cachedEntry))
         {
-            _usernameCache.TryGetValue(claims.UserId, out cachedUsername);
+            if ((now - cachedEntry.CachedAtUtc) <= UsernameCacheTtl)
+            {
+                cachedUsername = cachedEntry.Username;
+            }
+            else
+            {
+                _usernameCache.TryRemove(new KeyValuePair<string, CachedUsernameEntry>(claims.UserId, cachedEntry));
+            }
         }
 
         lock (_stateLock)
@@ -457,7 +470,9 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
                 return null;
             }
 
-            _usernameCache[userId] = resolved;
+            var now = _timeProvider.GetUtcNow().UtcDateTime;
+            _usernameCache[userId] = new CachedUsernameEntry(resolved, now);
+            PruneUsernameCacheIfNeeded(now);
             var updated = false;
 
             lock (_stateLock)
@@ -481,6 +496,40 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
         {
             _logger.LogDebug(ex, "Failed to resolve username for Twitch Extension user {UserId}", userId);
             return null;
+        }
+    }
+
+    private void PruneUsernameCacheIfNeeded(DateTime nowUtc)
+    {
+        if (_usernameCache.Count <= MaxUsernameCacheEntries)
+        {
+            return;
+        }
+
+        lock (_usernameCachePruneLock)
+        {
+            if (_usernameCache.Count <= MaxUsernameCacheEntries)
+            {
+                return;
+            }
+
+            var cutoffUtc = nowUtc - UsernameCacheTtl;
+            foreach (var kvp in _usernameCache)
+            {
+                if (kvp.Value.CachedAtUtc < cutoffUtc)
+                {
+                    _usernameCache.TryRemove(kvp);
+                }
+            }
+
+            if (_usernameCache.Count > MaxUsernameCacheEntries)
+            {
+                var excess = _usernameCache.Count - MaxUsernameCacheEntries;
+                foreach (var oldest in _usernameCache.OrderBy(kvp => kvp.Value.CachedAtUtc).Take(excess))
+                {
+                    _usernameCache.TryRemove(oldest);
+                }
+            }
         }
     }
 

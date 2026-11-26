@@ -338,6 +338,8 @@
     private bool IsEditMode => ExistingSubAction != null;
     private SubActionType? _currentSubAction;
     private Dictionary<string, object?> _fieldValues = new();
+    private List<SubActionUIField>? _enhancedFields;
+    private int _enhancedFieldsVersion;
     private bool _isLoadingOpenAiModels;
 
     protected override void OnInitialized()
@@ -362,9 +364,43 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadVariablesAsync();
+        if (_currentSubAction != null)
+        {
+            await RefreshEnhancedFieldsAsync();
+        }
         if (_currentSubAction is OpenAiType)
         {
             EnsureOpenAiModelsLoaded();
+        }
+    }
+
+    private async Task RefreshEnhancedFieldsAsync()
+    {
+        var subAction = _currentSubAction;
+        var version = ++_enhancedFieldsVersion;
+        if (subAction is not ISubActionUIProvider)
+        {
+            _enhancedFields = null;
+            return;
+        }
+
+        try
+        {
+            var enhanced = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(subAction, ServiceProvider);
+            if (!_disposed && version == _enhancedFieldsVersion && ReferenceEquals(_currentSubAction, subAction))
+            {
+                _enhancedFields = enhanced;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogWarning(ex, "Failed to enhance UI fields for {SubActionType}.", subAction.GetType().Name);
+            if (!_disposed && version == _enhancedFieldsVersion && ReferenceEquals(_currentSubAction, subAction))
+            {
+                _enhancedFields = null;
+                await InvokeAsync(StateHasChanged);
+            }
         }
     }
 
@@ -501,11 +537,12 @@
         _currentStep = WizardStep.SelectSubAction;
     }
 
-    private void SelectType(SubActionTypes type)
+    private async Task SelectType(SubActionTypes type)
     {
         _selectedType = type;
         _previousStep = _currentStep;
         _currentStep = WizardStep.Configure;
+        _enhancedFields = null;
         
         var subActionType = SubActionRegistry.GetSubActionType(type);
         if (subActionType != null)
@@ -517,22 +554,27 @@
             }
         }
 
+        await RefreshEnhancedFieldsAsync();
+
         if (_currentSubAction is OpenAiType)
         {
             EnsureOpenAiModelsLoaded();
         }
     }
 
-    private void SelectInstance(SubActionType instance)
+    private async Task SelectInstance(SubActionType instance)
     {
         _selectedType = instance.SubActionTypes;
         _previousStep = _currentStep;
         _currentStep = WizardStep.Configure;
+        _enhancedFields = null;
         _currentSubAction = instance;
         if (_currentSubAction is ISubActionUIProvider uiProvider)
         {
             _fieldValues = uiProvider.GetValues();
         }
+
+        await RefreshEnhancedFieldsAsync();
     }
 
     private void EnsureOpenAiModelsLoaded()
@@ -568,6 +610,7 @@
             if (!_disposed)
             {
                 _isLoadingOpenAiModels = false;
+                await RefreshEnhancedFieldsAsync();
                 await InvokeAsync(StateHasChanged);
             }
         }
@@ -580,6 +623,8 @@
             _currentStep = _previousStep;
             _validationError = null;
             _isLoadingOpenAiModels = false;
+            _enhancedFields = null;
+            _enhancedFieldsVersion++;
         }
         else if (_currentStep == WizardStep.SelectSubAction)
         {
@@ -598,7 +643,7 @@
     {
         if (_currentSubAction is ISubActionUIProvider uiProvider)
         {
-            var enhancedFields = SubActionUIFieldEnhancer.GetEnhancedFields(_currentSubAction, ServiceProvider);
+            var enhancedFields = _enhancedFields ?? uiProvider.GetUIFields(ServiceProvider);
             return SubActionUIRenderer.RenderFields(enhancedFields, _fieldValues, this, OnFieldValueChanged);
         }
         else
@@ -615,6 +660,7 @@
         if (_currentSubAction is ISubActionUIProvider uiProvider)
         {
             uiProvider.SetValues(_fieldValues);
+            _ = RefreshEnhancedFieldsAsync();
         }
 
         StateHasChanged();
