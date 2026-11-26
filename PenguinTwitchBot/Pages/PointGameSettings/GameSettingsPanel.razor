@@ -136,7 +136,6 @@ else
         _values = new();
         _validationError = null;
         _loading = true;
-        StateHasChanged();
         try
         {
             _values = await Provider.LoadAsync(ServiceProvider);

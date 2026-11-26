@@ -236,7 +236,14 @@
             _ => $"Actions_{DateTime.Now:yyyyMMdd_HHmmss}.json"
         };
 
-        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, json);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, json);
+        }
+        catch (Exception)
+        {
+            // Ignore JS interop failures when circuit disconnects
+        }
         MudDialog.Close(DialogResult.Ok(true));
     }
 

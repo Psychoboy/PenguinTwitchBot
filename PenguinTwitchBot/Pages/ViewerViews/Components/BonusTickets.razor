@@ -3,7 +3,6 @@
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Helpers
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IBonusTickets bonusTickets
 @inject IPointsSystem pointsSystem
 @inject PenguinTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
@@ -83,6 +82,9 @@
     <DisabledContent></DisabledContent>
 </FeatureGate>
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
 
     private bool disabled = true;
     private string Username = "";
@@ -133,9 +135,7 @@
         {
             BonusPointsName = pointType.Name;
         }
-        var authState = await AuthenticationStateProvider
-           .GetAuthenticationStateAsync();
-        var user = authState.User;
+        var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
         if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
         {
             Username = user.Identity.Name;

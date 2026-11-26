@@ -1,6 +1,5 @@
 @inject NavigationManager Navigation
 @inject IVersionCheckService VersionCheck
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @inject IQuickSearchService QuickSearchService
 @using PenguinTwitchBot.Helpers
@@ -270,6 +269,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     private const string DefaultStarCitizenReferralUrl = "https://www.robertsspaceindustries.com/enlist?referral=STAR-6564-JQ7N";
     private Dictionary<string, bool> _groupExpandedState = new();
     private string _navSearchText = string.Empty;
@@ -500,9 +502,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        if(authState != null)
+        if (AuthenticationStateTask is not null)
         {
+            var authState = await AuthenticationStateTask;
             _isStreamer = authState.User.IsInRole("Streamer");
         }
         VersionCheck.VersionStatusChanged += HandleVersionStatusChanged;

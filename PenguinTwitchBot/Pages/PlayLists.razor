@@ -109,7 +109,6 @@
             await YtPlayer.SetPlaylists(newDefaultId, additionalPlaylistIds);
             defaultPlaylistId = newDefaultId;
             currentPlayList = await YtPlayer.CurrentPlaylist();
-            StateHasChanged();
         }
     }
 
@@ -133,14 +132,12 @@
         }
         await YtPlayer.SetPlaylists(defaultPlaylistId, additionalPlaylistIds);
         currentPlayList = await YtPlayer.CurrentPlaylist();
-        StateHasChanged();
     }
 
     private async Task RefreshUnplayedSongs()
     {
         await YtPlayer.RefreshUnplayedSongs();
         currentPlayList = await YtPlayer.CurrentPlaylist();
-        StateHasChanged();
     }
 
     private async Task CreateBlankPlaylist()
@@ -156,7 +153,6 @@
                 await YtPlayer.CreatePlaylist(playlistName);
                 musicPlaylists = await YtPlayer.Playlists();
                 Snackbar.Add($"Playlist '{playlistName}' created.", Severity.Success);
-                StateHasChanged();
             }
             catch (Exception ex)
             {
@@ -222,7 +218,6 @@
             await YtPlayer.DeletePlaylist(playlist.Id);
             musicPlaylists = await YtPlayer.Playlists();
             Snackbar.Add($"Playlist '{playlist.Name}' deleted.", Severity.Success);
-            StateHasChanged();
         }
     }
 
@@ -241,7 +236,6 @@
                 var imported = await YtPlayer.ImportYouTubePlaylist(playlistName, youtubeUrl);
                 musicPlaylists = await YtPlayer.Playlists();
                 Snackbar.Add($"Imported {imported} new songs into '{playlistName}'.", Severity.Success);
-                StateHasChanged();
             }
             catch (Exception ex)
             {

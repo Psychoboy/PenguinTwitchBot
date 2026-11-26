@@ -1273,21 +1273,35 @@
 
         if ((!_jsInitialized || _jsNeedsReinit) && _dotNetRef != null)
         {
-            await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale, _snapToGrid ? SnapGridPx : 0);
-            _jsInitialized = true;
-            _jsNeedsReinit = false;
+            try
+            {
+                await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale, _snapToGrid ? SnapGridPx : 0);
+                _jsInitialized = true;
+                _jsNeedsReinit = false;
+            }
+            catch (Exception)
+            {
+                // Ignore JS interop failures when circuit disconnects
+            }
         }
 
         if (_pendingWheelZoomAnchor)
         {
             _pendingWheelZoomAnchor = false;
-            await JS.InvokeVoidAsync(
-                "overlayEditor.applyZoomAnchor",
-                "canvas-scroll-wrapper",
-                _wheelAnchorX,
-                _wheelAnchorY,
-                _wheelOldScale,
-                _wheelNewScale);
+            try
+            {
+                await JS.InvokeVoidAsync(
+                    "overlayEditor.applyZoomAnchor",
+                    "canvas-scroll-wrapper",
+                    _wheelAnchorX,
+                    _wheelAnchorY,
+                    _wheelOldScale,
+                    _wheelNewScale);
+            }
+            catch (Exception)
+            {
+                // Ignore JS interop failures when circuit disconnects
+            }
         }
     }
 
@@ -1835,7 +1849,14 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     {
         var name = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId)?.Name ?? "";
         var keyParam = !string.IsNullOrWhiteSpace(_overlayKey) ? $"&key={Uri.EscapeDataString(_overlayKey)}" : "";
-        await JS.InvokeVoidAsync("open", $"/overlay.html?layout={Uri.EscapeDataString(name)}{keyParam}", "_blank");
+        try
+        {
+            await JS.InvokeVoidAsync("open", $"/overlay.html?layout={Uri.EscapeDataString(name)}{keyParam}", "_blank");
+        }
+        catch (Exception)
+        {
+            // Ignore JS interop failures when circuit disconnects
+        }
     }
 
     private async Task CopyUrl()
@@ -1843,14 +1864,28 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         var name = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId)?.Name ?? "";
         var keyParam = !string.IsNullOrWhiteSpace(_overlayKey) ? $"&key={Uri.EscapeDataString(_overlayKey)}" : "";
         var url = Navigation.BaseUri.TrimEnd('/') + $"/overlay.html?layout={Uri.EscapeDataString(name)}{keyParam}";
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
-        Snackbar.Add("OBS URL copied to clipboard!", Severity.Info);
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
+            Snackbar.Add("OBS URL copied to clipboard!", Severity.Info);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add($"OBS URL: {url}", Severity.Info);
+        }
     }
 
     private async Task CopyFireworksStandaloneUrl()
     {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", FireworksStandaloneUrl);
-        Snackbar.Add("Standalone Fireworks URL copied to clipboard.", Severity.Info);
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", FireworksStandaloneUrl);
+            Snackbar.Add("Standalone Fireworks URL copied to clipboard.", Severity.Info);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add($"Standalone Fireworks URL: {FireworksStandaloneUrl}", Severity.Info);
+        }
     }
 
     private async Task RegenerateKeyAsync()

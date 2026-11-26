@@ -7,7 +7,6 @@
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -812,6 +811,9 @@
 </MudContainer>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     [Inject] private IFishingService fishingService { get; set; } = null!;
     [Inject] private IFishingLeaderboardService leaderboardService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
@@ -899,8 +901,8 @@
         isInitialLoading = true;
         try
         {
-            var summaryAuthState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            var uid = summaryAuthState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var authUser = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
+            var uid = authUser.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (!string.IsNullOrWhiteSpace(uid))
             {
                 myDexSummary = await fishingService.GetUserDexSummaryAsync(uid);
@@ -924,13 +926,12 @@
             await LoadValuableCatchesLeaderboard();
             await LoadRecentCatches();
 
-            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            isUserAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+            isUserAuthenticated = authUser.Identity?.IsAuthenticated == true;
 
-            if (authState.User.Identity?.IsAuthenticated == true)
+            if (authUser.Identity?.IsAuthenticated == true)
             {
-                currentUserId = authState.User.FindFirst("sub")?.Value 
-                    ?? authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                currentUserId = authUser.FindFirst("sub")?.Value
+                    ?? authUser.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                     ?? string.Empty;
 
                 if (!string.IsNullOrEmpty(currentUserId))

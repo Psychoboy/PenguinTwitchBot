@@ -225,7 +225,14 @@
     {
         if (firstRender == false) return;
 
-        await JsRuntime.InvokeVoidAsync("initializeYouTubePlayer");
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("initializeYouTubePlayer");
+        }
+        catch (Exception)
+        {
+            // Ignore JS interop failures when circuit disconnects
+        }
         _timer = new Timer(async (e) =>
         {
             try
@@ -297,7 +304,6 @@
             await YtPlayer.SetPlaylists(newDefaultId, additionalPlaylistIds);
             defaultPlaylistId = newDefaultId;
             currentPlayList = await YtPlayer.CurrentPlaylist();
-            StateHasChanged();
         }
     }
 
@@ -321,14 +327,12 @@
         }
         await YtPlayer.SetPlaylists(defaultPlaylistId, additionalPlaylistIds);
         currentPlayList = await YtPlayer.CurrentPlaylist();
-        StateHasChanged();
     }
 
     private async Task RefreshUnplayedSongs()
     {
         await YtPlayer.RefreshUnplayedSongs();
         currentPlayList = await YtPlayer.CurrentPlaylist();
-        StateHasChanged();
     }
 
     private async Task Priority(Song song)

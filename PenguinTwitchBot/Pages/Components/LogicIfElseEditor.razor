@@ -285,7 +285,6 @@
             newSubAction.Id = Guid.Empty; // Ensure new entity for EF Core tracking
             newSubAction.Index = IfElseType.TrueSubActions.Count;
             IfElseType.TrueSubActions.Add(newSubAction);
-            StateHasChanged();
             Snackbar.Add($"{GetSubActionTypeName(newSubAction)} added to True branch", Severity.Success);
         }
     }
@@ -414,7 +413,6 @@
             newSubAction.Id = Guid.Empty; // Ensure new entity for EF Core tracking
             newSubAction.Index = IfElseType.FalseSubActions.Count;
             IfElseType.FalseSubActions.Add(newSubAction);
-            StateHasChanged();
             Snackbar.Add($"{GetSubActionTypeName(newSubAction)} added to False branch", Severity.Success);
         }
     }

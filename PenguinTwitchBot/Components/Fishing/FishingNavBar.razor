@@ -4,7 +4,6 @@
 @inject IFishingService FishingService
 @inject IFishingInventoryService InventoryService
 @inject IFishingFrenzyService FrenzyService
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ISnackbar Snackbar
 
 <MudPaper Elevation="2" Class="pa-2 mb-2">
@@ -85,6 +84,9 @@
 </MudPaper>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     [Parameter] public string ActiveTab { get; set; } = string.Empty;
     [Parameter] public EventCallback OnDataChanged { get; set; }
 
@@ -110,8 +112,7 @@
         var tournaments = await FishingService.GetCurrentFishingTournaments();
         activeTournamentCount = tournaments.Count(t => t.Status == FishingTournamentStatus.Active);
 
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
         isAuthenticated = user.Identity?.IsAuthenticated == true;
         userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         username = user.Identity?.Name;

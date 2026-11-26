@@ -3,7 +3,6 @@
 @using PenguinTwitchBot.Helpers
 @using System.ComponentModel.DataAnnotations
 @using PenguinTwitchBot.Database.Bot.Models
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem
 @inject NavigationManager Navigation
@@ -160,6 +159,9 @@
 </MudPaper>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     [Parameter, EditorRequired]
     public string PointTypeName { get; set; } = "Tickets";
 
@@ -223,8 +225,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
 
         if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
         {
@@ -314,7 +315,6 @@
         if (maxAffordableEntries > 0)
         {
             model.EnterAmount = (int)Math.Min(maxAffordableEntries, 1000000);
-            StateHasChanged();
         }
     }
 

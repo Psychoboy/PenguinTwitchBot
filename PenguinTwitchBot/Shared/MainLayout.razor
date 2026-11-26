@@ -6,7 +6,6 @@
 @using PenguinTwitchBot.Bot.Hubs;
 @using PenguinTwitchBot.Bot.TwitchServices;
 @inherits LayoutComponentBase
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject ICircuitUserService UserService
 @inject ISessionRevocationService SessionRevocation
@@ -150,6 +149,9 @@
     </MudMainContent>
 </MudLayout>
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     bool _drawerOpen = true;
     private string Username = "";
     private string ProfileImage = "";
@@ -162,8 +164,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        var user = AuthenticationStateTask is not null ? (await AuthenticationStateTask).User : new System.Security.Claims.ClaimsPrincipal();
 
         if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
         {

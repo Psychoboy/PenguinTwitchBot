@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
@@ -18,15 +18,16 @@ namespace PenguinTwitchBot.Shared
         private ILogger<NotFoundItem>? Logger { get; set; }
         [Inject]
         public NavigationManager NavigationManager { get; set; } = default!;
-        [Inject]
-        AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
+        [CascadingParameter]
+        private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
         [Inject]
         IHttpContextAccessor httpContextAccessor { get; set; } = default!;
 
         protected override void OnInitialized()
         {
-            var authState = AuthenticationStateProvider.GetAuthenticationStateAsync().Result;
-            var user = authState.User;
+            var user = AuthenticationStateTask is not null
+                ? AuthenticationStateTask.GetAwaiter().GetResult().User
+                : new System.Security.Claims.ClaimsPrincipal();
             var username = "UnknownUser";
             if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
             {

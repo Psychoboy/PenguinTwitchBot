@@ -996,14 +996,28 @@
     {
         if (_draft == null || !ValidateCurrent()) return;
         _json = StarshipEventEditing.Export(_draft.ToDefinition());
-        await JSRuntime.InvokeVoidAsync("downloadFile", _draft.EventType + ".json", _json);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("downloadFile", _draft.EventType + ".json", _json);
+        }
+        catch (Exception)
+        {
+            _operationError = "Failed to download event JSON.";
+        }
     }
     private async Task ExportCatalogAsync()
     {
         _json = StarshipEventEditing.ExportCatalog(Settings);
         _notice = "Catalog JSON exported. You can share this JSON with an AI to generate new events.";
         _operationError = "";
-        await JSRuntime.InvokeVoidAsync("downloadFile", "starship-events-catalog.json", _json);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("downloadFile", "starship-events-catalog.json", _json);
+        }
+        catch (Exception)
+        {
+            _operationError = "Failed to download catalog JSON.";
+        }
     }
     private void ImportJson()
     {

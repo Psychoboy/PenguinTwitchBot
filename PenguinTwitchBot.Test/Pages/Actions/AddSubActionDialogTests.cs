@@ -538,7 +538,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
                 Assert.NotNull(timerSelect!.SearchFunc);
             });
 
-            var values = (await timerSelect!.SearchFunc!.Invoke(string.Empty, CancellationToken.None))!.ToList();
+            var searchFunc = timerSelect!.SearchFunc!;
+            var searchResult = await (searchFunc(string.Empty, CancellationToken.None)!);
+            var values = searchResult!.ToList();
             Assert.Contains(timer1Id.ToString(), values);
             Assert.Contains(timer2Id.ToString(), values);
             Assert.Equal("Ad Timers", timerSelect.ToStringFunc!(timer1Id.ToString()));
@@ -576,7 +578,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
                 Assert.NotNull(pointSelect!.SearchFunc);
             });
 
-            var values = (await pointSelect!.SearchFunc!.Invoke(string.Empty, CancellationToken.None))!.ToList();
+            var searchFunc = pointSelect!.SearchFunc!;
+            var searchResult = await (searchFunc(string.Empty, CancellationToken.None)!);
+            var values = searchResult!.ToList();
             Assert.Contains(pastiesId.ToString(), values);
             Assert.Contains(starsId.ToString(), values);
             Assert.Equal("Pasties", pointSelect.ToStringFunc!(pastiesId.ToString()));

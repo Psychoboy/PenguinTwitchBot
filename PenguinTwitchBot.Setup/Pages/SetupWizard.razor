@@ -802,7 +802,6 @@ else
     {
         if (!ValidateCurrentStep()) return;
         _saving = true;
-        StateHasChanged();
 
         await SetupSvc.SaveSetupAsync(_model);
         _done = true;

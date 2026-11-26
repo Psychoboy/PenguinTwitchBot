@@ -177,7 +177,6 @@
     {
         _isPlaying = false;
         _audioPreviewUrl = null;
-        StateHasChanged();
     }
 
     private async Task UploadAudioFile(IBrowserFile? file)
@@ -186,7 +185,6 @@
 
         StopPreview();
         _isUploading = true;
-        StateHasChanged();
 
         try
         {
@@ -215,7 +213,6 @@
         finally
         {
             _isUploading = false;
-            StateHasChanged();
         }
     }
 

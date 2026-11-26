@@ -128,7 +128,6 @@
     public async Task LoadHistoryAsync()
     {
         _loading = true;
-        StateHasChanged();
         try
         {
             _history = await StarshipService.GetExpeditionHistoryAsync(200);
@@ -140,7 +139,6 @@
         finally
         {
             _loading = false;
-            StateHasChanged();
         }
     }
 

@@ -150,7 +150,6 @@
         await AliasCommand.CreateOrUpdateAliasAsync(theAlias);
         aliases = await AliasCommand.GetAliasesAsync();
         theAlias = new();
-        StateHasChanged();
     }
 
     private void Edit(PenguinTwitchBot.Database.Bot.Models.AliasModel item)

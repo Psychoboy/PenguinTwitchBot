@@ -313,7 +313,6 @@
             SelectedChannelReward = null;
             Snackbar.Add("Reward created.", Severity.Success);
             await LoadRewards();
-            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -335,7 +334,6 @@
             await CP.UpdateChannelPointReward(SelectedChannelReward.Reward.Id, EditCustomReward);
             Snackbar.Add("Reward updated.", Severity.Success);
             await LoadRewards(SelectedChannelReward.Reward.Id);
-            StateHasChanged();
         }
         catch (Exception ex)
         {
