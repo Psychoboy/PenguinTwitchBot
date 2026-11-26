@@ -11,9 +11,11 @@ public partial class ActionRecipeWizard
     private List<SelectOption> _obsConnectionOptions = [];
     private List<SelectOption> _obsSceneOptions = [];
     private List<SelectOption> _obsSourceOptions = [];
+    private int _obsSourceOptionsVersion;
 
     private async Task LoadObsSourceOptionsAsync()
     {
+        var version = ++_obsSourceOptionsVersion;
         _obsConnectionOptions = [];
         _obsSceneOptions = [];
         _obsSourceOptions = [];
@@ -34,6 +36,9 @@ public partial class ActionRecipeWizard
             SourceName = GetParameter("SourceName")
         };
         var fields = await SubActionUIFieldEnhancer.GetEnhancedFieldsAsync(visibility, scope.ServiceProvider);
+        if (version != _obsSourceOptionsVersion)
+            return;
+
         _obsConnectionOptions = fields.FirstOrDefault(field => field.PropertyName == nameof(ObsSetSourceVisibilityType.OBSConnectionId))?.SelectOptions ?? [];
         _obsSceneOptions = fields.FirstOrDefault(field => field.PropertyName == nameof(ObsSetSourceVisibilityType.SceneName))?.SelectOptions ?? [];
         _obsSourceOptions = fields.FirstOrDefault(field => field.PropertyName == nameof(ObsSetSourceVisibilityType.SourceName))?.SelectOptions ?? [];

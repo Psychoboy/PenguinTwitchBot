@@ -72,6 +72,7 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
     private readonly HashSet<string> _publishedFeatureLabels = [];
     private readonly object _stateLock = new();
     private readonly object _metricsLock = new();
+    private readonly object _usernameCachePruneLock = new();
 
     private readonly ILogger<TwitchExtensionTrackingService> _logger;
     private readonly TimeProvider _timeProvider;
@@ -505,21 +506,29 @@ public sealed class TwitchExtensionTrackingService : ITwitchExtensionTrackingSer
             return;
         }
 
-        var cutoffUtc = nowUtc - UsernameCacheTtl;
-        foreach (var kvp in _usernameCache)
+        lock (_usernameCachePruneLock)
         {
-            if (kvp.Value.CachedAtUtc < cutoffUtc)
+            if (_usernameCache.Count <= MaxUsernameCacheEntries)
             {
-                _usernameCache.TryRemove(kvp);
+                return;
             }
-        }
 
-        if (_usernameCache.Count > MaxUsernameCacheEntries)
-        {
-            var excess = _usernameCache.Count - MaxUsernameCacheEntries;
-            foreach (var oldest in _usernameCache.OrderBy(kvp => kvp.Value.CachedAtUtc).Take(excess))
+            var cutoffUtc = nowUtc - UsernameCacheTtl;
+            foreach (var kvp in _usernameCache)
             {
-                _usernameCache.TryRemove(oldest);
+                if (kvp.Value.CachedAtUtc < cutoffUtc)
+                {
+                    _usernameCache.TryRemove(kvp);
+                }
+            }
+
+            if (_usernameCache.Count > MaxUsernameCacheEntries)
+            {
+                var excess = _usernameCache.Count - MaxUsernameCacheEntries;
+                foreach (var oldest in _usernameCache.OrderBy(kvp => kvp.Value.CachedAtUtc).Take(excess))
+                {
+                    _usernameCache.TryRemove(oldest);
+                }
             }
         }
     }

@@ -396,6 +396,11 @@
         catch (Exception ex)
         {
             Logger?.LogWarning(ex, "Failed to enhance UI fields for {SubActionType}.", subAction.GetType().Name);
+            if (!_disposed && version == _enhancedFieldsVersion && ReferenceEquals(_currentSubAction, subAction))
+            {
+                _enhancedFields = null;
+                await InvokeAsync(StateHasChanged);
+            }
         }
     }
 

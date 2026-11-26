@@ -16,7 +16,7 @@ namespace PenguinTwitchBot.Bot.Notifications
     {
         private readonly Channel<QueuedMessage> _queue = Channel.CreateUnbounded<QueuedMessage>(new UnboundedChannelOptions
         {
-            SingleReader = true,
+            SingleReader = false,
             SingleWriter = false
         });
         private List<SocketConnection> websocketConnections = [];
