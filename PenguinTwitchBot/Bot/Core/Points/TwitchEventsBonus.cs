@@ -28,7 +28,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
         public static readonly string SUBGIFTTOTALMESSAGE = "SubGiftTotalMessage";
 
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
-        static readonly SemaphoreSlim _subscriptionLock = new(1);
+        static readonly SemaphoreSlim _subscriptionLock = new(1, 1);
 
         private bool IsFeatureEnabled() => featureRuntimeCoordinator.IsEnabled(FeatureKeys.TwitchEventsBonus);
         public override Task OnCommand(object? sender, CommandEventArgs e)
@@ -146,12 +146,24 @@ namespace PenguinTwitchBot.Bot.Core.Points
                     logger.LogWarning("Subscriber name was null or white space");
                     return false;
                 }
-                if (SubCache.TryGetValue(name, out var subTime) && subTime > DateTime.UtcNow.AddDays(-5))
+                var now = DateTime.UtcNow;
+                var cutoff = now.AddDays(-5);
+                if (SubCache.Count > 128)
+                {
+                    foreach (var entry in SubCache)
+                    {
+                        if (entry.Value <= cutoff)
+                        {
+                            SubCache.TryRemove(entry.Key, out _);
+                        }
+                    }
+                }
+                if (SubCache.TryGetValue(name, out var subTime) && subTime > cutoff)
                 {
                     logger.LogWarning("{name} Subscriber already in sub cache", name);
                     return true;
                 }
-                SubCache[name] = DateTime.UtcNow;
+                SubCache[name] = now;
                 return false;
             }
             finally

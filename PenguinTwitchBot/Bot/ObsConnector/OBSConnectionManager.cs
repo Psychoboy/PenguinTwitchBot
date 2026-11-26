@@ -3,6 +3,7 @@ using PenguinTwitchBot.Database.Repository;
 using Microsoft.EntityFrameworkCore;
 using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Communication;
+using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.ObsConnector
 {
@@ -27,7 +28,7 @@ namespace PenguinTwitchBot.Bot.ObsConnector
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<OBSConnectionManager> _logger;
-        private readonly Dictionary<Guid, ManagedOBSConnection> _connections = new();
+        private readonly ConcurrentDictionary<Guid, ManagedOBSConnection> _connections = new();
         private readonly SemaphoreSlim _lock = new(1, 1);
         private bool _isDisposed;
 
@@ -115,11 +116,9 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             await _lock.WaitAsync();
             try
             {
-                if (_connections.TryGetValue(id, out var managedConnection))
+                if (_connections.TryRemove(id, out var managedConnection))
                 {
-                    await managedConnection.StopAsync();
-                    managedConnection.Dispose();
-                    _connections.Remove(id);
+                    await StopAndDisposeConnectionAsync(managedConnection);
                 }
             }
             finally
@@ -207,43 +206,27 @@ namespace PenguinTwitchBot.Bot.ObsConnector
 
         public ManagedOBSConnection? GetManagedConnection(Guid id)
         {
-            _lock.Wait();
-            try
-            {
-                _connections.TryGetValue(id, out var connection);
-                return connection;
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            _connections.TryGetValue(id, out var connection);
+            return connection;
         }
 
         public ManagedOBSConnection? GetManagedConnection(string name)
         {
-            _lock.Wait();
-            try
-            {
-                return _connections.Values.FirstOrDefault(c => 
-                    c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            return _connections.Values.FirstOrDefault(c =>
+                c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
 
         public List<ManagedOBSConnection> GetAllManagedConnections()
         {
-            _lock.Wait();
-            try
-            {
-                return _connections.Values.ToList();
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            return _connections.Values.ToList();
+        }
+
+        private async Task StopAndDisposeConnectionAsync(ManagedOBSConnection connection)
+        {
+            connection.Connected -= OnConnectionConnected;
+            connection.Disconnected -= OnConnectionDisconnected;
+            await connection.StopAsync();
+            connection.Dispose();
         }
 
         public async Task ReloadConnectionsAsync()
@@ -252,10 +235,9 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             try
             {
                 // Stop all existing connections
-                foreach (var connection in _connections.Values)
+                foreach (var connection in _connections.Values.ToList())
                 {
-                    await connection.StopAsync();
-                    connection.Dispose();
+                    await StopAndDisposeConnectionAsync(connection);
                 }
                 _connections.Clear();
 
@@ -295,11 +277,9 @@ namespace PenguinTwitchBot.Bot.ObsConnector
         {
             // This method assumes the caller already holds the lock
             // Remove existing if present
-            if (_connections.TryGetValue(config.Id, out var existing))
+            if (_connections.TryRemove(config.Id, out var existing))
             {
-                await existing.StopAsync();
-                existing.Dispose();
-                _connections.Remove(config.Id);
+                await StopAndDisposeConnectionAsync(existing);
             }
 
             // Create new managed connection
@@ -324,11 +304,13 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             try
             {
                 // Stop existing connection
-                if (_connections.TryGetValue(config.Id, out var existing))
+                if (_connections.TryRemove(config.Id, out var existing))
                 {
-                    await existing.StopAsync();
-                    existing.Dispose();
-                    _connections.Remove(config.Id);
+                    if (!config.Enabled)
+                    {
+                        await MarkConnectionDisconnectedAsync(config.Id, existing.Name);
+                    }
+                    await StopAndDisposeConnectionAsync(existing);
                 }
 
                 // Start if enabled
@@ -340,6 +322,27 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             finally
             {
                 _lock.Release();
+            }
+        }
+
+        private async Task MarkConnectionDisconnectedAsync(Guid connectionId, string connectionName)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                var connection = await db.OBSConnections.GetByIdAsync(connectionId);
+                if (connection != null && connection.IsConnected)
+                {
+                    connection.IsConnected = false;
+                    connection.LastDisconnected = DateTime.UtcNow;
+                    await db.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error persisting disconnected status for disabled OBS connection '{Name}'", connectionName);
             }
         }
 

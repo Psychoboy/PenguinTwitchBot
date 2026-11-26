@@ -60,8 +60,12 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         
 
+        private int _chatterUpdateRunning;
+        private int _subscriberUpdateRunning;
+
         private async void OnChatterUpdaterTimerElapsed(object? sender, ElapsedEventArgs e)
         {
+            if (Interlocked.CompareExchange(ref _chatterUpdateRunning, 1, 0) != 0) return;
             try
             {
                 await UpdateChatters();
@@ -70,6 +74,10 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in OnChatterUpdaterTimerElapsed");
+            }
+            finally
+            {
+                Volatile.Write(ref _chatterUpdateRunning, 0);
             }
         }
 
@@ -128,6 +136,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         private async void OnSubscriberTimerElapsed(object? sender, ElapsedEventArgs e)
         {
+            if (Interlocked.CompareExchange(ref _subscriberUpdateRunning, 1, 0) != 0) return;
             try
             {
                 await UpdateSubscribers();
@@ -136,6 +145,10 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in OnSubscriberTimerElapsed");
+            }
+            finally
+            {
+                Volatile.Write(ref _subscriberUpdateRunning, 0);
             }
         }
 

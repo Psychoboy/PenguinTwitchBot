@@ -89,8 +89,11 @@ namespace PenguinTwitchBot.Controllers
                 return File(cached.bytes, cached.contentType);
             }
 
-            if (TryReadFromDiskCache(normalizedUrl, out cached))
+            var cancellationToken = HttpContext?.RequestAborted ?? CancellationToken.None;
+            var diskCached = await TryReadFromDiskCacheAsync(normalizedUrl, cancellationToken);
+            if (diskCached.HasValue)
             {
+                cached = diskCached.Value;
                 var memOptions = new MemoryCacheEntryOptions()
                     .SetAbsoluteExpiration(LocalEmoteCacheTtl)
                     .SetSize(cached.bytes.Length);
@@ -100,7 +103,6 @@ namespace PenguinTwitchBot.Controllers
 
             try
             {
-                var cancellationToken = HttpContext?.RequestAborted ?? CancellationToken.None;
                 var client = httpClientFactory.CreateClient("Emotes");
 
                 await UpstreamThrottle.WaitAsync(cancellationToken);
@@ -213,58 +215,64 @@ namespace PenguinTwitchBot.Controllers
                 .SetAbsoluteExpiration(LocalEmoteCacheTtl)
                 .SetSize(bytes.Length);
             memoryCache.Set(cacheKey, cached, entryOptions);
-            WriteToDiskCache(normalizedUrl, bytes, contentType);
+            await WriteToDiskCacheAsync(normalizedUrl, bytes, contentType, cancellationToken);
 
             return File(bytes, contentType);
         }
 
-        private bool TryReadFromDiskCache(string url, out (byte[] bytes, string contentType) cached)
+        private async Task<(byte[] bytes, string contentType)?> TryReadFromDiskCacheAsync(string url, CancellationToken cancellationToken)
         {
-            cached = default;
             try
             {
                 var (binPath, metaPath) = GetDiskCachePaths(url);
                 if (!System.IO.File.Exists(binPath) || !System.IO.File.Exists(metaPath))
                 {
-                    return false;
+                    return null;
                 }
 
                 var age = DateTime.UtcNow - System.IO.File.GetLastWriteTimeUtc(binPath);
                 if (age > LocalEmoteCacheTtl)
                 {
-                    return false;
+                    return null;
                 }
 
-                var contentType = System.IO.File.ReadAllText(metaPath).Trim();
+                var contentType = (await System.IO.File.ReadAllTextAsync(metaPath, cancellationToken)).Trim();
                 if (string.IsNullOrWhiteSpace(contentType) || !contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
                 {
-                    return false;
+                    return null;
                 }
 
-                var bytes = System.IO.File.ReadAllBytes(binPath);
+                var bytes = await System.IO.File.ReadAllBytesAsync(binPath, cancellationToken);
                 if (bytes.Length == 0)
                 {
-                    return false;
+                    return null;
                 }
 
-                cached = (bytes, contentType);
-                return true;
+                return (bytes, contentType);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 logger.LogDebug(ex, "Failed to read emote disk cache for {Url}", SanitizeForLog(url));
-                return false;
+                return null;
             }
         }
 
-        private void WriteToDiskCache(string url, byte[] bytes, string contentType)
+        private async Task WriteToDiskCacheAsync(string url, byte[] bytes, string contentType, CancellationToken cancellationToken)
         {
             try
             {
                 Directory.CreateDirectory(_diskCacheDir);
                 var (binPath, metaPath) = GetDiskCachePaths(url);
-                System.IO.File.WriteAllBytes(binPath, bytes);
-                System.IO.File.WriteAllText(metaPath, contentType);
+                await System.IO.File.WriteAllBytesAsync(binPath, bytes, cancellationToken);
+                await System.IO.File.WriteAllTextAsync(metaPath, contentType, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

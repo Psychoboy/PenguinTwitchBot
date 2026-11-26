@@ -213,8 +213,11 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             await db.SaveChangesAsync();
         }
 
+        private int _sendingEntriesUpdate;
+
         private async void SendCurrentEntriesToAll(object? sender, System.Timers.ElapsedEventArgs e)
         {
+            if (Interlocked.CompareExchange(ref _sendingEntriesUpdate, 1, 0) != 0) return;
             try
             {
                 await hubContext.Clients.All.SendAsync("UpdateTickets", await GetEntriesCount(), await GetEntrantsCount());
@@ -222,6 +225,10 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error broadcasting current giveaway entries");
+            }
+            finally
+            {
+                Volatile.Write(ref _sendingEntriesUpdate, 0);
             }
         }
 

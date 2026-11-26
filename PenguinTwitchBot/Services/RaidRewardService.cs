@@ -424,6 +424,9 @@ namespace PenguinTwitchBot.Services
             return normText.Contains(normPhrase, StringComparison.OrdinalIgnoreCase);
         }
 
+        private static readonly System.Text.RegularExpressions.Regex MultiWhitespaceRegex =
+            new(@"\s+", System.Text.RegularExpressions.RegexOptions.Compiled);
+
         private static string NormalizeForMatching(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
@@ -437,7 +440,7 @@ namespace PenguinTwitchBot.Services
                 else
                     sb.Append(' ');
             }
-            return System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"\s+", " ").Trim().ToLowerInvariant();
+            return MultiWhitespaceRegex.Replace(sb.ToString(), " ").Trim().ToLowerInvariant();
         }
 
         private async Task<bool> AwardAsync(RaidWindow window, string username, string chatterUserId, string chatterDisplayName)

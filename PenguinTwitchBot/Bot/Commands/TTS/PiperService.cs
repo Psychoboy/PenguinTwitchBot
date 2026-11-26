@@ -18,6 +18,7 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
 
     private const string PinnedPiperReleaseVersion = "2023.11.14-2";
     private static readonly TimeSpan CatalogCacheTtl = TimeSpan.FromDays(7);
+    private static readonly JsonSerializerOptions IndentedJsonOptions = new() { WriteIndented = true };
 
     private static readonly Dictionary<string, string> PiperArchiveSha256 = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -385,7 +386,7 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
 
                 // Save to cache
                 Directory.CreateDirectory(PiperDirectory);
-                var serialized = JsonSerializer.Serialize(voices, new JsonSerializerOptions { WriteIndented = true });
+                var serialized = JsonSerializer.Serialize(voices, IndentedJsonOptions);
                 await File.WriteAllTextAsync(CatalogCachePath, serialized);
                 return voices;
             }

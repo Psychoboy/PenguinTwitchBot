@@ -23,6 +23,7 @@ namespace PenguinTwitchBot.Bot.Core
         private readonly ILoggerFactory _loggerFactory;
         private readonly IConfiguration _configuration;
         private readonly IFeatureRuntimeCoordinator _featureRuntimeCoordinator;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly SemaphoreSlim _restartLock = new(1, 1);
         private DiscordSettings _settings;
         private readonly string _broadcaster;
@@ -36,7 +37,8 @@ namespace PenguinTwitchBot.Bot.Core
             Application.Notifications.IPenguinDispatcher dispatcher,
             ILoggerFactory loggerFactory,
             IConfiguration configuration,
-            IFeatureRuntimeCoordinator featureRuntimeCoordinator)
+            IFeatureRuntimeCoordinator featureRuntimeCoordinator,
+            IHttpClientFactory httpClientFactory)
         {
             _logger = logger;
             _serviceBackbone = serviceBackbone;
@@ -47,6 +49,7 @@ namespace PenguinTwitchBot.Bot.Core
             _loggerFactory = loggerFactory;
             _configuration = configuration;
             _featureRuntimeCoordinator = featureRuntimeCoordinator;
+            _httpClientFactory = httpClientFactory;
 
             _settings = LoadSettings();
             // Server/channel/role IDs apply live; the token only takes effect on (re)connect.
@@ -419,16 +422,16 @@ namespace PenguinTwitchBot.Bot.Core
             }
         }
 
-        private static async Task DoDadJoke(SocketSlashCommand arg)
+        private async Task DoDadJoke(SocketSlashCommand arg)
         {
-            var httpClient = new HttpClient();
-            var request = new HttpRequestMessage
+            var httpClient = _httpClientFactory.CreateClient();
+            using var request = new HttpRequestMessage
             {
                 RequestUri = new Uri("https://icanhazdadjoke.com/"),
                 Method = HttpMethod.Get
             };
             request.Headers.Add("Accept", "text/plain");
-            var result = await httpClient.SendAsync(request);
+            using var result = await httpClient.SendAsync(request);
             if (result.IsSuccessStatusCode)
             {
                 var joke = await result.Content.ReadAsStringAsync();
