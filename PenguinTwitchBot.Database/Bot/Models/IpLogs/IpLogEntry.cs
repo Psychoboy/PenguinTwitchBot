@@ -2,7 +2,6 @@ namespace PenguinTwitchBot.Database.Bot.Models.IpLogs
 {
     [ExcludeFromBackup]
     [Index(nameof(UserId), nameof(Ip))]
-    [Index(nameof(UserId))]
     public class IpLogEntry
     {
         [Key]
