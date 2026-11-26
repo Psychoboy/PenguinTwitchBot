@@ -1187,6 +1187,7 @@
     private const int SnapGridPx = 10;
     private bool _saving;
     private bool _jsInitialized;
+    private bool _jsInitAttempted;
     private bool _jsNeedsReinit;
     private bool _showNewLayoutDialog;
     private string _newLayoutName = "";
@@ -1273,15 +1274,21 @@
 
         if ((!_jsInitialized || _jsNeedsReinit) && _dotNetRef != null)
         {
+            _jsInitAttempted = true;
             try
             {
                 await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale, _snapToGrid ? SnapGridPx : 0);
                 _jsInitialized = true;
                 _jsNeedsReinit = false;
             }
-            catch (Exception)
+            catch (JSDisconnectedException)
             {
-                // Ignore JS interop failures when circuit disconnects
+                // Circuit already disconnected; ignore safely
+            }
+            catch (Exception ex)
+            {
+                // Report JS initialization failures while keeping _jsInitialized false so a later render can retry
+                Snackbar.Add($"Failed to initialize overlay editor canvas: {ex.Message}", Severity.Error);
             }
         }
 
@@ -1307,7 +1314,7 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_jsInitialized)
+        if (_jsInitialized || _jsInitAttempted)
         {
             try
             {
@@ -1315,6 +1322,7 @@
             }
             catch (JSDisconnectedException) { /* circuit already gone - safe to ignore */ }
             catch (InvalidOperationException) { /* prerendered or disposed JS runtime */ }
+            catch (JSException) { /* safe cleanup for partially initialized JS state */ }
         }
         _dotNetRef?.Dispose();
     }

@@ -996,6 +996,7 @@
     {
         if (_draft == null || !ValidateCurrent()) return;
         _json = StarshipEventEditing.Export(_draft.ToDefinition());
+        _operationError = "";
         try
         {
             await JSRuntime.InvokeVoidAsync("downloadFile", _draft.EventType + ".json", _json);
