@@ -1,7 +1,6 @@
-﻿@using PenguinTwitchBot.Helpers
-@using PenguinTwitchBot.Bot.Commands.Music
-@using Microsoft.AspNetCore.SignalR.Client
-@inject NavigationManager Navigation
+﻿@using PenguinTwitchBot.Bot.Commands.Music
+@using PenguinTwitchBot.Bot.Hubs
+@inject IInProcessHubEventBus HubEventBus
 @inject YtPlayer YtPlayer
 @inject ISongCooldownService SongCooldownService
 @inject ISnackbar Snackbar
@@ -68,8 +67,7 @@
 </MudPaper>
 
 @code {
-    private HubConnection? hubConnection;
-    private CancellationTokenSource? _hubConnectionCts;
+    private IDisposable? _hubSubscription;
     private List<Song> recentlyPlayedSongs = new();
     private bool isLoading = true;
 
@@ -79,34 +77,16 @@
         isLoading = false;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender == false) return;
 
-        _hubConnectionCts = new CancellationTokenSource();
-
-        // Configure SignalR with automatic reconnect and retry policy
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/ythub"), options =>
-            {
-                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-                options.SkipNegotiation = false;
-            })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
-            .Build();
-
-        hubConnection.On<List<Song>>("LastPlayedSongs", (songs) =>
+        _hubSubscription = HubEventBus.On<List<Song>>(HubNames.YtHub, "LastPlayedSongs", (songs) =>
         {
             recentlyPlayedSongs = songs.ToList();
             recentlyPlayedSongs.Reverse();
-            InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(StateHasChanged);
         });
-
-        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, cancellationToken: _hubConnectionCts.Token);
-
-        StateHasChanged();
     }
 
     private string GetYoutubeLink(string songId)
@@ -121,12 +101,10 @@
         Snackbar.Add($"Added '{song.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        _hubConnectionCts?.Cancel();
-
-        await hubConnection.DisposeGracefullyAsync(logger);
-
-        _hubConnectionCts?.Dispose();
+        _hubSubscription?.Dispose();
+        _hubSubscription = null;
+        return ValueTask.CompletedTask;
     }
 }

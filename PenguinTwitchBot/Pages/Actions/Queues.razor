@@ -1,13 +1,13 @@
 @page "/actions/queues"
+@using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Bot.Queues
 @using PenguinTwitchBot.Database.Bot.Models.Queues
-@using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IQueueManager QueueManager
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
+@inject IInProcessHubEventBus HubEventBus
 @inject ILogger<Queues> logger
 @implements IAsyncDisposable
 
@@ -99,7 +99,7 @@
 @code {
     private List<QueueStatistics> _queueStats = new();
     private bool _loading = true;
-    private HubConnection? _hubConnection;
+    private IDisposable? _hubSubscription;
     private bool _disposed;
     private HashSet<string> _togglingQueues = new();
     private bool _renderScheduled;
@@ -111,37 +111,38 @@
         await LoadQueues();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
-                .WithAutomaticReconnect()
-                .Build();
-
-            _hubConnection.On<QueueStatistics>("QueueStatsUpdated", async (stats) =>
+            _hubSubscription = HubEventBus.On<QueueStatistics>(HubNames.MainHub, "QueueStatsUpdated", async (stats) =>
             {
+                if (_disposed) return;
+
                 await InvokeAsync(() =>
                 {
+                    if (_disposed) return;
+
                     // Skip updates for queues that are currently being toggled to prevent overwriting optimistic updates
                     if (_togglingQueues.Contains(stats.QueueName))
                     {
                         return;
                     }
 
+                    var statsCopy = CloneQueueStatistics(stats);
+
                     // Update or add the queue statistics in our collection
-                    var existingStatsIndex = _queueStats.FindIndex(s => s.QueueName == stats.QueueName);
+                    var existingStatsIndex = _queueStats.FindIndex(s => s.QueueName == statsCopy.QueueName);
                     if (existingStatsIndex >= 0)
                     {
-                        _queueStats[existingStatsIndex] = stats;
+                        _queueStats[existingStatsIndex] = statsCopy;
                         ScheduleStatsRender();
                     }
                     else
                     {
                         // Insert new queue in sorted position to avoid recreating the list
                         var insertIndex = _queueStats.Count;
-                        if (stats.QueueName == "Default")
+                        if (statsCopy.QueueName == "Default")
                         {
                             insertIndex = 0;
                         }
@@ -151,22 +152,31 @@
                             for (int i = 0; i < _queueStats.Count; i++)
                             {
                                 if (_queueStats[i].QueueName == "Default") continue;
-                                if (string.Compare(_queueStats[i].QueueName, stats.QueueName, StringComparison.Ordinal) > 0)
+                                if (string.Compare(_queueStats[i].QueueName, statsCopy.QueueName, StringComparison.Ordinal) > 0)
                                 {
                                     insertIndex = i;
                                     break;
                                 }
                             }
                         }
-                        _queueStats.Insert(insertIndex, stats);
+                        _queueStats.Insert(insertIndex, statsCopy);
                         ScheduleStatsRender();
                     }
                 });
             });
-
-            await _hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar);
         }
     }
+
+    private static QueueStatistics CloneQueueStatistics(QueueStatistics source) => new()
+    {
+        QueueName = source.QueueName,
+        PendingActions = source.PendingActions,
+        CompletedActions = source.CompletedActions,
+        IsBlocking = source.IsBlocking,
+        IsEnabled = source.IsEnabled,
+        MaxConcurrentActions = source.MaxConcurrentActions,
+        CurrentlyExecuting = source.CurrentlyExecuting
+    };
 
     private async Task LoadQueues()
     {
@@ -400,20 +410,18 @@
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (!_disposed)
         {
             _disposed = true;
             _renderCancellation.Cancel();
             _renderCancellation.Dispose();
-
-            if (_hubConnection is not null)
-            {
-                await _hubConnection.DisposeAsync();
-                _hubConnection = null;
-            }
+            _hubSubscription?.Dispose();
+            _hubSubscription = null;
         }
+
+        return ValueTask.CompletedTask;
     }
 }
 

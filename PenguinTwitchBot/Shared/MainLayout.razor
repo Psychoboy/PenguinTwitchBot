@@ -3,7 +3,7 @@
 @using PenguinTwitchBot.Models;
 @using PenguinTwitchBot.Helpers;
 @using Microsoft.AspNetCore.Components.Server.Circuits;
-@using Microsoft.AspNetCore.SignalR.Client;
+@using PenguinTwitchBot.Bot.Hubs;
 @using PenguinTwitchBot.Bot.TwitchServices;
 @inherits LayoutComponentBase
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -12,6 +12,7 @@
 @inject ISessionRevocationService SessionRevocation
 @inject PenguinTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject CircuitHandler BlazorCircuitHandler
+@inject IInProcessHubEventBus HubEventBus
 @implements IAsyncDisposable
 @inject ISnackbar Snackbar
 @inject ILogger<MainLayout> logger
@@ -154,8 +155,7 @@
     private string ProfileImage = "";
     private string UserId = "";
     private bool StreamOnline = false;
-    private HubConnection? hubConnection;
-    private CancellationTokenSource? _hubConnectionCts;
+    private IDisposable? _hubSubscription;
     private System.Timers.Timer? _statusCheckTimer;
     [Inject]
     BlazorAppContext? BlazorAppContext { get; set; }
@@ -208,22 +208,7 @@
 
         await UserThemeService.InitializeAsync(JSRuntime);
 
-        _hubConnectionCts = new CancellationTokenSource();
-
-        // Configure SignalR with automatic reconnect and retry policy
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/mainhub"), options =>
-            {
-                // Allow fallback to other transports if WebSockets fail
-                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-                options.SkipNegotiation = false; // Ensure negotiation happens for transport selection
-            })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
-            .Build();
-
-        hubConnection.On<bool>("StreamChanged", (status) =>
+        _hubSubscription = HubEventBus.On<bool>(HubNames.MainHub, "StreamChanged", (status) =>
         {
             _ = InvokeAsync(() =>
             {
@@ -239,8 +224,6 @@
                 StateHasChanged();
             });
         });
-
-        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
 
         StateHasChanged();
     }
@@ -303,7 +286,7 @@
         await UserThemeService.SelectThemeAsync(themeId, JSRuntime);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         UserThemeService.OnThemeChanged -= HandleThemeChanged;
         Navigation.LocationChanged -= HandleLocationChanged;
@@ -316,27 +299,9 @@
             _statusCheckTimer.Dispose();
         }
 
-        // Cancel any pending reconnection attempts
-        _hubConnectionCts?.Cancel();
+        _hubSubscription?.Dispose();
+        _hubSubscription = null;
 
-        if (hubConnection is not null)
-        {
-            try
-            {
-                // Stop the connection gracefully before disposing
-                if (hubConnection.State != HubConnectionState.Disconnected)
-                {
-                    await hubConnection.StopAsync();
-                }
-                await hubConnection.DisposeAsync();
-            }
-            catch (Exception ex)
-            {
-                // Log but don't throw - disposal should be silent to user
-                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
-            }
-        }
-
-        _hubConnectionCts?.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

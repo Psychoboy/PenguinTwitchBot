@@ -1,15 +1,15 @@
 @using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
 @using System.ComponentModel.DataAnnotations
 @using PenguinTwitchBot.Database.Bot.Models
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem
 @inject NavigationManager Navigation
+@inject IInProcessHubEventBus HubEventBus
 @inject ISnackbar Snackbar
 @inject ILogger<GiveawayEntryPanel> logger
-@inject IConfiguration AppConfiguration
 @inject PenguinTwitchBot.Bot.Commands.Features.IViewerFeature ViewerFeature
 @implements IAsyncDisposable
 
@@ -172,8 +172,7 @@
     private string? _lastBroadcasterName;
     private bool _suppressNextRender;
 
-    private HubConnection? hubConnection;
-    private CancellationTokenSource? _hubConnectionCts;
+    private IDisposable? _hubSubscription;
     private bool _disposed;
     private string _userId = "";
     private bool _subscribed;
@@ -239,44 +238,23 @@
         await RefreshUserTicketsAsync();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender == false) return;
 
-        _hubConnectionCts = new CancellationTokenSource();
-
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/mainhub"), options =>
-            {
-                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-                options.SkipNegotiation = false;
-            })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
-            .Build();
-
         // Per-viewer balance changes arrive via IPointsSystem.PointsChanged; the global "UpdateTickets"
         // broadcast fires every 5s for all viewers and isn't needed here.
-        hubConnection.On<bool>("GiveawayIsClosed", (closed) =>
+        _hubSubscription = HubEventBus.On<bool>(HubNames.MainHub, "GiveawayIsClosed", (closed) =>
         {
-            InvokeAsync(() =>
+            if (_disposed) return;
+
+            _ = InvokeAsync(() =>
             {
+                if (_disposed) return;
                 isClosed = closed;
                 StateHasChanged();
             });
         });
-
-        hubConnection.Reconnected += _ => InvokeAsync(async () =>
-        {
-            if (_disposed) return;
-            isClosed = GiveawayFeature.IsClosed();
-            await RefreshUserTicketsAsync();
-            if (!_disposed) StateHasChanged();
-        });
-
-        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
-
     }
 
     private void OnPointsChanged(string userId)
@@ -390,15 +368,12 @@
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _disposed = true;
         PointSystem.PointsChanged -= OnPointsChanged;
-
-        _hubConnectionCts?.Cancel();
-
-        await hubConnection.DisposeGracefullyAsync(logger);
-
-        _hubConnectionCts?.Dispose();
+        _hubSubscription?.Dispose();
+        _hubSubscription = null;
+        return ValueTask.CompletedTask;
     }
 }

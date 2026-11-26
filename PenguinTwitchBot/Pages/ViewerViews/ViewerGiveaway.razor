@@ -1,9 +1,9 @@
 @page "/giveaway"
 
 @using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Pages.ViewerViews.Components
 @using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
 @using PenguinTwitchBot.Database.Bot.Models.Giveaway
 @using System.ComponentModel.DataAnnotations
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -11,6 +11,7 @@
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
 @inject PenguinTwitchBot.Bot.Core.Points.ITwitchEventsBonus twitchEventsBonus
 @inject NavigationManager Navigation
+@inject IInProcessHubEventBus HubEventBus
 @inject ISnackbar Snackbar
 @inject ILogger<ViewerGiveaway> logger
 @inject PenguinTwitchBot.Bot.Core.IServiceBackbone ServiceBackbone
@@ -71,7 +72,7 @@
                         }
                     </MudStack>
                 }
-                @if (liveConnectionAttempted && (!isLiveConnected || isReconnecting))
+                @if (liveConnectionAttempted && !isLiveConnected)
                 {
                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="1">
                         <MudIcon Icon="@LiveStatusIcon" Color="@LiveStatusColor" Size="Size.Small" />
@@ -253,15 +254,13 @@
 </FeatureGate>
 
 @code {
-    private HubConnection? hubConnection;
-    private CancellationTokenSource? _hubConnectionCts;
+    private readonly List<IDisposable> _hubSubscriptions = [];
     private List<GiveawayWinner> winners = new List<GiveawayWinner>();
     private string prize = "";
     private string? imageUrl;
     private string prizeAdditionalDetails = "";
     private bool giveawayDataLoaded;
     private bool isLiveConnected;
-    private bool isReconnecting;
     private bool liveConnectionAttempted;
     private bool snapshotRefreshFailed;
     private DateTimeOffset? lastLiveUpdate;
@@ -304,54 +303,47 @@
 
     private string LiveStatusText => !liveConnectionAttempted
         ? "Connecting to live updates"
-        : isReconnecting
-            ? "Reconnecting live updates"
-            : isLiveConnected
-                ? "Live updates connected"
-                : "Live updates unavailable";
-
-    private string LiveStatusIcon => isReconnecting
-        ? Icons.Material.Filled.Sync
         : isLiveConnected
-            ? Icons.Material.Filled.Wifi
-            : Icons.Material.Filled.WifiOff;
+            ? "Live updates connected"
+            : "Live updates unavailable";
 
-    private Color LiveStatusColor => isReconnecting
-        ? Color.Warning
-        : isLiveConnected
-            ? Color.Success
-            : Color.Secondary;
+    private string LiveStatusIcon => isLiveConnected
+        ? Icons.Material.Filled.Wifi
+        : Icons.Material.Filled.WifiOff;
+
+    private Color LiveStatusColor => isLiveConnected
+        ? Color.Success
+        : Color.Secondary;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
 
-        if(FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature) == false)
+        if (EnsureHubSubscriptions())
         {
-            return;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private bool EnsureHubSubscriptions()
+    {
+        if (_disposed || FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature) == false)
+        {
+            return false;
         }
 
-        _hubConnectionCts = new CancellationTokenSource();
+        if (_hubSubscriptions.Count > 0)
+        {
+            return false;
+        }
 
-        // Configure SignalR with automatic reconnect and retry policy
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/mainhub"), options =>
-            {
-                // Allow fallback to other transports if WebSockets fail
-                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-                options.SkipNegotiation = false;
-            })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
-            .Build();
-
-        hubConnection.On<List<GiveawayWinner>>("Winners", (Winners) =>
+        _hubSubscriptions.Add(HubEventBus.On<List<GiveawayWinner>>(HubNames.MainHub, "Winners", (Winners) =>
         {
             winners = Winners;
-        });
-        hubConnection.On<string>("Prize", async (updatedPrize) =>
+        }));
+        _hubSubscriptions.Add(HubEventBus.On<string>(HubNames.MainHub, "Prize", async (updatedPrize) =>
         {
+            if (_disposed) return;
             var updatedImageUrl = await GiveawayFeature.GetImageUrl();
             await InvokeAsync(() =>
             {
@@ -360,53 +352,32 @@
                 imageUrl = updatedImageUrl;
                 MarkLiveDataUpdated();
             });
-        });
-        hubConnection.On<string>("PrizeAdditionalDetails", (PrizeAdditionalDetails) =>
+        }));
+        _hubSubscriptions.Add(HubEventBus.On<string>(HubNames.MainHub, "PrizeAdditionalDetails", (PrizeAdditionalDetails) =>
         {
-            InvokeAsync(() =>
+            if (_disposed) return;
+            _ = InvokeAsync(() =>
             {
                 if (_disposed) return;
                 prizeAdditionalDetails = PrizeAdditionalDetails.Trim();
                 MarkLiveDataUpdated();
             });
-        });
-        hubConnection.On<int, int>("UpdateTickets", (curEntries, curEntrants) =>
+        }));
+        _hubSubscriptions.Add(HubEventBus.On<int, int>(HubNames.MainHub, "UpdateTickets", (curEntries, curEntrants) =>
         {
-            InvokeAsync(() =>
+            if (_disposed) return;
+            _ = InvokeAsync(() =>
             {
                 if (_disposed) return;
                 entries = curEntries;
                 entrants = curEntrants;
                 MarkLiveDataUpdated();
             });
-        });
+        }));
 
-        hubConnection.Reconnecting += error => InvokeAsync(() =>
-        {
-            if (_disposed) return;
-            isLiveConnected = false;
-            isReconnecting = true;
-            StateHasChanged();
-        });
-        hubConnection.Reconnected += connectionId => InvokeAsync(async () =>
-        {
-            if (_disposed) return;
-            isReconnecting = false;
-            isLiveConnected = true;
-            await RefreshLiveDataAsync();
-            if (!_disposed) StateHasChanged();
-        });
-        hubConnection.Closed += error => InvokeAsync(() =>
-        {
-            if (_disposed) return;
-            isLiveConnected = false;
-            isReconnecting = false;
-            StateHasChanged();
-        });
-
-        isLiveConnected = await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
+        isLiveConnected = true;
         liveConnectionAttempted = true;
-        await InvokeAsync(StateHasChanged);
+        return true;
     }
 
     private void MarkLiveDataUpdated()
@@ -462,20 +433,30 @@
             return Task.CompletedTask;
         }
 
-        return InvokeAsync(StateHasChanged);
+        return InvokeAsync(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            EnsureHubSubscriptions();
+            StateHasChanged();
+        });
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _disposed = true;
         FeatureRuntimeCoordinator.StateChangedAsync -= HandleFeatureStateChangedAsync;
 
-        // Cancel any pending reconnection attempts
-        _hubConnectionCts?.Cancel();
+        foreach (var subscription in _hubSubscriptions)
+        {
+            subscription.Dispose();
+        }
+        _hubSubscriptions.Clear();
 
-        await hubConnection.DisposeGracefullyAsync(logger);
-
-        _hubConnectionCts?.Dispose();
+        return ValueTask.CompletedTask;
     }
 
     private void Signin()

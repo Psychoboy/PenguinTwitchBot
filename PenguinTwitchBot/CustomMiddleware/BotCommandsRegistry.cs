@@ -583,7 +583,6 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: true,
                 description: "Manages action queues for the bot."
             );
-            services.AddTransient<Bot.Hubs.ISignalRHubConnectionFactory, Bot.Hubs.SignalRHubConnectionFactory>();
             services.AddHostedApiService<RuntimeHealthSnapshotService>();
 
             // Register Validation Service (Singleton for cross-scope result caching)

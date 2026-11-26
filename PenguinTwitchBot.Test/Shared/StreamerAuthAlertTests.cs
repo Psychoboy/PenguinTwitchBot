@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using MudBlazor.Services;
 using NSubstitute;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Features;
+using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Circuit;
 using PenguinTwitchBot.CustomMiddleware;
@@ -62,6 +64,7 @@ public class StreamerAuthAlertTests
 
         var circuitHandler = new CircuitHandlerService(_circuitUserService, _circuitLogger);
         ctx.Services.AddSingleton<CircuitHandler>(circuitHandler);
+        ctx.Services.AddSingleton<IInProcessHubEventBus>(new InProcessHubEventBus(NullLogger<InProcessHubEventBus>.Instance));
 
         return (ctx, auth);
     }

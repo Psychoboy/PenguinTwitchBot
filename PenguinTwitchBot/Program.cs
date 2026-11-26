@@ -20,7 +20,6 @@ using PenguinTwitchBot.HealthChecks;
 using LinqToDB.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
-using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using MudBlazor;
 using MudBlazor.Services;
@@ -132,11 +131,15 @@ internal partial class Program
                 };
                 options.LevelSwitch = new Serilog.Core.LoggingLevelSwitch(LogEventLevel.Information);
             });
-            Log.Information("OpenTelemetry logging enabled. Exporting logs to {Endpoint}", otelEndpoint);
         }
 
         var serilogLogger = loggerConfiguration.CreateLogger();
         Log.Logger = serilogLogger;
+
+        if (otelEnabled && !string.IsNullOrEmpty(otelEndpoint))
+        {
+            Log.Information("OpenTelemetry logging enabled. Exporting logs to {Endpoint}", otelEndpoint);
+        }
 
         builder.Logging.ClearProviders();
         builder.Logging.AddSerilog(serilogLogger, dispose: false);
@@ -192,11 +195,6 @@ internal partial class Program
     });
 
         builder.Services.AddRazorPages();
-
-        builder.Services.AddHttpLogging(options =>
-        {
-            options.LoggingFields = HttpLoggingFields.RequestPropertiesAndHeaders;
-        });
 
         builder.Services.AddServerSideBlazor(options =>
         {
@@ -269,6 +267,9 @@ internal partial class Program
         });
 
         builder.Services.AddSignalR();
+        builder.Services.AddSingleton<PenguinTwitchBot.Bot.Hubs.IInProcessHubEventBus, PenguinTwitchBot.Bot.Hubs.InProcessHubEventBus>();
+        PenguinTwitchBot.Bot.Hubs.InProcessHubBridgeServiceCollectionExtensions.AddInProcessHubBridge<PenguinTwitchBot.Bot.Hubs.MainHub>(builder.Services);
+        PenguinTwitchBot.Bot.Hubs.InProcessHubBridgeServiceCollectionExtensions.AddInProcessHubBridge<PenguinTwitchBot.Bot.Commands.Music.YtHub>(builder.Services);
 
         // Always register circuit services — MainLayout injects these and Blazor's SSR
         // prerender instantiates it even when the page specifies its own layout.

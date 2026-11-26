@@ -1,6 +1,5 @@
 @page "/giveaway/settings"
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@using Microsoft.AspNetCore.SignalR.Client
 @using PenguinTwitchBot.Database.Bot.Models.Giveaway
 @using PenguinTwitchBot.Database.Bot.Models.Points
 @inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;

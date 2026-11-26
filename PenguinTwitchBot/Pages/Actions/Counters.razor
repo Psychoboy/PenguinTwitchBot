@@ -1,15 +1,14 @@
 @page "/actions/counters"
 @attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Bot.Services
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Models
-@using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
 @inject ICounterService CounterService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
-@inject IConfiguration AppConfiguration
+@inject IInProcessHubEventBus HubEventBus
 @inject ILogger<Counters> logger
 @implements IAsyncDisposable
 
@@ -106,7 +105,7 @@
 
     private List<Counter> _counters = [];
     private bool _loading = true;
-    private HubConnection? _hubConnection;
+    private IDisposable? _hubSubscription;
     private Task? _initialLoadTask;
     private Guid? _openedCounterId;
     private bool _disposed;
@@ -166,46 +165,38 @@
     {
         if (firstRender)
         {
-            try
+            if (_initialLoadTask != null)
             {
-                if (_initialLoadTask != null)
-                {
-                    await _initialLoadTask;
-                }
+                await _initialLoadTask;
+            }
 
-                _hubConnection = new HubConnectionBuilder()
-                    .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
-                    .WithAutomaticReconnect()
-                    .Build();
+            if (_disposed) return;
 
-                _hubConnection.On<Counter>("CounterUpdated", async (counter) =>
+            _hubSubscription = HubEventBus.On<Counter>(HubNames.MainHub, "CounterUpdated", async (counter) =>
+            {
+                if (_disposed) return;
+
+                await InvokeAsync(() =>
                 {
-                    await InvokeAsync(() =>
+                    if (_disposed) return;
+
+                    var existing = _counters.FirstOrDefault(c => c.CounterName.Equals(counter.CounterName, StringComparison.OrdinalIgnoreCase));
+                    if (existing != null)
                     {
-                        var existing = _counters.FirstOrDefault(c => c.CounterName.Equals(counter.CounterName, StringComparison.OrdinalIgnoreCase));
-                        if (existing != null)
-                        {
-                            existing.Amount = counter.Amount;
-                            existing.DisplayName = counter.DisplayName;
-                            existing.Step = counter.Step;
-                            existing.Min = counter.Min;
-                            existing.Max = counter.Max;
-                        }
-                        else
-                        {
-                            _counters.Add(counter);
-                            _counters = _counters.OrderBy(c => c.CounterName).ToList();
-                        }
-                        StateHasChanged();
-                    });
+                        existing.Amount = counter.Amount;
+                        existing.DisplayName = counter.DisplayName;
+                        existing.Step = counter.Step;
+                        existing.Min = counter.Min;
+                        existing.Max = counter.Max;
+                    }
+                    else
+                    {
+                        _counters.Add(counter);
+                        _counters = _counters.OrderBy(c => c.CounterName).ToList();
+                    }
+                    StateHasChanged();
                 });
-
-                await _hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to start hub connection on Counters page");
-            }
+            });
         }
     }
 
@@ -361,14 +352,12 @@
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _disposed = true;
         NavigationManager.LocationChanged -= OnLocationChanged;
-        if (_hubConnection != null)
-        {
-            await _hubConnection.DisposeGracefullyAsync(logger);
-            _hubConnection = null;
-        }
+        _hubSubscription?.Dispose();
+        _hubSubscription = null;
+        return ValueTask.CompletedTask;
     }
 }

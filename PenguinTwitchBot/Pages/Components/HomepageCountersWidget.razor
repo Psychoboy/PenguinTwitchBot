@@ -1,13 +1,11 @@
 @using PenguinTwitchBot.Bot.Commands.Misc
+@using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Bot.Services
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Models
-@using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
 @inject ICounterService CounterService
 @inject IDeathCounterService DeathCounterService
-@inject NavigationManager NavigationManager
-@inject IConfiguration AppConfiguration
+@inject IInProcessHubEventBus HubEventBus
 @inject ISnackbar Snackbar
 @implements IAsyncDisposable
 
@@ -100,7 +98,7 @@
 
     private List<DisplayCounterItem> _items = [];
     private string _currentGame = string.Empty;
-    private HubConnection? _hubConnection;
+    private readonly List<IDisposable> _hubSubscriptions = [];
     private bool _disposed;
 
     protected override async Task OnInitializedAsync()
@@ -113,50 +111,44 @@
         await LoadStateAsync();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            try
+            _hubSubscriptions.Add(HubEventBus.On<Counter>(HubNames.MainHub, "CounterUpdated", async (counter) =>
             {
-                _hubConnection = new HubConnectionBuilder()
-                    .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
-                    .WithAutomaticReconnect()
-                    .Build();
+                if (_disposed) return;
 
-                _hubConnection.On<Counter>("CounterUpdated", async (counter) =>
+                await InvokeAsync(() =>
                 {
-                    await InvokeAsync(() =>
-                    {
-                        var match = _items.FirstOrDefault(i => !i.IsDeath && string.Equals(i.Name, counter.CounterName, StringComparison.OrdinalIgnoreCase));
-                        if (match != null)
-                        {
-                            match.Value = counter.Amount;
-                            StateHasChanged();
-                        }
-                    });
-                });
+                    if (_disposed) return;
 
-                _hubConnection.On<DeathCounterUpdatedPayload>("DeathCounterUpdated", async (payload) =>
-                {
-                    await InvokeAsync(() =>
+                    var match = _items.FirstOrDefault(i => !i.IsDeath && string.Equals(i.Name, counter.CounterName, StringComparison.OrdinalIgnoreCase));
+                    if (match != null)
                     {
-                        _currentGame = payload.Game ?? string.Empty;
-                        var deathItem = _items.FirstOrDefault(i => i.IsDeath);
-                        if (deathItem != null)
-                        {
-                            deathItem.Value = payload.Amount;
-                            StateHasChanged();
-                        }
-                    });
+                        match.Value = counter.Amount;
+                        StateHasChanged();
+                    }
                 });
+            }));
 
-                await _hubConnection.StartAsync();
-            }
-            catch
+            _hubSubscriptions.Add(HubEventBus.On<DeathCounterUpdatedPayload>(HubNames.MainHub, "DeathCounterUpdated", async (payload) =>
             {
-                // Silently handle if hub fails to connect in background
-            }
+                if (_disposed) return;
+
+                await InvokeAsync(() =>
+                {
+                    if (_disposed) return;
+
+                    _currentGame = payload.Game ?? string.Empty;
+                    var deathItem = _items.FirstOrDefault(i => i.IsDeath);
+                    if (deathItem != null)
+                    {
+                        deathItem.Value = payload.Amount;
+                        StateHasChanged();
+                    }
+                });
+            }));
         }
     }
 
@@ -229,17 +221,19 @@
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (!_disposed)
         {
             _disposed = true;
-            if (_hubConnection is not null)
+            foreach (var subscription in _hubSubscriptions)
             {
-                await _hubConnection.DisposeAsync();
-                _hubConnection = null;
+                subscription.Dispose();
             }
+            _hubSubscriptions.Clear();
         }
+
+        return ValueTask.CompletedTask;
     }
 
     private sealed class DeathCounterUpdatedPayload

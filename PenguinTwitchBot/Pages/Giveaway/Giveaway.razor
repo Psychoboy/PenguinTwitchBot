@@ -1,10 +1,9 @@
 @page "/giveaway/draw"
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
+@using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Database.Bot.Models.Giveaway
 @inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;
-@inject NavigationManager Navigation
+@inject IInProcessHubEventBus HubEventBus
 @inject ISnackbar Snackbar
 @inject ILogger<Giveaway> logger
 @implements IAsyncDisposable
@@ -177,8 +176,7 @@
     private List<GiveawayWinner>? pastWinners;
     private string prize = "";
     private string? imageUrl;
-    private HubConnection? hubConnection;
-    private CancellationTokenSource? _hubConnectionCts;
+    private readonly List<IDisposable> _hubSubscriptions = [];
     [Inject] private IDialogService DialogService { get; set; } = default!;
     [Inject]
     private Bot.Core.Points.IPointsSystem pointsSystem { get; set; } = default!;
@@ -189,37 +187,20 @@
         imageUrl = await GiveawayFeature.GetImageUrl();
 
     }
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender == false) return;
 
-        _hubConnectionCts = new CancellationTokenSource();
-
-        // Configure SignalR with automatic reconnect and retry policy
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/mainhub"), options =>
-            {
-                // Allow fallback to other transports if WebSockets fail
-                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-                options.SkipNegotiation = false;
-            })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
-            .Build();
-
-        hubConnection.On<List<GiveawayWinner>>("Winners", (Winners) =>
+        _hubSubscriptions.Add(HubEventBus.On<List<GiveawayWinner>>(HubNames.MainHub, "Winners", (Winners) =>
         {
             winners = Winners;
-            InvokeAsync(StateHasChanged);
-        });
-        hubConnection.On<string>("Prize", (Prize) =>
+            _ = InvokeAsync(StateHasChanged);
+        }));
+        _hubSubscriptions.Add(HubEventBus.On<string>(HubNames.MainHub, "Prize", (Prize) =>
         {
             prize = Prize;
-            InvokeAsync(StateHasChanged);
-        });
-
-        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
+            _ = InvokeAsync(StateHasChanged);
+        }));
     }
 
     private async Task Draw()
@@ -257,13 +238,13 @@
         StateHasChanged();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        // Cancel any pending reconnection attempts
-        _hubConnectionCts?.Cancel();
-
-        await hubConnection.DisposeGracefullyAsync(logger);
-
-        _hubConnectionCts?.Dispose();
+        foreach (var subscription in _hubSubscriptions)
+        {
+            subscription.Dispose();
+        }
+        _hubSubscriptions.Clear();
+        return ValueTask.CompletedTask;
     }
 }

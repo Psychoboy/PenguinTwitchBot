@@ -2,15 +2,13 @@
 @using PenguinTwitchBot.Bot.Queues
 @using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Database.Bot.Models.Queues
-@using PenguinTwitchBot.Helpers
-@using Microsoft.AspNetCore.SignalR.Client
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IQueueManager QueueManager
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 @inject IActionExecutionLogger ExecutionLogger
-@inject ISignalRHubConnectionFactory HubConnectionFactory
+@inject IInProcessHubEventBus HubEventBus
 @inject ILogger<ActionHistory> logger
 @implements IAsyncDisposable
 
@@ -187,7 +185,7 @@
     private List<ActionExecutionLog> _executionLogs = new();
     private List<ActionExecutionLog> _allLogs = new();
     private bool _loading = true;
-    private ISignalRHubConnection? _hubConnection;
+    private IDisposable? _hubSubscription;
     private bool _disposed;
     private string _searchString = "";
     private ActionExecutionState? _filterState = null;
@@ -212,18 +210,18 @@
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            _hubConnection = HubConnectionFactory.CreateMainHubConnection(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"));
-
-            if (_hubConnection == null) return;
-
-            _hubConnection.On<ActionExecutionLog>("ActionLogUpdated", async (log) =>
+            _hubSubscription = HubEventBus.On<ActionExecutionLog>(HubNames.MainHub, "ActionLogUpdated", async (log) =>
             {
+                if (_disposed) return;
+
                 await InvokeAsync(() =>
                 {
+                    if (_disposed) return;
+
                     if (_updatesPaused)
                     {
                         // When paused, just count pending updates
@@ -260,8 +258,6 @@
                     StateHasChanged();
                 });
             });
-
-            await _hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar);
         }
     }
 
@@ -376,17 +372,15 @@
         return $"{duration.TotalMinutes:F2}m";
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (!_disposed)
         {
             _disposed = true;
-
-            if (_hubConnection is not null)
-            {
-                await _hubConnection.DisposeAsync();
-                _hubConnection = null;
-            }
+            _hubSubscription?.Dispose();
+            _hubSubscription = null;
         }
+
+        return ValueTask.CompletedTask;
     }
 }

@@ -1,7 +1,6 @@
-﻿@using PenguinTwitchBot.Helpers
 @using PenguinTwitchBot.Bot.Commands.Music
-@using Microsoft.AspNetCore.SignalR.Client
-@inject NavigationManager Navigation
+@using PenguinTwitchBot.Bot.Hubs
+@inject IInProcessHubEventBus HubEventBus
 @inject YtPlayer YtPlayer
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject ISongCooldownService SongCooldownService
@@ -82,8 +81,7 @@
 </MudPaper>
 @code {
     private List<Song> songRequests = new();
-    private HubConnection? hubConnection;
-    private CancellationTokenSource? _hubConnectionCts;
+    private IDisposable? _hubSubscription;
     private string? songRequestCommandName;
 
     [Parameter]
@@ -104,38 +102,17 @@
             ? null
             : songRequestCommand?.CustomCommandName ?? "sr";
 
-        // Load initial data immediately - don't wait for hub connection
-        UpdateSongList(await YtPlayer.GetRequestedSongs());
-        dataLoaded = true;
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender == false) return;
-
-        _hubConnectionCts = new CancellationTokenSource();
-
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/ythub"), options =>
-            {
-                // Prefer WebSocket for better performance; fall back if unavailable
-                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
-                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
-                options.SkipNegotiation = false;
-            })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
-            .Build();
-
-        hubConnection.On<List<Song>>("CurrentSongRequests", (playlist) =>
+        // Subscribe before reading the initial snapshot so updates published during or after the read are not missed.
+        _hubSubscription ??= HubEventBus.On<List<Song>>(HubNames.YtHub, "CurrentSongRequests", (playlist) =>
         {
             if (songRequests.Count == 0 && playlist.Count == 0) return;
             UpdateSongList(playlist);
-            InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(StateHasChanged);
         });
 
-        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
-        StateHasChanged();
+        // Load initial data immediately - don't wait for hub connection
+        UpdateSongList(await YtPlayer.GetRequestedSongs());
+        dataLoaded = true;
     }
 
     private void UpdateSongList(List<Song> songs)
@@ -159,12 +136,10 @@
         Snackbar.Add($"Added '{song.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        _hubConnectionCts?.Cancel();
-
-        await hubConnection.DisposeGracefullyAsync(logger);
-
-        _hubConnectionCts?.Dispose();
+        _hubSubscription?.Dispose();
+        _hubSubscription = null;
+        return ValueTask.CompletedTask;
     }
 }
