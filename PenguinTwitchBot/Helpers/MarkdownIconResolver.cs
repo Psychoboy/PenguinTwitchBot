@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Reflection;
 using MudBlazor;
 
@@ -96,7 +97,7 @@ public static class MarkdownIconResolver
         return dict;
     });
 
-    private static readonly Dictionary<string, string> MaterialAliases = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, string> MaterialAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         // Users & Profiles
         ["person"] = "Person",
@@ -170,7 +171,7 @@ public static class MarkdownIconResolver
         ["share"] = "Share",
         ["thumb_up"] = "ThumbUp",
         ["like"] = "ThumbUp",
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private static readonly Dictionary<MaterialIconStyle, Lazy<Dictionary<string, string>>> IconsByStyle = new()
     {

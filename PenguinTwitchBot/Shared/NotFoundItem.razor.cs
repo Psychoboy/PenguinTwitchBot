@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
@@ -9,10 +10,10 @@ namespace PenguinTwitchBot.Shared
     public partial class NotFoundItem : ComponentBase
     {
         private static readonly string[] ExpectedProbePrefixes = ["/gifs/", "/audio/", "/clips/", "/fishes/"];
-        private static readonly HashSet<string> ExpectedMediaExtensions = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly FrozenSet<string> ExpectedMediaExtensions = new[]
         {
             ".mp3", ".wav", ".ogg", ".oga", ".opus", ".aac", ".m4a", ".mp4", ".webm", ".ogv"
-        };
+        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
         [Inject]
         private ILogger<NotFoundItem>? Logger { get; set; }

@@ -8,7 +8,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     {
         private const int MaxTrackedEndedTournaments = 256;
 
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private readonly SemaphoreSlim _transitionLock = new(1, 1);
         private readonly HashSet<Guid> _endedTournamentIds = new();
         private readonly Queue<Guid> _endedTournamentOrder = new();

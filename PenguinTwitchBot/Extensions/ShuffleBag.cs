@@ -17,7 +17,7 @@ namespace PenguinTwitchBot.Extensions
         private readonly List<T> _sourceItems = [];
         private readonly List<T> _remaining = [];
         private readonly IEqualityComparer<T> _comparer;
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private T? _lastDrawn;
         private bool _hasLastDrawn;
 
@@ -236,7 +236,7 @@ namespace PenguinTwitchBot.Extensions
 
         private sealed class KeyedBagRunner
         {
-            private readonly object _lock = new();
+            private readonly Lock _lock = new();
             private readonly List<object> _sourceKeys = [];
             private readonly List<object> _remainingKeys = [];
             private object? _lastKey;

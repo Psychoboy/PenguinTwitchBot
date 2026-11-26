@@ -10,7 +10,7 @@ namespace PenguinTwitchBot.Bot.Ai
 
     public class OpenAiClientProvider(IConfiguration configuration) : IOpenAiClientProvider
     {
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private string? _apiKey;
         private OpenAIClient? _client;
 

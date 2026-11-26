@@ -38,12 +38,12 @@ namespace PenguinTwitchBot.Bot.Queues
         private int _pendingCount;
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _processingTask;
-        private readonly object _startLock = new();
+        private readonly Lock _startLock = new();
 
         // Throttling for SignalR updates
         private readonly Timer _statsUpdateTimer;
         private bool _statsPendingUpdate;
-        private readonly object _statsUpdateLock = new();
+        private readonly Lock _statsUpdateLock = new();
 
         public string Name { get; }
         public bool IsBlocking { get; }

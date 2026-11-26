@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace PenguinTwitchBot.Bot.Notifications
 {
     /// <summary>Topic names widgets subscribe to on the single /ws endpoint.</summary>
@@ -22,7 +24,7 @@ namespace PenguinTwitchBot.Bot.Notifications
 
         public static readonly IReadOnlyList<string> All = [Chat, Alerts, Clips, Fishing, Wheel, Overlay, Events, Parachute, Plinko, Balloon, Curling, Golf, Racing, Starship, UfoClaw, Credits];
 
-        private static readonly HashSet<string> Known = new(All, StringComparer.OrdinalIgnoreCase);
+        private static readonly FrozenSet<string> Known = All.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Filters client-supplied topics down to the known set; unknown values are discarded.</summary>
         public static HashSet<string> Parse(IEnumerable<string?>? topics)

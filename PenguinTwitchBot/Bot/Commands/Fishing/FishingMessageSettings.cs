@@ -90,7 +90,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private const string SettingKey = "ChatMessagesJson";
         private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private FishingMessageSettings? _cached;
         private long _generation;
 

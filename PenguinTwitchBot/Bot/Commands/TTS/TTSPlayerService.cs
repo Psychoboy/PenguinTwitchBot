@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
 
         private sealed class KokoroInstance : IDisposable
         {
-            private readonly object _lock = new();
+            private readonly Lock _lock = new();
             public KokoroWavSynthesizer Synthesizer { get; }
             private int _activeOperations;
             private bool _isRetired;

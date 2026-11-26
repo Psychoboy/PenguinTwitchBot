@@ -376,7 +376,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
 
             var defaultPoint = new PointType
             {
-                Id = Guid.NewGuid(),
+                Id = Guid.CreateVersion7(),
                 Name = "Points",
                 Description = "Points earned by viewers",
             };

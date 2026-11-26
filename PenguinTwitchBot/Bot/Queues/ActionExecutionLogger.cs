@@ -16,7 +16,7 @@ namespace PenguinTwitchBot.Bot.Queues
         // Throttling for SignalR updates
         private readonly Timer _updateTimer;
         private readonly ConcurrentDictionary<Guid, byte> _pendingLogUpdates = new();
-        private readonly object _updateLock = new();
+        private readonly Lock _updateLock = new();
         private bool _updatePending;
 
         public ActionExecutionLogger(

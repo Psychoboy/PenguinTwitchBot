@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Queues
+namespace PenguinTwitchBot.Bot.Queues
 {
     /// <summary>
     /// Execution context that tracks the execution of an action and its subactions.
@@ -39,7 +39,7 @@
         /// </summary>
         public ActionExecutionContext(IActionExecutionLogger logger, ILogger<ActionExecutionContext> contextLogger, int depth = 0)
         {
-            ActionLogId = Guid.NewGuid();
+            ActionLogId = Guid.CreateVersion7();
             _logger = logger;
             _contextLogger = contextLogger;
             _depth = depth;

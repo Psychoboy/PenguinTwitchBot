@@ -26,7 +26,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private readonly IPointsSystem _pointsSystem;
         private readonly IWebSocketMessenger? _webSocketMessenger;
 
-        private readonly object _cacheLock = new();
+        private readonly Lock _cacheLock = new();
         private List<FishType>? _cachedFishTypes;
         private FishingSettings? _cachedSettings;
         private readonly SemaphoreSlim _settingsInitLock = new(1, 1);

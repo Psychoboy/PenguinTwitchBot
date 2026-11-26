@@ -29,7 +29,7 @@ namespace PenguinTwitchBot.Bot.Commands.WheelSpin
         private Wheel? nameWheel = null;
         private bool nameWheelActive = false;
         private bool nameWheelShown = false;
-        private readonly object spinResultLock = new();
+        private readonly Lock spinResultLock = new();
         private bool awaitingSpinResult = false;
 
         public async Task OpenNameWheel()

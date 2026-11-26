@@ -26,7 +26,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
         private readonly List<Participant> Survivors = [];
         private readonly List<Participant> Caught = [];
         private readonly ConcurrentDictionary<string, PendingRefund> _pendingRefunds = new(StringComparer.Ordinal);
-        private readonly object _stateLock = new();
+        private readonly Lock _stateLock = new();
         private long _roundId = 0;
         private ITimer? JoinTimer;
         private State GameState = State.NotRunning;

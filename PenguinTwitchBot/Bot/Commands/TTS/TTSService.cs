@@ -33,7 +33,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         /// If loading returns empty (e.g. before files exist), it will retry on subsequent requests.
         /// </summary>
         private static IReadOnlyList<RegisteredVoice>? _kokoroVoices;
-        private static readonly object _kokoroVoicesLock = new();
+        private static readonly Lock _kokoroVoicesLock = new();
 
         private static IReadOnlyList<RegisteredVoice> KokoroVoices
         {

@@ -191,7 +191,7 @@ namespace PenguinTwitchBot.Controllers
                 }
                 else
                 {
-                    widget = new OverlayWidget { Id = Guid.NewGuid(), OverlayLayoutId = id };
+                    widget = new OverlayWidget { Id = Guid.CreateVersion7(), OverlayLayoutId = id };
                     _unitOfWork.OverlayWidgets.Add(widget);
                 }
 

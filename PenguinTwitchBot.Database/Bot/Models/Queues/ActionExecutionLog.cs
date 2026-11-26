@@ -2,7 +2,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Queues
 {
     public class ActionExecutionLog
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public Guid Id { get; set; } = Guid.CreateVersion7();
         public Guid? ActionId { get; set; }
         public string ActionName { get; set; } = null!;
         public ActionExecutionState State { get; set; }

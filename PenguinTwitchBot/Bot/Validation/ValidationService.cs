@@ -14,7 +14,7 @@ namespace PenguinTwitchBot.Bot.Validation
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<ValidationService> _logger;
         private ValidationResult? _lastValidationResult;
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
 
         public ValidationService(
             IServiceScopeFactory scopeFactory,
@@ -1146,7 +1146,7 @@ namespace PenguinTwitchBot.Bot.Validation
             if (url.Contains('%'))
             {
                 // Create a test URL by replacing variables with dummy values
-                var testUrl = System.Text.RegularExpressions.Regex.Replace(url, @"%\w+%", "test");
+                var testUrl = UrlVariablePlaceholderRegex().Replace(url, "test");
                 return Uri.TryCreate(testUrl, UriKind.Absolute, out var uriResult) &&
                        (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
             }
@@ -1351,5 +1351,7 @@ namespace PenguinTwitchBot.Bot.Validation
             _logger.LogDebug("Keyword validation found {IssueCount} issues", result.Issues.Count);
             return result;
         }
+        [System.Text.RegularExpressions.GeneratedRegex(@"%\w+%")]
+        private static partial System.Text.RegularExpressions.Regex UrlVariablePlaceholderRegex();
     }
 }

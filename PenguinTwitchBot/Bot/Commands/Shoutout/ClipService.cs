@@ -11,7 +11,7 @@ using PenguinTwitchBot.Bot.Features;
 
 namespace PenguinTwitchBot.Bot.Commands.Shoutout
 {
-    public class ClipService(
+    public partial class ClipService(
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         ILogger<ClipService> logger,
@@ -100,7 +100,7 @@ namespace PenguinTwitchBot.Bot.Commands.Shoutout
         private async Task WatchRequestedClip(CommandEventArgs e)
         {
             if (e.Args.Count == 0) return;
-            var arg = Regex.Replace(e.Args.First().Trim(), @"[\u0000-\u0008\u000A-\u001F\u0100-\uFFFF]", "");
+            var arg = InvalidClipArgCharsRegex().Replace(e.Args.First().Trim(), "");
             if (string.IsNullOrEmpty(arg)) return;
             try
             {
@@ -141,5 +141,7 @@ namespace PenguinTwitchBot.Bot.Commands.Shoutout
             logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
+        [GeneratedRegex(@"[\u0000-\u0008\u000A-\u001F\u0100-\uFFFF]")]
+        private static partial Regex InvalidClipArgCharsRegex();
     }
 }

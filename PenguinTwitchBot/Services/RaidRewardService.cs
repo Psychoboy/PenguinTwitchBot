@@ -57,7 +57,7 @@ namespace PenguinTwitchBot.Services
         private readonly IConfiguration _configuration;
         private readonly TimeProvider _timeProvider;
 
-        private readonly object _windowLock = new();
+        private readonly Lock _windowLock = new();
         private RaidWindow? _activeWindow;
         private Timer? _expiryTimer;
         private Timer? _preRaidReminderTimer;

@@ -7,7 +7,7 @@ public sealed class HomepageLayoutConfig
 
 public sealed class HomepageWidgetConfig
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.CreateVersion7();
 
     public string Type { get; set; } = string.Empty;
 
@@ -172,7 +172,7 @@ public static class HomepageWidgetCatalog
 
         if (normalized.Id == Guid.Empty)
         {
-            normalized.Id = Guid.NewGuid();
+            normalized.Id = Guid.CreateVersion7();
         }
 
         normalized.Type = string.IsNullOrWhiteSpace(normalized.Type)

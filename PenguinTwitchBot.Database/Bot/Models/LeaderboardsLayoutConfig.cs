@@ -9,7 +9,7 @@ public sealed class LeaderboardsLayoutConfig
 
 public sealed class LeaderboardWidgetConfig
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.CreateVersion7();
 
     public string Type { get; set; } = string.Empty;
 
@@ -127,7 +127,7 @@ public static class LeaderboardsWidgetCatalog
 
         if (normalized.Id == Guid.Empty)
         {
-            normalized.Id = Guid.NewGuid();
+            normalized.Id = Guid.CreateVersion7();
         }
 
         normalized.Type = string.IsNullOrWhiteSpace(normalized.Type) ? PointLeaderboard : normalized.Type.Trim();

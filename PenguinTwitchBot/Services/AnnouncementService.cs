@@ -9,8 +9,8 @@ public enum AnnouncementSeverity { Info, Success, Warning, Error }
 
 public sealed class Announcement
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid Revision { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid Revision { get; set; } = Guid.CreateVersion7();
     public string Message { get; set; } = "";
     public AnnouncementSeverity Severity { get; set; }
     public DateTime? StartDate { get; set; }
@@ -86,7 +86,7 @@ public sealed class AnnouncementService(IServiceScopeFactory scopeFactory)
         try
         {
             var announcements = await GetAnnouncementsAsync();
-            announcement.Revision = Guid.NewGuid();
+            announcement.Revision = Guid.CreateVersion7();
             var index = announcements.FindIndex(item => item.Id == announcement.Id);
             if (index < 0) announcements.Add(announcement);
             else announcements[index] = announcement;

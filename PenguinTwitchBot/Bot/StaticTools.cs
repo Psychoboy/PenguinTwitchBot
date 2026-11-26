@@ -1,10 +1,10 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
 namespace PenguinTwitchBot.Bot
 {
-    public static class StaticTools
+    public static partial class StaticTools
     {
         public static int Next(int max)
         {
@@ -64,8 +64,7 @@ namespace PenguinTwitchBot.Bot
             if (string.IsNullOrWhiteSpace(strIn)) return "";
             try
             {
-                return Regex.Replace(strIn, @"[^\w\.@-]", "",
-                                     RegexOptions.None, TimeSpan.FromSeconds(1.5));
+                return CleanInputRegex().Replace(strIn, "");
             }
             // If we timeout when replacing invalid characters,
             // we should return Empty.
@@ -74,6 +73,9 @@ namespace PenguinTwitchBot.Bot
                 return String.Empty;
             }
         }
+
+        [GeneratedRegex(@"[^\w\.@-]", RegexOptions.None, matchTimeoutMilliseconds: 1500)]
+        private static partial Regex CleanInputRegex();
         public static void AddRange<T>(this ConcurrentBag<T> @this, IEnumerable<T> toAdd)
         {
             foreach (var element in toAdd)

@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,14 +32,14 @@ namespace PenguinTwitchBot.Bot.Ai
         [GeneratedRegex(@"\b[a-zA-Z0-9_]{3,25}\b", RegexOptions.Compiled)]
         private static partial Regex WordTokenRegex();
 
-        private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly FrozenSet<string> StopWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "the", "and", "for", "are", "but", "not", "you", "all", "any", "can", "had", "her", "was",
             "one", "our", "out", "day", "get", "has", "him", "his", "how", "man", "new", "now", "old",
             "see", "two", "way", "who", "boy", "did", "its", "let", "put", "say", "she", "too", "use",
             "chat", "bot", "ping", "test", "help", "this", "that", "with", "from", "they", "them", "what",
             "when", "where", "which", "will", "would", "about", "there", "their"
-        };
+        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
         public async Task<string> ProcessViewerTagsAsync(
             string template,

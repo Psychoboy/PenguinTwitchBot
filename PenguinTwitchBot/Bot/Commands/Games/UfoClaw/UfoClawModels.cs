@@ -46,7 +46,7 @@ public sealed record UfoClawSettings
 
 public sealed record UfoClawGrab
 {
-    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid Id { get; init; } = Guid.CreateVersion7();
     public DateTimeOffset StartedAtUtc { get; init; }
     public string Mode { get; init; } = "prizes";
     public string PrizeSetId { get; init; } = "";

@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using PenguinTwitchBot.Bot.Commands.TicketGames;
@@ -12,14 +13,14 @@ public sealed record MiscPointAssignment(PointGamePair Assignment);
 
 public static class MiscPointAssignmentFilter
 {
-    private static readonly HashSet<string> MiscellaneousPointGameNames = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenSet<string> MiscellaneousPointGameNames = new[]
     {
         "DuelGame",
         "First",
         "loyalty",
         "Roll",
         "Steal"
-    };
+    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     public static IReadOnlyList<MiscPointAssignment> Filter(
         IEnumerable<PointGamePair> assignments,

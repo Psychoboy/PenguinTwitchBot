@@ -637,16 +637,18 @@ namespace PenguinTwitchBot.Services
 
         #region Verification & Helpers
 
-        private static readonly HashSet<char> UnsafeFileNameChars = new([
-            '/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0', '\r', '\n', '\t'
-        ]);
+        private static readonly System.Buffers.SearchValues<char> InvalidFileNameChars =
+            System.Buffers.SearchValues.Create(
+                Path.GetInvalidFileNameChars()
+                    .Concat(['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0', '\r', '\n', '\t'])
+                    .Distinct()
+                    .ToArray());
 
         public static string SanitizeFileName(string fileName)
         {
-            var invalidChars = Path.GetInvalidFileNameChars().Concat(UnsafeFileNameChars).ToHashSet();
             var cleaned = new string(fileName
                 .Trim()
-                .Select(c => invalidChars.Contains(c) ? '_' : c)
+                .Select(c => InvalidFileNameChars.Contains(c) ? '_' : c)
                 .ToArray());
 
             // Remove path separators and traversal attempts

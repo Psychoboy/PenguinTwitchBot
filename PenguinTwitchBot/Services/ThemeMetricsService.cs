@@ -25,7 +25,7 @@ public sealed class ThemeMetricsService : IThemeMetricsService, IDisposable
     private readonly ICustomThemeService _customThemeService;
     private readonly ILogger<ThemeMetricsService> _logger;
     private readonly HashSet<(string ThemeId, string ThemeName, string Mode)> _publishedLabels = [];
-    private readonly object _metricsLock = new();
+    private readonly Lock _metricsLock = new();
 
     public ThemeMetricsService(
         IUserThemePreferenceService preferenceService,

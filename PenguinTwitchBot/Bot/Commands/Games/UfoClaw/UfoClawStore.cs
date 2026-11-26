@@ -11,7 +11,7 @@ public interface IUfoClawStore
     Task SaveAsync(UfoClawDocument document);
 }
 
-public sealed class UfoClawStore(IServiceScopeFactory scopeFactory) : IUfoClawStore
+public sealed partial class UfoClawStore(IServiceScopeFactory scopeFactory) : IUfoClawStore
 {
     public const string SettingKey = "ufo_claw.v1";
     public static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -96,11 +96,14 @@ public sealed class UfoClawStore(IServiceScopeFactory scopeFactory) : IUfoClawSt
         foreach (var entry in entries)
         {
             if (string.IsNullOrWhiteSpace(entry.Id) || string.IsNullOrWhiteSpace(entry.Label) || entry.Label.Length > 300 || entry.Value.Length > 2000 ||
-                entry.Weight is < 0 or > 1_000_000 || !Regex.IsMatch(entry.Color, "^#[0-9a-fA-F]{6}$"))
+                entry.Weight is < 0 or > 1_000_000 || !HexColorRegex().IsMatch(entry.Color))
                 throw new ArgumentException("Entries need a label, a valid weight, and a six-digit hex color.");
             ValidateMedia(entry.ImageUrl);
         }
     }
+
+    [GeneratedRegex("^#[0-9a-fA-F]{6}$")]
+    private static partial Regex HexColorRegex();
 
     private static void ValidateMedia(string? url)
     {

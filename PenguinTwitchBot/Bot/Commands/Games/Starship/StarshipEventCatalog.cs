@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Text.RegularExpressions;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Services;
@@ -17,9 +18,9 @@ public static partial class StarshipEventCatalog
     public static IReadOnlyList<string> Routes { get; } = [StartRoute, CoreRoute, FrontierRoute, UnchartedRoute];
     public static IReadOnlyList<string> SubjectStyles { get; } = ["", "ship", "signal", "hazard", "custom"];
     public static IReadOnlyList<string> ObjectKinds { get; } = ["", .. StarshipAppearanceSettings.ObjectKinds];
-    private static readonly HashSet<string> BuiltInIds = CreateDefaults().Select(definition => definition.EventType).ToHashSet(StringComparer.Ordinal);
-    private static readonly HashSet<string> Tokens = new(StringComparer.Ordinal)
-        { "crew", "crewlist", "subject", "Subject", "loot", "rarity", "sector" };
+    private static readonly FrozenSet<string> BuiltInIds = CreateDefaults().Select(definition => definition.EventType).ToFrozenSet(StringComparer.Ordinal);
+    private static readonly FrozenSet<string> Tokens = new[]
+        { "crew", "crewlist", "subject", "Subject", "loot", "rarity", "sector" }.ToFrozenSet(StringComparer.Ordinal);
 
     public static List<StarshipEventDefinition> CreateDefaults() =>
     [

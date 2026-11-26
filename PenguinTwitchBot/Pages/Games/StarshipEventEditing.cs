@@ -5,7 +5,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 namespace PenguinTwitchBot.Pages.Games;
 
-public static class StarshipEventEditing
+public static partial class StarshipEventEditing
 {
     public const int MaximumImportBytes = 256 * 1024;
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -50,7 +50,7 @@ public static class StarshipEventEditing
     public static StarshipEventDefinition Duplicate(StarshipEventDefinition source, StarshipExpeditionSettings settings)
     {
         var copy = Copy(source);
-        var slug = Regex.Replace(source.EventType.ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
+        var slug = NonAlphanumericSlugRegex().Replace(source.EventType.ToLowerInvariant(), "-").Trim('-');
         if (slug.Length == 0 || !char.IsAsciiLetterLower(slug[0])) slug = "event";
         slug = slug[..Math.Min(60, slug.Length)].TrimEnd('-');
         return copy with
@@ -163,4 +163,7 @@ public static class StarshipEventEditing
             throw new ArgumentException("Event lists and choices cannot be null.");
     }
 
+
+    [GeneratedRegex("[^a-z0-9]+")]
+    private static partial Regex NonAlphanumericSlugRegex();
 }
