@@ -1,4 +1,4 @@
-﻿@using PenguinTwitchBot.Bot.Commands.Music
+@using PenguinTwitchBot.Bot.Commands.Music
 @using PenguinTwitchBot.Bot.Hubs
 @inject IInProcessHubEventBus HubEventBus
 @inject YtPlayer YtPlayer
@@ -102,21 +102,17 @@
             ? null
             : songRequestCommand?.CustomCommandName ?? "sr";
 
-        // Load initial data immediately - don't wait for hub connection
-        UpdateSongList(await YtPlayer.GetRequestedSongs());
-        dataLoaded = true;
-    }
-
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender == false) return;
-
-        _hubSubscription = HubEventBus.On<List<Song>>(HubNames.YtHub, "CurrentSongRequests", (playlist) =>
+        // Subscribe before reading the initial snapshot so updates published during or after the read are not missed.
+        _hubSubscription ??= HubEventBus.On<List<Song>>(HubNames.YtHub, "CurrentSongRequests", (playlist) =>
         {
             if (songRequests.Count == 0 && playlist.Count == 0) return;
             UpdateSongList(playlist);
             _ = InvokeAsync(StateHasChanged);
         });
+
+        // Load initial data immediately - don't wait for hub connection
+        UpdateSongList(await YtPlayer.GetRequestedSongs());
+        dataLoaded = true;
     }
 
     private void UpdateSongList(List<Song> songs)

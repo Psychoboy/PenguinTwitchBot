@@ -129,18 +129,20 @@
                         return;
                     }
 
+                    var statsCopy = CloneQueueStatistics(stats);
+
                     // Update or add the queue statistics in our collection
-                    var existingStatsIndex = _queueStats.FindIndex(s => s.QueueName == stats.QueueName);
+                    var existingStatsIndex = _queueStats.FindIndex(s => s.QueueName == statsCopy.QueueName);
                     if (existingStatsIndex >= 0)
                     {
-                        _queueStats[existingStatsIndex] = stats;
+                        _queueStats[existingStatsIndex] = statsCopy;
                         ScheduleStatsRender();
                     }
                     else
                     {
                         // Insert new queue in sorted position to avoid recreating the list
                         var insertIndex = _queueStats.Count;
-                        if (stats.QueueName == "Default")
+                        if (statsCopy.QueueName == "Default")
                         {
                             insertIndex = 0;
                         }
@@ -150,20 +152,31 @@
                             for (int i = 0; i < _queueStats.Count; i++)
                             {
                                 if (_queueStats[i].QueueName == "Default") continue;
-                                if (string.Compare(_queueStats[i].QueueName, stats.QueueName, StringComparison.Ordinal) > 0)
+                                if (string.Compare(_queueStats[i].QueueName, statsCopy.QueueName, StringComparison.Ordinal) > 0)
                                 {
                                     insertIndex = i;
                                     break;
                                 }
                             }
                         }
-                        _queueStats.Insert(insertIndex, stats);
+                        _queueStats.Insert(insertIndex, statsCopy);
                         ScheduleStatsRender();
                     }
                 });
             });
         }
     }
+
+    private static QueueStatistics CloneQueueStatistics(QueueStatistics source) => new()
+    {
+        QueueName = source.QueueName,
+        PendingActions = source.PendingActions,
+        CompletedActions = source.CompletedActions,
+        IsBlocking = source.IsBlocking,
+        IsEnabled = source.IsEnabled,
+        MaxConcurrentActions = source.MaxConcurrentActions,
+        CurrentlyExecuting = source.CurrentlyExecuting
+    };
 
     private async Task LoadQueues()
     {

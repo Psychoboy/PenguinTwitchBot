@@ -319,9 +319,22 @@
     {
         if (firstRender == false) return;
 
-        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature) == false)
+        if (EnsureHubSubscriptions())
         {
-            return;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private bool EnsureHubSubscriptions()
+    {
+        if (_disposed || FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature) == false)
+        {
+            return false;
+        }
+
+        if (_hubSubscriptions.Count > 0)
+        {
+            return false;
         }
 
         _hubSubscriptions.Add(HubEventBus.On<List<GiveawayWinner>>(HubNames.MainHub, "Winners", (Winners) =>
@@ -364,7 +377,7 @@
 
         isLiveConnected = true;
         liveConnectionAttempted = true;
-        await InvokeAsync(StateHasChanged);
+        return true;
     }
 
     private void MarkLiveDataUpdated()
@@ -420,7 +433,16 @@
             return Task.CompletedTask;
         }
 
-        return InvokeAsync(StateHasChanged);
+        return InvokeAsync(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            EnsureHubSubscriptions();
+            StateHasChanged();
+        });
     }
 
     public ValueTask DisposeAsync()

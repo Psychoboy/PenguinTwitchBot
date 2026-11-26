@@ -115,6 +115,10 @@
             currentSongLoaded = true;
             _ = InvokeAsync(StateHasChanged);
         });
+
+        currentSong = YtPlayer.GetCurrentSong();
+        currentSongLoaded = true;
+        StateHasChanged();
     }
 
     public ValueTask DisposeAsync()
