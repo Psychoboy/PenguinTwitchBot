@@ -462,5 +462,90 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Assert.NotEqual(playedIds[i - 1], playedIds[i]);
             }
         }
+
+        [Fact]
+        public async Task GetRecentlyPlayedSongs_ReturnsNewestAtTop()
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["youtubeApi"] = "test-api-key" })
+                .Build();
+
+            var ytPlayer = new YtPlayer(
+                configuration,
+                Substitute.For<ILogger<YtPlayer>>(),
+                Substitute.For<Microsoft.AspNetCore.SignalR.IHubContext<YtHub>>(),
+                Substitute.For<IServiceScopeFactory>(),
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
+
+            var recentField = typeof(YtPlayer).GetField("RecentlyPlayedSongs",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var recentList = (List<Song>)recentField!.GetValue(ytPlayer)!;
+            recentList.Add(new Song { SongId = "oldest", Title = "Oldest Song" });
+            recentList.Add(new Song { SongId = "middle", Title = "Middle Song" });
+            recentList.Add(new Song { SongId = "newest", Title = "Newest Song" });
+
+            var result = await ytPlayer.GetRecentlyPlayedSongs();
+
+            Assert.Equal(["newest", "middle", "oldest"], result.Select(s => s.SongId).ToArray());
+        }
+
+        [Fact]
+        public async Task StealSong_AddsNewSongAndRejectsDuplicateOrEmptyPlaylist()
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["youtubeApi"] = "test-api-key" })
+                .Build();
+
+            var unitOfWork = Substitute.For<IUnitOfWork>();
+            var songsRepo = Substitute.For<ISongsRepository>();
+            unitOfWork.Songs.Returns(songsRepo);
+
+            var services = new ServiceCollection();
+            services.AddScoped(_ => unitOfWork);
+            var sp = services.BuildServiceProvider();
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+
+            var hubContext = Substitute.For<Microsoft.AspNetCore.SignalR.IHubContext<YtHub>>();
+            var hubClients = Substitute.For<Microsoft.AspNetCore.SignalR.IHubClients>();
+            var clientProxy = Substitute.For<Microsoft.AspNetCore.SignalR.IClientProxy>();
+            hubClients.All.Returns(clientProxy);
+            hubContext.Clients.Returns(hubClients);
+
+            var ytPlayer = new YtPlayer(
+                configuration,
+                Substitute.For<ILogger<YtPlayer>>(),
+                hubContext,
+                scopeFactory,
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
+
+            var candidate = new Song { SongId = "abc12345678", Title = "Great Track", RequestedBy = "Viewer1" };
+
+            // Empty backup playlist id -> false
+            Assert.False(await ytPlayer.StealSong(candidate));
+            Assert.False(await ytPlayer.StealSong(null));
+
+            var backupPlaylistField = typeof(YtPlayer).GetField("BackupPlaylist",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var playlist = new MusicPlaylist
+            {
+                Id = Guid.CreateVersion7(),
+                Name = "Default",
+                Songs = [new Song { SongId = "existing001", Title = "Existing" }]
+            };
+            backupPlaylistField!.SetValue(ytPlayer, playlist);
+
+            Assert.True(await ytPlayer.StealSong(candidate));
+            Assert.True(ytPlayer.SongExistsInBackupList(candidate));
+            // Duplicate -> false
+            Assert.False(await ytPlayer.StealSong(candidate));
+        }
     }
 }

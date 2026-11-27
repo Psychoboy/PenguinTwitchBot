@@ -1,49 +1,35 @@
-@page "/bannedsongs"
-@attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Bot.Commands.Music
-@using PenguinTwitchBot.Database.Bot.Models
 @inject IBannedSongService BannedSongService
 @inject ISnackbar Snackbar
 
-<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Banned Songs</PageTitle>
-
-<MudStack Spacing="3" Class="pa-2 pa-md-4">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-        <MudText Typo="Typo.h5">
-            <MudIcon Icon="@Icons.Material.Filled.Block" Class="mr-2" />
-            Banned Songs
-        </MudText>
-        <HelpButton Topic="banned-songs" />
-    </MudStack>
-
-    <MudGrid>
-        <MudItem xs="12">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-3">Ban a Song</MudText>
-                <MudGrid>
-                    <MudItem xs="12" md="5">
-                        <MudTextField @bind-Value="_newSongInput" Label="YouTube URL or Video ID"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      HelperText="Accepts full urls (watch, youtu.be, shorts, embed, live) or a raw video id" />
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudTextField @bind-Value="_newTitle" Label="Title (optional)"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudTextField @bind-Value="_newReason" Label="Reason (optional)"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    </MudItem>
-                    <MudItem xs="12" md="1" Class="d-flex align-start">
-                        <MudButton Variant="Variant.Filled" Color="Color.Error"
-                                   StartIcon="@Icons.Material.Filled.Block"
-                                   Disabled="_isSaving"
-                                   Style="height: 40px;"
-                                   OnClick="BanSong">Ban</MudButton>
-                    </MudItem>
-                </MudGrid>
-            </MudPaper>
-        </MudItem>
+<MudGrid Spacing="3">
+    <MudItem xs="12">
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Ban a Song</MudText>
+            <MudGrid>
+                <MudItem xs="12" md="5">
+                    <MudTextField @bind-Value="_newSongInput" Label="YouTube URL or Video ID"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  HelperText="Accepts full urls (watch, youtu.be, shorts, embed, live) or a raw video id" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_newTitle" Label="Title (optional)"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_newReason" Label="Reason (optional)"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" md="1" Class="d-flex align-start">
+                    <MudButton Variant="Variant.Filled" Color="Color.Error"
+                               StartIcon="@Icons.Material.Filled.Block"
+                               Disabled="_isSaving"
+                               Style="height: 40px;"
+                               OnClick="BanSong">Ban</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudItem>
 
     <MudItem xs="12">
         <MudPaper Elevation="2" Class="pa-4">
@@ -52,7 +38,8 @@
                     <MudText Typo="Typo.h6">Banned Songs (@_bannedSongs.Count)</MudText>
                     <MudSpacer />
                     <MudTextField @bind-Value="_search" Placeholder="Search" Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" />
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0 mr-2" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Info" Size="Size.Small" OnClick="RefreshAsync" />
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>Title</MudTh>
@@ -84,10 +71,9 @@
         </MudPaper>
     </MudItem>
 </MudGrid>
-</MudStack>
 
 @code {
-    private List<BannedSong> _bannedSongs = new();
+    private List<BannedSong> _bannedSongs = [];
     private string _newSongInput = "";
     private string _newTitle = "";
     private string _newReason = "";
@@ -96,10 +82,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await Load();
+        await RefreshAsync();
     }
 
-    private async Task Load()
+    public async Task RefreshAsync()
     {
         _bannedSongs = await BannedSongService.GetBannedSongsAsync();
     }
@@ -134,7 +120,7 @@
             _newSongInput = "";
             _newTitle = "";
             _newReason = "";
-            await Load();
+            await RefreshAsync();
         }
         finally
         {
@@ -147,7 +133,7 @@
         if (await BannedSongService.UnbanSongAsync(song.Id))
         {
             Snackbar.Add($"Removed ban on {song.SongId}", Severity.Success);
-            await Load();
+            await RefreshAsync();
         }
     }
 }

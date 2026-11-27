@@ -1,0 +1,61 @@
+<MudPaper Elevation="3">
+    <MudTable Items="@SongRequests" Dense="true" Hover="true">
+        <ToolBarContent>
+            <MudIcon Icon="@Icons.Material.Filled.QueueMusic" Color="Color.Primary" Class="mr-2" />
+            <MudText Typo="Typo.h6">Song Requests</MudText>
+            <MudSpacer />
+            <MudBadge Content="@SongRequests.Count" Color="Color.Info" Overlap="true">
+                <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Default" />
+            </MudBadge>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Title</MudTh>
+            <MudTh>Length</MudTh>
+            <MudTh>Requested By</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Title">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
+                    <MudText>@context.Title</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Duration">@context.Duration</MudTd>
+            <MudTd DataLabel="Requested By">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Success" />
+                    <MudText>@context.RequestedBy</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudStack Row="true" Spacing="1">
+                    <MudTooltip Text="Move to Next">
+                        <MudIconButton Icon="@Icons.Material.Filled.PriorityHigh" Color="Color.Warning" Size="Size.Small"
+                                       OnClick="() => OnPriority.InvokeAsync(context)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Ban Song">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
+                                       OnClick="() => OnBanSong.InvokeAsync(context)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Remove">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                       OnClick="() => OnRemoveSong.InvokeAsync(context)" />
+                    </MudTooltip>
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
+                No song requests in queue
+            </MudAlert>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    [Parameter] public List<Song> SongRequests { get; set; } = [];
+    [Parameter] public EventCallback<Song> OnPriority { get; set; }
+    [Parameter] public EventCallback<Song> OnBanSong { get; set; }
+    [Parameter] public EventCallback<Song> OnRemoveSong { get; set; }
+}

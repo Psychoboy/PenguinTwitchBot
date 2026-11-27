@@ -72,12 +72,10 @@
                 </MudStack>
             </MudPaper>
 
-            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "bannedsongs", "songcooldowns", "overlay/editor", "overlay/timer", "overlay/credits", "overlay/fireworks-queue")">
+            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "music", "playlists", "bannedsongs", "songcooldowns", "overlay/editor", "overlay/timer", "overlay/credits", "overlay/fireworks-queue")">
                 <MudNavLink Icon="@Icons.Material.Filled.Groups" Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.PlayCircle" Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
-                <MudNavLink Icon="@Icons.Material.Filled.QueueMusic" Href="/playlists" Match="NavLinkMatch.Prefix">Playlists</MudNavLink>
-                <MudNavLink Icon="@Icons.Material.Filled.MusicOff" Href="/bannedsongs" Match="NavLinkMatch.Prefix">Banned Songs</MudNavLink>
-                <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/songcooldowns" Match="NavLinkMatch.Prefix">Song Cooldowns</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.LibraryMusic" Href="/music" Match="NavLinkMatch.Prefix">Music Manager</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Layers" Href="/overlay/editor" Match="NavLinkMatch.Prefix">Overlay Editor</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Queue" Href="/overlay/fireworks-queue" Match="NavLinkMatch.Prefix">Fireworks Queue</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/overlay/timer" Match="NavLinkMatch.Prefix">Stream Timer</MudNavLink>
@@ -386,7 +384,7 @@
         {
             CreateQuickLink("Raid History", "/raidhistory", Icons.Material.Filled.Groups, "Stream Tools"),
             CreateQuickLink("Music Player", "/musicplayer", Icons.Material.Filled.PlayCircle, "Stream Tools", "music"),
-            CreateQuickLink("Playlists", "/playlists", Icons.Material.Filled.QueueMusic, "Stream Tools", "music", "playlist"),
+            CreateQuickLink("Music Manager", "/music", Icons.Material.Filled.LibraryMusic, "Stream Tools", "music", "playlist", "playlists", "banned", "cooldown", "song requests"),
             CreateQuickLink("Banned Songs", "/bannedsongs", Icons.Material.Filled.MusicOff, "Stream Tools", "music", "banned", "song requests"),
             CreateQuickLink("Song Cooldowns", "/songcooldowns", Icons.Material.Filled.Timer, "Stream Tools", "music", "cooldown", "song requests"),
             CreateQuickLink("Overlay Editor", "/overlay/editor", Icons.Material.Filled.Layers, "Stream Tools", "overlay"),

@@ -1,0 +1,271 @@
+@using PenguinTwitchBot.Bot.Commands.Music
+@using PenguinTwitchBot.Bot.Hubs
+@inject IInProcessHubEventBus HubEventBus
+@inject YtPlayer YtPlayer
+@inject IBannedSongService BannedSongService
+@inject ISongCooldownService SongCooldownService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@implements IAsyncDisposable
+
+<MudPaper Elevation="3">
+    <MudTable Items="@_recentlyPlayedSongs" Dense="true" Hover="true">
+        <ToolBarContent>
+            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Secondary" Class="mr-2" />
+            <MudText Typo="Typo.h6">Recently Played Songs</MudText>
+            <MudSpacer />
+            <MudBadge Content="@_recentlyPlayedSongs.Count" Color="Color.Info" Overlap="true">
+                <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Default" />
+            </MudBadge>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Title</MudTh>
+            <MudTh>Requested By</MudTh>
+            <MudTh>Length</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Title">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
+                    <MudLink Href="@($"https://youtu.be/{context.SongId}")" Target="_blank">@context.Title</MudLink>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Requested By">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Success" />
+                    <MudText>@context.RequestedBy</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Length">@context.Duration</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudStack Row="true" Spacing="1">
+                    <MudTooltip Text="Add to Queue">
+                        <MudIconButton Icon="@Icons.Material.Filled.Queue" Color="Color.Primary" Size="Size.Small"
+                                       Disabled="@_queueingSongIds.Contains(context.SongId)"
+                                       OnClick="() => QueueSong(context)" />
+                    </MudTooltip>
+                    @if (YtPlayer.SongExistsInBackupList(context))
+                    {
+                        <MudTooltip Text="Already in Playlist">
+                            <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Default" Size="Size.Small" Disabled="true" />
+                        </MudTooltip>
+                    }
+                    else
+                    {
+                        <MudTooltip Text="Steal Song to Default Playlist">
+                            <MudIconButton Icon="@Icons.Material.Filled.LibraryAdd" Color="Color.Success" Size="Size.Small"
+                                           OnClick="() => StealSong(context)" />
+                        </MudTooltip>
+                    }
+                    <MudTooltip Text="Add to Cooldown">
+                        <MudIconButton Icon="@Icons.Material.Filled.Timer" Color="Color.Warning" Size="Size.Small"
+                                       OnClick="() => AddToCooldown(context)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Ban Song">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
+                                       OnClick="() => BanSong(context)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Remove from Playlist(s)">
+                        <MudIconButton Icon="@Icons.Material.Filled.PlaylistRemove" Color="Color.Error" Size="Size.Small"
+                                       OnClick="() => OpenRemoveFromPlaylistsDialog(context)" />
+                    </MudTooltip>
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
+                No recently played songs yet.
+            </MudAlert>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudDialog Visible="_removeDialogVisible" VisibleChanged="OnRemoveDialogVisibleChanged" Options="_removeDialogOptions">
+    <DialogContent>
+        <MudText Typo="Typo.h6">Remove "@_removingSong?.Title" from:</MudText>
+        @if (_selectedPlaylists.Count > 0)
+        {
+            <MudStack Spacing="2" Class="mt-4">
+                @foreach (var pl in _selectedPlaylists)
+                {
+                    <MudCheckBox T="bool" Value="pl.IsChecked" ValueChanged="(bool c) => pl.IsChecked = c" Label="@pl.Name" Disabled="@_isRemovingFromPlaylists" />
+                }
+            </MudStack>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="mt-4 mud-text-secondary">
+                This song is not in any saved playlist.
+            </MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseRemoveDialog" Disabled="@_isRemovingFromPlaylists">Cancel</MudButton>
+        @if (_selectedPlaylists.Count > 0)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmRemoveFromPlaylists"
+                       Disabled="@(_isRemovingFromPlaylists || !_selectedPlaylists.Any(p => p.IsChecked))">
+                Remove
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly List<IDisposable> _hubSubscriptions = [];
+    private readonly HashSet<string> _queueingSongIds = new(StringComparer.Ordinal);
+    private List<Song> _recentlyPlayedSongs = [];
+    private bool _removeDialogVisible;
+    private bool _isRemovingFromPlaylists;
+    private Song? _removingSong;
+    private readonly DialogOptions _removeDialogOptions = new() { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+    private List<PlaylistCheckItem> _selectedPlaylists = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _recentlyPlayedSongs = await YtPlayer.GetRecentlyPlayedSongs();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _hubSubscriptions.Add(HubEventBus.On<List<Song>>(HubNames.YtHub, "LastPlayedSongs", (songs) =>
+        {
+            var reversed = songs.ToList();
+            reversed.Reverse();
+            _recentlyPlayedSongs = reversed;
+            _ = InvokeAsync(StateHasChanged);
+        }));
+
+        _hubSubscriptions.Add(HubEventBus.On<MusicPlaylist>(HubNames.YtHub, "UpdateCurrentPlaylist", (playlist) =>
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }));
+    }
+
+    private async Task QueueSong(Song song)
+    {
+        if (!_queueingSongIds.Add(song.SongId)) return;
+        try
+        {
+            var queued = await YtPlayer.AddSongToQueue(song.CreateDeepCopy());
+            if (queued)
+            {
+                Snackbar.Add($"Queued '{song.Title}'.", Severity.Success);
+            }
+        }
+        finally
+        {
+            _queueingSongIds.Remove(song.SongId);
+        }
+    }
+
+    private async Task StealSong(Song song)
+    {
+        var added = await YtPlayer.StealSong(song);
+        if (added)
+        {
+            Snackbar.Add($"Added '{song.Title}' to the default playlist.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"Could not add '{song.Title}' (already in playlist or no active default playlist).", Severity.Info);
+        }
+    }
+
+    private async Task AddToCooldown(Song song)
+    {
+        var settings = await SongCooldownService.GetSettingsAsync();
+        await SongCooldownService.AddCooldownAsync(song.SongId, song.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Recently Played UI");
+        Snackbar.Add($"Added '{song.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
+    }
+
+    private async Task BanSong(Song song)
+    {
+        var banned = await BannedSongService.BanSongAsync(song.SongId, song.Title, "Banned from recently played", "UI");
+        if (banned == null)
+        {
+            Snackbar.Add("Could not resolve a YouTube video id for that song.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Banned '{song.Title}'.", Severity.Success);
+    }
+
+    private async Task OpenRemoveFromPlaylistsDialog(Song song)
+    {
+        if (_isRemovingFromPlaylists) return;
+
+        _removingSong = song;
+        var matched = await YtPlayer.GetPlaylistsContainingSong(song.SongId, null);
+        if (!ReferenceEquals(_removingSong, song)) return;
+
+        _selectedPlaylists = matched
+            .Select(kvp => new PlaylistCheckItem { Id = kvp.Key, Name = kvp.Value, IsChecked = false })
+            .ToList();
+        _removeDialogVisible = true;
+    }
+
+    private void OnRemoveDialogVisibleChanged(bool visible)
+    {
+        if (!visible)
+        {
+            CloseRemoveDialog();
+        }
+    }
+
+    private void CloseRemoveDialog()
+    {
+        if (_isRemovingFromPlaylists) return;
+
+        _removeDialogVisible = false;
+        _removingSong = null;
+        _selectedPlaylists.Clear();
+    }
+
+    private async Task ConfirmRemoveFromPlaylists()
+    {
+        if (_isRemovingFromPlaylists) return;
+
+        var song = _removingSong;
+        if (song == null) return;
+        var checkedPlaylists = _selectedPlaylists.Where(p => p.IsChecked).ToList();
+        if (checkedPlaylists.Count == 0) return;
+
+        _isRemovingFromPlaylists = true;
+        try
+        {
+            foreach (var pl in checkedPlaylists)
+            {
+                await YtPlayer.RemoveSongFromPlaylist(song, pl.Id);
+            }
+
+            Snackbar.Add($"Removed '{song.Title}' from {checkedPlaylists.Count} playlist(s).", Severity.Success);
+        }
+        finally
+        {
+            _isRemovingFromPlaylists = false;
+        }
+
+        CloseRemoveDialog();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        foreach (var subscription in _hubSubscriptions)
+        {
+            subscription.Dispose();
+        }
+        _hubSubscriptions.Clear();
+        return ValueTask.CompletedTask;
+    }
+
+    private sealed class PlaylistCheckItem
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = "";
+        public bool IsChecked { get; set; }
+    }
+}

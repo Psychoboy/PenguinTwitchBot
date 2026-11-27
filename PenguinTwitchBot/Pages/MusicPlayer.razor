@@ -24,66 +24,12 @@
 
         <MudGrid Spacing="3">
             <MudItem xs="12" md="4">
-                <MudPaper Elevation="3" Class="pa-4">
-                    <MudStack Spacing="2">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" Size="Size.Large" />
-                            <MudText Typo="Typo.h6" Color="Color.Success">Now Playing</MudText>
-                        </MudStack>
-                        <MudDivider />
-                        @if (!currentSongLoaded)
-                        {
-                            <MudStack Spacing="2">
-                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="85%" Height="28px" />
-                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="70%" />
-                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="40%" />
-                                <MudDivider />
-                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="36px" Class="rounded" />
-                            </MudStack>
-                        }
-                        else if (currentSong != null)
-                        {
-                            <MudStack Spacing="1">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Primary" />
-                                    <MudText Typo="Typo.subtitle1"><strong>@currentSong.Title</strong></MudText>
-                                </MudStack>
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Secondary" />
-                                    <MudText Typo="Typo.body2">Requested by <strong>@currentSong.RequestedBy</strong></MudText>
-                                </MudStack>
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Info" />
-                                    <MudText Typo="Typo.body2">@currentSong.Duration</MudText>
-                                </MudStack>
-                            </MudStack>
-                            <MudDivider />
-                            <MudStack Row="true" Spacing="2" Class="flex-wrap">
-                                @if (YtPlayer.SongExistsInBackupList(currentSong))
-                                {
-                                    <MudButton Variant="Variant.Filled" Color="Color.Default" Disabled="true" StartIcon="@Icons.Material.Filled.CheckCircle">
-                                        Already in Playlist
-                                    </MudButton>
-                                }
-                                else
-                                {
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StealSong" StartIcon="@Icons.Material.Filled.LibraryAdd">
-                                        Steal Song
-                                    </MudButton>
-                                }
-                                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="AddCurrentSongToCooldown" StartIcon="@Icons.Material.Filled.Timer">
-                                    Add to Cooldown
-                                </MudButton>
-                            </MudStack>
-                        }
-                        else
-                        {
-                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
-                                No song is currently playing.
-                            </MudAlert>
-                        }
-                    </MudStack>
-                </MudPaper>
+                <NowPlayingCard CurrentSong="currentSong"
+                                Loaded="currentSongLoaded"
+                                IsInBackupPlaylist="@(currentSong != null && YtPlayer.SongExistsInBackupList(currentSong))"
+                                OnStealSong="StealSong"
+                                OnAddToCooldown="AddCurrentSongToCooldown"
+                                OnBanSong="BanCurrentSong" />
             </MudItem>
             <MudItem xs="12" md="8">
                 <MudPaper Elevation="3" Class="pa-4" Style="height: 450px;">
@@ -98,7 +44,7 @@
                             <MudIcon Icon="@Icons.Material.Filled.Add" Color="Color.Primary" />
                             <MudText Typo="Typo.h6">Add Song</MudText>
                         </MudStack>
-                        <MudTextField @bind-Value="addSongUrl" Label="Song URL" Variant="Variant.Outlined" 
+                        <MudTextField @bind-Value="addSongUrl" Label="Song URL" Variant="Variant.Outlined"
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link"></MudTextField>
                         <MudButton OnClick="AddSongRequest" ButtonType="ButtonType.Submit" Variant="Variant.Filled"
                                    Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Add">
@@ -111,75 +57,29 @@
             @if (songRequests != null)
             {
                 <MudItem xs="12" md="8">
-                    <MudPaper Elevation="3">
-                        <MudTable Items="@songRequests" Dense="true" Hover="true">
-                            <ToolBarContent>
-                                <MudIcon Icon="@Icons.Material.Filled.QueueMusic" Color="Color.Primary" Class="mr-2" />
-                                <MudText Typo="Typo.h6">Song Requests</MudText>
-                                <MudSpacer />
-                                <MudBadge Content="@songRequests.Count" Color="Color.Info" Overlap="true">
-                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Default" />
-                                </MudBadge>
-                            </ToolBarContent>
-                            <HeaderContent>
-                                <MudTh>Title</MudTh>
-                                <MudTh>Length</MudTh>
-                                <MudTh>Requested By</MudTh>
-                                <MudTh>Actions</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Title">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
-                                        <MudText>@context.Title</MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                                <MudTd DataLabel="Requested By">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Success" />
-                                        <MudText>@context.RequestedBy</MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Actions">
-                                    <MudStack Row="true" Spacing="1">
-                                        <MudTooltip Text="Move to Next">
-                                            <MudIconButton Icon="@Icons.Material.Filled.PriorityHigh" Color="Color.Warning" Size="Size.Small" 
-                                                           OnClick="() => Priority(context)" />
-                                        </MudTooltip>
-                                        <MudTooltip Text="Ban Song">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
-                                                           OnClick="() => BanSongRequest(context)" />
-                                        </MudTooltip>
-                                        <MudTooltip Text="Remove">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" 
-                                                           OnClick="() => RemoveSongRequest(context)" />
-                                        </MudTooltip>
-                                    </MudStack>
-                                </MudTd>
-                            </RowTemplate>
-                            <NoRecordsContent>
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
-                                    No song requests in queue
-                                </MudAlert>
-                            </NoRecordsContent>
-                        </MudTable>
-                    </MudPaper>
+                    <SongRequestsPanel SongRequests="songRequests"
+                                       OnPriority="Priority"
+                                       OnBanSong="BanSongRequest"
+                                       OnRemoveSong="RemoveSongRequest" />
                 </MudItem>
             }
+
+            <MudItem xs="12">
+                <RecentlyPlayedSongs />
+            </MudItem>
 
             @if (musicPlaylists != null)
             {
                 <MudItem xs="12" md="4">
                     <AvailablePlaylists Playlists="musicPlaylists" DefaultPlaylistId="defaultPlaylistId" AdditionalPlaylistIds="additionalPlaylistIds"
-                                       OnSetDefault="SetDefaultPlaylist" OnToggleAdditional="ToggleAdditionalPlaylist" OnRefresh="RefreshUnplayedSongs" />
+                                        OnSetDefault="SetDefaultPlaylist" OnToggleAdditional="ToggleAdditionalPlaylist" OnRefresh="RefreshUnplayedSongs" />
                 </MudItem>
             }
 
             @if (currentPlayList != null)
             {
                 <MudItem xs="12" md="8">
-                    <CurrentPlaylist Playlist="currentPlayList" OnQueueSong="QueueSong" OnRemoveSong="RemoveSongRequest" OnRemoveSongFrom="RemoveSongFromPlaylist"
+                    <CurrentPlaylist Playlist="currentPlayList" OnQueueSong="QueueSong" OnRemoveSong="RemoveSong" OnRemoveSongFrom="RemoveSongFromPlaylist"
                                      OnGetPlaylistsForSong="GetPlaylistsForSong" />
                 </MudItem>
             }
@@ -210,7 +110,6 @@
     private bool apiReady;
     private bool playerCreated;
     private bool currentSongLoaded;
-
 
     protected override async Task OnInitializedAsync()
     {
@@ -271,10 +170,11 @@
 
                 if (playerReady)
                 {
-                    if(currentSong != null)
+                    if (currentSong != null)
                     {
                         await JsRuntime.InvokeAsync<string>("playVideo", currentSong.SongId);
-                    } else
+                    }
+                    else
                     {
                         await JsRuntime.InvokeAsync<string>("playVideo", await YtPlayer.GetNextSong());
                         currentSong = YtPlayer.GetCurrentSong();
@@ -415,6 +315,20 @@
         Snackbar.Add($"Banned {song.Title}", Severity.Success);
     }
 
+    private async Task BanCurrentSong()
+    {
+        var song = currentSong;
+        if (song == null) return;
+        var banned = await BannedSongService.BanSongAsync(song.SongId, song.Title, "Banned from the music player", "UI");
+        if (banned == null)
+        {
+            Snackbar.Add("Could not resolve a YouTube video id for that song.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Banned '{song.Title}'.", Severity.Success);
+    }
+
     private async Task AddSongRequest()
     {
         if (addSongUrl == null) return;
@@ -429,11 +343,13 @@
 
     private async Task AddCurrentSongToCooldown()
     {
-        if (currentSong == null) return;
+        var song = currentSong;
+        if (song == null) return;
         var settings = await SongCooldownService.GetSettingsAsync();
-        await SongCooldownService.AddCooldownAsync(currentSong.SongId, currentSong.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Music Player UI");
-        Snackbar.Add($"Added '{currentSong.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
+        await SongCooldownService.AddCooldownAsync(song.SongId, song.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Music Player UI");
+        Snackbar.Add($"Added '{song.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
     }
+
     public ValueTask DisposeAsync()
     {
         _disposed = true;

@@ -5,7 +5,7 @@
 
 # PenguinTwitchBot
 
-A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 10. Cross-platform - runs on Windows, Linux, and macOS.
+A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 11. Cross-platform - runs on Windows, Linux, and macOS.
 
 > **Early Testing Notice:** This project is currently in early testing. Bugs are expected. Please report any issues you encounter on the [GitHub Issues](https://github.com/Psychoboy/PenguinTwitchBot/issues) page.
 
@@ -88,7 +88,7 @@ A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 10. Cross
 - A computer to host the bot (Windows, Linux, or macOS)
 - A Twitch account for the **bot** (can be the same as your streamer account)
 - A Twitch Developer Application ([dev.twitch.tv](https://dev.twitch.tv/console))
-- .NET 10 Runtime - only needed if running from the compiled DLL; the self-contained Windows release bundles the runtime
+- .NET 11 Runtime - only needed if running from the compiled DLL; the self-contained Windows release bundles the runtime
 
 ---
 
@@ -449,7 +449,7 @@ Contributions are welcome. The project is cross-platform and builds on Windows, 
 
 ### Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0)
 - Git
 
 ### Clone and Build
