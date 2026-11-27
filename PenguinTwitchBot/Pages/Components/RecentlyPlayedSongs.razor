@@ -42,6 +42,7 @@
                 <MudStack Row="true" Spacing="1">
                     <MudTooltip Text="Add to Queue">
                         <MudIconButton Icon="@Icons.Material.Filled.Queue" Color="Color.Primary" Size="Size.Small"
+                                       Disabled="@_queueingSongIds.Contains(context.SongId)"
                                        OnClick="() => QueueSong(context)" />
                     </MudTooltip>
                     @if (YtPlayer.SongExistsInBackupList(context))
@@ -80,7 +81,7 @@
     </MudTable>
 </MudPaper>
 
-<MudDialog @bind-Visible="_removeDialogVisible" Options="_removeDialogOptions">
+<MudDialog Visible="_removeDialogVisible" VisibleChanged="OnRemoveDialogVisibleChanged" Options="_removeDialogOptions">
     <DialogContent>
         <MudText Typo="Typo.h6">Remove "@_removingSong?.Title" from:</MudText>
         @if (_selectedPlaylists.Count > 0)
@@ -88,7 +89,7 @@
             <MudStack Spacing="2" Class="mt-4">
                 @foreach (var pl in _selectedPlaylists)
                 {
-                    <MudCheckBox T="bool" Value="pl.IsChecked" ValueChanged="(bool c) => pl.IsChecked = c" Label="@pl.Name" />
+                    <MudCheckBox T="bool" Value="pl.IsChecked" ValueChanged="(bool c) => pl.IsChecked = c" Label="@pl.Name" Disabled="@_isRemovingFromPlaylists" />
                 }
             </MudStack>
         }
@@ -100,11 +101,11 @@
         }
     </DialogContent>
     <DialogActions>
-        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseRemoveDialog">Cancel</MudButton>
+        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseRemoveDialog" Disabled="@_isRemovingFromPlaylists">Cancel</MudButton>
         @if (_selectedPlaylists.Count > 0)
         {
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmRemoveFromPlaylists"
-                       Disabled="@(!_selectedPlaylists.Any(p => p.IsChecked))">
+                       Disabled="@(_isRemovingFromPlaylists || !_selectedPlaylists.Any(p => p.IsChecked))">
                 Remove
             </MudButton>
         }
@@ -113,8 +114,10 @@
 
 @code {
     private readonly List<IDisposable> _hubSubscriptions = [];
+    private readonly HashSet<string> _queueingSongIds = new(StringComparer.Ordinal);
     private List<Song> _recentlyPlayedSongs = [];
     private bool _removeDialogVisible;
+    private bool _isRemovingFromPlaylists;
     private Song? _removingSong;
     private readonly DialogOptions _removeDialogOptions = new() { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
     private List<PlaylistCheckItem> _selectedPlaylists = [];
@@ -144,8 +147,19 @@
 
     private async Task QueueSong(Song song)
     {
-        await YtPlayer.AddSongToQueue(song.CreateDeepCopy());
-        Snackbar.Add($"Queued '{song.Title}'.", Severity.Success);
+        if (!_queueingSongIds.Add(song.SongId)) return;
+        try
+        {
+            var queued = await YtPlayer.AddSongToQueue(song.CreateDeepCopy());
+            if (queued)
+            {
+                Snackbar.Add($"Queued '{song.Title}'.", Severity.Success);
+            }
+        }
+        finally
+        {
+            _queueingSongIds.Remove(song.SongId);
+        }
     }
 
     private async Task StealSong(Song song)
@@ -182,16 +196,30 @@
 
     private async Task OpenRemoveFromPlaylistsDialog(Song song)
     {
+        if (_isRemovingFromPlaylists) return;
+
         _removingSong = song;
         var matched = await YtPlayer.GetPlaylistsContainingSong(song.SongId, null);
+        if (!ReferenceEquals(_removingSong, song)) return;
+
         _selectedPlaylists = matched
             .Select(kvp => new PlaylistCheckItem { Id = kvp.Key, Name = kvp.Value, IsChecked = false })
             .ToList();
         _removeDialogVisible = true;
     }
 
+    private void OnRemoveDialogVisibleChanged(bool visible)
+    {
+        if (!visible)
+        {
+            CloseRemoveDialog();
+        }
+    }
+
     private void CloseRemoveDialog()
     {
+        if (_isRemovingFromPlaylists) return;
+
         _removeDialogVisible = false;
         _removingSong = null;
         _selectedPlaylists.Clear();
@@ -199,16 +227,28 @@
 
     private async Task ConfirmRemoveFromPlaylists()
     {
-        if (_removingSong == null) return;
+        if (_isRemovingFromPlaylists) return;
+
+        var song = _removingSong;
+        if (song == null) return;
         var checkedPlaylists = _selectedPlaylists.Where(p => p.IsChecked).ToList();
         if (checkedPlaylists.Count == 0) return;
 
-        foreach (var pl in checkedPlaylists)
+        _isRemovingFromPlaylists = true;
+        try
         {
-            await YtPlayer.RemoveSongFromPlaylist(_removingSong, pl.Id);
+            foreach (var pl in checkedPlaylists)
+            {
+                await YtPlayer.RemoveSongFromPlaylist(song, pl.Id);
+            }
+
+            Snackbar.Add($"Removed '{song.Title}' from {checkedPlaylists.Count} playlist(s).", Severity.Success);
+        }
+        finally
+        {
+            _isRemovingFromPlaylists = false;
         }
 
-        Snackbar.Add($"Removed '{_removingSong.Title}' from {checkedPlaylists.Count} playlist(s).", Severity.Success);
         CloseRemoveDialog();
     }
 

@@ -317,15 +317,16 @@
 
     private async Task BanCurrentSong()
     {
-        if (currentSong == null) return;
-        var banned = await BannedSongService.BanSongAsync(currentSong.SongId, currentSong.Title, "Banned from the music player", "UI");
+        var song = currentSong;
+        if (song == null) return;
+        var banned = await BannedSongService.BanSongAsync(song.SongId, song.Title, "Banned from the music player", "UI");
         if (banned == null)
         {
             Snackbar.Add("Could not resolve a YouTube video id for that song.", Severity.Error);
             return;
         }
 
-        Snackbar.Add($"Banned '{currentSong.Title}'.", Severity.Success);
+        Snackbar.Add($"Banned '{song.Title}'.", Severity.Success);
     }
 
     private async Task AddSongRequest()
@@ -342,10 +343,11 @@
 
     private async Task AddCurrentSongToCooldown()
     {
-        if (currentSong == null) return;
+        var song = currentSong;
+        if (song == null) return;
         var settings = await SongCooldownService.GetSettingsAsync();
-        await SongCooldownService.AddCooldownAsync(currentSong.SongId, currentSong.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Music Player UI");
-        Snackbar.Add($"Added '{currentSong.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
+        await SongCooldownService.AddCooldownAsync(song.SongId, song.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Music Player UI");
+        Snackbar.Add($"Added '{song.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
     }
 
     public ValueTask DisposeAsync()

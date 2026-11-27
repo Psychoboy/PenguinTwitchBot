@@ -553,10 +553,10 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             await AddSongToRequests(song);
         }
 
-        public async Task AddSongToQueue(Song song)
+        public async Task<bool> AddSongToQueue(Song song)
         {
-            if (song == null) return;
-            await AddSongToRequests(song);
+            if (song == null) return false;
+            return await AddSongToRequests(song) != null;
         }
 
         public async Task MoveSongToNext(string songId)
@@ -674,28 +674,24 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         public async Task RemoveSongFromPlaylist(Song requestedSong, Guid playlistId)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var playList = (await db.Playlists.GetAsync(filter: x => x.Id == playlistId, includeProperties: "Songs")).FirstOrDefault();
-           
-            if (playList != null && playList.Songs != null)
+            await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var matchingDbSongs = playList.Songs.Where(x => x.SongId == requestedSong.SongId || (requestedSong.Id != Guid.Empty && x.Id == requestedSong.Id)).ToList();
-                foreach (var song in matchingDbSongs)
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var playList = (await db.Playlists.GetAsync(filter: x => x.Id == playlistId, includeProperties: "Songs")).FirstOrDefault();
+
+                if (playList != null && playList.Songs != null)
                 {
-                    playList.Songs.Remove(song);
-                    db.Songs.Remove(song);
+                    var matchingDbSongs = playList.Songs.Where(x => x.SongId == requestedSong.SongId || (requestedSong.Id != Guid.Empty && x.Id == requestedSong.Id)).ToList();
+                    foreach (var song in matchingDbSongs)
+                    {
+                        playList.Songs.Remove(song);
+                        db.Songs.Remove(song);
+                    }
+                    await db.SaveChangesAsync();
                 }
-                await db.SaveChangesAsync();
             }
 
-            if (BackupPlaylist.Songs.Any(x => x.SongId == requestedSong.SongId || (requestedSong.Id != Guid.Empty && x.Id == requestedSong.Id)))
-            {
-                BackupPlaylist.Songs.RemoveAll(x => x.SongId == requestedSong.SongId || (requestedSong.Id != Guid.Empty && x.Id == requestedSong.Id));
-                UpdateUnplayedSongs();
-            }
-
-            await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+            await LoadBackupList();
         }
 
         public async Task RemoveSong(Song requestedSong)

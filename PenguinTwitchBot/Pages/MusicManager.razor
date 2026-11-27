@@ -279,8 +279,11 @@
 
     private async Task QueueSong(Song song)
     {
-        await YtPlayer.AddSongToQueue(song);
-        Snackbar.Add($"Queued '{song.Title}'.", Severity.Success);
+        var queued = await YtPlayer.AddSongToQueue(song);
+        if (queued)
+        {
+            Snackbar.Add($"Queued '{song.Title}'.", Severity.Success);
+        }
     }
 
     private async Task RemoveSong(Song song)
@@ -325,15 +328,16 @@
 
     private async Task BanCurrentSong()
     {
-        if (currentSong == null) return;
-        var banned = await BannedSongService.BanSongAsync(currentSong.SongId, currentSong.Title, "Banned from music manager", "UI");
+        var song = currentSong;
+        if (song == null) return;
+        var banned = await BannedSongService.BanSongAsync(song.SongId, song.Title, "Banned from music manager", "UI");
         if (banned == null)
         {
             Snackbar.Add("Could not resolve a YouTube video id for that song.", Severity.Error);
             return;
         }
 
-        Snackbar.Add($"Banned '{currentSong.Title}'.", Severity.Success);
+        Snackbar.Add($"Banned '{song.Title}'.", Severity.Success);
     }
 
     private async Task AddSongRequest()
@@ -350,10 +354,11 @@
 
     private async Task AddCurrentSongToCooldown()
     {
-        if (currentSong == null) return;
+        var song = currentSong;
+        if (song == null) return;
         var settings = await SongCooldownService.GetSettingsAsync();
-        await SongCooldownService.AddCooldownAsync(currentSong.SongId, currentSong.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Music Manager UI");
-        Snackbar.Add($"Added '{currentSong.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
+        await SongCooldownService.AddCooldownAsync(song.SongId, song.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Music Manager UI");
+        Snackbar.Add($"Added '{song.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
     }
 
     private async Task DeletePlaylist(MusicPlaylist playlist)

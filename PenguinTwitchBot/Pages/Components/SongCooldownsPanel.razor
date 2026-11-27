@@ -92,7 +92,7 @@
                            Disabled="@(_activeCooldowns.Count == 0)" Class="mr-2">
                     Clear All Cooldowns
                 </MudButton>
-                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Info" Size="Size.Small" OnClick="RefreshAsync" />
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Info" Size="Size.Small" OnClick="RefreshCooldownsAsync" />
             </ToolBarContent>
             <HeaderContent>
                 <MudTh>Title</MudTh>
@@ -148,8 +148,13 @@
     public async Task RefreshAsync()
     {
         _settings = await SongCooldownService.GetSettingsAsync();
-        _activeCooldowns = await SongCooldownService.GetActiveCooldownsAsync();
+        await RefreshCooldownsAsync();
         if (_newDurationMinutes <= 0) _newDurationMinutes = _settings.CooldownMinutes;
+    }
+
+    private async Task RefreshCooldownsAsync()
+    {
+        _activeCooldowns = await SongCooldownService.GetActiveCooldownsAsync();
     }
 
     private async Task SaveSettings()
@@ -197,7 +202,7 @@
                 Snackbar.Add($"Added cooldown for {cooldown.Title}.", Severity.Success);
                 _newSongInput = "";
                 _newTitle = "";
-                await RefreshAsync();
+                await RefreshCooldownsAsync();
             }
         }
         catch
@@ -215,7 +220,7 @@
         if (await SongCooldownService.ClearCooldownAsync(cooldown.SongId))
         {
             Snackbar.Add($"Cleared cooldown for {cooldown.SongId}.", Severity.Success);
-            await RefreshAsync();
+            await RefreshCooldownsAsync();
         }
     }
 
@@ -230,7 +235,7 @@
 
         await SongCooldownService.ClearAllCooldownsAsync();
         Snackbar.Add("Cleared all song cooldowns.", Severity.Success);
-        await RefreshAsync();
+        await RefreshCooldownsAsync();
     }
 
     private bool FilterCooldown(SongCooldown cooldown)
