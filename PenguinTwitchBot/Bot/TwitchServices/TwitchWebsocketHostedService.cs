@@ -117,6 +117,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                         tier: payload.Event.Resub.SubTier,
                         isGift: payload.Event.Resub.IsGift,
                         gifterName: payload.Event.Resub.GifterIsAnonymous == true ? null : (payload.Event.Resub.GifterUserName ?? payload.Event.Resub.GifterUserLogin),
+                        isAnonymousGift: payload.Event.Resub.GifterIsAnonymous == true,
                         totalMonths: payload.Event.Resub.CumulativeMonths,
                         consecutiveMonths: payload.Event.Resub.StreakMonths,
                         isRenewal: true);
@@ -269,17 +270,23 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         internal async Task ProcessChatMessage(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelChatMessage e)
         {
             var fromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId);
-            if (fromOwnChannel && e.IsSubscriber && e.Badges != null)
+            if (fromOwnChannel && e.Badges != null)
             {
                 var subBadge = e.Badges.FirstOrDefault(b =>
-                    string.Equals(b.SetId, "subscriber", StringComparison.OrdinalIgnoreCase));
+                    (string.Equals(b.SetId, "subscriber", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(b.SetId, "founder", StringComparison.OrdinalIgnoreCase)) &&
+                    int.TryParse(b.Info, out var parsedMonths) &&
+                    parsedMonths > 0);
                 if (subBadge != null && int.TryParse(subBadge.Info, out var badgeMonths) && badgeMonths > 0)
                 {
+                    var isActiveSubscriber = e.IsSubscriber ||
+                        string.Equals(subBadge.SetId, "subscriber", StringComparison.OrdinalIgnoreCase);
                     await subscriptionHistory.RecordChatSubscriberBadgeMonthsAsync(
                         e.ChatterUserId,
                         e.ChatterUserLogin,
                         e.ChatterUserName,
-                        badgeMonths);
+                        badgeMonths,
+                        isActiveSubscriber: isActiveSubscriber);
                 }
             }
 
@@ -688,7 +695,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     username: payload.Event.UserLogin,
                     displayName: payload.Event.UserName,
                     tier: payload.Event.Tier,
-                    isGift: false,
+                    isGift: null,
                     totalMonths: payload.Event.CumulativeMonths,
                     consecutiveMonths: payload.Event.StreakMonths,
                     isRenewal: true);

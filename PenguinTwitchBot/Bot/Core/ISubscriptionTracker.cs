@@ -71,8 +71,9 @@ namespace PenguinTwitchBot.Bot.Core
             string username,
             string displayName,
             string tier = "",
-            bool isGift = false,
+            bool? isGift = null,
             string? gifterName = null,
+            bool isAnonymousGift = false,
             int? totalMonths = null,
             int? consecutiveMonths = null,
             bool isRenewal = false,
@@ -83,6 +84,7 @@ namespace PenguinTwitchBot.Bot.Core
             string username,
             string displayName,
             int badgeMonths,
+            bool isActiveSubscriber = true,
             CancellationToken cancellationToken = default);
 
         Task RecordSubscriptionEndAsync(

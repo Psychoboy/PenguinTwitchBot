@@ -567,6 +567,84 @@ public class SubscriptionTrackerTests
         Assert.Equal("alice", page.Items[0].Username);
     }
 
+    [Fact]
+    public async Task RecordSubscriptionAsync_ReturningLapsedSubIncrementsTotal_TierUpgradeDoesNot()
+    {
+        var lapsed = new SubscriptionHistory
+        {
+            Id = Guid.NewGuid(),
+            UserId = "u1",
+            Username = "alice",
+            IsActive = false,
+            TotalMonths = 6,
+            ConsecutiveMonths = 0,
+            IsGift = true,
+            GifterName = "KindGifter"
+        };
+        CreateScopedDb([lapsed], []);
+
+        // Returning after lapse -> increments TotalMonths 6 -> 7, sets ConsecutiveMonths = 1, preserves GifterName when gift attribution omitted
+        await _tracker.RecordSubscriptionAsync("u1", "alice", "Alice", tier: "1000", isGift: true, isRenewal: false);
+        Assert.True(lapsed.IsActive);
+        Assert.Equal(7, lapsed.TotalMonths);
+        Assert.Equal(1, lapsed.ConsecutiveMonths);
+        Assert.Equal("KindGifter", lapsed.GifterName);
+
+        // Already active (e.g., tier upgrade) -> does NOT double-increment TotalMonths
+        await _tracker.RecordSubscriptionAsync("u1", "alice", "Alice", tier: "2000", isGift: null, isRenewal: false);
+        Assert.Equal(7, lapsed.TotalMonths);
+        Assert.Equal(1, lapsed.ConsecutiveMonths);
+        Assert.True(lapsed.IsGift);
+        Assert.Equal("KindGifter", lapsed.GifterName);
+
+        // Explicit anonymous gift clears GifterName
+        await _tracker.RecordSubscriptionAsync("u1", "alice", "Alice", tier: "2000", isGift: true, gifterName: null, isAnonymousGift: true, isRenewal: true);
+        Assert.True(lapsed.IsGift);
+        Assert.Null(lapsed.GifterName);
+    }
+
+    [Fact]
+    public async Task GetSubHistoryAsync_WithUserId_DoesNotReturnDifferentAccountsRowOnUsernameMatch()
+    {
+        var otherAccount = new SubscriptionHistory
+        {
+            Id = Guid.NewGuid(),
+            UserId = "other-id",
+            Username = "recycledname",
+            TotalMonths = 12
+        };
+        CreateScopedDb([otherAccount], []);
+
+        var result = await _tracker.GetSubHistoryAsync("recycledname", userId: "new-id");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task SyncSubscribersFromTwitchAsync_NeverMergesRowsWithDifferentUserIds()
+    {
+        var twitchService = Substitute.For<ITwitchService>();
+        twitchService.GetBroadcasterSubscriptionsSnapshotAsync(Arg.Any<CancellationToken>())
+            .Returns(new BroadcasterSubscriptionsSnapshot(
+                Subscriptions: [new Subscription("id-2", "sharedlogin", "SharedLogin", Tier: "1000")],
+                Total: 1,
+                Points: 1));
+
+        var oldOwner = new SubscriptionHistory { Id = Guid.NewGuid(), UserId = "id-1", Username = "sharedlogin", IsActive = false, TotalMonths = 20 };
+        var newOwner = new SubscriptionHistory { Id = Guid.NewGuid(), UserId = "id-2", Username = "sharedlogin", IsActive = false, TotalMonths = 2 };
+
+        var (_, mockSubRepo, _) = CreateScopedDb([oldOwner, newOwner], []);
+        var tracker = new SubscriptionTracker(_logger, _scopeFactory, twitchService);
+
+        await tracker.SyncSubscribersFromTwitchAsync();
+
+        mockSubRepo.DidNotReceive().Remove(oldOwner);
+        mockSubRepo.DidNotReceive().Remove(newOwner);
+        Assert.False(oldOwner.IsActive);
+        Assert.Equal(20, oldOwner.TotalMonths);
+        Assert.True(newOwner.IsActive);
+        Assert.Equal(2, newOwner.TotalMonths);
+    }
+
     private (IUnitOfWork Db, ISubscriptionHistoriesRepository SubRepo, IViewersRepository ViewerRepo) CreateScopedDb(
         List<SubscriptionHistory> histories,
         List<Viewer> viewers)

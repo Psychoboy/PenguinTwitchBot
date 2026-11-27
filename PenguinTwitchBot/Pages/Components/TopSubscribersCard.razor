@@ -96,6 +96,7 @@
     private SubscriberLeaderboardMetric _activeMetric = SubscriberLeaderboardMetric.TotalMonths;
     private string? _lastMode;
     private int _lastLimit;
+    private int _loadVersion;
     private bool _isLoading = true;
 
     private bool IsToggleMode => string.Equals(Mode, "toggle", StringComparison.OrdinalIgnoreCase);
@@ -127,14 +128,22 @@
 
     private async Task LoadEntriesAsync()
     {
+        var requestVersion = ++_loadVersion;
         _isLoading = true;
         try
         {
-            _entries = await SubscriptionTracker.GetTopCurrentSubscribersAsync(_activeMetric, Math.Clamp(Limit, 1, 100));
+            var entries = await SubscriptionTracker.GetTopCurrentSubscribersAsync(_activeMetric, Math.Clamp(Limit, 1, 100));
+            if (requestVersion == _loadVersion)
+            {
+                _entries = entries;
+            }
         }
         finally
         {
-            _isLoading = false;
+            if (requestVersion == _loadVersion)
+            {
+                _isLoading = false;
+            }
         }
     }
 

@@ -80,6 +80,17 @@ namespace PenguinTwitchBot.Bot.Core
                     {
                         return byId;
                     }
+
+                    if (string.IsNullOrWhiteSpace(normalized))
+                    {
+                        return null;
+                    }
+
+                    // Only fall back to username on legacy rows with no linked Twitch UserId
+                    return await db.SubscriptionHistories
+                        .Find(x => x.Username == normalized && x.UserId == string.Empty)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(cancellationToken);
                 }
 
                 if (string.IsNullOrWhiteSpace(normalized))
@@ -146,8 +157,9 @@ namespace PenguinTwitchBot.Bot.Core
             string username,
             string displayName,
             string tier = "",
-            bool isGift = false,
+            bool? isGift = null,
             string? gifterName = null,
+            bool isAnonymousGift = false,
             int? totalMonths = null,
             int? consecutiveMonths = null,
             bool isRenewal = false,
@@ -172,6 +184,7 @@ namespace PenguinTwitchBot.Bot.Core
                 var now = DateTime.UtcNow;
 
                 var isNew = existing == null;
+                var wasActive = !isNew && existing!.IsActive;
                 existing ??= new SubscriptionHistory
                 {
                     UserId = userId ?? string.Empty,
@@ -196,14 +209,18 @@ namespace PenguinTwitchBot.Bot.Core
                 }
 
                 existing.IsActive = true;
-                existing.IsGift = isGift;
-                if (!string.IsNullOrWhiteSpace(gifterName))
+
+                if (isGift.HasValue)
                 {
-                    existing.GifterName = gifterName;
-                }
-                else if (!isGift)
-                {
-                    existing.GifterName = null;
+                    existing.IsGift = isGift.Value;
+                    if (!isGift.Value || isAnonymousGift)
+                    {
+                        existing.GifterName = null;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(gifterName))
+                    {
+                        existing.GifterName = gifterName;
+                    }
                 }
 
                 existing.LastSub = now;
@@ -214,9 +231,18 @@ namespace PenguinTwitchBot.Bot.Core
                 {
                     existing.TotalMonths = Math.Max(existing.TotalMonths, totalMonths.Value);
                 }
-                else if (!isRenewal && existing.TotalMonths == 0)
+                else if (!isRenewal)
                 {
-                    existing.TotalMonths = 1;
+                    if (isNew || existing.TotalMonths == 0)
+                    {
+                        existing.TotalMonths = 1;
+                    }
+                    else if (!wasActive)
+                    {
+                        // Returning subscriber starting a new subscription period after a lapse;
+                        // skip incrementing when already active (e.g. tier upgrade firing channel.subscribe).
+                        existing.TotalMonths += 1;
+                    }
                 }
 
                 if (consecutiveMonths.HasValue && consecutiveMonths.Value > 0)
@@ -227,7 +253,7 @@ namespace PenguinTwitchBot.Bot.Core
                         existing.TotalMonths = existing.ConsecutiveMonths;
                     }
                 }
-                else if (!isRenewal && existing.ConsecutiveMonths == 0)
+                else if (!isRenewal && (!wasActive || existing.ConsecutiveMonths == 0))
                 {
                     existing.ConsecutiveMonths = 1;
                 }
@@ -266,6 +292,7 @@ namespace PenguinTwitchBot.Bot.Core
             string username,
             string displayName,
             int badgeMonths,
+            bool isActiveSubscriber = true,
             CancellationToken cancellationToken = default)
         {
             if (badgeMonths <= 0 || string.IsNullOrWhiteSpace(userId))
@@ -304,14 +331,17 @@ namespace PenguinTwitchBot.Bot.Core
                         UserId = userId,
                         Username = normalizedUsername,
                         DisplayName = displayName ?? string.Empty,
-                        IsActive = true,
+                        IsActive = isActiveSubscriber,
                         TotalMonths = badgeMonths,
                         LastSub = now,
                         UpdatedAtUtc = now
                     };
                     await db.SubscriptionHistories.AddAsync(created);
                     await db.SaveChangesAsync();
-                    _observedChatBadgeMonths[userId] = badgeMonths;
+                    if (isActiveSubscriber)
+                    {
+                        _observedChatBadgeMonths[userId] = badgeMonths;
+                    }
                     return;
                 }
 
@@ -331,7 +361,7 @@ namespace PenguinTwitchBot.Bot.Core
                     existing.DisplayName = displayName;
                     changed = true;
                 }
-                if (!existing.IsActive)
+                if (isActiveSubscriber && !existing.IsActive)
                 {
                     existing.IsActive = true;
                     existing.EndedAtUtc = null;
@@ -350,7 +380,14 @@ namespace PenguinTwitchBot.Bot.Core
                     await db.SaveChangesAsync();
                 }
 
-                _observedChatBadgeMonths[userId] = Math.Max(existing.TotalMonths, badgeMonths);
+                if (existing.IsActive)
+                {
+                    _observedChatBadgeMonths[userId] = Math.Max(existing.TotalMonths, badgeMonths);
+                }
+                else
+                {
+                    _observedChatBadgeMonths.TryRemove(userId, out _);
+                }
             }
             catch (Exception ex)
             {
@@ -428,6 +465,7 @@ namespace PenguinTwitchBot.Bot.Core
             try
             {
                 logger.LogInformation("Starting subscriber sync from Twitch.");
+                var snapshotCapturedAtUtc = DateTime.UtcNow;
                 var snapshot = await twitchService.GetBroadcasterSubscriptionsSnapshotAsync(cancellationToken);
                 var excludedUserIds = await GetExcludedUserIdsAsync();
                 var excludedUsernames = GetExcludedUsernames();
@@ -438,256 +476,289 @@ namespace PenguinTwitchBot.Bot.Core
                     .DistinctBy(s => s.UserId, StringComparer.Ordinal)
                     .ToList();
 
-                var addedCount = 0;
-                var updatedCount = 0;
-                var markedPastCount = 0;
-                var now = DateTime.UtcNow;
-
                 await _recordLock.WaitAsync(cancellationToken);
                 try
                 {
-                    await using var scope = scopeFactory.CreateAsyncScope();
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-                    var allHistories = await db.SubscriptionHistories.Find(_ => true).ToListAsync(cancellationToken);
-                    var byUserId = new Dictionary<string, SubscriptionHistory>(StringComparer.Ordinal);
-                    var byUsername = new Dictionary<string, SubscriptionHistory>(StringComparer.Ordinal);
-                    var duplicateRows = new List<SubscriptionHistory>();
-
-                    foreach (var row in allHistories)
-                    {
-                        var normalizedRowUser = UsernameNormalizer.Normalize(row.Username);
-                        if (IsExcludedAccount(row.UserId, normalizedRowUser, excludedUserIds, excludedUsernames))
-                        {
-                            db.SubscriptionHistories.Remove(row);
-                            duplicateRows.Add(row);
-                            continue;
-                        }
-
-                        SubscriptionHistory? canonical = null;
-
-                        if (!string.IsNullOrWhiteSpace(row.UserId) && byUserId.TryGetValue(row.UserId, out var existingById))
-                        {
-                            canonical = existingById;
-                        }
-                        else if (!string.IsNullOrWhiteSpace(normalizedRowUser) && byUsername.TryGetValue(normalizedRowUser, out var existingByName))
-                        {
-                            canonical = existingByName;
-                        }
-
-                        if (canonical != null)
-                        {
-                            // Merge best historical metadata into canonical row and remove duplicate
-                            var merged = false;
-                            if (string.IsNullOrWhiteSpace(canonical.UserId) && !string.IsNullOrWhiteSpace(row.UserId))
-                            {
-                                canonical.UserId = row.UserId;
-                                byUserId[row.UserId] = canonical;
-                                merged = true;
-                            }
-                            if (string.IsNullOrWhiteSpace(canonical.DisplayName) && !string.IsNullOrWhiteSpace(row.DisplayName))
-                            {
-                                canonical.DisplayName = row.DisplayName;
-                                merged = true;
-                            }
-                            if (row.TotalMonths > canonical.TotalMonths)
-                            {
-                                canonical.TotalMonths = row.TotalMonths;
-                                merged = true;
-                            }
-                            if (row.ConsecutiveMonths > canonical.ConsecutiveMonths)
-                            {
-                                canonical.ConsecutiveMonths = row.ConsecutiveMonths;
-                                merged = true;
-                            }
-                            if (row.LastSub > canonical.LastSub)
-                            {
-                                canonical.LastSub = row.LastSub;
-                                merged = true;
-                            }
-                            if (merged)
-                            {
-                                canonical.UpdatedAtUtc = now;
-                                db.SubscriptionHistories.Update(canonical);
-                            }
-
-                            db.SubscriptionHistories.Remove(row);
-                            duplicateRows.Add(row);
-                            continue;
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(row.UserId))
-                        {
-                            byUserId[row.UserId] = row;
-                        }
-                        if (!string.IsNullOrWhiteSpace(normalizedRowUser))
-                        {
-                            byUsername[normalizedRowUser] = row;
-                        }
-                    }
-
-                    if (duplicateRows.Count > 0)
-                    {
-                        var duplicateSet = new HashSet<SubscriptionHistory>(duplicateRows);
-                        allHistories.RemoveAll(duplicateSet.Contains);
-                    }
-
-                    var allViewers = await db.Viewers.Find(_ => true).ToListAsync(cancellationToken);
-                    var viewersByUserId = new Dictionary<string, Viewer>(StringComparer.Ordinal);
-                    foreach (var v in allViewers)
-                    {
-                        if (!string.IsNullOrWhiteSpace(v.UserId))
-                        {
-                            viewersByUserId.TryAdd(v.UserId, v);
-                        }
-                    }
-
-                    var activeTwitchUserIds = new HashSet<string>(StringComparer.Ordinal);
-                    var activeHistoryRows = new HashSet<SubscriptionHistory>();
-
-                    foreach (var sub in deduplicated)
+                    const int maxSaveAttempts = 2;
+                    for (var attempt = 0; attempt < maxSaveAttempts; attempt++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        activeTwitchUserIds.Add(sub.UserId);
-                        var normalizedUsername = UsernameNormalizer.Normalize(sub.UserLogin);
-                        var displayName = sub.UserName ?? string.Empty;
 
-                        if (!byUserId.TryGetValue(sub.UserId, out var history))
-                        {
-                            byUsername.TryGetValue(normalizedUsername, out history);
-                        }
+                        var addedCount = 0;
+                        var updatedCount = 0;
+                        var markedPastCount = 0;
+                        var now = DateTime.UtcNow;
 
-                        if (history == null)
+                        await using var scope = scopeFactory.CreateAsyncScope();
+                        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                        var allHistories = await db.SubscriptionHistories.Find(_ => true).ToListAsync(cancellationToken);
+                        var byUserId = new Dictionary<string, SubscriptionHistory>(StringComparer.Ordinal);
+                        var legacyRows = new List<SubscriptionHistory>();
+                        var removedRows = new HashSet<SubscriptionHistory>();
+
+                        // Pass 1: remove excluded accounts and deduplicate rows sharing the same Twitch UserId.
+                        // Never merge rows with different non-empty Twitch IDs.
+                        foreach (var row in allHistories)
                         {
-                            history = new SubscriptionHistory
+                            var normalizedRowUser = UsernameNormalizer.Normalize(row.Username);
+                            if (IsExcludedAccount(row.UserId, normalizedRowUser, excludedUserIds, excludedUsernames))
                             {
-                                UserId = sub.UserId,
-                                Username = normalizedUsername,
-                                DisplayName = displayName,
-                                IsActive = true,
-                                Tier = sub.Tier ?? string.Empty,
-                                IsGift = sub.IsGift,
-                                GifterName = sub.IsGift ? (sub.GifterName ?? sub.GifterLogin) : null,
-                                LastSub = now,
-                                EndedAtUtc = null,
-                                UpdatedAtUtc = now
-                            };
-                            await db.SubscriptionHistories.AddAsync(history);
-                            byUserId[sub.UserId] = history;
-                            byUsername[normalizedUsername] = history;
-                            addedCount++;
-                        }
-                        else
-                        {
-                            var gifter = sub.IsGift ? (sub.GifterName ?? sub.GifterLogin) : null;
-                            var changed = false;
-
-                            if (history.UserId != sub.UserId) { history.UserId = sub.UserId; changed = true; }
-                            if (history.Username != normalizedUsername) { history.Username = normalizedUsername; changed = true; }
-                            if (!string.IsNullOrWhiteSpace(displayName) && history.DisplayName != displayName) { history.DisplayName = displayName; changed = true; }
-                            if (!history.IsActive) { history.IsActive = true; history.EndedAtUtc = null; changed = true; }
-                            if (!string.IsNullOrWhiteSpace(sub.Tier) && history.Tier != sub.Tier) { history.Tier = sub.Tier; changed = true; }
-                            if (history.IsGift != sub.IsGift) { history.IsGift = sub.IsGift; changed = true; }
-                            if (history.GifterName != gifter) { history.GifterName = gifter; changed = true; }
-
-                            if (changed)
-                            {
-                                history.UpdatedAtUtc = now;
-                                db.SubscriptionHistories.Update(history);
-                                updatedCount++;
+                                db.SubscriptionHistories.Remove(row);
+                                removedRows.Add(row);
+                                continue;
                             }
 
-                            byUserId[sub.UserId] = history;
+                            if (string.IsNullOrWhiteSpace(row.UserId))
+                            {
+                                legacyRows.Add(row);
+                                continue;
+                            }
+
+                            if (byUserId.TryGetValue(row.UserId, out var canonical))
+                            {
+                                if (MergeRowMetadata(canonical, row, now))
+                                {
+                                    db.SubscriptionHistories.Update(canonical);
+                                }
+                                db.SubscriptionHistories.Remove(row);
+                                removedRows.Add(row);
+                            }
+                            else
+                            {
+                                byUserId[row.UserId] = row;
+                            }
                         }
 
-                        activeHistoryRows.Add(history);
+                        // Pass 2: reconcile legacy rows (empty UserId) by normalized username only when unambiguous.
+                        var linkedByUsername = byUserId.Values
+                            .Where(r => !string.IsNullOrWhiteSpace(r.Username))
+                            .GroupBy(r => UsernameNormalizer.Normalize(r.Username), StringComparer.Ordinal)
+                            .Where(g => g.Count() == 1)
+                            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
-                        // Keep Viewers.isSub in sync
-                        if (!viewersByUserId.TryGetValue(sub.UserId, out var viewer))
+                        var legacyByUsername = new Dictionary<string, SubscriptionHistory>(StringComparer.Ordinal);
+                        foreach (var legacy in legacyRows)
                         {
-                            viewer = new Viewer
+                            var normalizedLegacyUser = UsernameNormalizer.Normalize(legacy.Username);
+                            if (string.IsNullOrWhiteSpace(normalizedLegacyUser))
                             {
-                                UserId = sub.UserId,
-                                Username = normalizedUsername,
-                                DisplayName = displayName,
-                                isSub = true
-                            };
-                            await db.Viewers.AddAsync(viewer);
-                            viewersByUserId[sub.UserId] = viewer;
+                                continue;
+                            }
+
+                            if (linkedByUsername.TryGetValue(normalizedLegacyUser, out var unambiguousLinked))
+                            {
+                                if (MergeRowMetadata(unambiguousLinked, legacy, now))
+                                {
+                                    db.SubscriptionHistories.Update(unambiguousLinked);
+                                }
+                                db.SubscriptionHistories.Remove(legacy);
+                                removedRows.Add(legacy);
+                            }
+                            else if (legacyByUsername.TryGetValue(normalizedLegacyUser, out var canonicalLegacy))
+                            {
+                                if (MergeRowMetadata(canonicalLegacy, legacy, now))
+                                {
+                                    db.SubscriptionHistories.Update(canonicalLegacy);
+                                }
+                                db.SubscriptionHistories.Remove(legacy);
+                                removedRows.Add(legacy);
+                            }
+                            else
+                            {
+                                legacyByUsername[normalizedLegacyUser] = legacy;
+                            }
                         }
-                        else
+
+                        if (removedRows.Count > 0)
                         {
-                            var viewerChanged = false;
-                            if (!viewer.isSub) { viewer.isSub = true; viewerChanged = true; }
-                            if (viewer.Username != normalizedUsername) { viewer.Username = normalizedUsername; viewerChanged = true; }
-                            if (!string.IsNullOrWhiteSpace(displayName) && viewer.DisplayName != displayName) { viewer.DisplayName = displayName; viewerChanged = true; }
-                            if (viewerChanged)
+                            allHistories.RemoveAll(removedRows.Contains);
+                        }
+
+                        var allViewers = await db.Viewers.Find(_ => true).ToListAsync(cancellationToken);
+                        var viewersByUserId = new Dictionary<string, Viewer>(StringComparer.Ordinal);
+                        foreach (var v in allViewers)
+                        {
+                            if (!string.IsNullOrWhiteSpace(v.UserId))
                             {
+                                viewersByUserId.TryAdd(v.UserId, v);
+                            }
+                        }
+
+                        var activeTwitchUserIds = new HashSet<string>(StringComparer.Ordinal);
+                        var activeHistoryRows = new HashSet<SubscriptionHistory>();
+
+                        foreach (var sub in deduplicated)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            var normalizedUsername = UsernameNormalizer.Normalize(sub.UserLogin);
+                            var displayName = sub.UserName ?? string.Empty;
+
+                            // Look up by authoritative UserId first; fall back ONLY to unlinked legacy rows
+                            // so a username match never reassigns another account's history.
+                            if (!byUserId.TryGetValue(sub.UserId, out var history) &&
+                                legacyByUsername.TryGetValue(normalizedUsername, out var legacyMatch))
+                            {
+                                history = legacyMatch;
+                                legacyByUsername.Remove(normalizedUsername);
+                            }
+
+                            // Reject reactivating a subscriber whose end event was recorded after this snapshot started.
+                            if (history != null &&
+                                !history.IsActive &&
+                                history.EndedAtUtc.HasValue &&
+                                history.EndedAtUtc.Value >= snapshotCapturedAtUtc)
+                            {
+                                continue;
+                            }
+
+                            activeTwitchUserIds.Add(sub.UserId);
+
+                            if (history == null)
+                            {
+                                history = new SubscriptionHistory
+                                {
+                                    UserId = sub.UserId,
+                                    Username = normalizedUsername,
+                                    DisplayName = displayName,
+                                    IsActive = true,
+                                    Tier = sub.Tier ?? string.Empty,
+                                    IsGift = sub.IsGift,
+                                    GifterName = sub.IsGift ? (sub.GifterName ?? sub.GifterLogin) : null,
+                                    LastSub = now,
+                                    EndedAtUtc = null,
+                                    UpdatedAtUtc = now
+                                };
+                                await db.SubscriptionHistories.AddAsync(history);
+                                byUserId[sub.UserId] = history;
+                                addedCount++;
+                            }
+                            else
+                            {
+                                var gifter = sub.IsGift ? (sub.GifterName ?? sub.GifterLogin) : null;
+                                var changed = false;
+
+                                if (history.UserId != sub.UserId) { history.UserId = sub.UserId; changed = true; }
+                                if (history.Username != normalizedUsername) { history.Username = normalizedUsername; changed = true; }
+                                if (!string.IsNullOrWhiteSpace(displayName) && history.DisplayName != displayName) { history.DisplayName = displayName; changed = true; }
+                                if (!history.IsActive) { history.IsActive = true; history.EndedAtUtc = null; changed = true; }
+                                if (!string.IsNullOrWhiteSpace(sub.Tier) && history.Tier != sub.Tier) { history.Tier = sub.Tier; changed = true; }
+                                if (history.IsGift != sub.IsGift) { history.IsGift = sub.IsGift; changed = true; }
+                                if (history.GifterName != gifter) { history.GifterName = gifter; changed = true; }
+
+                                if (changed)
+                                {
+                                    history.UpdatedAtUtc = now;
+                                    db.SubscriptionHistories.Update(history);
+                                    updatedCount++;
+                                }
+
+                                byUserId[sub.UserId] = history;
+                            }
+
+                            activeHistoryRows.Add(history);
+
+                            // Keep Viewers.isSub in sync
+                            if (!viewersByUserId.TryGetValue(sub.UserId, out var viewer))
+                            {
+                                viewer = new Viewer
+                                {
+                                    UserId = sub.UserId,
+                                    Username = normalizedUsername,
+                                    DisplayName = displayName,
+                                    isSub = true
+                                };
+                                await db.Viewers.AddAsync(viewer);
+                                viewersByUserId[sub.UserId] = viewer;
+                            }
+                            else
+                            {
+                                var viewerChanged = false;
+                                if (!viewer.isSub) { viewer.isSub = true; viewerChanged = true; }
+                                if (viewer.Username != normalizedUsername) { viewer.Username = normalizedUsername; viewerChanged = true; }
+                                if (!string.IsNullOrWhiteSpace(displayName) && viewer.DisplayName != displayName) { viewer.DisplayName = displayName; viewerChanged = true; }
+                                if (viewerChanged)
+                                {
+                                    db.Viewers.Update(viewer);
+                                }
+                            }
+                        }
+
+                        // Mark previously active SubscriptionHistories no longer in Twitch's list as Past
+                        foreach (var row in allHistories)
+                        {
+                            if (!row.IsActive)
+                            {
+                                continue;
+                            }
+
+                            if (!activeHistoryRows.Contains(row))
+                            {
+                                row.IsActive = false;
+                                row.ConsecutiveMonths = 0;
+                                row.EndedAtUtc = now;
+                                row.UpdatedAtUtc = now;
+                                db.SubscriptionHistories.Update(row);
+                                markedPastCount++;
+                                if (!string.IsNullOrWhiteSpace(row.UserId))
+                                {
+                                    _observedChatBadgeMonths.TryRemove(row.UserId, out _);
+                                }
+                            }
+                        }
+
+                        // Clear Viewers.isSub for viewers no longer subscribed
+                        foreach (var viewer in allViewers)
+                        {
+                            if (viewer.isSub && !activeTwitchUserIds.Contains(viewer.UserId))
+                            {
+                                viewer.isSub = false;
                                 db.Viewers.Update(viewer);
                             }
                         }
-                    }
 
-                    // Mark previously active SubscriptionHistories no longer in Twitch's list as Past
-                    foreach (var row in allHistories)
-                    {
-                        if (!row.IsActive)
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        try
                         {
+                            await db.SaveChangesAsync();
+                        }
+                        catch (DbUpdateException ex) when (ex.IsUniqueViolation() && attempt + 1 < maxSaveAttempts)
+                        {
+                            logger.LogInformation(ex, "Concurrent viewer/subscriber write detected during subscriber sync; retrying reconciliation with a fresh context.");
                             continue;
                         }
 
-                        if (!activeHistoryRows.Contains(row))
-                        {
-                            row.IsActive = false;
-                            row.ConsecutiveMonths = 0;
-                            row.EndedAtUtc = now;
-                            row.UpdatedAtUtc = now;
-                            db.SubscriptionHistories.Update(row);
-                            markedPastCount++;
-                            if (!string.IsNullOrWhiteSpace(row.UserId))
-                            {
-                                _observedChatBadgeMonths.TryRemove(row.UserId, out _);
-                            }
-                        }
+                        // Commit succeeded: finish post-save counts and publish result using CancellationToken.None
+                        // so a late cancellation cannot report an already-committed sync as cancelled.
+                        var activeCount = await db.SubscriptionHistories.Find(s => s.IsActive).CountAsync(CancellationToken.None);
+                        var pastCount = await db.SubscriptionHistories.Find(s => !s.IsActive).CountAsync(CancellationToken.None);
+
+                        var result = new SubscriberSyncResult(
+                            TotalTwitchSubscribers: activeTwitchUserIds.Count,
+                            SubPoints: snapshot.Points,
+                            AddedCount: addedCount,
+                            UpdatedCount: updatedCount,
+                            MarkedPastCount: markedPastCount,
+                            ActiveCount: activeCount,
+                            PastCount: pastCount,
+                            CompletedAtUtc: DateTime.UtcNow);
+
+                        _lastSyncResult = result;
+                        logger.LogInformation(
+                            "Subscriber sync completed: {TotalTwitch} from Twitch ({Points} pts), {Added} added, {Updated} updated, {MarkedPast} marked past ({Active} active, {Past} past).",
+                            result.TotalTwitchSubscribers,
+                            result.SubPoints,
+                            result.AddedCount,
+                            result.UpdatedCount,
+                            result.MarkedPastCount,
+                            result.ActiveCount,
+                            result.PastCount);
+
+                        return result;
                     }
 
-                    // Clear Viewers.isSub for viewers no longer subscribed
-                    foreach (var viewer in allViewers)
-                    {
-                        if (viewer.isSub && !activeTwitchUserIds.Contains(viewer.UserId))
-                        {
-                            viewer.isSub = false;
-                            db.Viewers.Update(viewer);
-                        }
-                    }
-
-                    await db.SaveChangesAsync();
-
-                    var activeCount = await db.SubscriptionHistories.Find(s => s.IsActive).CountAsync(cancellationToken);
-                    var pastCount = await db.SubscriptionHistories.Find(s => !s.IsActive).CountAsync(cancellationToken);
-
-                    var result = new SubscriberSyncResult(
-                        TotalTwitchSubscribers: deduplicated.Count,
-                        SubPoints: snapshot.Points,
-                        AddedCount: addedCount,
-                        UpdatedCount: updatedCount,
-                        MarkedPastCount: markedPastCount,
-                        ActiveCount: activeCount,
-                        PastCount: pastCount,
-                        CompletedAtUtc: DateTime.UtcNow);
-
-                    _lastSyncResult = result;
-                    logger.LogInformation(
-                        "Subscriber sync completed: {TotalTwitch} from Twitch ({Points} pts), {Added} added, {Updated} updated, {MarkedPast} marked past ({Active} active, {Past} past).",
-                        result.TotalTwitchSubscribers,
-                        result.SubPoints,
-                        result.AddedCount,
-                        result.UpdatedCount,
-                        result.MarkedPastCount,
-                        result.ActiveCount,
-                        result.PastCount);
-
-                    return result;
+                    throw new InvalidOperationException("Subscriber sync failed after retry attempts.");
                 }
                 finally
                 {
@@ -775,9 +846,22 @@ namespace PenguinTwitchBot.Bot.Core
                 ? await db.Viewers.Find(v => userIds.Contains(v.UserId)).AsNoTracking().ToDictionaryAsync(v => v.UserId, StringComparer.Ordinal, cancellationToken)
                 : new Dictionary<string, Viewer>(StringComparer.Ordinal);
 
-            var viewersByUsername = usernames.Count > 0
-                ? await db.Viewers.Find(v => usernames.Contains(v.Username)).AsNoTracking().ToDictionaryAsync(v => v.Username, StringComparer.Ordinal, cancellationToken)
-                : new Dictionary<string, Viewer>(StringComparer.Ordinal);
+            // Only link legacy rows by username when exactly one viewer matches (avoid duplicate-key failure or wrong profile link)
+            var viewersByUsername = new Dictionary<string, Viewer>(StringComparer.Ordinal);
+            if (usernames.Count > 0)
+            {
+                var usernameMatches = await db.Viewers
+                    .Find(v => usernames.Contains(v.Username))
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
+                foreach (var group in usernameMatches.GroupBy(v => v.Username, StringComparer.Ordinal))
+                {
+                    if (group.Count() == 1)
+                    {
+                        viewersByUsername[group.Key] = group.First();
+                    }
+                }
+            }
 
             var items = rows.Select(s =>
             {
@@ -786,7 +870,7 @@ namespace PenguinTwitchBot.Bot.Core
                 {
                     viewersByUserId.TryGetValue(s.UserId, out viewer);
                 }
-                if (viewer == null && !string.IsNullOrWhiteSpace(s.Username))
+                else if (!string.IsNullOrWhiteSpace(s.Username))
                 {
                     viewersByUsername.TryGetValue(s.Username, out viewer);
                 }
@@ -852,7 +936,7 @@ namespace PenguinTwitchBot.Bot.Core
 
                 if (!string.IsNullOrWhiteSpace(existing.UserId))
                 {
-                    if (safeTotal > 0)
+                    if (existing.IsActive && safeTotal > 0)
                     {
                         _observedChatBadgeMonths[existing.UserId] = safeTotal;
                     }
@@ -923,6 +1007,36 @@ namespace PenguinTwitchBot.Bot.Core
             return result;
         }
 
+        private static bool MergeRowMetadata(SubscriptionHistory target, SubscriptionHistory source, DateTime now)
+        {
+            var merged = false;
+            if (string.IsNullOrWhiteSpace(target.DisplayName) && !string.IsNullOrWhiteSpace(source.DisplayName))
+            {
+                target.DisplayName = source.DisplayName;
+                merged = true;
+            }
+            if (source.TotalMonths > target.TotalMonths)
+            {
+                target.TotalMonths = source.TotalMonths;
+                merged = true;
+            }
+            if (source.ConsecutiveMonths > target.ConsecutiveMonths)
+            {
+                target.ConsecutiveMonths = source.ConsecutiveMonths;
+                merged = true;
+            }
+            if (source.LastSub > target.LastSub)
+            {
+                target.LastSub = source.LastSub;
+                merged = true;
+            }
+            if (merged)
+            {
+                target.UpdatedAtUtc = now;
+            }
+            return merged;
+        }
+
         private static async Task<SubscriptionHistory?> FindExistingAsync(
             IUnitOfWork db,
             string? userId,
@@ -938,6 +1052,16 @@ namespace PenguinTwitchBot.Bot.Core
                 {
                     return byUserId;
                 }
+
+                if (string.IsNullOrWhiteSpace(normalizedUsername))
+                {
+                    return null;
+                }
+
+                // Only fall back to username on unlinked legacy rows so we never return another account's row
+                return await db.SubscriptionHistories
+                    .Find(x => x.Username == normalizedUsername && x.UserId == string.Empty)
+                    .FirstOrDefaultAsync(cancellationToken);
             }
 
             if (!string.IsNullOrWhiteSpace(normalizedUsername))

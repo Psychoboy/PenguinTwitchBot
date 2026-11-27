@@ -184,7 +184,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _accessToken,
                     userId,
                     100,
-                    after);
+                    after,
+                    cancellationToken);
                 if (curSubs == null)
                 {
                     break;

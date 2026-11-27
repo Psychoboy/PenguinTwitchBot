@@ -19,14 +19,19 @@ public abstract class TwitchClientRetryBase
     /// Executes an operation with exponential backoff retry for transient errors.
     /// Non-transient errors throw immediately.
     /// </summary>
-    protected async Task<T> ExecuteWithRetryAsync<T>(Func<Task<T>> action, string operation)
+    protected async Task<T> ExecuteWithRetryAsync<T>(Func<Task<T>> action, string operation, CancellationToken cancellationToken = default)
     {
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
 #pragma warning disable S2139 // Exceptions should be either logged or rethrown but not both
             try
             {
                 return await action();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex) when (IsRetryable(ex))
             {
@@ -39,7 +44,7 @@ public abstract class TwitchClientRetryBase
                 var delay = TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt - 1));
                 Logger.LogWarning(ex, "Transient error during {operation} (attempt {attempt}/{maxAttempts}). Retrying in {delayMs} ms.",
                     operation, attempt, MaxAttempts, delay.TotalMilliseconds);
-                await Task.Delay(delay);
+                await Task.Delay(delay, cancellationToken);
             }
             catch (Exception ex)
             {

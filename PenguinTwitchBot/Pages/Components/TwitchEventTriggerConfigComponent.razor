@@ -1,4 +1,4 @@
-﻿@using PenguinTwitchBot.Bot.Actions.Triggers
+@using PenguinTwitchBot.Bot.Actions.Triggers
 @using TwitchEventConfig = PenguinTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig
 @using MudBlazor
 @using PenguinTwitchBot.Bot.TwitchServices
@@ -160,6 +160,16 @@
                                          ValueChanged="@((bool val) => OnTierChanged("3000", val))" />
                         </MudStack>
                     </MudStack>
+                }
+
+                @* Exclude Gifted Subscriptions Filter (for ChannelSubscribe) *@
+                @if (eventInfo.FilterOptions.Contains("ExcludeGiftedSubs"))
+                {
+                    <MudCheckBox T="bool"
+                                 Value="Config.ExcludeGiftedSubs"
+                                 ValueChanged="OnExcludeGiftedSubsChanged"
+                                 Label="Exclude gifted subscriptions (do not trigger for gift sub recipients)"
+                                 Color="Color.Primary" />
                 }
 
                 @* Ad Break Filters *@
@@ -762,6 +772,12 @@
         UpdateTierSelections();
         await ConfigChanged.InvokeAsync(Config); // Fix: Invoke ConfigChanged when mutating
         StateHasChanged();
+    }
+
+    private async Task OnExcludeGiftedSubsChanged(bool value)
+    {
+        Config.ExcludeGiftedSubs = value;
+        await ConfigChanged.InvokeAsync(Config);
     }
 
     private void UpdateTierSelections()

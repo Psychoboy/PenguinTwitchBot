@@ -28,20 +28,21 @@ public sealed class SubscriptionsTransport : ISubscriptionsTransport
         return new CheckUserSubscriptionResponse(subscriptions);
     }
 
-    public async Task<GetBroadcasterSubscriptionsResponse> GetBroadcasterSubscriptionsAsync(string clientId, string? accessToken, string broadcasterId, int first, string? after)
+    public async Task<GetBroadcasterSubscriptionsResponse> GetBroadcasterSubscriptionsAsync(string clientId, string? accessToken, string broadcasterId, int first, string? after, CancellationToken cancellationToken = default)
     {
         using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
         var url = BuildBroadcasterSubscriptionsUrl(broadcasterId, first, after);
-        using var response = await http.GetAsync(url);
+        using var response = await http.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var payload = await HelixJson.DeserializeAsync<GetBroadcasterSubscriptionsApiResponse>(response);
-        var subscriptions = payload?.Data.Select(MapToSubscription).ToList() ?? [];
+        var payload = await HelixJson.DeserializeAsync<GetBroadcasterSubscriptionsApiResponse>(response, cancellationToken)
+            ?? throw new InvalidOperationException("Twitch broadcaster subscriptions response payload was empty.");
+        var subscriptions = (payload.Data ?? []).Select(MapToSubscription).ToList();
         return new GetBroadcasterSubscriptionsResponse(
             Data: subscriptions,
-                Cursor: payload?.Pagination?.Cursor,
-            Total: payload?.Total ?? 0,
-            Points: payload?.Points ?? 0);
+            Cursor: payload.Pagination?.Cursor,
+            Total: payload.Total,
+            Points: payload.Points);
     }
 
     private static string BuildBroadcasterSubscriptionsUrl(string broadcasterId, int first, string? after)
