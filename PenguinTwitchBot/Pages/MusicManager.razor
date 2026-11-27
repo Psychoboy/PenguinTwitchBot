@@ -1,0 +1,407 @@
+@page "/music"
+@page "/playlists"
+@page "/bannedsongs"
+@page "/songcooldowns"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Hubs
+@inject IInProcessHubEventBus HubEventBus
+@inject PenguinTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@inject PenguinTwitchBot.Bot.Commands.Music.IBannedSongService BannedSongService
+@inject PenguinTwitchBot.Bot.Commands.Music.ISongCooldownService SongCooldownService
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILogger<MusicManager> logger
+@implements IAsyncDisposable
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Music Manager</PageTitle>
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraExtraLarge">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.LibraryMusic" Class="mr-2" />
+                Music Manager
+            </MudText>
+            <HelpButton Topic="@ActiveHelpTopic" />
+        </MudStack>
+
+        <MudTabs @bind-ActivePanelIndex="_activeTabIndex" Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Primary" TabPanelsClass="pa-4">
+            <MudTabPanel Text="Queue & Playlists" Icon="@Icons.Material.Filled.QueueMusic">
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" md="4">
+                        <MudStack Spacing="3">
+                            <NowPlayingCard CurrentSong="currentSong"
+                                            Loaded="currentSongLoaded"
+                                            IsInBackupPlaylist="@(currentSong != null && YtPlayer.SongExistsInBackupList(currentSong))"
+                                            OnStealSong="StealSong"
+                                            OnAddToCooldown="AddCurrentSongToCooldown"
+                                            OnBanSong="BanCurrentSong" />
+
+                            <MudPaper Elevation="3" Class="pa-4">
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Add" Color="Color.Primary" />
+                                        <MudText Typo="Typo.h6">Add Song</MudText>
+                                    </MudStack>
+                                    <MudTextField @bind-Value="addSongUrl" Label="Song URL" Variant="Variant.Outlined"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
+                                    <MudButton OnClick="AddSongRequest" ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                                               Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Add">
+                                        Add Song Request
+                                    </MudButton>
+                                </MudStack>
+                            </MudPaper>
+                        </MudStack>
+                    </MudItem>
+
+                    @if (songRequests != null)
+                    {
+                        <MudItem xs="12" md="8">
+                            <SongRequestsPanel SongRequests="songRequests"
+                                               OnPriority="Priority"
+                                               OnBanSong="BanSongRequest"
+                                               OnRemoveSong="RemoveSongRequest" />
+                        </MudItem>
+                    }
+
+                    <MudItem xs="12">
+                        <RecentlyPlayedSongs />
+                    </MudItem>
+
+                    @if (musicPlaylists != null)
+                    {
+                        <MudItem xs="12" md="4">
+                            <MudStack Spacing="2">
+                                <MudPaper Elevation="2" Class="pa-2">
+                                    <MudStack Row="true" Spacing="2">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                                                   StartIcon="@Icons.Custom.Brands.YouTube" OnClick="ImportFromYouTube" FullWidth="true">
+                                            Import YouTube
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                                   StartIcon="@Icons.Material.Filled.Add" OnClick="CreateBlankPlaylist" FullWidth="true">
+                                            New Playlist
+                                        </MudButton>
+                                    </MudStack>
+                                </MudPaper>
+
+                                <AvailablePlaylists Playlists="musicPlaylists"
+                                                    DefaultPlaylistId="defaultPlaylistId"
+                                                    AdditionalPlaylistIds="additionalPlaylistIds"
+                                                    OnSetDefault="SetDefaultPlaylist"
+                                                    OnToggleAdditional="ToggleAdditionalPlaylist"
+                                                    OnView="ViewList"
+                                                    OnDelete="DeletePlaylist"
+                                                    OnRefresh="RefreshUnplayedSongs" />
+                            </MudStack>
+                        </MudItem>
+                    }
+
+                    @if (currentPlayList != null)
+                    {
+                        <MudItem xs="12" md="8">
+                            <CurrentPlaylist Playlist="currentPlayList"
+                                             OnQueueSong="QueueSong"
+                                             OnRemoveSong="RemoveSong"
+                                             OnRemoveSongFrom="RemoveSongFromPlaylist"
+                                             OnGetPlaylistsForSong="GetPlaylistsForSong" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Banned Songs" Icon="@Icons.Material.Filled.Block">
+                <BannedSongsPanel />
+            </MudTabPanel>
+
+            <MudTabPanel Text="Song Cooldowns" Icon="@Icons.Material.Filled.Timer">
+                <SongCooldownsPanel />
+            </MudTabPanel>
+        </MudTabs>
+    </MudStack>
+
+    <MudScrollToTop>
+        <MudFab Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.ArrowCircleUp" />
+    </MudScrollToTop>
+</MudContainer>
+
+@code {
+    private int _activeTabIndex;
+    private List<MusicPlaylist>? musicPlaylists;
+    private MusicPlaylist? currentPlayList;
+    private Song? currentSong;
+    private List<Song>? songRequests;
+    private readonly List<IDisposable> _hubSubscriptions = [];
+    private string? addSongUrl;
+    private Guid? defaultPlaylistId;
+    private List<Guid> additionalPlaylistIds = [];
+    private bool currentSongLoaded;
+
+    private string ActiveHelpTopic => _activeTabIndex switch
+    {
+        1 => "banned-songs",
+        2 => "song-cooldowns",
+        _ => "playlists"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        SetTabFromUri(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+
+        musicPlaylists = await YtPlayer.Playlists();
+        currentPlayList = await YtPlayer.CurrentPlaylist();
+        currentSong = YtPlayer.GetCurrentSong();
+        defaultPlaylistId = await YtPlayer.GetDefaultPlaylistId();
+        additionalPlaylistIds = await YtPlayer.GetAdditionalPlaylistIds();
+        songRequests = await YtPlayer.GetRequestedSongs();
+        currentSongLoaded = true;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _hubSubscriptions.Add(HubEventBus.On<Song?>(HubNames.YtHub, "CurrentSongUpdate", (song) =>
+        {
+            currentSong = song;
+            currentSongLoaded = true;
+            _ = InvokeAsync(StateHasChanged);
+        }));
+
+        _hubSubscriptions.Add(HubEventBus.On<MusicPlaylist>(HubNames.YtHub, "UpdateCurrentPlaylist", (playlist) =>
+        {
+            currentPlayList = playlist;
+            _ = InvokeAsync(StateHasChanged);
+        }));
+
+        _hubSubscriptions.Add(HubEventBus.On<List<Song>>(HubNames.YtHub, "CurrentSongRequests", (playlist) =>
+        {
+            songRequests = playlist;
+            _ = InvokeAsync(StateHasChanged);
+        }));
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        SetTabFromUri(e.Location);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void SetTabFromUri(string uri)
+    {
+        var relative = NavigationManager.ToBaseRelativePath(uri).TrimStart('/').ToLowerInvariant();
+        if (relative.StartsWith("bannedsongs"))
+        {
+            _activeTabIndex = 1;
+        }
+        else if (relative.StartsWith("songcooldowns"))
+        {
+            _activeTabIndex = 2;
+        }
+        else
+        {
+            _activeTabIndex = 0;
+        }
+    }
+
+    private void ViewList(MusicPlaylist musicPlaylist)
+    {
+        NavigationManager.NavigateTo($"/viewplaylist/{musicPlaylist.Id}");
+    }
+
+    private async Task SetDefaultPlaylist(MusicPlaylist musicPlaylist)
+    {
+        if (musicPlaylist != null && musicPlaylist.Id != Guid.Empty)
+        {
+            var newDefaultId = musicPlaylist.Id;
+            additionalPlaylistIds.Remove(newDefaultId);
+            await YtPlayer.SetPlaylists(newDefaultId, additionalPlaylistIds);
+            defaultPlaylistId = newDefaultId;
+            currentPlayList = await YtPlayer.CurrentPlaylist();
+        }
+    }
+
+    private async Task ToggleAdditionalPlaylist((MusicPlaylist, bool) args)
+    {
+        var (playlist, isChecked) = args;
+        if (playlist == null || playlist.Id == Guid.Empty || defaultPlaylistId == playlist.Id) return;
+        if (defaultPlaylistId == null)
+        {
+            Snackbar.Add("Set a default playlist before enabling additional playlists.", Severity.Warning);
+            return;
+        }
+        if (isChecked)
+        {
+            if (!additionalPlaylistIds.Contains(playlist.Id))
+                additionalPlaylistIds.Add(playlist.Id);
+        }
+        else
+        {
+            additionalPlaylistIds.Remove(playlist.Id);
+        }
+        await YtPlayer.SetPlaylists(defaultPlaylistId, additionalPlaylistIds);
+        currentPlayList = await YtPlayer.CurrentPlaylist();
+    }
+
+    private async Task RefreshUnplayedSongs()
+    {
+        await YtPlayer.RefreshUnplayedSongs();
+        currentPlayList = await YtPlayer.CurrentPlaylist();
+    }
+
+    private async Task CreateBlankPlaylist()
+    {
+        var parameters = new DialogParameters<CreatePlaylistDialog>();
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreatePlaylistDialog>("Create New Playlist", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled && result.Data is string playlistName)
+        {
+            try
+            {
+                await YtPlayer.CreatePlaylist(playlistName);
+                musicPlaylists = await YtPlayer.Playlists();
+                Snackbar.Add($"Playlist '{playlistName}' created.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to create playlist");
+                Snackbar.Add("Failed to create playlist.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task Priority(Song song)
+    {
+        await YtPlayer.MoveSongToNext(song.SongId);
+    }
+
+    private async Task QueueSong(Song song)
+    {
+        await YtPlayer.AddSongToQueue(song);
+        Snackbar.Add($"Queued '{song.Title}'.", Severity.Success);
+    }
+
+    private async Task RemoveSong(Song song)
+    {
+        await YtPlayer.RemoveSong(song);
+    }
+
+    private async Task RemoveSongFromPlaylist((Song song, Guid playlistId) args)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Warning",
+            "Deleting can not be undone!",
+            yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await YtPlayer.RemoveSongFromPlaylist(args.song, args.playlistId);
+        }
+    }
+
+    private async Task<Dictionary<Guid, string>> GetPlaylistsForSong(Song song)
+    {
+        return await YtPlayer.GetPlaylistsContainingSong(song.SongId, null);
+    }
+
+    private async Task RemoveSongRequest(Song song)
+    {
+        await YtPlayer.RemoveSongRequest(song);
+    }
+
+    private async Task BanSongRequest(Song song)
+    {
+        var banned = await BannedSongService.BanSongAsync(song.SongId, song.Title, "Banned from music manager", "UI");
+        if (banned == null)
+        {
+            Snackbar.Add("Could not resolve a YouTube video id for that song.", Severity.Error);
+            return;
+        }
+
+        await YtPlayer.RemoveSongRequest(song);
+        Snackbar.Add($"Banned '{song.Title}'.", Severity.Success);
+    }
+
+    private async Task BanCurrentSong()
+    {
+        if (currentSong == null) return;
+        var banned = await BannedSongService.BanSongAsync(currentSong.SongId, currentSong.Title, "Banned from music manager", "UI");
+        if (banned == null)
+        {
+            Snackbar.Add("Could not resolve a YouTube video id for that song.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Banned '{currentSong.Title}'.", Severity.Success);
+    }
+
+    private async Task AddSongRequest()
+    {
+        if (string.IsNullOrWhiteSpace(addSongUrl)) return;
+        await YtPlayer.AddSongToRequests(addSongUrl);
+        addSongUrl = "";
+    }
+
+    private async Task StealSong()
+    {
+        await YtPlayer.StealCurrentSong();
+    }
+
+    private async Task AddCurrentSongToCooldown()
+    {
+        if (currentSong == null) return;
+        var settings = await SongCooldownService.GetSettingsAsync();
+        await SongCooldownService.AddCooldownAsync(currentSong.SongId, currentSong.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Music Manager UI");
+        Snackbar.Add($"Added '{currentSong.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
+    }
+
+    private async Task DeletePlaylist(MusicPlaylist playlist)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Delete Playlist",
+            $"Are you sure you want to delete '{playlist.Name}'? This cannot be undone!",
+            yesText: "Delete", cancelText: "Cancel");
+        if (result != null && playlist.Id != Guid.Empty)
+        {
+            await YtPlayer.DeletePlaylist(playlist.Id);
+            musicPlaylists = await YtPlayer.Playlists();
+            Snackbar.Add($"Playlist '{playlist.Name}' deleted.", Severity.Success);
+        }
+    }
+
+    private async Task ImportFromYouTube()
+    {
+        var parameters = new DialogParameters<ImportYouTubePlaylistDialog>();
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ImportYouTubePlaylistDialog>("Import YouTube Playlist", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is (string playlistName, string youtubeUrl))
+        {
+            try
+            {
+                Snackbar.Add($"Importing YouTube playlist into '{playlistName}'...", Severity.Info);
+                var imported = await YtPlayer.ImportYouTubePlaylist(playlistName, youtubeUrl);
+                musicPlaylists = await YtPlayer.Playlists();
+                Snackbar.Add($"Imported {imported} new songs into '{playlistName}'.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to import YouTube playlist from UI");
+                Snackbar.Add("Failed to import YouTube playlist. Please try again.", Severity.Error);
+            }
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+        foreach (var subscription in _hubSubscriptions)
+        {
+            subscription.Dispose();
+        }
+        _hubSubscriptions.Clear();
+        return ValueTask.CompletedTask;
+    }
+}

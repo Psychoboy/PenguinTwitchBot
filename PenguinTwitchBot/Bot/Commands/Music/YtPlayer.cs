@@ -736,18 +736,31 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.SendChatMessage("Song is already in the list.");
                 return;
             }
-            var songToSteel = CurrentSong.CreateDeepCopy();
-            songToSteel.Id = Guid.Empty;
-            songToSteel.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
-            songToSteel.MusicPlaylistId = BackupPlaylist.Id;
-            BackupPlaylist.Songs.Add(songToSteel);
+            await StealSong(CurrentSong);
+        }
+
+        public async Task<bool> StealSong(Song? song)
+        {
+            if (song == null) return false;
+            if (BackupPlaylist.Id == Guid.Empty) return false;
+            if (BackupPlaylist.Songs.Any(x => x.SongId.Equals(song.SongId)))
+            {
+                return false;
+            }
+            var songToSteal = song.CreateDeepCopy();
+            songToSteal.Id = Guid.Empty;
+            songToSteal.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
+            songToSteal.MusicPlaylistId = BackupPlaylist.Id;
+            BackupPlaylist.Songs.Add(songToSteal);
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                db.Songs.Add(songToSteel);
+                db.Songs.Add(songToSteal);
                 await db.SaveChangesAsync();
             }
+            UpdateUnplayedSongs();
             await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+            return true;
         }
 
         private async Task WrongSong(CommandEventArgs e)
