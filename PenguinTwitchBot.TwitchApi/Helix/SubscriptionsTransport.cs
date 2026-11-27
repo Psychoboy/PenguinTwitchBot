@@ -59,7 +59,13 @@ public sealed class SubscriptionsTransport : ISubscriptionsTransport
         return new Subscription(
             UserId: source.UserId,
             UserLogin: source.UserLogin,
-            UserName: source.UserName);
+            UserName: source.UserName,
+            Tier: source.Tier ?? string.Empty,
+            IsGift: source.IsGift,
+            GifterId: source.GifterId,
+            GifterLogin: source.GifterLogin,
+            GifterName: source.GifterName,
+            PlanName: source.PlanName ?? string.Empty);
     }
 
     private sealed record GetBroadcasterSubscriptionsApiResponse(
@@ -71,5 +77,11 @@ public sealed class SubscriptionsTransport : ISubscriptionsTransport
     private sealed record SubscriptionApiItem(
         [property: JsonPropertyName("user_id")] string UserId,
         [property: JsonPropertyName("user_login")] string UserLogin,
-        [property: JsonPropertyName("user_name")] string UserName);
+        [property: JsonPropertyName("user_name")] string UserName,
+        [property: JsonPropertyName("tier")] string? Tier = null,
+        [property: JsonPropertyName("is_gift")] bool IsGift = false,
+        [property: JsonPropertyName("gifter_id")] string? GifterId = null,
+        [property: JsonPropertyName("gifter_login")] string? GifterLogin = null,
+        [property: JsonPropertyName("gifter_name")] string? GifterName = null,
+        [property: JsonPropertyName("plan_name")] string? PlanName = null);
 }

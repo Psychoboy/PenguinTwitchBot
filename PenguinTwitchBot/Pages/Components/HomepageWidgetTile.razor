@@ -40,6 +40,13 @@ else if (Widget.Type == HomepageWidgetCatalog.Counters)
 {
     <HomepageCountersWidget Widget="Widget" IsStreamer="IsStreamer" />
 }
+else if (Widget.Type == HomepageWidgetCatalog.TopSubscribers)
+{
+    <TopSubscribersCard Title="@(string.IsNullOrWhiteSpace(Widget.Title) ? "Top Subscribers" : Widget.Title)"
+                        Mode="@(string.IsNullOrWhiteSpace(Widget.SubscriberMetricMode) ? "toggle" : Widget.SubscriberMetricMode)"
+                        Limit="10"
+                        ShowViewAllLink="true" />
+}
 else
 {
     <MudPaper Class="pa-4" Elevation="3">

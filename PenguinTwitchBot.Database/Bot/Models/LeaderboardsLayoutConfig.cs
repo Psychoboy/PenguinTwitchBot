@@ -46,6 +46,9 @@ public static class LeaderboardsWidgetCatalog
     public const string PointLeaderboard = "point-leaderboard";
     public const string Loudest = "loudest";
     public const string WatchedTime = "watched-time";
+    public const string TopSubscribersTotal = "top-subscribers-total";
+    public const string TopSubscribersStreak = "top-subscribers-streak";
+    public const string TopSubscribers = "top-subscribers";
 
     public static readonly IReadOnlyList<LeaderboardWidgetDefinition> Definitions =
     [
@@ -64,6 +67,21 @@ public static class LeaderboardsWidgetCatalog
             WatchedTime,
             "Watched Time",
             "Shows the viewers with the most watched time.",
+            supportsTitle: true),
+        new LeaderboardWidgetDefinition(
+            TopSubscribersTotal,
+            "Top Subscribers (Total Months)",
+            "Shows the top 10 current subscribers by total cumulative months.",
+            supportsTitle: true),
+        new LeaderboardWidgetDefinition(
+            TopSubscribersStreak,
+            "Top Subscribers (Consecutive Months)",
+            "Shows the top 10 current subscribers by consecutive months.",
+            supportsTitle: true),
+        new LeaderboardWidgetDefinition(
+            TopSubscribers,
+            "Top Subscribers (Total / Consecutive Toggle)",
+            "Shows the top 10 current subscribers with a toggle between total and consecutive months.",
             supportsTitle: true),
     ];
 
@@ -86,6 +104,21 @@ public static class LeaderboardsWidgetCatalog
             {
                 Type = WatchedTime,
                 Title = defaultTitle ?? "Watched Time"
+            },
+            TopSubscribersTotal => new LeaderboardWidgetConfig
+            {
+                Type = TopSubscribersTotal,
+                Title = defaultTitle ?? "Top Subscribers (Total Months)"
+            },
+            TopSubscribersStreak => new LeaderboardWidgetConfig
+            {
+                Type = TopSubscribersStreak,
+                Title = defaultTitle ?? "Top Subscribers (Consecutive Months)"
+            },
+            TopSubscribers => new LeaderboardWidgetConfig
+            {
+                Type = TopSubscribers,
+                Title = defaultTitle ?? "Top Subscribers"
             },
             _ => new LeaderboardWidgetConfig { Type = type, Title = defaultTitle }
         };

@@ -124,8 +124,9 @@
                 <MudNavLink Icon="@Icons.Material.Filled.ViewList" Href="/actions/queues" Match="NavLinkMatch.Prefix">Queues</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.History" Href="/actions/history" Match="NavLinkMatch.Prefix">History</MudNavLink>
             </MudNavGroup>
-            <MudNavGroup Icon="@Icons.Material.Filled.Group" Title="Community" Expanded="@GetGroupExpanded("community", "community/viewers", "community/connected-viewers", "community/auto-shoutouts", "community/known-bots", "community/quotes", "blacklist")">
+            <MudNavGroup Icon="@Icons.Material.Filled.Group" Title="Community" Expanded="@GetGroupExpanded("community", "community/viewers", "community/subscribers", "community/connected-viewers", "community/auto-shoutouts", "community/known-bots", "community/quotes", "blacklist")">
                 <MudNavLink Icon="@Icons.Material.Filled.People" Href="/community/viewers" Match="NavLinkMatch.Prefix">Viewers</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.CardMembership" Href="/community/subscribers" Match="NavLinkMatch.Prefix">Subscribers</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.ConnectWithoutContact" Href="/community/connected-viewers" Match="NavLinkMatch.Prefix">Connected Viewers</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Campaign" Href="/community/auto-shoutouts" Match="NavLinkMatch.Prefix">Auto Shoutouts</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.FmdBad" Href="/community/known-bots" Match="NavLinkMatch.Prefix">Known Bots</MudNavLink>
@@ -403,6 +404,7 @@
             CreateQuickLink("Queues", "/actions/queues", Icons.Material.Filled.ViewList, "Actions", "automation"),
             CreateQuickLink("Blacklist", "/blacklist", Icons.Material.Filled.Block, "Community", "moderation"),
             CreateQuickLink("Viewers", "/community/viewers", Icons.Material.Filled.People, "Community"),
+            CreateQuickLink("Subscribers", "/community/subscribers", Icons.Material.Filled.CardMembership, "Community", "subs current past leaderboard months"),
             CreateQuickLink("Connected Viewers", "/community/connected-viewers", Icons.Material.Filled.ConnectWithoutContact, "Community", "current users"),
             CreateQuickLink("Auto Shoutouts", "/community/auto-shoutouts", Icons.Material.Filled.Campaign, "Community", "shoutouts"),
             CreateQuickLink("Known Bots", "/community/known-bots", Icons.Material.Filled.FmdBad, "Community"),

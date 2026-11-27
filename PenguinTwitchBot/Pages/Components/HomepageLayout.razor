@@ -113,6 +113,15 @@ else
                                             <MudNumericField T="int?" Label="Months to Include" Min="0" @bind-Value="widget.Months" />
                                         }
 
+                                        @if (widget.Type == HomepageWidgetCatalog.TopSubscribers)
+                                        {
+                                            <MudSelect T="string" Label="Ranking Mode" Dense="true" @bind-Value="widget.SubscriberMetricMode">
+                                                <MudSelectItem Value="@("toggle")">Viewer Toggle (Total / Consecutive)</MudSelectItem>
+                                                <MudSelectItem Value="@("total")">Total Months Only</MudSelectItem>
+                                                <MudSelectItem Value="@("consecutive")">Consecutive Months Only</MudSelectItem>
+                                            </MudSelect>
+                                        }
+
                                         @if (widget.Type == HomepageWidgetCatalog.Counters)
                                         {
                                             <MudDivider Class="my-2" />

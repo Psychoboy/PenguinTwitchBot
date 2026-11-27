@@ -17,6 +17,11 @@ public sealed class HomepageWidgetConfig
 
     public int? Months { get; set; }
 
+    /// <summary>
+    /// For TopSubscribers widget: "toggle", "total", or "consecutive".
+    /// </summary>
+    public string? SubscriberMetricMode { get; set; }
+
     public List<HomepageCounterItemConfig> Counters { get; set; } = [];
 }
 
@@ -72,6 +77,7 @@ public static class HomepageWidgetCatalog
     public const string SongRequests = "song-requests";
     public const string TopRequestedSongs = "top-requested-songs";
     public const string Counters = "counters";
+    public const string TopSubscribers = "top-subscribers";
 
     public static readonly IReadOnlyList<HomepageWidgetDefinition> Definitions =
     [
@@ -104,6 +110,12 @@ public static class HomepageWidgetCatalog
             Counters,
             "Counters",
             "Displays one or more counters with quick controls for the streamer.",
+            supportsTitle: true,
+            streamerOnly: false),
+        new HomepageWidgetDefinition(
+            TopSubscribers,
+            "Top Subscribers",
+            "Shows the top 10 current subscribers by total or consecutive months.",
             supportsTitle: true,
             streamerOnly: false),
     ];
@@ -145,6 +157,12 @@ public static class HomepageWidgetCatalog
                 Title = "Counters",
                 Counters = []
             },
+            TopSubscribers => new HomepageWidgetConfig
+            {
+                Type = TopSubscribers,
+                Title = "Top Subscribers",
+                SubscriberMetricMode = "toggle"
+            },
             _ => new HomepageWidgetConfig { Type = type }
         };
     }
@@ -179,6 +197,11 @@ public static class HomepageWidgetCatalog
             ? Giveaway
             : normalized.Type.Trim();
         normalized.Title = string.IsNullOrWhiteSpace(normalized.Title) ? null : normalized.Title.Trim();
+        if (string.Equals(normalized.Type, TopSubscribers, StringComparison.OrdinalIgnoreCase))
+        {
+            var mode = (normalized.SubscriberMetricMode ?? "toggle").Trim().ToLowerInvariant();
+            normalized.SubscriberMetricMode = mode is "total" or "consecutive" or "toggle" ? mode : "toggle";
+        }
         normalized.Counters = normalized.Counters?
             .Where(c => !string.IsNullOrWhiteSpace(c.CounterName) || string.Equals(c.CounterType, "death", StringComparison.OrdinalIgnoreCase))
             .Select(c => new HomepageCounterItemConfig

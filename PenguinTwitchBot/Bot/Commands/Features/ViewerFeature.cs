@@ -477,69 +477,9 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         {
             try
             {
-                var subscribers = await _twitchService.GetAllSubscriptions();
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    foreach (var subscriber in subscribers.DistinctBy(x => x.UserLogin))
-                    {
-                        try
-                        {
-                            var viewer = await GetViewerByUserId(subscriber.UserId);
-                            viewer ??= new Viewer
-                            {
-                                UserId = subscriber.UserId
-                            };
-
-                            if (viewer.isSub == false)
-                            {
-                                _logger.LogWarning("{name} was not a subscriber and is being updated manually bulk.", viewer.Username);
-                            }
-                            viewer.Username = UsernameNormalizer.Normalize(subscriber.UserLogin);
-                            viewer.DisplayName = subscriber.UserName;
-                            viewer.isSub = true;
-                            if (viewer.Id == Guid.Empty) await UpdateViewer(viewer);
-                            else db.Viewers.Update(viewer);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Failed updating subscription for {userlogin}", subscriber.UserLogin);
-                        }
-                    }
-                    await db.SaveChangesAsync();
-                }
-
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var subTracker = scope.ServiceProvider.GetRequiredService<ISubscriptionTracker>();
-                    var missingNames = await subTracker.MissingSubs(subscribers.Select(x => UsernameNormalizer.Normalize(x.UserLogin)));
-                    foreach (var missingName in missingNames)
-                    {
-                        var viewer = await _twitchService.GetUserByName(missingName);
-                        if(viewer == null)
-                        {
-                            _logger.LogWarning("Viewer doesn't exist: {name}", missingName);
-                            continue;
-                        }
-                        await subTracker.AddOrUpdateSubHistory(missingName, viewer.Id);
-                    }
-                }
-
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var curSubscribers = await db.Viewers.Find(x => x.isSub == true).ToListAsync();
-                    foreach (var curSubscriber in curSubscribers)
-                    {
-                        if (!subscribers.Exists(x => UsernameNormalizer.Normalize(x.UserLogin).Equals(curSubscriber.Username)))
-                        {
-                            _logger.LogInformation("Removing Subscriber {name}", curSubscriber.Username);
-                            curSubscriber.isSub = false;
-                            db.Viewers.Update(curSubscriber);
-                        }
-                    }
-                    await db.SaveChangesAsync();
-                }
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var subTracker = scope.ServiceProvider.GetRequiredService<ISubscriptionTracker>();
+                await subTracker.SyncSubscribersFromTwitchAsync();
             }
             catch (Exception ex)
             {

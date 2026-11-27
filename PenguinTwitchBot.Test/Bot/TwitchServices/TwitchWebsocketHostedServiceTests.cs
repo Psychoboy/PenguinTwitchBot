@@ -576,6 +576,8 @@ public class TwitchWebsocketHostedServiceTests
         _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         _subscriptionHistory.ExistingSub("testuser").Returns(false);
         await _service.OnChannelSubscription(this, CreateChannelSubscribeArgs());
+        await _subscriptionHistory.Received(1).RecordSubscriptionAsync(
+            "uid-1", "testuser", Arg.Any<string>(), Arg.Any<string>(), false, null, null, null, false, Arg.Any<CancellationToken>());
         await _eventService.Received(1).OnSubscription(Arg.Is<SubscriptionEventArgs>(e =>
             e.Name == "testuser" && e.UserId == "uid-1" && e.IsGift == false));
         await _twitchEventActionHandler.Received(1).HandleSubscribeAsync(Arg.Any<SubscriptionEventArgs>());
@@ -587,7 +589,8 @@ public class TwitchWebsocketHostedServiceTests
         _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         _subscriptionHistory.ExistingSub("testuser").Returns(false);
         await _service.OnChannelSubscriptionRenewal(this, CreateChannelSubscriptionRenewalArgs());
-        await _subscriptionHistory.Received(1).AddOrUpdateSubHistory("testuser", "uid-1");
+        await _subscriptionHistory.Received(1).RecordSubscriptionAsync(
+            "uid-1", "testuser", Arg.Any<string>(), Arg.Any<string>(), false, null, 12, 6, true, Arg.Any<CancellationToken>());
         await _eventService.Received(1).OnSubscription(Arg.Is<SubscriptionEventArgs>(e =>
             e.Name == "testuser" && e.Count == 12 && e.Streak == 6 && e.IsRenewal == true));
         await _twitchEventActionHandler.Received(1).HandleSubscribeAsync(Arg.Any<SubscriptionEventArgs>());
@@ -608,6 +611,7 @@ public class TwitchWebsocketHostedServiceTests
     {
         _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelSubscriptionEnd(this, CreateChannelSubscriptionEndArgs());
+        await _subscriptionHistory.Received(1).RecordSubscriptionEndAsync("uid-1", "testuser", Arg.Any<CancellationToken>());
         await _eventService.Received(1).OnSubscriptionEnd("testuser", "uid-1");
         await _twitchEventActionHandler.Received(1).HandleSubscriptionEndAsync(Arg.Is<SubscriptionEndEventArgs>(e =>
             e.Name == "testuser" && e.UserId == "uid-1"));

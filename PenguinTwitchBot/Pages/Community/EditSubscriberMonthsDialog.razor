@@ -1,0 +1,82 @@
+@using MudBlazor
+@using PenguinTwitchBot.Bot.Core
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Class="pt-1">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Adjust tracked subscription months for <strong>@DisplayName</strong> (@@@Username).
+                Twitch does not return month counts from the bulk subscriber list, so this lets you backfill or correct values before their next resub or chat message.
+            </MudText>
+
+            <MudNumericField T="int"
+                             Label="Total Cumulative Months"
+                             @bind-Value="_totalMonths"
+                             Min="0"
+                             Max="1000"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense"
+                             HelperText="0 = unknown" />
+
+            <MudNumericField T="int"
+                             Label="Consecutive Months (Streak)"
+                             @bind-Value="_consecutiveMonths"
+                             Min="0"
+                             Max="1000"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense"
+                             HelperText="0 = unknown or streak ended" />
+
+            @if (_consecutiveMonths > _totalMonths)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Text" Dense="true">
+                    Total months will be raised to @_consecutiveMonths so it is at least equal to consecutive months.
+                </MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public string Username { get; set; } = string.Empty;
+
+    [Parameter]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [Parameter]
+    public int TotalMonths { get; set; }
+
+    [Parameter]
+    public int ConsecutiveMonths { get; set; }
+
+    private int _totalMonths;
+    private int _consecutiveMonths;
+
+    public sealed record EditSubscriberMonthsResult(int TotalMonths, int ConsecutiveMonths);
+
+    protected override void OnInitialized()
+    {
+        _totalMonths = Math.Max(0, TotalMonths);
+        _consecutiveMonths = Math.Max(0, ConsecutiveMonths);
+    }
+
+    private void Submit()
+    {
+        var safeConsecutive = Math.Max(0, _consecutiveMonths);
+        var safeTotal = Math.Max(Math.Max(0, _totalMonths), safeConsecutive);
+        MudDialog.Close(DialogResult.Ok(new EditSubscriberMonthsResult(safeTotal, safeConsecutive)));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

@@ -157,33 +157,57 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         public async Task<List<Subscription>> GetAllSubscriptions()
         {
-            if(!await ValidateAndRefreshToken())
+            var snapshot = await GetBroadcasterSubscriptionsSnapshotAsync();
+            return snapshot.Subscriptions;
+        }
+
+        public async Task<BroadcasterSubscriptionsSnapshot> GetBroadcasterSubscriptionsSnapshotAsync(CancellationToken cancellationToken = default)
+        {
+            if (!await ValidateAndRefreshToken())
             {
                 _logger.LogError("Failed to refresh token");
                 throw new InvalidOperationException("Failed to refresh token");
             }
-            var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
+            var userId = await GetBroadcasterUserId() ?? throw new InvalidOperationException("Error getting broadcaster user id.");
             List<Subscription> subs = [];
-            var after = "";
+            string? after = null;
+            var seenCursors = new HashSet<string>(StringComparer.Ordinal);
+            var total = 0;
+            var points = 0;
+
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var curSubs = await _subscriptionsClient.GetBroadcasterSubscriptionsAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     userId,
                     100,
                     after);
-                if (curSubs != null)
+                if (curSubs == null)
                 {
-                    subs.AddRange(curSubs.Data);
-                    if (string.IsNullOrEmpty(curSubs.Cursor))
-                    {
-                        break;
-                    }
-                    after = curSubs.Cursor;
+                    break;
                 }
+
+                subs.AddRange(curSubs.Data);
+                total = curSubs.Total;
+                points = curSubs.Points;
+
+                if (string.IsNullOrEmpty(curSubs.Cursor))
+                {
+                    break;
+                }
+
+                if (!seenCursors.Add(curSubs.Cursor))
+                {
+                    throw new InvalidOperationException($"Twitch subscription pagination returned a repeated cursor ('{curSubs.Cursor}').");
+                }
+
+                after = curSubs.Cursor;
             }
-            return subs;
+
+            return new BroadcasterSubscriptionsSnapshot(subs, total, points);
         }
 
         public async Task<List<Follower>> GetAllFollowersAsync(

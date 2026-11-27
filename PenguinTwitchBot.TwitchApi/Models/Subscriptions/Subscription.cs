@@ -6,4 +6,10 @@ namespace PenguinTwitchBot.TwitchApi.Models.Subscriptions;
 public record Subscription(
     string UserId,
     string UserLogin,
-    string UserName);
+    string UserName,
+    string Tier = "",
+    bool IsGift = false,
+    string? GifterId = null,
+    string? GifterLogin = null,
+    string? GifterName = null,
+    string PlanName = "");

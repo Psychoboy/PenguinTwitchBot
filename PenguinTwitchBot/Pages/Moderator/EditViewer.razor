@@ -242,6 +242,23 @@
                                                         }
                                                     </td>
                                                 </tr>
+                                                @if (viewer.SubHistory != null)
+                                                {
+                                                    <tr>
+                                                        <td><strong>Subscription Months</strong></td>
+                                                        <td>
+                                                            @(viewer.SubHistory.TotalMonths > 0 ? $"{viewer.SubHistory.TotalMonths} total" : "Unknown total")
+                                                            @if (viewer.SubHistory.ConsecutiveMonths > 0)
+                                                            {
+                                                                <span> (@viewer.SubHistory.ConsecutiveMonths consecutive)</span>
+                                                            }
+                                                            @if (!string.IsNullOrWhiteSpace(viewer.SubHistory.Tier))
+                                                            {
+                                                                <span> &middot; @FormatTier(viewer.SubHistory.Tier)</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
                                                 <tr>
                                                     <td><strong>Last Seen</strong></td>
                                                     <td><ToLocal DateTime="@viewer.Viewer.LastSeen" /></td>
@@ -412,6 +429,7 @@
         public PenguinTwitchBot.Database.Bot.Models.Viewer? Viewer { get; set; }
         public DateTime FollowDated { get; set; }
         public DateTime? LastSub { get; set; }
+        public SubscriptionHistory? SubHistory { get; set; }
         public DateTime? DateCreated { get; set; }
         public ViewerMessageCountWithRank? Messages { get; set; }
         public List<ViewerPointRanking> PointRankings { get; set; } = [];
@@ -461,7 +479,8 @@
                 {
                     viewer.WatchedTime = StaticTools.ConvertToCompoundDuration((long)viewer.Time.Time);
                 }
-                viewer.LastSub = await subTracker.LastSub(viewer.Viewer.Username);
+                viewer.SubHistory = await subTracker.GetSubHistoryAsync(viewer.Viewer.Username, viewer.Viewer.UserId);
+                viewer.LastSub = viewer.SubHistory?.LastSub ?? await subTracker.LastSub(viewer.Viewer.Username);
                 IpLogs = await ipLogFeature.GetIpLogsForUser(viewer.Viewer.Username, viewer.Viewer.UserId);
                 OtherIpLogs = await ipLogFeature.GetDuplicateIpsForUser(viewer.Viewer.Username, viewer.Viewer.UserId);
             }
@@ -523,4 +542,12 @@
     {
         return $"/community/viewers/edit?name={Uri.EscapeDataString(parameter)}";
     }
+
+    private static string FormatTier(string tier) => tier switch
+    {
+        "1000" => "Tier 1",
+        "2000" => "Tier 2",
+        "3000" => "Tier 3",
+        _ => tier
+    };
 }
