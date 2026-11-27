@@ -21,6 +21,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IFollowTracker? _followTracker;
+        private readonly ISubscriptionTracker? _subscriptionTracker;
         private readonly Timer _subscriberUpdateTimer = new(TimeSpan.FromHours(1).TotalMilliseconds);
         private readonly Timer _chatterUpdateTimer = new(TimeSpan.FromMinutes(2).TotalMilliseconds);
         private static readonly Prometheus.Gauge ActiveViewers = Prometheus.Metrics.CreateGauge("active_viewers", "Current active viewers in chat");
@@ -33,7 +34,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             IServiceScopeFactory scopeFactory,
             Application.Notifications.IPenguinDispatcher dispatcher,
             ICommandHandler commandHandler,
-            IFollowTracker? followTracker = null
+            IFollowTracker? followTracker = null,
+            ISubscriptionTracker? subscriptionTracker = null
             ) : base(serviceBackbone, commandHandler, "ViewerFeature", dispatcher)
         {
             _logger = logger;
@@ -47,6 +49,11 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
             _followTracker = followTracker;
+            _subscriptionTracker = subscriptionTracker;
+            if (_subscriptionTracker != null)
+            {
+                _subscriptionTracker.SyncStateChanged += OnSubscriptionSyncStateChanged;
+            }
 
             _subscriberUpdateTimer.Elapsed += OnSubscriberTimerElapsed;
             _subscriberUpdateTimer.Start();
@@ -386,7 +393,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         {
             if (e.Name == null) return;
             _logger.LogInformation("{name} Subscribed.", e.Name);
-            await AddSubscription(e.Name);
+            await AddSubscription(e.UserId, e.Name, e.DisplayName);
             UpdateLastActive(e.Name);
         }
 
@@ -394,27 +401,68 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         {
             if (e.Name == null) return;
             _logger.LogInformation("{name} Unsubscribed", e.Name);
-            await RemoveSubscription(e.Name);
+            await RemoveSubscription(e.UserId, e.Name);
         }
 
-        private async Task AddSubscription(string username)
+        private async Task AddSubscription(string? userId, string username, string? displayName)
         {
+            var normalized = UsernameNormalizer.Normalize(username);
+            _viewerCache.TryRemove(normalized, out _);
             _viewerCache.TryRemove(username, out _);
-            var viewer = await GetViewerByUserName(username);
-            if (viewer == null) return;
-            viewer.isSub = true;
+
+            Viewer? viewer = null;
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                viewer = await GetViewerByUserId(userId);
+            }
+            viewer ??= await GetViewerByUserName(normalized);
+
+            if (viewer == null)
+            {
+                if (string.IsNullOrWhiteSpace(userId))
+                {
+                    return;
+                }
+
+                viewer = new Viewer
+                {
+                    UserId = userId,
+                    Username = normalized,
+                    DisplayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName,
+                    isSub = true,
+                    LastSeen = DateTime.UtcNow
+                };
+            }
+            else
+            {
+                viewer.isSub = true;
+                if (!string.IsNullOrWhiteSpace(displayName))
+                {
+                    viewer.DisplayName = displayName;
+                }
+            }
+
             await UpdateViewer(viewer);
-            _logger.LogInformation("{name} Subscription added.", username);
+            _logger.LogInformation("{name} Subscription added.", normalized);
         }
 
-        private async Task RemoveSubscription(string username)
+        private async Task RemoveSubscription(string? userId, string username)
         {
+            var normalized = UsernameNormalizer.Normalize(username);
+            _viewerCache.TryRemove(normalized, out _);
             _viewerCache.TryRemove(username, out _);
-            var viewer = await GetViewerByUserName(username);
+
+            Viewer? viewer = null;
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                viewer = await GetViewerByUserId(userId);
+            }
+            viewer ??= await GetViewerByUserName(normalized);
+
             if (viewer == null) return;
             viewer.isSub = false;
             await UpdateViewer(viewer);
-            _logger.LogInformation("{name} Subscription removed.", username);
+            _logger.LogInformation("{name} Subscription removed.", normalized);
         }
 
         private Task OnCheer(object? sender, CheerEventArgs e)
@@ -477,69 +525,9 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         {
             try
             {
-                var subscribers = await _twitchService.GetAllSubscriptions();
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    foreach (var subscriber in subscribers.DistinctBy(x => x.UserLogin))
-                    {
-                        try
-                        {
-                            var viewer = await GetViewerByUserId(subscriber.UserId);
-                            viewer ??= new Viewer
-                            {
-                                UserId = subscriber.UserId
-                            };
-
-                            if (viewer.isSub == false)
-                            {
-                                _logger.LogWarning("{name} was not a subscriber and is being updated manually bulk.", viewer.Username);
-                            }
-                            viewer.Username = UsernameNormalizer.Normalize(subscriber.UserLogin);
-                            viewer.DisplayName = subscriber.UserName;
-                            viewer.isSub = true;
-                            if (viewer.Id == Guid.Empty) await UpdateViewer(viewer);
-                            else db.Viewers.Update(viewer);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Failed updating subscription for {userlogin}", subscriber.UserLogin);
-                        }
-                    }
-                    await db.SaveChangesAsync();
-                }
-
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var subTracker = scope.ServiceProvider.GetRequiredService<ISubscriptionTracker>();
-                    var missingNames = await subTracker.MissingSubs(subscribers.Select(x => UsernameNormalizer.Normalize(x.UserLogin)));
-                    foreach (var missingName in missingNames)
-                    {
-                        var viewer = await _twitchService.GetUserByName(missingName);
-                        if(viewer == null)
-                        {
-                            _logger.LogWarning("Viewer doesn't exist: {name}", missingName);
-                            continue;
-                        }
-                        await subTracker.AddOrUpdateSubHistory(missingName, viewer.Id);
-                    }
-                }
-
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var curSubscribers = await db.Viewers.Find(x => x.isSub == true).ToListAsync();
-                    foreach (var curSubscriber in curSubscribers)
-                    {
-                        if (!subscribers.Exists(x => UsernameNormalizer.Normalize(x.UserLogin).Equals(curSubscriber.Username)))
-                        {
-                            _logger.LogInformation("Removing Subscriber {name}", curSubscriber.Username);
-                            curSubscriber.isSub = false;
-                            db.Viewers.Update(curSubscriber);
-                        }
-                    }
-                    await db.SaveChangesAsync();
-                }
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var subTracker = scope.ServiceProvider.GetRequiredService<ISubscriptionTracker>();
+                await subTracker.SyncSubscribersFromTwitchAsync();
             }
             catch (Exception ex)
             {
@@ -653,8 +641,20 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            if (_subscriptionTracker != null)
+            {
+                _subscriptionTracker.SyncStateChanged -= OnSubscriptionSyncStateChanged;
+            }
             _logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
+        }
+
+        private void OnSubscriptionSyncStateChanged()
+        {
+            if (_subscriptionTracker is { IsSyncInProgress: false })
+            {
+                _viewerCache.Clear();
+            }
         }
 
     }

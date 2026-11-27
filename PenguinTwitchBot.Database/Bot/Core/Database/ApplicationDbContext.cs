@@ -477,6 +477,42 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .IsDescending(true, false)
                 .HasDatabaseName("IX_Followers_FollowDate_Username");
 
+            // SubscriptionHistory normalization and query indexes
+            modelBuilder.Entity<SubscriptionHistory>()
+                .Property(s => s.Username)
+                .HasMaxLength(255)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            modelBuilder.Entity<SubscriptionHistory>()
+                .Property(s => s.DisplayName)
+                .HasMaxLength(255)
+                .HasDefaultValue(string.Empty);
+
+            modelBuilder.Entity<SubscriptionHistory>()
+                .Property(s => s.Tier)
+                .HasMaxLength(16)
+                .HasDefaultValue(string.Empty);
+
+            modelBuilder.Entity<SubscriptionHistory>()
+                .Property(s => s.GifterName)
+                .HasMaxLength(255);
+
+            modelBuilder.Entity<SubscriptionHistory>()
+                .HasIndex(s => s.UserId)
+                .HasDatabaseName("IX_SubscriptionHistories_UserId");
+
+            modelBuilder.Entity<SubscriptionHistory>()
+                .HasIndex(s => new { s.IsActive, s.TotalMonths, s.Username })
+                .IsDescending(false, true, false)
+                .HasDatabaseName("IX_SubscriptionHistories_IsActive_TotalMonths");
+
+            modelBuilder.Entity<SubscriptionHistory>()
+                .HasIndex(s => new { s.IsActive, s.ConsecutiveMonths, s.Username })
+                .IsDescending(false, true, false)
+                .HasDatabaseName("IX_SubscriptionHistories_IsActive_ConsecutiveMonths");
+
             // Partial indexes for periodic subscriber/editor sync on Viewers
             modelBuilder.Entity<Viewer>()
                 .HasIndex(v => v.isSub)

@@ -24,14 +24,14 @@ internal static class HelixJson
         return new StringContent(json, Encoding.UTF8, "application/json");
     }
 
-    internal static async Task<T?> DeserializeAsync<T>(HttpResponseMessage response)
+    internal static async Task<T?> DeserializeAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken = default)
     {
-        await using var stream = await response.Content.ReadAsStreamAsync();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         if (stream.CanSeek && stream.Length == 0)
         {
             return default;
         }
 
-        return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions);
+        return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, cancellationToken);
     }
 }

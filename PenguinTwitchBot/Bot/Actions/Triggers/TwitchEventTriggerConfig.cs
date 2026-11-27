@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace PenguinTwitchBot.Bot.Actions.Triggers
@@ -44,6 +44,11 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
         /// Empty or null means ANY tier
         /// </summary>
         public List<string> SubscriptionTiers { get; set; } = new();
+
+        /// <summary>
+        /// For ChannelSubscribe - when true, ignores subscriptions received as a gift (IsGift == true).
+        /// </summary>
+        public bool ExcludeGiftedSubs { get; set; } = false;
 
         /// <summary>
         /// For ChannelSubscriptionGift - minimum gift amount
@@ -303,6 +308,15 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 {
                     return false;
                 }
+            }
+
+            // Exclude gifted subscription recipients on ChannelSubscribe when enabled
+            if (ExcludeGiftedSubs &&
+                eventVariables.TryGetValue("IsGift", out var isGiftStr) &&
+                bool.TryParse(isGiftStr, out var isGift) &&
+                isGift)
+            {
+                return false;
             }
 
             // Check gift amount range

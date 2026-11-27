@@ -10,12 +10,18 @@ using PenguinTwitchBot.TwitchApi.Models.Users;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
+    public sealed record BroadcasterSubscriptionsSnapshot(
+        List<Subscription> Subscriptions,
+        int Total,
+        int Points);
+
     public interface ITwitchService
     {
         Task Announcement(string message);
         Task<List<TwitchModels.OnlineStream>> AreStreamsOnline(List<string> userIds);
         Task<List<TwitchModels.OnlineStream>?> TryAreStreamsOnlineAsync(List<string> userIds);
         Task<List<Subscription>> GetAllSubscriptions();
+        Task<BroadcasterSubscriptionsSnapshot> GetBroadcasterSubscriptionsSnapshotAsync(CancellationToken cancellationToken = default);
         Task<List<Follower>> GetAllFollowersAsync(IProgress<Core.FollowerSyncProgress>? progress = null, CancellationToken cancellationToken = default);
         Task<string?> GetBotUserId();
         Task<string?> GetBroadcasterUserId();

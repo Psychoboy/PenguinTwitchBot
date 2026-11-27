@@ -28,20 +28,21 @@ public sealed class SubscriptionsTransport : ISubscriptionsTransport
         return new CheckUserSubscriptionResponse(subscriptions);
     }
 
-    public async Task<GetBroadcasterSubscriptionsResponse> GetBroadcasterSubscriptionsAsync(string clientId, string? accessToken, string broadcasterId, int first, string? after)
+    public async Task<GetBroadcasterSubscriptionsResponse> GetBroadcasterSubscriptionsAsync(string clientId, string? accessToken, string broadcasterId, int first, string? after, CancellationToken cancellationToken = default)
     {
         using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
         var url = BuildBroadcasterSubscriptionsUrl(broadcasterId, first, after);
-        using var response = await http.GetAsync(url);
+        using var response = await http.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var payload = await HelixJson.DeserializeAsync<GetBroadcasterSubscriptionsApiResponse>(response);
-        var subscriptions = payload?.Data.Select(MapToSubscription).ToList() ?? [];
+        var payload = await HelixJson.DeserializeAsync<GetBroadcasterSubscriptionsApiResponse>(response, cancellationToken)
+            ?? throw new InvalidOperationException("Twitch broadcaster subscriptions response payload was empty.");
+        var subscriptions = (payload.Data ?? []).Select(MapToSubscription).ToList();
         return new GetBroadcasterSubscriptionsResponse(
             Data: subscriptions,
-                Cursor: payload?.Pagination?.Cursor,
-            Total: payload?.Total ?? 0,
-            Points: payload?.Points ?? 0);
+            Cursor: payload.Pagination?.Cursor,
+            Total: payload.Total,
+            Points: payload.Points);
     }
 
     private static string BuildBroadcasterSubscriptionsUrl(string broadcasterId, int first, string? after)
@@ -59,7 +60,13 @@ public sealed class SubscriptionsTransport : ISubscriptionsTransport
         return new Subscription(
             UserId: source.UserId,
             UserLogin: source.UserLogin,
-            UserName: source.UserName);
+            UserName: source.UserName,
+            Tier: source.Tier ?? string.Empty,
+            IsGift: source.IsGift,
+            GifterId: source.GifterId,
+            GifterLogin: source.GifterLogin,
+            GifterName: source.GifterName,
+            PlanName: source.PlanName ?? string.Empty);
     }
 
     private sealed record GetBroadcasterSubscriptionsApiResponse(
@@ -71,5 +78,11 @@ public sealed class SubscriptionsTransport : ISubscriptionsTransport
     private sealed record SubscriptionApiItem(
         [property: JsonPropertyName("user_id")] string UserId,
         [property: JsonPropertyName("user_login")] string UserLogin,
-        [property: JsonPropertyName("user_name")] string UserName);
+        [property: JsonPropertyName("user_name")] string UserName,
+        [property: JsonPropertyName("tier")] string? Tier = null,
+        [property: JsonPropertyName("is_gift")] bool IsGift = false,
+        [property: JsonPropertyName("gifter_id")] string? GifterId = null,
+        [property: JsonPropertyName("gifter_login")] string? GifterLogin = null,
+        [property: JsonPropertyName("gifter_name")] string? GifterName = null,
+        [property: JsonPropertyName("plan_name")] string? PlanName = null);
 }

@@ -9,8 +9,8 @@ public sealed class SubscriptionsClient(ILogger<SubscriptionsClient> logger, ISu
         return ExecuteWithRetryAsync(() => transport.CheckUserSubscriptionAsync(clientId, accessToken, broadcasterId, userId), "check user subscription");
     }
 
-    public Task<GetBroadcasterSubscriptionsResponse> GetBroadcasterSubscriptionsAsync(string clientId, string? accessToken, string broadcasterId, int first, string? after)
+    public Task<GetBroadcasterSubscriptionsResponse> GetBroadcasterSubscriptionsAsync(string clientId, string? accessToken, string broadcasterId, int first, string? after, CancellationToken cancellationToken = default)
     {
-        return ExecuteWithRetryAsync(() => transport.GetBroadcasterSubscriptionsAsync(clientId, accessToken, broadcasterId, first, after), "fetch broadcaster subscriptions");
+        return ExecuteWithRetryAsync(() => transport.GetBroadcasterSubscriptionsAsync(clientId, accessToken, broadcasterId, first, after, cancellationToken), "fetch broadcaster subscriptions", cancellationToken);
     }
 }

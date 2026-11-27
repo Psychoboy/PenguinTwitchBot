@@ -133,7 +133,28 @@ else
                 @foreach (var widget in layout.Widgets)
                 {
                     <MudItem xs="12" sm="6" @key="widget.Id">
-                        <LeaderboardCard Widget="widget" PointTypes="PointTypes" />
+                        @if (string.Equals(widget.Type, LeaderboardsWidgetCatalog.TopSubscribersTotal, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <TopSubscribersCard Title="@(string.IsNullOrWhiteSpace(widget.Title) ? "Top Subscribers (Total Months)" : widget.Title)"
+                                                Mode="total"
+                                                Limit="10" />
+                        }
+                        else if (string.Equals(widget.Type, LeaderboardsWidgetCatalog.TopSubscribersStreak, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <TopSubscribersCard Title="@(string.IsNullOrWhiteSpace(widget.Title) ? "Top Subscribers (Consecutive Months)" : widget.Title)"
+                                                Mode="consecutive"
+                                                Limit="10" />
+                        }
+                        else if (string.Equals(widget.Type, LeaderboardsWidgetCatalog.TopSubscribers, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <TopSubscribersCard Title="@(string.IsNullOrWhiteSpace(widget.Title) ? "Top Subscribers" : widget.Title)"
+                                                Mode="toggle"
+                                                Limit="10" />
+                        }
+                        else
+                        {
+                            <LeaderboardCard Widget="widget" PointTypes="PointTypes" />
+                        }
                     </MudItem>
                 }
             </MudGrid>

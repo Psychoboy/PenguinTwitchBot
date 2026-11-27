@@ -17,7 +17,7 @@ partial class ApplicationDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261126000439_AddMissingQueryIndexes";
+    public override string LastMigrationId => "20261127215901_ExpandSubscriptionHistoryTracking";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -2803,7 +2803,43 @@ partial class ApplicationDbContextModelSnapshot : ModelSnapshot
                     .ValueGeneratedOnAdd()
                     .HasColumnType("uuid");
 
+                b.Property<int>("ConsecutiveMonths")
+                    .HasColumnType("integer");
+
+                b.Property<string>("DisplayName")
+                    .IsRequired()
+                    .ValueGeneratedOnAdd()
+                    .HasMaxLength(255)
+                    .HasColumnType("character varying(255)")
+                    .HasDefaultValue("");
+
+                b.Property<DateTime?>("EndedAtUtc")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("GifterName")
+                    .HasMaxLength(255)
+                    .HasColumnType("character varying(255)");
+
+                b.Property<bool>("IsActive")
+                    .HasColumnType("boolean");
+
+                b.Property<bool>("IsGift")
+                    .HasColumnType("boolean");
+
                 b.Property<DateTime>("LastSub")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("Tier")
+                    .IsRequired()
+                    .ValueGeneratedOnAdd()
+                    .HasMaxLength(16)
+                    .HasColumnType("character varying(16)")
+                    .HasDefaultValue("");
+
+                b.Property<int>("TotalMonths")
+                    .HasColumnType("integer");
+
+                b.Property<DateTime>("UpdatedAtUtc")
                     .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("UserId")
@@ -2812,11 +2848,23 @@ partial class ApplicationDbContextModelSnapshot : ModelSnapshot
 
                 b.Property<string>("Username")
                     .IsRequired()
-                    .HasColumnType("text");
+                    .HasMaxLength(255)
+                    .HasColumnType("character varying(255)");
 
                 b.HasKey("Id");
 
+                b.HasIndex("UserId")
+                    .HasDatabaseName("IX_SubscriptionHistories_UserId");
+
                 b.HasIndex("Username");
+
+                b.HasIndex("IsActive", "ConsecutiveMonths", "Username")
+                    .IsDescending(false, true, false)
+                    .HasDatabaseName("IX_SubscriptionHistories_IsActive_ConsecutiveMonths");
+
+                b.HasIndex("IsActive", "TotalMonths", "Username")
+                    .IsDescending(false, true, false)
+                    .HasDatabaseName("IX_SubscriptionHistories_IsActive_TotalMonths");
 
                 b.ToTable("SubscriptionHistories");
             });

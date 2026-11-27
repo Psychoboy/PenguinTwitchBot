@@ -806,6 +806,11 @@
             filters.Add($"Tiers: {string.Join(", ", tierNames)}");
         }
 
+        if (config.ExcludeGiftedSubs)
+        {
+            filters.Add("No Gifts");
+        }
+
         if (config.IsAutomatic.HasValue)
         {
             filters.Add(config.IsAutomatic.Value ? "Automatic ads" : "Manual ads");

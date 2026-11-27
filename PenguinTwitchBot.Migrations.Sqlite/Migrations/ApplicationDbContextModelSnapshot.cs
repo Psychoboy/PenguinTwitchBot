@@ -15,7 +15,7 @@ partial class ApplicationDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261126000436_AddMissingQueryIndexes";
+    public override string LastMigrationId => "20261127215858_ExpandSubscriptionHistoryTracking";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -2797,7 +2797,43 @@ partial class ApplicationDbContextModelSnapshot : ModelSnapshot
                     .ValueGeneratedOnAdd()
                     .HasColumnType("TEXT");
 
+                b.Property<int>("ConsecutiveMonths")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("DisplayName")
+                    .IsRequired()
+                    .ValueGeneratedOnAdd()
+                    .HasMaxLength(255)
+                    .HasColumnType("TEXT")
+                    .HasDefaultValue("");
+
+                b.Property<DateTime?>("EndedAtUtc")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("GifterName")
+                    .HasMaxLength(255)
+                    .HasColumnType("TEXT");
+
+                b.Property<bool>("IsActive")
+                    .HasColumnType("INTEGER");
+
+                b.Property<bool>("IsGift")
+                    .HasColumnType("INTEGER");
+
                 b.Property<DateTime>("LastSub")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Tier")
+                    .IsRequired()
+                    .ValueGeneratedOnAdd()
+                    .HasMaxLength(16)
+                    .HasColumnType("TEXT")
+                    .HasDefaultValue("");
+
+                b.Property<int>("TotalMonths")
+                    .HasColumnType("INTEGER");
+
+                b.Property<DateTime>("UpdatedAtUtc")
                     .HasColumnType("TEXT");
 
                 b.Property<string>("UserId")
@@ -2806,11 +2842,23 @@ partial class ApplicationDbContextModelSnapshot : ModelSnapshot
 
                 b.Property<string>("Username")
                     .IsRequired()
+                    .HasMaxLength(255)
                     .HasColumnType("TEXT");
 
                 b.HasKey("Id");
 
+                b.HasIndex("UserId")
+                    .HasDatabaseName("IX_SubscriptionHistories_UserId");
+
                 b.HasIndex("Username");
+
+                b.HasIndex("IsActive", "ConsecutiveMonths", "Username")
+                    .IsDescending(false, true, false)
+                    .HasDatabaseName("IX_SubscriptionHistories_IsActive_ConsecutiveMonths");
+
+                b.HasIndex("IsActive", "TotalMonths", "Username")
+                    .IsDescending(false, true, false)
+                    .HasDatabaseName("IX_SubscriptionHistories_IsActive_TotalMonths");
 
                 b.ToTable("SubscriptionHistories");
             });

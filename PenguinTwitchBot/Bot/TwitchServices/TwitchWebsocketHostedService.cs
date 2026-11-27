@@ -105,6 +105,24 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
             try
             {
+                if (string.IsNullOrWhiteSpace(payload.Event.SourceBroadcasterUserId) &&
+                    string.Equals(payload.Event.NoticeType, "resub", StringComparison.OrdinalIgnoreCase) &&
+                    payload.Event.Resub != null &&
+                    !payload.Event.ChatterIsAnonymous)
+                {
+                    await subscriptionHistory.RecordSubscriptionAsync(
+                        userId: payload.Event.ChatterUserId,
+                        username: payload.Event.ChatterUserLogin,
+                        displayName: payload.Event.ChatterUserName,
+                        tier: payload.Event.Resub.SubTier,
+                        isGift: payload.Event.Resub.IsGift,
+                        gifterName: payload.Event.Resub.GifterIsAnonymous == true ? null : (payload.Event.Resub.GifterUserName ?? payload.Event.Resub.GifterUserLogin),
+                        isAnonymousGift: payload.Event.Resub.GifterIsAnonymous == true,
+                        totalMonths: payload.Event.Resub.CumulativeMonths,
+                        consecutiveMonths: payload.Event.Resub.StreakMonths,
+                        isRenewal: true);
+                }
+
                 var eventArgs = CreateChatNotificationEventArgs(payload.Event);
                 logger.LogInformation("ChatNotification: {NoticeType} from {User}", eventArgs.NoticeType, eventArgs.DisplayName);
                 await eventService.OnChatNotification(eventArgs);
@@ -249,8 +267,29 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
-        internal Task ProcessChatMessage(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelChatMessage e)
+        internal async Task ProcessChatMessage(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelChatMessage e)
         {
+            var fromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId);
+            if (fromOwnChannel && e.Badges != null)
+            {
+                var subBadge = e.Badges.FirstOrDefault(b =>
+                    (string.Equals(b.SetId, "subscriber", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(b.SetId, "founder", StringComparison.OrdinalIgnoreCase)) &&
+                    int.TryParse(b.Info, out var parsedMonths) &&
+                    parsedMonths > 0);
+                if (subBadge != null && int.TryParse(subBadge.Info, out var badgeMonths) && badgeMonths > 0)
+                {
+                    var isActiveSubscriber = e.IsSubscriber ||
+                        string.Equals(subBadge.SetId, "subscriber", StringComparison.OrdinalIgnoreCase);
+                    await subscriptionHistory.RecordChatSubscriberBadgeMonthsAsync(
+                        e.ChatterUserId,
+                        e.ChatterUserLogin,
+                        e.ChatterUserName,
+                        badgeMonths,
+                        isActiveSubscriber: isActiveSubscriber);
+                }
+            }
+
             var messageText = e.Message.Text;
             messageText = ViewerInputSanitizer.Sanitize(MessageRegex().Replace(messageText, string.Empty).Trim());
 
@@ -273,12 +312,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
                 MessageId = e.MessageId,
-                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
+                FromOwnChannel = fromOwnChannel,
                 Fragments = fragments,
                 Badges = badges,
                 ResolvedColor = chatColorService.GetOrAssignColor(e.ChatterUserId, e.Color),
             };
-            return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
+            await dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
         internal static ChatOverlayFragment MapFragment(TwitchApi.EventSub.Models.Chat.ChatMessageFragment f, PenguinTwitchBot.Services.IEmoteService? emoteService = null)
@@ -611,6 +650,15 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Tier- {Tier}"
                 , payload.Event.UserLogin, payload.Event.IsGift, payload.Event.Tier);
 
+                var hadPreviousSub = await CheckIfPreviousSub(payload.Event.UserLogin);
+                await subscriptionHistory.RecordSubscriptionAsync(
+                    userId: payload.Event.UserId,
+                    username: payload.Event.UserLogin,
+                    displayName: payload.Event.UserName,
+                    tier: payload.Event.Tier,
+                    isGift: payload.Event.IsGift,
+                    isRenewal: false);
+
                 var subscriptionEventArgs = new Events.SubscriptionEventArgs
                 {
                     Name = payload.Event.UserLogin,
@@ -618,7 +666,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     DisplayName = payload.Event.UserName,
                     IsGift = payload.Event.IsGift,
                     Tier = payload.Event.Tier,
-                    HadPreviousSub = await CheckIfPreviousSub(payload.Event.UserLogin)
+                    HadPreviousSub = hadPreviousSub
                 };
 
                 await eventService.OnSubscription(subscriptionEventArgs);
@@ -641,7 +689,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(payload.Metadata)) return;
                 logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", payload.Event.UserLogin);
-                await subscriptionHistory.AddOrUpdateSubHistory(payload.Event.UserLogin, payload.Event.UserId);
+                var hadPreviousSub = await CheckIfPreviousSub(payload.Event.UserLogin);
+                await subscriptionHistory.RecordSubscriptionAsync(
+                    userId: payload.Event.UserId,
+                    username: payload.Event.UserLogin,
+                    displayName: payload.Event.UserName,
+                    tier: payload.Event.Tier,
+                    isGift: null,
+                    totalMonths: payload.Event.CumulativeMonths,
+                    consecutiveMonths: payload.Event.StreakMonths,
+                    isRenewal: true);
 
                 var subscriptionEventArgs = new Events.SubscriptionEventArgs
                 {
@@ -653,7 +710,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Tier = payload.Event.Tier,
                     IsRenewal = true,
                     Message = ViewerInputSanitizer.Sanitize(payload.Event.Message?.Text),
-                    HadPreviousSub = await CheckIfPreviousSub(payload.Event.UserLogin)
+                    HadPreviousSub = hadPreviousSub
                 };
 
                 await eventService.OnSubscription(subscriptionEventArgs);
@@ -696,6 +753,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 if (DidProcessMessage(payload.Metadata)) return;
 
                 logger.LogInformation("OnChannelSubscriptionEnd: {UserLogin}", payload.Event.UserLogin);
+                await subscriptionHistory.RecordSubscriptionEndAsync(payload.Event.UserId, payload.Event.UserLogin);
 
                 var subscriptionEndEventArgs = new SubscriptionEndEventArgs
                 {

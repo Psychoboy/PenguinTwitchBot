@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Globalization;
 
 namespace PenguinTwitchBot.Bot.Actions.Triggers
@@ -41,7 +41,7 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                     DisplayName = "Channel Subscribe",
                     Description = "Triggers when someone subscribes (new subscription)",
                     SupportsFiltering = true,
-                    FilterOptions = new List<string> { "SubscriptionTiers" },
+                    FilterOptions = new List<string> { "SubscriptionTiers", "ExcludeGiftedSubs" },
                     AvailableVariables = new List<string>
                     {
                         "UserId", "Name", "DisplayName", "User", "Tier", "IsGift", "HadPreviousSub"
