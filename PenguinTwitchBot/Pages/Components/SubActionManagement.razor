@@ -282,7 +282,8 @@
             { x => x.ActionId, ActionId },
             { x => x.Triggers, Triggers },
             { x => x.ParentPreviousSubActions, SubActions.Take(index).ToList() },
-            { x => x.IsCatchSubAction, IsCatchSubAction }
+            { x => x.IsCatchSubAction, IsCatchSubAction },
+            { x => x.ReadOnly, ReadOnly }
         };
 
         var dialog = await DialogService.ShowAsync<LogicIfElseEditor>("Edit True/False Branches", parameters, new DialogOptions 
@@ -292,7 +293,10 @@
         });
 
         await dialog.Result;
-        await NotifyChanged();
+        if (!ReadOnly)
+        {
+            await NotifyChanged();
+        }
     }
 
     private async Task NotifyChanged()

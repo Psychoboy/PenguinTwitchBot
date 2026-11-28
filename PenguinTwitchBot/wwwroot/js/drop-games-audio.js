@@ -95,15 +95,15 @@
             if (v.source && v.gain && audioCtx) {
                 try {
                     const now = audioCtx.currentTime;
+                    const currentVal = typeof v.targetGain === 'number'
+                        ? Math.min(v.gain.gain.value, v.targetGain)
+                        : v.gain.gain.value;
                     if (typeof v.gain.gain.cancelAndHoldAtTime === 'function') {
                         v.gain.gain.cancelAndHoldAtTime(now);
                     } else {
-                        const currentVal = typeof v.targetGain === 'number'
-                            ? Math.min(v.gain.gain.value, v.targetGain)
-                            : v.gain.gain.value;
                         v.gain.gain.cancelScheduledValues(now);
-                        v.gain.gain.setValueAtTime(Math.max(0, currentVal), now);
                     }
+                    v.gain.gain.setValueAtTime(Math.max(0, currentVal), now);
                     // 25ms linear ramp down to 0 eliminates waveform DC jump and low-frequency speaker pops
                     v.gain.gain.linearRampToValueAtTime(0, now + 0.025);
                     v.source.stop(now + 0.03);
@@ -209,15 +209,21 @@
                     const voiceRecord = { audio, key, isHighPriority, isEnded: false };
                     activeVoices.push(voiceRecord);
 
+                    const removeVoice = function () {
+                        voiceRecord.isEnded = true;
+                        const idx = activeVoices.indexOf(voiceRecord);
+                        if (idx !== -1) activeVoices.splice(idx, 1);
+                    };
+
                     if (typeof audio.addEventListener === 'function') {
-                        audio.addEventListener('ended', function () {
-                            voiceRecord.isEnded = true;
-                            const idx = activeVoices.indexOf(voiceRecord);
-                            if (idx !== -1) activeVoices.splice(idx, 1);
-                        });
+                        audio.addEventListener('ended', removeVoice);
+                        audio.addEventListener('error', removeVoice);
                     }
 
-                    audio.play().catch(function () { });
+                    const playResult = audio.play();
+                    if (playResult && typeof playResult.catch === 'function') {
+                        playResult.catch(removeVoice);
+                    }
                 } catch (_) { }
             }
         }
@@ -236,7 +242,16 @@
             play: play,
             playKey: playKey,
             getBundle: function () { return currentBundle; },
-            getActiveCount: function () { return activeVoices.length; }
+            getActiveCount: function () {
+                let count = 0;
+                for (let i = 0; i < activeVoices.length; i++) {
+                    const v = activeVoices[i];
+                    if (!v.isEnded && !(v.audio && (v.audio.ended || v.audio.paused))) {
+                        count++;
+                    }
+                }
+                return count;
+            }
         };
     }
 

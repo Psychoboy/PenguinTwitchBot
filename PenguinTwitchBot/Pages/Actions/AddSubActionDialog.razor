@@ -548,6 +548,10 @@
         if (subActionType != null)
         {
             _currentSubAction = Activator.CreateInstance(subActionType) as SubActionType;
+            if (IsEditMode && ExistingSubAction != null && _currentSubAction != null)
+            {
+                _currentSubAction.Enabled = ExistingSubAction.Enabled;
+            }
             if (_currentSubAction is ISubActionUIProvider uiProvider)
             {
                 _fieldValues = uiProvider.GetValues();
@@ -569,6 +573,10 @@
         _currentStep = WizardStep.Configure;
         _enhancedFields = null;
         _currentSubAction = instance;
+        if (IsEditMode && ExistingSubAction != null && _currentSubAction != null)
+        {
+            _currentSubAction.Enabled = ExistingSubAction.Enabled;
+        }
         if (_currentSubAction is ISubActionUIProvider uiProvider)
         {
             _fieldValues = uiProvider.GetValues();

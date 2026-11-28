@@ -27,7 +27,7 @@
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                         <MudText Typo="Typo.h6" Color="Color.Success">[OK] If True - Execute These</MudText>
                         <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Success" Size="Size.Small" 
-                                   OnClick="AddTrueSubAction" Variant="Variant.Filled">
+                                   Disabled="@ReadOnly" OnClick="AddTrueSubAction" Variant="Variant.Filled">
                             Add SubAction
                         </MudButton>
                     </MudStack>
@@ -47,9 +47,9 @@
                                      class="@_drag.GetItemCssClass(index, TrueDragGroup)"
                                      data-drag-item="true"
                                      data-drag-index="@index"
-                                     draggable="true"
-                                     @ondragstart="@(() => _drag.Start(index, TrueDragGroup))"
-                                     @ondragenter="@(() => _drag.Enter(index, TrueDragGroup))"
+                                     draggable="@(!ReadOnly ? "true" : "false")"
+                                     @ondragstart="@(() => { if (!ReadOnly) _drag.Start(index, TrueDragGroup); })"
+                                     @ondragenter="@(() => { if (!ReadOnly) _drag.Enter(index, TrueDragGroup); })"
                                      ondragover="event.preventDefault()"
                                      @ondrop="@(() => OnDropTrueSubAction(index))"
                                      @ondrop:preventDefault="true"
@@ -57,14 +57,17 @@
                                     <MudPaper Outlined="true" Class="pa-2" Style="@(IsDisabled(subAction) ? "opacity: 0.6;" : null)">
                                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                                <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
-                                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
-                                                </span>
+                                                @if (!ReadOnly)
+                                                {
+                                                    <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
+                                                        <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                                                    </span>
+                                                }
                                                 <MudStack Spacing="0">
                                                     <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" 
-                                                                   Disabled="@(index == 0)" OnClick="@(() => MoveTrueUp(index))" />
+                                                                   Disabled="@(index == 0 || ReadOnly)" OnClick="@(() => MoveTrueUp(index))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
-                                                                   Disabled="@(index == IfElseType.TrueSubActions.Count - 1)" OnClick="@(() => MoveTrueDown(index))" />
+                                                                   Disabled="@(index == IfElseType.TrueSubActions.Count - 1 || ReadOnly)" OnClick="@(() => MoveTrueDown(index))" />
                                                 </MudStack>
                                                 <MudStack Spacing="0">
                                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
@@ -86,7 +89,8 @@
                                                     <MudSwitch T="bool"
                                                                Value="@subAction.Enabled"
                                                                ValueChanged="@(v => ToggleBranchSubActionEnabled(subAction, v))"
-                                                               Color="Color.Success" />
+                                                               Color="Color.Success"
+                                                               Disabled="@ReadOnly" />
                                                 </MudTooltip>
                                                 @if (subAction is LogicIfElseType)
                                                 {
@@ -95,9 +99,9 @@
                                                                    aria-label="Edit True/False branches" />
                                                 }
                                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
-                                                               OnClick="@(() => EditTrueSubAction(index))" />
+                                                               Disabled="@ReadOnly" OnClick="@(() => EditTrueSubAction(index))" />
                                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
-                                                               OnClick="@(() => DeleteTrueSubAction(index))" />
+                                                               Disabled="@ReadOnly" OnClick="@(() => DeleteTrueSubAction(index))" />
                                             </MudStack>
                                         </MudStack>
                                     </MudPaper>
@@ -114,7 +118,7 @@
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                         <MudText Typo="Typo.h6" Color="Color.Error">[X] If False - Execute These</MudText>
                         <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Error" Size="Size.Small" 
-                                   OnClick="AddFalseSubAction" Variant="Variant.Filled">
+                                   Disabled="@ReadOnly" OnClick="AddFalseSubAction" Variant="Variant.Filled">
                             Add SubAction
                         </MudButton>
                     </MudStack>
@@ -134,9 +138,9 @@
                                      class="@_drag.GetItemCssClass(index, FalseDragGroup)"
                                      data-drag-item="true"
                                      data-drag-index="@index"
-                                     draggable="true"
-                                     @ondragstart="@(() => _drag.Start(index, FalseDragGroup))"
-                                     @ondragenter="@(() => _drag.Enter(index, FalseDragGroup))"
+                                     draggable="@(!ReadOnly ? "true" : "false")"
+                                     @ondragstart="@(() => { if (!ReadOnly) _drag.Start(index, FalseDragGroup); })"
+                                     @ondragenter="@(() => { if (!ReadOnly) _drag.Enter(index, FalseDragGroup); })"
                                      ondragover="event.preventDefault()"
                                      @ondrop="@(() => OnDropFalseSubAction(index))"
                                      @ondrop:preventDefault="true"
@@ -144,14 +148,17 @@
                                     <MudPaper Outlined="true" Class="pa-2" Style="@(IsDisabled(subAction) ? "opacity: 0.6;" : null)">
                                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                                <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
-                                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
-                                                </span>
+                                                @if (!ReadOnly)
+                                                {
+                                                    <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
+                                                        <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                                                    </span>
+                                                }
                                                 <MudStack Spacing="0">
                                                     <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" 
-                                                                   Disabled="@(index == 0)" OnClick="@(() => MoveFalseUp(index))" />
+                                                                   Disabled="@(index == 0 || ReadOnly)" OnClick="@(() => MoveFalseUp(index))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
-                                                                   Disabled="@(index == IfElseType.FalseSubActions.Count - 1)" OnClick="@(() => MoveFalseDown(index))" />
+                                                                   Disabled="@(index == IfElseType.FalseSubActions.Count - 1 || ReadOnly)" OnClick="@(() => MoveFalseDown(index))" />
                                                 </MudStack>
                                                 <MudStack Spacing="0">
                                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
@@ -173,7 +180,8 @@
                                                     <MudSwitch T="bool"
                                                                Value="@subAction.Enabled"
                                                                ValueChanged="@(v => ToggleBranchSubActionEnabled(subAction, v))"
-                                                               Color="Color.Success" />
+                                                               Color="Color.Success"
+                                                               Disabled="@ReadOnly" />
                                                 </MudTooltip>
                                                 @if (subAction is LogicIfElseType)
                                                 {
@@ -182,9 +190,9 @@
                                                                    aria-label="Edit True/False branches" />
                                                 }
                                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
-                                                               OnClick="@(() => EditFalseSubAction(index))" />
+                                                               Disabled="@ReadOnly" OnClick="@(() => EditFalseSubAction(index))" />
                                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
-                                                               OnClick="@(() => DeleteFalseSubAction(index))" />
+                                                               Disabled="@ReadOnly" OnClick="@(() => DeleteFalseSubAction(index))" />
                                             </MudStack>
                                         </MudStack>
                                     </MudPaper>
@@ -220,6 +228,9 @@
     [Parameter]
     public bool IsCatchSubAction { get; set; }
 
+    [Parameter]
+    public bool ReadOnly { get; set; } = false;
+
     private const string TrueDragGroup = "true";
     private const string FalseDragGroup = "false";
     private readonly DragReorderState _drag = new();
@@ -228,7 +239,7 @@
 
     private void OnDropTrueSubAction(int targetIndex)
     {
-        if (!_drag.TryCompleteDrop(IfElseType.TrueSubActions, targetIndex, out _, out _, TrueDragGroup))
+        if (ReadOnly || !_drag.TryCompleteDrop(IfElseType.TrueSubActions, targetIndex, out _, out _, TrueDragGroup))
             return;
 
         for (int i = 0; i < IfElseType.TrueSubActions.Count; i++)
@@ -239,7 +250,7 @@
 
     private void OnDropFalseSubAction(int targetIndex)
     {
-        if (!_drag.TryCompleteDrop(IfElseType.FalseSubActions, targetIndex, out _, out _, FalseDragGroup))
+        if (ReadOnly || !_drag.TryCompleteDrop(IfElseType.FalseSubActions, targetIndex, out _, out _, FalseDragGroup))
             return;
 
         for (int i = 0; i < IfElseType.FalseSubActions.Count; i++)
@@ -273,6 +284,7 @@
 
     private async Task AddTrueSubAction()
     {
+        if (ReadOnly) return;
         var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
             .Concat(IfElseType.TrueSubActions)
             .ToList();
@@ -303,6 +315,7 @@
 
     private async Task EditTrueSubAction(int index)
     {
+        if (ReadOnly) return;
         var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
             .Concat(IfElseType.TrueSubActions.Take(index))
             .ToList();
@@ -349,7 +362,8 @@
             { x => x.ActionId, ActionId },
             { x => x.Triggers, Triggers },
             { x => x.ParentPreviousSubActions, previous },
-            { x => x.IsCatchSubAction, IsCatchSubAction }
+            { x => x.IsCatchSubAction, IsCatchSubAction },
+            { x => x.ReadOnly, ReadOnly }
         };
 
         var dialog = await DialogService.ShowAsync<LogicIfElseEditor>("Edit Nested True/False Branches", parameters, new DialogOptions 
@@ -364,6 +378,7 @@
 
     private void DeleteTrueSubAction(int index)
     {
+        if (ReadOnly) return;
         IfElseType.TrueSubActions.RemoveAt(index);
         for (int i = index; i < IfElseType.TrueSubActions.Count; i++)
         {
@@ -375,6 +390,7 @@
 
     private void MoveTrueUp(int index)
     {
+        if (ReadOnly) return;
         if (index > 0)
         {
             var temp = IfElseType.TrueSubActions[index];
@@ -388,6 +404,7 @@
 
     private void MoveTrueDown(int index)
     {
+        if (ReadOnly) return;
         if (index < IfElseType.TrueSubActions.Count - 1)
         {
             var temp = IfElseType.TrueSubActions[index];
@@ -401,6 +418,7 @@
 
     private async Task AddFalseSubAction()
     {
+        if (ReadOnly) return;
         var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
             .Concat(IfElseType.FalseSubActions)
             .ToList();
@@ -431,6 +449,7 @@
 
     private async Task EditFalseSubAction(int index)
     {
+        if (ReadOnly) return;
         var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
             .Concat(IfElseType.FalseSubActions.Take(index))
             .ToList();
@@ -461,6 +480,7 @@
 
     private void DeleteFalseSubAction(int index)
     {
+        if (ReadOnly) return;
         IfElseType.FalseSubActions.RemoveAt(index);
         for (int i = index; i < IfElseType.FalseSubActions.Count; i++)
         {
@@ -488,7 +508,8 @@
             { x => x.ActionId, ActionId },
             { x => x.Triggers, Triggers },
             { x => x.ParentPreviousSubActions, previous },
-            { x => x.IsCatchSubAction, IsCatchSubAction }
+            { x => x.IsCatchSubAction, IsCatchSubAction },
+            { x => x.ReadOnly, ReadOnly }
         };
 
         var dialog = await DialogService.ShowAsync<LogicIfElseEditor>("Edit Nested True/False Branches", parameters, new DialogOptions 
@@ -503,6 +524,7 @@
 
     private void MoveFalseUp(int index)
     {
+        if (ReadOnly) return;
         if (index > 0)
         {
             var temp = IfElseType.FalseSubActions[index];
@@ -516,6 +538,7 @@
 
     private void MoveFalseDown(int index)
     {
+        if (ReadOnly) return;
         if (index < IfElseType.FalseSubActions.Count - 1)
         {
             var temp = IfElseType.FalseSubActions[index];
@@ -535,6 +558,7 @@
 
     private void ToggleBranchSubActionEnabled(SubActionType subAction, bool enabled)
     {
+        if (ReadOnly) return;
         subAction.Enabled = enabled;
         StateHasChanged();
     }
