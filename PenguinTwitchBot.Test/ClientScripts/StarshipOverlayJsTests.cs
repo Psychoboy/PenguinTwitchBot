@@ -92,7 +92,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             DispatchStarshipOverlayState(engine, eventSnapshot);
             Assert.Equal("/media/starship_route_choice.wav", engine.Evaluate("window.__audioPlayed.map(sound => sound.src).join('|')").AsString());
             Assert.Equal("/media/starship_route_choice.wav", engine.Evaluate("window.__audioPlayed[0].src").AsString());
-            Assert.Equal(0.55, engine.Evaluate("window.__audioPlayed[0].volume").AsNumber(), 2);
+            Assert.Equal(0.3025, engine.Evaluate("window.__audioPlayed[0].volume").AsNumber(), 4);
 
             var voteUpdate = new
             {
@@ -176,7 +176,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             Assert.Equal(1, engine.Evaluate("window.__audioPlayed.length").AsNumber());
             Assert.Equal("/media/starship_boarding_open.wav", engine.Evaluate("window.__audioPlayed[0].src").AsString());
-            Assert.Equal(0.6, engine.Evaluate("window.__audioPlayed[0].volume").AsNumber(), 2);
+            Assert.Equal(0.36, engine.Evaluate("window.__audioPlayed[0].volume").AsNumber(), 4);
         }
 
 

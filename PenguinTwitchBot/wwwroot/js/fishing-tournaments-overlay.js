@@ -156,9 +156,13 @@
 
         if (data.soundEnabled && data.soundUrl) {
             try {
-                const audio = new Audio(data.soundUrl);
-                audio.volume = Math.max(0, Math.min(1, Number(data.soundVolume ?? 0.8)));
-                audio.play().catch(() => {});
+                const linear = Math.max(0, Math.min(1, Number(data.soundVolume ?? 0.8)));
+                const gain = linear * linear;
+                if (gain > 0) {
+                    const audio = new Audio(data.soundUrl);
+                    audio.volume = gain;
+                    audio.play().catch(() => {});
+                }
             } catch (_) {}
         }
 

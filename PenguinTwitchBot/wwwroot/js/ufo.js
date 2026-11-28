@@ -451,10 +451,16 @@
         replacements.clear();
     }
 
-    function canPlay() { return state && visible && audible && state.settings.soundEnabled && state.settings.volume > 0; }
+    function effectiveVolume(vol) {
+        const linear = Math.max(0, Math.min(1, Number(vol ?? state?.settings?.volume ?? 0)));
+        return linear * linear;
+    }
+
+    function canPlay() { return state && visible && audible && state.settings.soundEnabled && effectiveVolume() > 0; }
 
     function tone(frequency, duration, delay, type) {
         if (!audioContext || !canPlay()) return;
+        const vol = effectiveVolume();
         const oscillator = audioContext.createOscillator();
         const gain = audioContext.createGain();
         const start = audioContext.currentTime + (delay || 0);
@@ -462,7 +468,7 @@
         oscillator.frequency.setValueAtTime(frequency, start);
         oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.7, start + duration);
         gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.13 * state.settings.volume), start + 0.015);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.13 * vol), start + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
         oscillator.connect(gain).connect(audioContext.destination);
         oscillator.start(start);
@@ -473,6 +479,7 @@
 
     function sweep(startFrequency, endFrequency, duration, delay, type, peak) {
         if (!audioContext || !canPlay()) return;
+        const vol = effectiveVolume();
         const oscillator = audioContext.createOscillator();
         const gain = audioContext.createGain();
         const start = audioContext.currentTime + (delay || 0);
@@ -480,7 +487,7 @@
         oscillator.frequency.setValueAtTime(Math.max(1, startFrequency), start);
         oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), start + duration);
         gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, (peak || 0.12) * state.settings.volume), start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, (peak || 0.12) * vol), start + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
         oscillator.connect(gain).connect(audioContext.destination);
         oscillator.start(start);
@@ -522,7 +529,7 @@
             if (generation !== soundGeneration || !canPlay() || motor || motorAudio || lastPhase === 'Revealing') return;
             motorAudio = new Audio('/media/ufo_claw_motor.wav');
             motorAudio.loop = true;
-            motorAudio.volume = state.settings.volume * 0.42;
+            motorAudio.volume = effectiveVolume() * 0.42;
             replacements.add(motorAudio);
             try {
                 await motorAudio.play();
@@ -539,7 +546,7 @@
             motor = audioContext.createOscillator();
             motorGain = audioContext.createGain();
             motor.type = 'triangle'; motor.frequency.value = 68;
-            motorGain.gain.value = state.settings.volume * 0.05;
+            motorGain.gain.value = effectiveVolume() * 0.05;
             motor.connect(motorGain).connect(audioContext.destination); motor.start();
         } catch (_) { }
     }
@@ -548,7 +555,7 @@
         if (!canPlay()) return;
         const audio = new Audio(url || defaultUrl || '');
         if (!url && !defaultUrl) { fallback(); return; }
-        audio.volume = state.settings.volume;
+        audio.volume = effectiveVolume();
         let fallbackPlayed = false;
         const playFallback = () => {
             if (fallbackPlayed) return;
@@ -695,7 +702,7 @@
         if (changedGrab) { silence(); lastPhase = ''; audible = !!live && age < 2; }
         if (!live || !visible || (!wasVisible && !changedGrab)) { audible = false; silence(); }
         if (changedGrab && visible && audible) void enableAudio();
-        if (motorGain && audioContext) motorGain.gain.setTargetAtTime(snapshot.settings.soundEnabled ? snapshot.settings.volume * 0.05 : 0,audioContext.currentTime,0.02);
+        if (motorGain && audioContext) motorGain.gain.setTargetAtTime(snapshot.settings.soundEnabled ? effectiveVolume(snapshot.settings.volume) * 0.05 : 0, audioContext.currentTime, 0.02);
     }
 
     global.UfoClawOverlay = { acceptSnapshot };

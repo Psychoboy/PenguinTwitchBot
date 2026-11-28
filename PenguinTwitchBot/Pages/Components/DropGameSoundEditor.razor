@@ -174,7 +174,7 @@
 
         @if (!string.IsNullOrEmpty(_audioPreviewUrl))
         {
-            <audio id="@_previewElementId" @key="_audioPreviewKey" autoplay src="@_audioPreviewUrl" @onended="OnAudioEnded" style="display: none;"></audio>
+            <audio id="@_previewElementId" @key="_audioPreviewKey" src="@_audioPreviewUrl" @onended="OnAudioEnded" style="display: none;"></audio>
         }
     </MudStack>
 </MudPaper>
@@ -309,16 +309,33 @@
         _isPlaying = true;
         StateHasChanged();
 
-        await Task.Delay(60);
-        await ApplyPreviewVolumeAsync();
+        await Task.Delay(30);
+        await StartPreviewPlaybackAsync();
+    }
+
+    private double GetPerceptualPreviewVolume()
+    {
+        var linear = Math.Clamp(CurrentVolume / 100.0, 0.0, 1.0);
+        return linear * linear;
+    }
+
+    private async Task StartPreviewPlaybackAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("playAudioPreview", _previewElementId, GetPerceptualPreviewVolume());
+        }
+        catch
+        {
+            // Ignore preview playback exceptions in headless/unsupported environments
+        }
     }
 
     private async Task ApplyPreviewVolumeAsync()
     {
         try
         {
-            var volumeFraction = Math.Clamp(CurrentVolume / 100.0, 0.0, 1.0);
-            await JSRuntime.InvokeVoidAsync("eval", $"var el = document.getElementById('{_previewElementId}'); if (el) el.volume = {volumeFraction.ToString(System.Globalization.CultureInfo.InvariantCulture)};");
+            await JSRuntime.InvokeVoidAsync("setMediaVolume", _previewElementId, GetPerceptualPreviewVolume());
         }
         catch
         {

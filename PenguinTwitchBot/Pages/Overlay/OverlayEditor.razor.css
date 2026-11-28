@@ -1,7 +1,7 @@
 /* ── Root layout ──────────────────────────────────────────────────────────── */
 .editor-root {
     display: grid;
-    grid-template-columns: 220px 1fr 260px;
+    grid-template-columns: 220px 1fr 300px;
     height: calc(100vh - 64px);   /* subtract MudBlazor app bar */
     overflow: hidden;
 }
@@ -278,14 +278,22 @@
 
 .widget-list-item {
     display: flex;
-    align-items: center;
-    padding: 4px 6px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 5px 8px;
     cursor: pointer;
-    gap: 5px;
+    gap: 2px;
     font-size: 0.82rem;
     border-radius: 4px;
-    margin: 1px 2px;
+    margin: 2px 2px;
     transition: background-color 0.1s, opacity 0.12s, box-shadow 0.12s;
+}
+
+.widget-list-main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
 }
 
 .widget-list-item:hover {
@@ -303,14 +311,15 @@
 }
 
 .widget-list-actions {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
     flex-shrink: 0;
-    margin-left: 2px;
 }
 
 .widget-list-actions ::deep .mud-icon-button {
-    padding: 3px;
+    padding: 2px;
 }
 
 .widget-quick-actions {
@@ -330,6 +339,7 @@
 
 .widget-list-name {
     flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

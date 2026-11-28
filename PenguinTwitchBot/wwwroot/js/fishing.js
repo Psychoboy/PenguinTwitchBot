@@ -101,8 +101,11 @@
     function playSound(url, enabled, volume) {
         if (!enabled || !url) return null;
         try {
+            const linear = Math.max(0, Math.min(1, toFiniteNumber(volume, 0.8)));
+            const gain = linear * linear;
+            if (gain <= 0) return null;
             const audio = new Audio(url);
-            audio.volume = Math.max(0, Math.min(1, toFiniteNumber(volume, 0.8)));
+            audio.volume = gain;
             audio.play().catch((err) => logDebug('Audio play skipped:', err));
             return audio;
         } catch (err) {

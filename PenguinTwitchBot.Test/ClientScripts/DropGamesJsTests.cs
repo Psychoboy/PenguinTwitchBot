@@ -861,6 +861,53 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
 
         [Fact]
+        public void DropGamesAudioJs_AppliesPerceptualQuadraticVolumeCurve()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+
+            Assert.Equal(0.0, engine.Evaluate("DropGamesAudio.percentToGain(0)").AsNumber(), 4);
+            Assert.Equal(0.04, engine.Evaluate("DropGamesAudio.percentToGain(20)").AsNumber(), 4);
+            Assert.Equal(0.25, engine.Evaluate("DropGamesAudio.percentToGain(50)").AsNumber(), 4);
+            Assert.Equal(0.49, engine.Evaluate("DropGamesAudio.percentToGain(70)").AsNumber(), 4);
+            Assert.Equal(1.0, engine.Evaluate("DropGamesAudio.percentToGain(100)").AsNumber(), 4);
+
+            engine.Execute(@"
+                window.__audioPlayed = [];
+                var sm = DropGamesAudio.createSoundManager();
+                sm.updateBundle({ maxConcurrentSounds: 4 });
+                sm.play({ enabled: true, url: '/audio/silent.mp3', volume: 0 }, 'silent', false);
+                sm.play({ enabled: true, url: '/audio/quiet.mp3', volume: 20 }, 'quiet', false);
+                sm.play({ enabled: true, url: '/audio/half.mp3', volume: 50 }, 'half', false);
+                sm.play({ enabled: true, url: '/audio/full.mp3', volume: 100 }, 'full', false);
+            ");
+
+            // 0% volume should not play at all; remaining 3 sounds should honor quadratic perceptual gain
+            var quietEntries = engine.Evaluate("window.__audioPlayed.filter(function(a) { return a.src === '/audio/quiet.mp3'; })");
+            Assert.Equal(0, (int)engine.Evaluate("window.__audioPlayed.filter(function(a) { return a.src === '/audio/silent.mp3'; }).length").AsNumber());
+            Assert.Equal(0.04, engine.Evaluate("window.__audioPlayed.filter(function(a) { return a.src === '/audio/quiet.mp3'; })[0].volume").AsNumber(), 4);
+            Assert.Equal(0.25, engine.Evaluate("window.__audioPlayed.filter(function(a) { return a.src === '/audio/half.mp3'; })[0].volume").AsNumber(), 4);
+            Assert.Equal(1.0, engine.Evaluate("window.__audioPlayed.filter(function(a) { return a.src === '/audio/full.mp3'; })[0].volume").AsNumber(), 4);
+        }
+
+
+        [Fact]
+        public void DropGamesAudioJs_ZeroVolumeDoesNotStealActiveVoice()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(@"
+                window.__audioPlayed = [];
+                var sm = DropGamesAudio.createSoundManager();
+                sm.updateBundle({ maxConcurrentSounds: 1 });
+                sm.play({ enabled: true, url: '/audio/go.wav', volume: 80 }, 'countdown_go', true);
+                sm.play({ enabled: true, url: '/audio/muted.wav', volume: 0 }, 'engine', false);
+            ");
+
+            Assert.Equal(1, (int)engine.Evaluate("sm.getActiveCount()").AsNumber());
+            Assert.Equal(0, (int)engine.Evaluate("window.__audioPlayed.filter(function(a) { return a.src === '/audio/muted.wav'; }).length").AsNumber());
+        }
+
+
+        [Fact]
         public void DropGamesCommonJs_LoadsAndExecutesWithoutRuntimeErrors()
         {
             var jsDir = FindWwwRootPath();

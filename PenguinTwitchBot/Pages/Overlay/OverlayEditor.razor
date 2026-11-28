@@ -318,13 +318,15 @@
                      @ondrop:preventDefault="true"
                      @ondragend="@(() => _widgetDrag.End())"
                      @onclick="() => SelectWidget(wi)">
-                    <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder layer">
-                        <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
-                    </span>
-                    <span class="widget-list-dot" style="background:@GetWidgetColor(wi.WidgetType);"></span>
-                    <span class="widget-list-name">@wi.DisplayName</span>
-                    <span class="widget-list-z">z:@wi.ZIndex</span>
-                    <span class="widget-list-actions" @onclick:stopPropagation="true">
+                    <div class="widget-list-main">
+                        <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder layer">
+                            <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" />
+                        </span>
+                        <span class="widget-list-dot" style="background:@GetWidgetColor(wi.WidgetType);"></span>
+                        <span class="widget-list-name" title="@wi.DisplayName">@wi.DisplayName</span>
+                        <span class="widget-list-z">z:@wi.ZIndex</span>
+                    </div>
+                    <div class="widget-list-actions" @onclick:stopPropagation="true">
                         <MudTooltip Text="Move layer up">
                             <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward"
                                            Size="Size.Small"
@@ -351,7 +353,7 @@
                                            Color="@(wi.IsLocked ? Color.Warning : Color.Default)"
                                            OnClick="() => wi.IsLocked = !wi.IsLocked" />
                         </MudTooltip>
-                    </span>
+                    </div>
                 </div>
             }
             <MudDivider Class="my-2" />

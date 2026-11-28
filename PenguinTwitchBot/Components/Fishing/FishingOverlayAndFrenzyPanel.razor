@@ -242,7 +242,9 @@
     {
         try
         {
-            await JSRuntime.InvokeVoidAsync("eval", $"(() => {{ const a = new Audio({JsonSerializer.Serialize(url)}); a.volume = {Settings.SoundVolume.ToString(System.Globalization.CultureInfo.InvariantCulture)}; a.play().catch(() => {{}}); }})()");
+            var linear = Math.Clamp(Settings.SoundVolume, 0.0, 1.0);
+            var perceptual = linear * linear;
+            await JSRuntime.InvokeVoidAsync("eval", $"(() => {{ const a = new Audio({JsonSerializer.Serialize(url)}); a.volume = {perceptual.ToString(System.Globalization.CultureInfo.InvariantCulture)}; a.play().catch(() => {{}}); }})()");
         }
         catch { }
     }

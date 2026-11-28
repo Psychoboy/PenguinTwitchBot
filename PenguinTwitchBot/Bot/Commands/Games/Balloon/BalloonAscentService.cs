@@ -157,12 +157,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 dto.IsOtherGameActive = isOtherGameActive;
                 dto.ActiveGames = activeGames;
                 dto.HeaderConfig = headerConfig;
+                var soundBundle = DropGameMediaResolver.ResolveBalloonSoundBundle(bSettings, theme, GetMediaUploadService());
                 var wsPayload = JsonSerializer.Serialize(new
                 {
                     type = "session_start",
                     session = dto,
                     theme = theme,
                     headerConfig = headerConfig,
+                    sounds = soundBundle,
                     isOtherGameActive = isOtherGameActive,
                     activeGames = activeGames,
                     cannon = GetCannonDto(),
@@ -246,6 +248,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 var settings = await settingsService.GetSettingsAsync();
                 var bSettings = settings.Balloon;
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(bSettings);
+                var theme = DropGameMediaResolver.ResolveTheme(settings, session.ThemeIdOverride, bSettings.ActiveThemeId);
+                var soundBundle = DropGameMediaResolver.ResolveBalloonSoundBundle(bSettings, theme, GetMediaUploadService());
 
                 dto = new DropGameSessionDto
                 {
@@ -269,6 +273,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                     type = "session_end",
                     session = dto,
                     headerConfig = headerConfig,
+                    sounds = soundBundle,
                     isOtherGameActive = isOtherGameActive,
                     activeGames = activeGames
                 }, _jsonOptions);

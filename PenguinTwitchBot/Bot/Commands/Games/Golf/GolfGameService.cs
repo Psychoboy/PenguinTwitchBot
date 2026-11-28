@@ -344,6 +344,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 var settings = await settingsService.GetSettingsAsync();
                 var gSettings = settings.Golf;
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(gSettings);
+                var theme = DropGameMediaResolver.ResolveTheme(settings, session.ThemeIdOverride, gSettings.ActiveThemeId);
+                var soundBundle = DropGameMediaResolver.ResolveGolfSoundBundle(gSettings, theme, GetMediaUploadService());
 
                 dto = new DropGameSessionDto
                 {
@@ -364,6 +366,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     type = "session_end",
                     session = dto,
                     headerConfig,
+                    sounds = soundBundle,
                     isOtherGameActive,
                     activeGames
                 }, _jsonOptions);

@@ -54,7 +54,7 @@
                                      @ondrop="@(() => OnDropTrueSubAction(index))"
                                      @ondrop:preventDefault="true"
                                      @ondragend="@(() => _drag.End())">
-                                    <MudPaper Outlined="true" Class="pa-2">
+                                    <MudPaper Outlined="true" Class="pa-2" Style="@(IsDisabled(subAction) ? "opacity: 0.6;" : null)">
                                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                                 <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
@@ -68,20 +68,26 @@
                                                 </MudStack>
                                                 <MudStack Spacing="0">
                                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                        <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                                        <MudText Typo="Typo.body1" Style="@(IsDisabled(subAction) ? "text-decoration: line-through;" : null)">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                                        @if (IsDisabled(subAction))
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Disabled</MudChip>
+                                                        }
                                                         @if (IsDisabledByFeature(subAction))
                                                         {
                                                             <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
-                                                        }
-                                                        @if (IsDisabled(subAction))
-                                                        {
-                                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Disabled</MudChip>
                                                         }
                                                     </MudStack>
                                                     <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction, ReferenceNames)</MudText>
                                                 </MudStack>
                                             </MudStack>
-                                            <MudStack Row="true" Spacing="1">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudTooltip Text="@(subAction.Enabled ? "Disable sub-action" : "Enable sub-action")">
+                                                    <MudSwitch T="bool"
+                                                               Value="@subAction.Enabled"
+                                                               ValueChanged="@(v => ToggleBranchSubActionEnabled(subAction, v))"
+                                                               Color="Color.Success" />
+                                                </MudTooltip>
                                                 @if (subAction is LogicIfElseType)
                                                 {
                                                     <MudIconButton Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Info" 
@@ -135,7 +141,7 @@
                                      @ondrop="@(() => OnDropFalseSubAction(index))"
                                      @ondrop:preventDefault="true"
                                      @ondragend="@(() => _drag.End())">
-                                    <MudPaper Outlined="true" Class="pa-2">
+                                    <MudPaper Outlined="true" Class="pa-2" Style="@(IsDisabled(subAction) ? "opacity: 0.6;" : null)">
                                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                                 <span class="drag-reorder-handle" data-drag-handle="true" title="Drag to reorder">
@@ -149,20 +155,26 @@
                                                 </MudStack>
                                                 <MudStack Spacing="0">
                                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                        <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                                        <MudText Typo="Typo.body1" Style="@(IsDisabled(subAction) ? "text-decoration: line-through;" : null)">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                                        @if (IsDisabled(subAction))
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Disabled</MudChip>
+                                                        }
                                                         @if (IsDisabledByFeature(subAction))
                                                         {
                                                             <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
-                                                        }
-                                                        @if (IsDisabled(subAction))
-                                                        {
-                                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Disabled</MudChip>
                                                         }
                                                     </MudStack>
                                                     <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction, ReferenceNames)</MudText>
                                                 </MudStack>
                                             </MudStack>
-                                            <MudStack Row="true" Spacing="1">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudTooltip Text="@(subAction.Enabled ? "Disable sub-action" : "Enable sub-action")">
+                                                    <MudSwitch T="bool"
+                                                               Value="@subAction.Enabled"
+                                                               ValueChanged="@(v => ToggleBranchSubActionEnabled(subAction, v))"
+                                                               Color="Color.Success" />
+                                                </MudTooltip>
                                                 @if (subAction is LogicIfElseType)
                                                 {
                                                     <MudIconButton Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Info" 
@@ -519,6 +531,12 @@
     {
         return PenguinTwitchBot.Database.Bot.Actions.SubActions.SubActionRegistry.GetMetadata(subAction.SubActionTypes)?.DisplayName
             ?? subAction.GetType().Name.Replace("Type", "");
+    }
+
+    private void ToggleBranchSubActionEnabled(SubActionType subAction, bool enabled)
+    {
+        subAction.Enabled = enabled;
+        StateHasChanged();
     }
 
     private bool IsDisabled(SubActionType subAction)

@@ -7,6 +7,18 @@
 (function (global) {
     'use strict';
 
+    function toPerceptualGain(volumeFraction) {
+        const clamped = Math.max(0, Math.min(1, Number(volumeFraction) || 0));
+        return clamped * clamped;
+    }
+
+    function percentToGain(volumePercent, defaultPercent) {
+        const pct = (typeof volumePercent === 'number' && isFinite(volumePercent))
+            ? volumePercent
+            : (typeof defaultPercent === 'number' && isFinite(defaultPercent) ? defaultPercent : 80);
+        return toPerceptualGain(pct / 100);
+    }
+
     function createSoundManager() {
         const audioCache = new Map();
         const bufferCache = new Map();
@@ -79,15 +91,22 @@
 
         function stopVoice(v) {
             if (!v) return;
-            // Web Audio source: smooth micro-fade de-click ramp (8ms)
+            // Web Audio source: smooth de-click ramp (25ms) without gain spike
             if (v.source && v.gain && audioCtx) {
                 try {
                     const now = audioCtx.currentTime;
-                    v.gain.gain.cancelScheduledValues(now);
-                    v.gain.gain.setValueAtTime(v.gain.gain.value, now);
-                    // 8ms linear ramp down to 0 eliminates waveform DC jump and speaker pops
-                    v.gain.gain.linearRampToValueAtTime(0.0001, now + 0.008);
-                    v.source.stop(now + 0.008);
+                    if (typeof v.gain.gain.cancelAndHoldAtTime === 'function') {
+                        v.gain.gain.cancelAndHoldAtTime(now);
+                    } else {
+                        const currentVal = typeof v.targetGain === 'number'
+                            ? Math.min(v.gain.gain.value, v.targetGain)
+                            : v.gain.gain.value;
+                        v.gain.gain.cancelScheduledValues(now);
+                        v.gain.gain.setValueAtTime(Math.max(0, currentVal), now);
+                    }
+                    // 25ms linear ramp down to 0 eliminates waveform DC jump and low-frequency speaker pops
+                    v.gain.gain.linearRampToValueAtTime(0, now + 0.025);
+                    v.source.stop(now + 0.03);
                 } catch (_) { }
             } else if (v.audio) {
                 try {
@@ -112,6 +131,9 @@
                 preload(soundDto.url);
             }
 
+            const volFraction = percentToGain(soundDto.volume, 80);
+            if (volFraction <= 0) return;
+
             const maxVoices = (currentBundle && typeof currentBundle.maxConcurrentSounds === 'number' && currentBundle.maxConcurrentSounds >= 1)
                 ? currentBundle.maxConcurrentSounds
                 : 1;
@@ -135,8 +157,6 @@
                 stopVoice(victim);
             }
 
-            const volFraction = Math.max(0, Math.min(1, (typeof soundDto.volume === 'number' ? soundDto.volume : 80) / 100));
-
             // Log for tests / telemetry if tracked
             if (typeof window !== 'undefined' && window.__audioPlayed) {
                 window.__audioPlayed.push({ src: soundDto.url, volume: volFraction });
@@ -150,12 +170,22 @@
                     source.buffer = cachedBuffer;
 
                     const gain = ctx.createGain();
-                    gain.gain.setValueAtTime(volFraction, ctx.currentTime);
+                    const now = ctx.currentTime;
+                    const attackSec = Math.min(0.003, cachedBuffer.duration * 0.25);
+                    const releaseSec = Math.min(0.015, cachedBuffer.duration * 0.25);
+                    const endTime = now + cachedBuffer.duration;
+                    const releaseStart = Math.max(now + attackSec, endTime - releaseSec);
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(volFraction, now + attackSec);
+                    if (releaseStart < endTime) {
+                        gain.gain.setValueAtTime(volFraction, releaseStart);
+                        gain.gain.linearRampToValueAtTime(0, endTime);
+                    }
 
                     source.connect(gain);
                     gain.connect(ctx.destination);
 
-                    const voiceRecord = { source, gain, key, isHighPriority, isEnded: false };
+                    const voiceRecord = { source, gain, targetGain: volFraction, key, isHighPriority, isEnded: false };
                     activeVoices.push(voiceRecord);
 
                     source.onended = function () {
@@ -212,7 +242,9 @@
 
 
     const DropGamesAudio = {
-        createSoundManager: createSoundManager
+        createSoundManager: createSoundManager,
+        toPerceptualGain: toPerceptualGain,
+        percentToGain: percentToGain
     };
 
     if (typeof module !== 'undefined' && module.exports) {
