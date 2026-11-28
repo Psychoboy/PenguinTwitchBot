@@ -67,16 +67,28 @@
     }
 
     let soundBundleManager = null;
-    if (typeof DropGamesAudio !== 'undefined' && typeof DropGamesAudio.createSoundBundleManager === 'function') {
-        soundBundleManager = DropGamesAudio.createSoundBundleManager();
+    if (typeof DropGamesAudio !== 'undefined' && typeof DropGamesAudio.createSoundManager === 'function') {
+        soundBundleManager = DropGamesAudio.createSoundManager();
     }
 
     function playSound(soundDto, synthType = 'slide', defaultFreq = 440) {
         if (!soundDto || soundDto.enabled === false) return;
-        const vol = (typeof soundDto.volume === 'number') ? soundDto.volume : 65;
-        const volFrac = Math.max(0, Math.min(1, vol / 100));
+        if (!soundDto.url || soundDto.url.length === 0) return;
 
-        if (soundDto.url && soundDto.url.length > 0) {
+        if (soundBundleManager && typeof soundBundleManager.play === 'function') {
+            const isHighPriority = synthType === 'win' || synthType === 'chime';
+            soundBundleManager.play(soundDto, synthType, isHighPriority);
+            return;
+        }
+
+        const vol = (typeof soundDto.volume === 'number') ? soundDto.volume : 65;
+        const linear = Math.max(0, Math.min(1, vol / 100));
+        const volFrac = (typeof DropGamesAudio !== 'undefined' && typeof DropGamesAudio.percentToGain === 'function')
+            ? DropGamesAudio.percentToGain(vol, 65)
+            : (linear * linear);
+        if (volFrac <= 0) return;
+
+        if (typeof Audio !== 'undefined') {
             try {
                 const a = new Audio(soundDto.url);
                 a.volume = volFrac;
@@ -284,7 +296,11 @@
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
             else if (msg.session && msg.session.headerConfig) Object.assign(headerConfig, msg.session.headerConfig);
 
-            playSound(msg.sounds?.end || { enabled: true }, 'chime', 380);
+            if (msg.sounds) {
+                sessionState.sounds = msg.sounds;
+                if (soundBundleManager) soundBundleManager.updateBundle(msg.sounds);
+            }
+            playSound(msg.sounds?.end || sessionState.sounds?.end || { enabled: true }, 'chime', 380);
         } else if (msg.type === 'curling_slide') {
             DropGamesCommon.broadcastDropActive('curling', 12000);
             handleCurlingSlide(msg);

@@ -295,6 +295,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 var settings = await settingsService.GetSettingsAsync();
                 var cSettings = settings.Curling;
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(cSettings);
+                var theme = DropGameMediaResolver.ResolveTheme(settings, session.ThemeIdOverride, cSettings.ActiveThemeId);
+                var soundBundle = DropGameMediaResolver.ResolveCurlingSoundBundle(cSettings, theme, GetMediaUploadService());
 
                 dto = new DropGameSessionDto
                 {
@@ -315,6 +317,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                     type = "session_end",
                     session = dto,
                     headerConfig,
+                    sounds = soundBundle,
                     isOtherGameActive,
                     activeGames
                 }, _jsonOptions);

@@ -194,7 +194,11 @@
                     soundManager.play(soundDto, type, isHighPriority);
                     return;
                 } else if (typeof Audio !== 'undefined') {
-                    const volFraction = Math.max(0, Math.min(1, (typeof soundDto.volume === 'number' ? soundDto.volume : 70) / 100));
+                    const linear = Math.max(0, Math.min(1, (typeof soundDto.volume === 'number' ? soundDto.volume : 70) / 100));
+                    const volFraction = (typeof DropGamesAudio !== 'undefined' && typeof DropGamesAudio.percentToGain === 'function')
+                        ? DropGamesAudio.percentToGain(soundDto.volume, 70)
+                        : (linear * linear);
+                    if (volFraction <= 0) return;
                     const audio = new Audio(soundDto.url);
                     audio.volume = volFraction;
                     audio.play().catch(() => {});
@@ -1743,10 +1747,15 @@
                     countdownStep = 0;
                     countdownTimer = 600;
                     playSound('countdown_go');
-                    playSound('engine');
                 } else {
                     gameState = 'racing';
                     raceStartTime = performance.now();
+                    const maxVoices = (currentSounds && typeof currentSounds.maxConcurrentSounds === 'number')
+                        ? currentSounds.maxConcurrentSounds
+                        : 1;
+                    if (!soundManager || maxVoices > 1 || soundManager.getActiveCount() === 0) {
+                        playSound('engine');
+                    }
                 }
             }
             return;

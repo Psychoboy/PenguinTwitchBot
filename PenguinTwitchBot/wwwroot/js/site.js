@@ -30,6 +30,16 @@ window.setMediaVolume = function(elementId, volume) {
     }
 };
 
+window.playAudioPreview = function(elementId, volume) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.volume = Math.max(0, Math.min(1, Number(volume) || 0));
+    const playPromise = el.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(function() {});
+    }
+};
+
 window.alertPreviewBridge = (function () {
     const readyFrames = new WeakSet();
     const pendingAlerts = new WeakMap();

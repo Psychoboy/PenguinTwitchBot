@@ -62,12 +62,28 @@
         return null;
     }
 
+    const soundManager = (typeof DropGamesAudio !== 'undefined' && typeof DropGamesAudio.createSoundManager === 'function')
+        ? DropGamesAudio.createSoundManager()
+        : null;
+
     function playSound(soundDto, synthType = 'chime', defaultFreq = 440) {
         if (!soundDto || soundDto.enabled === false) return;
-        const vol = (typeof soundDto.volume === 'number') ? soundDto.volume : 65;
-        const volFrac = Math.max(0, Math.min(1, vol / 100));
+        if (!soundDto.url || soundDto.url.length === 0) return;
 
-        if (soundDto.url && soundDto.url.length > 0) {
+        if (soundManager && typeof soundManager.play === 'function') {
+            const isHighPriority = synthType === 'chime' || synthType === 'bullseye' || synthType === 'land';
+            soundManager.play(soundDto, synthType, isHighPriority);
+            return;
+        }
+
+        const vol = (typeof soundDto.volume === 'number') ? soundDto.volume : 65;
+        const linear = Math.max(0, Math.min(1, vol / 100));
+        const volFrac = (typeof DropGamesAudio !== 'undefined' && typeof DropGamesAudio.percentToGain === 'function')
+            ? DropGamesAudio.percentToGain(vol, 65)
+            : (linear * linear);
+        if (volFrac <= 0) return;
+
+        if (typeof Audio !== 'undefined') {
             try {
                 const a = new Audio(soundDto.url);
                 a.volume = volFrac;
@@ -290,6 +306,7 @@
             }
 
             targetCloud.visibleUntil = performance.now() + sessionState.totalDurationSeconds * 1000 + 4000;
+            if (msg.sounds && soundManager) soundManager.updateBundle(msg.sounds);
             playSound(msg.sounds?.start || { enabled: true }, 'chime', 520);
         } else if (msg.type === 'session_end') {
             sessionState.isActive = false;
@@ -298,8 +315,10 @@
             targetCloud.visibleUntil = performance.now() + 6000;
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
             else if (msg.session && msg.session.headerConfig) Object.assign(headerConfig, msg.session.headerConfig);
-            playSound(msg.sounds?.end || { enabled: true }, 'chime', 380);
+            if (msg.sounds && soundManager) soundManager.updateBundle(msg.sounds);
+            playSound(msg.sounds?.end || (soundManager && soundManager.getBundle()?.end) || { enabled: true }, 'chime', 380);
         } else if (msg.type === 'balloon_drop') {
+            if (msg.sounds && soundManager) soundManager.updateBundle(msg.sounds);
             DropGamesCommon.broadcastDropActive('balloon', 12000);
             try {
                 // Vibrant balloon color palette
